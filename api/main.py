@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import articles, stats
+from api.routes import articles, stats, notes
 
 app = FastAPI(
     title="Cross-Strait Signal API",
@@ -22,6 +22,7 @@ app.add_middleware(
 # Register route modules
 app.include_router(articles.router)
 app.include_router(stats.router)
+app.include_router(notes.router)
 
 @app.get("/")
 def root():

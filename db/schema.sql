@@ -96,6 +96,22 @@ CREATE INDEX idx_entities_name        ON entities(entity_name);
 CREATE INDEX idx_keywords_category    ON keywords_matched(keyword_category);
 
 -- ============================================================
+-- ANALYST COMMENTARY
+-- ============================================================
+
+CREATE TABLE analyst_notes (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id      INTEGER NOT NULL REFERENCES articles(id),
+    note_text       TEXT NOT NULL,           -- your editorial commentary
+    sentiment_override TEXT,                  -- override AI sentiment if wrong
+    topic_override  TEXT,                     -- override AI topic if wrong
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_notes_article ON analyst_notes(article_id);
+
+-- ============================================================
 -- FULL-TEXT SEARCH (SQLite FTS5)
 -- ============================================================
 

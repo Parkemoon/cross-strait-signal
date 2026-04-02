@@ -23,7 +23,7 @@ Analyse the following article and return a JSON object with this exact structure
 {
   "title_en": "English translation of the title (or original if already English)",
   "summary_en": "2-3 sentence English summary of the article's key content and significance",
-  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, ECON_TRADE, ECON_INVEST, POL_DOMESTIC, POL_UNIFICATION, INFO_WARFARE, LEGAL_GREY, HUMANITARIAN",
+  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, ECON_TRADE, ECON_INVEST, POL_DOMESTIC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, HUMANITARIAN",
   "topic_secondary": null,
   "sentiment": "one of: escalatory, conciliatory, neutral, ambiguous",
   "sentiment_score": 0.0,
@@ -58,6 +58,7 @@ IMPORTANT:
 - Extract ALL named entities: people, military units, ships, aircraft, locations, organisations
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON.
 - All strings in the JSON must have special characters properly escaped.
+- Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
 - If the article is not related to cross-strait relations, still classify it using the best-fit topic."""
 
 def analyse_article(title, content, language, source_name):
