@@ -63,8 +63,6 @@ FastAPI Backend
 
 ## Model strategy
 
-Chinese-developed AI models (e.g. DeepSeek) were evaluated and rejected for this project. Their political censorship on cross-strait topics — documented by Taiwan's NSB and multiple independent researchers — would corrupt the analytical layer. A model that refuses to classify PLA exercises as escalatory, or that outputs PRC party-line positions as objective analysis, is worse than useless for intelligence monitoring.
-
 The pipeline uses **Google Gemini 2.5 Flash** as the default processing engine (uncensored, strong Chinese-language performance, cost-effective) with **Anthropic Claude Haiku** available for escalation review on flagged articles.
 
 ## Setup
@@ -122,10 +120,7 @@ API docs available at `http://localhost:8000/docs`
 
 ## Built by
 
-**Ed Moon** — Bilingual English-Mandarin analyst with a decade of senior editorial experience in Taiwan. Former Supervising Editor / News Director at TaiwanPlus; previously Editor at The China Post. MA Taiwan Studies (SOAS), BA Contemporary Chinese Studies (Nottingham).
-
-This project demonstrates the intersection of Mandarin fluency, editorial judgment, and technical capability for intelligence production. The AI layer doesn't replace domain expertise — it makes it scalable.
-
+**Ed Moon** — Bilingual English-Mandarin analyst with a decade of senior editorial experience in Taiwan.
 ## License
 
 MIT
