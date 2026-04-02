@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 # Add project root to path
@@ -141,7 +141,7 @@ def process_unanalysed_articles(limit=10):
             """, (
                 analysis.get('title_en', title),
                 analysis.get('summary_en', ''),
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 article['id']
             ))
 
@@ -208,8 +208,7 @@ def process_unanalysed_articles(limit=10):
             # Mark as processed anyway so we don't retry forever
             conn.execute(
                 "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
-                (datetime.utcnow().isoformat(), article['id'])
-            )
+                datetime.now(timezone.utc).isoformat(), article['id'])
             conn.commit()
 
     conn.close()
