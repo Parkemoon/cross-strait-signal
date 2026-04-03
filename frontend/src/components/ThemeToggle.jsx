@@ -5,7 +5,7 @@ export default function ThemeToggle() {
     if (typeof window !== "undefined") {
       return window.matchMedia("(prefers-color-scheme: dark)").matches;
     }
-    return true;
+    return false;
   });
 
   useEffect(() => {
@@ -16,16 +16,18 @@ export default function ThemeToggle() {
     <button
       onClick={() => setDark(!dark)}
       style={{
-        background: "var(--bg-card)",
-        color: "var(--text-secondary)",
-        border: "1px solid var(--border-color)",
-        borderRadius: "6px",
-        padding: "6px 12px",
+        background: dark ? "#333" : "#e8e6e1",
+        color: dark ? "#e8e6e1" : "#1c1c1c",
+        border: "none",
+        borderRadius: "20px",
+        padding: "5px 14px",
         cursor: "pointer",
-        fontSize: "14px",
+        fontSize: "12px",
+        fontFamily: "var(--font-mono)",
+        transition: "all 0.2s",
       }}
     >
-      {dark ? "☀ Light" : "● Dark"}
+      {dark ? "☀ Light" : "☽ Dark"}
     </button>
   );
 }

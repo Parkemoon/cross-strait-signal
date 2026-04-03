@@ -1,6 +1,6 @@
 const SOURCE_COLORS = {
-  PRC: { bg: "#e53e3e22", border: "#e53e3e", text: "#e53e3e" },
-  TW: { bg: "#3182ce22", border: "#3182ce", text: "#3182ce" },
+  PRC: { bg: "var(--accent-red)", text: "#fff" },
+  TW: { bg: "var(--accent-blue)", text: "#fff" },
 };
 
 const SOURCE_ABBREV = {
@@ -18,19 +18,19 @@ const SOURCE_ABBREV = {
 
 export default function SourceBadge({ sourceName, country }) {
   const colors = SOURCE_COLORS[country] || SOURCE_COLORS.PRC;
-  const abbrev = SOURCE_ABBREV[sourceName] || sourceName?.slice(0, 3).toUpperCase();
+  const abbrev =
+    SOURCE_ABBREV[sourceName] || sourceName?.slice(0, 3).toUpperCase();
 
   return (
     <span
       style={{
         background: colors.bg,
-        border: `1px solid ${colors.border}`,
         color: colors.text,
         padding: "2px 8px",
-        borderRadius: "3px",
-        fontSize: "11px",
-        fontWeight: 700,
-        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+        borderRadius: "2px",
+        fontSize: "10px",
+        fontWeight: 600,
+        fontFamily: "var(--font-mono)",
         letterSpacing: "0.5px",
       }}
     >

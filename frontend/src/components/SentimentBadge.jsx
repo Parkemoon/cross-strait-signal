@@ -1,8 +1,8 @@
 const SENTIMENT_STYLES = {
-  escalatory: { color: "#e53e3e", label: "ESCALATORY" },
-  conciliatory: { color: "#38a169", label: "CONCILIATORY" },
-  neutral: { color: "#718096", label: "NEUTRAL" },
-  ambiguous: { color: "#d69e2e", label: "AMBIGUOUS" },
+  escalatory: { color: "var(--accent-red)", label: "Escalatory" },
+  conciliatory: { color: "var(--accent-green)", label: "Conciliatory" },
+  neutral: { color: "var(--text-muted)", label: "Neutral" },
+  ambiguous: { color: "var(--accent-amber)", label: "Ambiguous" },
 };
 
 export default function SentimentBadge({ sentiment, score }) {
@@ -13,11 +13,15 @@ export default function SentimentBadge({ sentiment, score }) {
       style={{
         color: style.color,
         fontSize: "11px",
-        fontWeight: 600,
-        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+        fontWeight: 500,
+        fontFamily: "var(--font-mono)",
       }}
     >
-      {style.label} ({score > 0 ? "+" : ""}{score?.toFixed(1)})
+      {style.label}
+      <span style={{ opacity: 0.6, marginLeft: "4px" }}>
+        {score > 0 ? "+" : ""}
+        {score?.toFixed(1)}
+      </span>
     </span>
   );
 }

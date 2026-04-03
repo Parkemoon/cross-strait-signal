@@ -27,7 +27,7 @@ async def main():
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
-    process_unanalysed_articles(limit=10)
+    process_unanalysed_articles(limit=100)
 
     print("\n" + "=" * 60)
     print("Pipeline complete.")

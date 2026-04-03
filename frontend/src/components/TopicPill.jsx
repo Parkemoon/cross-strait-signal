@@ -1,36 +1,52 @@
+const TOPIC_LABELS = {
+  MIL_EXERCISE: "Military Exercise",
+  MIL_MOVEMENT: "Force Movement",
+  MIL_HARDWARE: "Hardware",
+  DIP_STATEMENT: "Diplomacy",
+  DIP_VISIT: "State Visit",
+  DIP_SANCTIONS: "Sanctions",
+  ECON_TRADE: "Trade",
+  ECON_INVEST: "Investment",
+  POL_DOMESTIC: "Domestic",
+  POL_TONGDU: "統獨",
+  INFO_WARFARE: "Info Warfare",
+  LEGAL_GREY: "Grey Zone",
+  HUMANITARIAN: "Humanitarian",
+};
+
 const TOPIC_COLORS = {
-  MIL_EXERCISE: "#e53e3e",
-  MIL_MOVEMENT: "#e53e3e",
-  MIL_HARDWARE: "#c53030",
-  DIP_STATEMENT: "#d69e2e",
-  DIP_VISIT: "#d69e2e",
-  DIP_SANCTIONS: "#dd6b20",
-  ECON_TRADE: "#38a169",
-  ECON_INVEST: "#38a169",
-  POL_DOMESTIC: "#805ad5",
-  POL_TONGDU: "#e53e3e",
-  INFO_WARFARE: "#d69e2e",
-  LEGAL_GREY: "#dd6b20",
-  HUMANITARIAN: "#3182ce",
+  MIL_EXERCISE: "var(--accent-red)",
+  MIL_MOVEMENT: "var(--accent-red)",
+  MIL_HARDWARE: "var(--accent-red)",
+  DIP_STATEMENT: "var(--accent-amber)",
+  DIP_VISIT: "var(--accent-amber)",
+  DIP_SANCTIONS: "var(--accent-amber)",
+  ECON_TRADE: "var(--accent-green)",
+  ECON_INVEST: "var(--accent-green)",
+  POL_DOMESTIC: "var(--accent-purple)",
+  POL_TONGDU: "var(--accent-red)",
+  INFO_WARFARE: "var(--accent-amber)",
+  LEGAL_GREY: "var(--accent-teal)",
+  HUMANITARIAN: "var(--accent-blue)",
 };
 
 export default function TopicPill({ topic }) {
-  const color = TOPIC_COLORS[topic] || "#718096";
+  const color = TOPIC_COLORS[topic] || "var(--text-muted)";
+  const label = TOPIC_LABELS[topic] || topic?.replace(/_/g, " ");
 
   return (
     <span
       style={{
-        border: `1px solid ${color}66`,
+        border: `1px solid ${color}`,
         color: color,
-        padding: "2px 8px",
-        borderRadius: "3px",
+        padding: "2px 10px",
+        borderRadius: "2px",
         fontSize: "11px",
-        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-        textTransform: "uppercase",
-        letterSpacing: "0.5px",
+        fontFamily: "var(--font-mono)",
+        letterSpacing: "0.3px",
       }}
     >
-      {topic?.replace(/_/g, "-")}
+      {label}
     </span>
   );
 }

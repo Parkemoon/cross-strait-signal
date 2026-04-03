@@ -14,11 +14,9 @@ export default function App() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
 
-  // Fetch articles when filters or page change
   useEffect(() => {
     setLoading(true);
     const params = { ...filters, page, page_size: 20 };
-    // Remove undefined values
     Object.keys(params).forEach(
       (k) => params[k] === undefined && delete params[k]
     );
@@ -29,61 +27,52 @@ export default function App() {
     });
   }, [filters, page]);
 
-  // Fetch stats on load
   useEffect(() => {
     fetchStats(30).then(setStats);
   }, []);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--bg-primary)",
-        color: "var(--text-primary)",
-      }}
-    >
-      {/* Header */}
+    <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
+      {/* Header — dark bar */}
       <header
         style={{
-          borderBottom: "1px solid var(--border-color)",
-          padding: "16px 24px",
+          background: "var(--header-bg)",
+          color: "var(--header-text)",
+          padding: "14px 28px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          background: "var(--bg-secondary)",
         }}
       >
-        <div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "16px" }}>
           <h1
             style={{
-              fontSize: "20px",
-              fontWeight: 700,
-              letterSpacing: "1px",
-              margin: 0,
-              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: "22px",
+              fontFamily: "var(--font-headline)",
+              fontWeight: 400,
+              letterSpacing: "0.5px",
             }}
           >
-            CROSS-STRAIT SIGNAL
+            Cross-Strait Signal
           </h1>
-          <p
-            style={{
-              fontSize: "11px",
-              color: "var(--text-muted)",
-              margin: "2px 0 0 0",
-              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-              textTransform: "uppercase",
-              letterSpacing: "1.5px",
-            }}
-          >
-            Intelligence Dashboard
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <span
             style={{
               fontSize: "11px",
-              color: "var(--text-muted)",
-              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontFamily: "var(--font-mono)",
+              opacity: 0.5,
+              textTransform: "uppercase",
+              letterSpacing: "2px",
+            }}
+          >
+            Open-Source Intelligence
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+          <span
+            style={{
+              fontSize: "11px",
+              fontFamily: "var(--font-mono)",
+              opacity: 0.5,
             }}
           >
             {total} articles · {stats?.escalation_signals?.length || 0} signals
@@ -96,22 +85,66 @@ export default function App() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: "24px",
-          padding: "24px",
-          maxWidth: "1400px",
-          margin: "0 auto",
+          gridTemplateColumns: "280px 1fr",
+          minHeight: "calc(100vh - 52px)",
         }}
       >
         {/* Sidebar */}
-        <aside>
+        <aside
+          style={{
+            background: "var(--sidebar-bg)",
+            borderRight: "1px solid var(--border-color)",
+            padding: "24px 20px",
+            overflowY: "auto",
+          }}
+        >
           <StatsSidebar stats={stats} />
         </aside>
 
         {/* Main content */}
-        <main>
-          {/* Flash traffic */}
+        <main style={{ padding: "28px 32px" }}>
+          {/* Priority Signals */}
           <FlashTraffic escalations={stats?.escalation_signals} />
+
+          {/* Section header */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: "6px",
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: "var(--font-headline)",
+                fontSize: "24px",
+                fontWeight: 400,
+                color: "var(--text-primary)",
+              }}
+            >
+              Signal Feed
+            </h2>
+            <span
+              style={{
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                color: "var(--text-muted)",
+              }}
+            >
+              {total} results
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div
+            style={{
+              height: "2px",
+              background: "var(--text-primary)",
+              marginBottom: "16px",
+              opacity: 0.15,
+            }}
+          />
 
           {/* Filters */}
           <FilterBar filters={filters} setFilters={setFilters} />
@@ -121,8 +154,9 @@ export default function App() {
             <p
               style={{
                 color: "var(--text-muted)",
-                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: "13px",
+                padding: "40px 0",
               }}
             >
               Loading...
@@ -131,8 +165,9 @@ export default function App() {
             <p
               style={{
                 color: "var(--text-muted)",
-                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: "13px",
+                padding: "40px 0",
               }}
             >
               No articles match these filters.
@@ -149,31 +184,32 @@ export default function App() {
                   display: "flex",
                   justifyContent: "center",
                   gap: "12px",
-                  marginTop: "20px",
+                  marginTop: "24px",
+                  paddingBottom: "40px",
                 }}
               >
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
                   style={{
-                    padding: "6px 16px",
+                    padding: "8px 20px",
                     background: "var(--bg-card)",
-                    color: "var(--text-secondary)",
+                    color: page <= 1 ? "var(--text-muted)" : "var(--text-secondary)",
                     border: "1px solid var(--border-color)",
                     borderRadius: "4px",
                     cursor: page <= 1 ? "not-allowed" : "pointer",
-                    fontSize: "12px",
-                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: "13px",
+                    fontFamily: "var(--font-body)",
                   }}
                 >
-                  ← Prev
+                  ← Previous
                 </button>
                 <span
                   style={{
-                    padding: "6px 0",
+                    padding: "8px 0",
                     fontSize: "12px",
                     color: "var(--text-muted)",
-                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}
                 >
                   Page {page}
@@ -182,14 +218,14 @@ export default function App() {
                   onClick={() => setPage((p) => p + 1)}
                   disabled={articles.length < 20}
                   style={{
-                    padding: "6px 16px",
+                    padding: "8px 20px",
                     background: "var(--bg-card)",
-                    color: "var(--text-secondary)",
+                    color: articles.length < 20 ? "var(--text-muted)" : "var(--text-secondary)",
                     border: "1px solid var(--border-color)",
                     borderRadius: "4px",
                     cursor: articles.length < 20 ? "not-allowed" : "pointer",
-                    fontSize: "12px",
-                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: "13px",
+                    fontFamily: "var(--font-body)",
                   }}
                 >
                   Next →
@@ -204,15 +240,17 @@ export default function App() {
       <footer
         style={{
           borderTop: "1px solid var(--border-color)",
-          padding: "16px 24px",
-          textAlign: "center",
+          padding: "14px 28px",
+          display: "flex",
+          justifyContent: "space-between",
           fontSize: "11px",
           color: "var(--text-muted)",
-          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontFamily: "var(--font-mono)",
+          background: "var(--bg-secondary)",
         }}
       >
-        Cross-Strait Signal · Built by Ed Moon · {stats?.total_articles || 0}{" "}
-        articles analysed
+        <span>Cross-Strait Signal · Ed Moon</span>
+        <span>{stats?.total_articles || 0} articles processed</span>
       </footer>
     </div>
   );

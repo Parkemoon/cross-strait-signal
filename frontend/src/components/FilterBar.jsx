@@ -6,6 +6,22 @@ const TOPICS = [
   "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN",
 ];
 
+const TOPIC_LABELS = {
+  MIL_EXERCISE: "Military Exercise",
+  MIL_MOVEMENT: "Force Movement",
+  MIL_HARDWARE: "Hardware",
+  DIP_STATEMENT: "Diplomacy",
+  DIP_VISIT: "State Visit",
+  DIP_SANCTIONS: "Sanctions",
+  ECON_TRADE: "Trade",
+  ECON_INVEST: "Investment",
+  POL_DOMESTIC: "Domestic",
+  POL_TONGDU: "統獨 Spectrum",
+  INFO_WARFARE: "Info Warfare",
+  LEGAL_GREY: "Grey Zone",
+  HUMANITARIAN: "Humanitarian",
+};
+
 export default function FilterBar({ filters, setFilters }) {
   const update = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }));
@@ -15,10 +31,12 @@ export default function FilterBar({ filters, setFilters }) {
     background: "var(--bg-card)",
     color: "var(--text-primary)",
     border: "1px solid var(--border-color)",
-    borderRadius: "4px",
-    padding: "6px 10px",
-    fontSize: "12px",
-    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+    borderRadius: "3px",
+    padding: "7px 12px",
+    fontSize: "13px",
+    fontFamily: "var(--font-body)",
+    cursor: "pointer",
+    appearance: "auto",
   };
 
   return (
@@ -39,7 +57,7 @@ export default function FilterBar({ filters, setFilters }) {
         <option value="">All Topics</option>
         {TOPICS.map((t) => (
           <option key={t} value={t}>
-            {t.replace(/_/g, "-")}
+            {TOPIC_LABELS[t] || t}
           </option>
         ))}
       </select>
@@ -62,37 +80,42 @@ export default function FilterBar({ filters, setFilters }) {
         style={selectStyle}
       >
         <option value="">All Sources</option>
-        <option value="PRC">PRC</option>
-        <option value="TW">Taiwan</option>
+        <option value="PRC">PRC Sources</option>
+        <option value="TW">Taiwan Sources</option>
       </select>
 
       <label
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "4px",
-          fontSize: "12px",
+          gap: "5px",
+          fontSize: "13px",
           color: "var(--text-secondary)",
           cursor: "pointer",
-          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontFamily: "var(--font-body)",
+          padding: "0 4px",
         }}
       >
         <input
           type="checkbox"
           checked={filters.escalation_only || false}
-          onChange={(e) => update("escalation_only", e.target.checked || undefined)}
+          onChange={(e) =>
+            update("escalation_only", e.target.checked || undefined)
+          }
+          style={{ accentColor: "var(--accent-red)" }}
         />
-        Escalation signals only
+        Signals only
       </label>
 
       <input
         type="text"
-        placeholder="Search..."
+        placeholder="Search articles..."
         value={filters.search || ""}
         onChange={(e) => update("search", e.target.value)}
         style={{
           ...selectStyle,
-          minWidth: "150px",
+          minWidth: "160px",
+          marginLeft: "auto",
         }}
       />
     </div>

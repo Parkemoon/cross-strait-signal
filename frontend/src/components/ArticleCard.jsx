@@ -17,21 +17,15 @@ export default function ArticleCard({ article }) {
   };
 
   return (
-    <div
+    <article
       style={{
-        background: "var(--bg-card)",
-        borderLeft: article.is_escalation_signal
-          ? "3px solid var(--accent-red)"
-          : "3px solid transparent",
-        padding: "16px 20px",
-        marginBottom: "10px",
-        borderRadius: "4px",
+        borderBottom: "1px solid var(--border-color)",
+        padding: "18px 0",
         cursor: "pointer",
-        transition: "border-color 0.2s",
       }}
       onClick={() => setExpanded(!expanded)}
     >
-      {/* Header row */}
+      {/* Metadata row */}
       <div
         style={{
           display: "flex",
@@ -45,6 +39,7 @@ export default function ArticleCard({ article }) {
           sourceName={article.source_name}
           country={article.source_country}
         />
+        <TopicPill topic={article.topic_primary} />
         <SentimentBadge
           sentiment={article.sentiment}
           score={article.sentiment_score}
@@ -53,7 +48,8 @@ export default function ArticleCard({ article }) {
           style={{
             color: "var(--text-muted)",
             fontSize: "12px",
-            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontFamily: "var(--font-mono)",
+            marginLeft: "auto",
           }}
         >
           {article.published_at?.slice(0, 10)}
@@ -63,22 +59,25 @@ export default function ArticleCard({ article }) {
             style={{
               background: "var(--accent-red)",
               color: "#fff",
-              padding: "1px 6px",
-              borderRadius: "3px",
+              padding: "1px 8px",
+              borderRadius: "2px",
               fontSize: "10px",
-              fontWeight: 700,
+              fontWeight: 600,
+              fontFamily: "var(--font-mono)",
             }}
           >
-            ⚠ SIGNAL
+            SIGNAL
           </span>
         )}
       </div>
 
-      {/* Title */}
+      {/* Headline — serif */}
       <h3
         style={{
-          fontSize: "15px",
-          fontWeight: 600,
+          fontFamily: "var(--font-headline)",
+          fontSize: "18px",
+          fontWeight: 400,
+          lineHeight: 1.4,
           marginBottom: "4px",
           color: "var(--text-primary)",
         }}
@@ -86,13 +85,14 @@ export default function ArticleCard({ article }) {
         {article.title_en || article.title_original}
       </h3>
 
-      {/* Original title if different */}
+      {/* Original language title */}
       {article.title_en && article.title_original !== article.title_en && (
         <p
           style={{
-            fontSize: "13px",
+            fontSize: "14px",
             color: "var(--text-muted)",
             marginBottom: "8px",
+            fontFamily: "var(--font-body)",
           }}
         >
           {article.title_original}
@@ -102,52 +102,45 @@ export default function ArticleCard({ article }) {
       {/* Summary */}
       <p
         style={{
-          fontSize: "13px",
+          fontSize: "14px",
+          fontFamily: "var(--font-body)",
           color: "var(--text-secondary)",
-          lineHeight: 1.6,
-          marginBottom: "10px",
+          lineHeight: 1.65,
         }}
       >
         {article.summary_en}
       </p>
 
-      {/* Topic pills */}
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-        <TopicPill topic={article.topic_primary} />
-        {article.topic_secondary && (
-          <TopicPill topic={article.topic_secondary} />
-        )}
-      </div>
-
-      {/* Expanded section */}
+      {/* Expanded detail */}
       {expanded && (
         <div
           style={{
-            marginTop: "16px",
-            paddingTop: "16px",
-            borderTop: "1px solid var(--border-color)",
+            marginTop: "18px",
+            paddingTop: "18px",
+            borderTop: "1px dashed var(--border-color)",
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Entities */}
           {article.entities && article.entities.length > 0 && (
-            <div style={{ marginBottom: "12px" }}>
-              <span
+            <div style={{ marginBottom: "16px" }}>
+              <h4
                 style={{
                   fontSize: "11px",
+                  fontFamily: "var(--font-mono)",
                   color: "var(--text-muted)",
                   textTransform: "uppercase",
-                  letterSpacing: "1px",
+                  letterSpacing: "1.5px",
+                  marginBottom: "8px",
                 }}
               >
-                Entities:
-              </span>
+                Extracted Entities
+              </h4>
               <div
                 style={{
                   display: "flex",
                   gap: "6px",
                   flexWrap: "wrap",
-                  marginTop: "4px",
                 }}
               >
                 {article.entities.map((e, i) => (
@@ -156,12 +149,16 @@ export default function ArticleCard({ article }) {
                     style={{
                       background: "var(--tag-bg)",
                       color: "var(--tag-text)",
-                      padding: "2px 8px",
-                      borderRadius: "3px",
+                      padding: "3px 10px",
+                      borderRadius: "2px",
                       fontSize: "12px",
+                      fontFamily: "var(--font-body)",
                     }}
                   >
-                    {e.entity_name_en || e.entity_name} ({e.entity_type})
+                    {e.entity_name_en || e.entity_name}
+                    <span style={{ opacity: 0.5, marginLeft: "4px" }}>
+                      {e.entity_type}
+                    </span>
                   </span>
                 ))}
               </div>
@@ -170,34 +167,44 @@ export default function ArticleCard({ article }) {
 
           {/* Key quote */}
           {article.key_quote && (
-            <div style={{ marginBottom: "12px" }}>
-              <span
+            <div style={{ marginBottom: "16px" }}>
+              <h4
                 style={{
                   fontSize: "11px",
+                  fontFamily: "var(--font-mono)",
                   color: "var(--text-muted)",
                   textTransform: "uppercase",
-                  letterSpacing: "1px",
+                  letterSpacing: "1.5px",
+                  marginBottom: "8px",
                 }}
               >
-                Key Quote:
-              </span>
-              <p
+                Key Quote
+              </h4>
+              <blockquote
                 style={{
-                  fontSize: "13px",
+                  borderLeft: "3px solid var(--accent-teal)",
+                  paddingLeft: "14px",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "14px",
                   color: "var(--text-secondary)",
                   fontStyle: "italic",
-                  marginTop: "4px",
-                  lineHeight: 1.5,
+                  lineHeight: 1.6,
                 }}
               >
-                "{article.key_quote}"
+                {article.key_quote}
                 {article.key_quote_en && (
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {" "}
-                    — "{article.key_quote_en}"
-                  </span>
+                  <p
+                    style={{
+                      color: "var(--text-muted)",
+                      marginTop: "4px",
+                      fontStyle: "normal",
+                      fontSize: "13px",
+                    }}
+                  >
+                    — {article.key_quote_en}
+                  </p>
                 )}
-              </p>
+              </blockquote>
             </div>
           )}
 
@@ -208,55 +215,60 @@ export default function ArticleCard({ article }) {
             rel="noopener noreferrer"
             style={{
               fontSize: "12px",
-              color: "var(--accent-blue)",
+              fontFamily: "var(--font-mono)",
+              color: "var(--accent-teal)",
               textDecoration: "none",
             }}
           >
-            View original →
+            View original source →
           </a>
 
-          {/* Analyst note */}
-          <div style={{ marginTop: "16px" }}>
-            <span
+          {/* Analyst commentary */}
+          <div style={{ marginTop: "20px" }}>
+            <h4
               style={{
                 fontSize: "11px",
+                fontFamily: "var(--font-mono)",
                 color: "var(--text-muted)",
                 textTransform: "uppercase",
-                letterSpacing: "1px",
+                letterSpacing: "1.5px",
+                marginBottom: "8px",
               }}
             >
-              Analyst Commentary:
-            </span>
+              Analyst Commentary
+            </h4>
             <textarea
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Add your analysis..."
+              placeholder="Add editorial analysis or context..."
               style={{
                 width: "100%",
-                marginTop: "6px",
-                padding: "10px",
+                padding: "12px",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
-                fontSize: "13px",
-                minHeight: "60px",
+                borderRadius: "3px",
+                fontSize: "14px",
+                fontFamily: "var(--font-body)",
+                minHeight: "70px",
                 resize: "vertical",
-                fontFamily: "inherit",
+                lineHeight: 1.5,
               }}
             />
             <button
               onClick={handleSaveNote}
               style={{
-                marginTop: "6px",
-                padding: "6px 16px",
-                background: noteSaved ? "var(--accent-green)" : "var(--accent-blue)",
+                marginTop: "8px",
+                padding: "7px 20px",
+                background: noteSaved ? "var(--accent-green)" : "var(--accent-teal)",
                 color: "#fff",
                 border: "none",
-                borderRadius: "4px",
-                fontSize: "12px",
-                cursor: "pointer",
+                borderRadius: "3px",
+                fontSize: "13px",
+                fontFamily: "var(--font-body)",
                 fontWeight: 600,
+                cursor: "pointer",
+                transition: "background 0.2s",
               }}
             >
               {noteSaved ? "✓ Saved" : "Save Note"}
@@ -264,6 +276,6 @@ export default function ArticleCard({ article }) {
           </div>
         </div>
       )}
-    </div>
+    </article>
   );
 }

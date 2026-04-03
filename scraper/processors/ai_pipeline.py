@@ -3,6 +3,7 @@ import sys
 import json
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from scraper.processors.keyword_filter import check_relevance
 
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -56,10 +57,10 @@ IMPORTANT:
 - Only flag is_escalation_signal for genuinely significant developments, not routine rhetoric
 - urgency: flash = breaking/status quo change, priority = notable, routine = standard coverage
 - Extract ALL named entities: people, military units, ships, aircraft, locations, organisations
-- Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON.
 - All strings in the JSON must have special characters properly escaped.
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
-- If the article is not related to cross-strait relations, still classify it using the best-fit topic."""
+- - RELEVANCE: If the article has NO connection to cross-strait relations, China-Taiwan dynamics, PRC foreign policy, or the wider Indo-Pacific security environment, set topic_primary to "NOT_RELEVANT" and confidence to 0.0. Do not force-classify unrelated articles into the taxonomy.
+- Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
 
 def analyse_article(title, content, language, source_name):
     """Send one article to Gemini and return structured analysis."""
@@ -73,7 +74,7 @@ FULL TEXT:
 {content[:5000]}"""
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.5-flash-lite",
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -117,7 +118,37 @@ def process_unanalysed_articles(limit=10):
         conn.close()
         return
 
-    print(f"Processing {len(articles)} articles...\n")
+    # Pre-filter: check keyword relevance before spending API tokens
+    relevant_articles = []
+    filtered_count = 0
+    
+    for article in articles:
+        is_relevant, categories, keywords = check_relevance(
+            article['title_original'],
+            article['content_original'],
+            article['language']
+        )
+        
+        if is_relevant:
+            relevant_articles.append(article)
+        else:
+            # Mark as filtered — won't be processed again
+            conn.execute(
+                "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), article['id']))
+            filtered_count += 1
+    
+    conn.commit()
+    
+    print(f"Pre-filter: {len(articles)} articles checked, {len(relevant_articles)} relevant, {filtered_count} filtered out\n")
+    
+    if not relevant_articles:
+        print("No relevant articles to process.")
+        conn.close()
+        return
+
+    articles = relevant_articles
+    print(f"Processing {len(articles)} relevant articles...\n")
 
     success_count = 0
     error_count = 0
@@ -133,6 +164,16 @@ def process_unanalysed_articles(limit=10):
                 language=article['language'],
                 source_name=article['source_name']
             )
+
+            # Skip articles the AI identifies as irrelevant
+            if analysis.get('topic_primary') == 'NOT_RELEVANT':
+                conn.execute(
+                    "UPDATE articles SET ai_processed = -1, ai_processed_at = ? WHERE id = ?",
+                    (datetime.now(timezone.utc).isoformat(), article['id'])
+                )
+                conn.commit()
+                print(f"    Skipped: not relevant to cross-strait monitoring")
+                continue
 
             # Update the article with translation
             conn.execute("""
@@ -167,7 +208,7 @@ def process_unanalysed_articles(limit=10):
                 analysis.get('is_new_formulation', False),
                 analysis.get('is_escalation_signal', False),
                 analysis.get('escalation_note'),
-                'gemini-2.5-flash',
+                analysis.get('_model_used', 'gemini-2.5-flash-lite'),
                 analysis.get('confidence', 0.0)
             ))
 
@@ -200,6 +241,48 @@ def process_unanalysed_articles(limit=10):
                 ))
 
             conn.commit()
+
+            # Escalation review: re-analyse with Flash for flagged articles
+            if analysis.get('is_escalation_signal') or analysis.get('urgency') == 'flash':
+                try:
+                    review = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=f"""{ANALYSIS_SYSTEM_PROMPT}
+
+SOURCE: {article['source_name']}
+LANGUAGE: {article['language']}
+TITLE: {title}
+
+FULL TEXT:
+{article['content_original'][:5000]}""",
+                        config={
+                            "response_mime_type": "application/json",
+                            "max_output_tokens": 8000
+                        }
+                    )
+                    review_analysis = json.loads(review.text)
+                    analysis['sentiment'] = review_analysis.get('sentiment', analysis['sentiment'])
+                    analysis['sentiment_score'] = review_analysis.get('sentiment_score', analysis['sentiment_score'])
+                    analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis['is_escalation_signal'])
+                    analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
+                    analysis['entities'] = review_analysis.get('entities', analysis.get('entities', []))
+                    # Update the database with Flash's assessment
+                    conn.execute("""
+                        UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
+                        is_escalation_signal = ?, escalation_note = ?, model_used = ?
+                        WHERE article_id = ?
+                    """, (
+                        analysis['sentiment'], analysis['sentiment_score'],
+                        analysis['is_escalation_signal'], analysis.get('escalation_note'),
+                        'gemini-2.5-flash (review)', article['id']
+                    ))
+                    conn.commit()
+                    print(f"    ↳ Escalation review (Flash): Sentiment={analysis['sentiment']} | Confirmed={analysis['is_escalation_signal']}")
+                except Exception as e:
+                    print(f"    ↳ Escalation review failed: {e}")
+
+            import time
+            time.sleep(0.3)
             success_count += 1
             print(f"    Topic: {analysis.get('topic_primary')} | Sentiment: {analysis.get('sentiment')} | Escalation: {analysis.get('is_escalation_signal')}")
 
