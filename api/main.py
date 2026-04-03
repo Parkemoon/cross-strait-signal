@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import articles, stats, notes
+from api.routes.review import router as review_router
 
 app = FastAPI(
     title="Cross-Strait Signal API",
@@ -10,7 +11,6 @@ app = FastAPI(
 )
 
 # Allow the React frontend to call this API
-# (they'll run on different ports during development)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, restrict this to your domain
@@ -23,6 +23,7 @@ app.add_middleware(
 app.include_router(articles.router)
 app.include_router(stats.router)
 app.include_router(notes.router)
+app.include_router(review_router)
 
 @app.get("/")
 def root():

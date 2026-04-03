@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from scraper.processors.keyword_filter import check_relevance
@@ -59,8 +60,10 @@ IMPORTANT:
 - Extract ALL named entities: people, military units, ships, aircraft, locations, organisations
 - All strings in the JSON must have special characters properly escaped.
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
-- - RELEVANCE: If the article has NO connection to cross-strait relations, China-Taiwan dynamics, PRC foreign policy, or the wider Indo-Pacific security environment, set topic_primary to "NOT_RELEVANT" and confidence to 0.0. Do not force-classify unrelated articles into the taxonomy.
+- RELEVANCE: If the article has NO connection to cross-strait relations, China-Taiwan dynamics, PRC foreign policy, or the wider Indo-Pacific security environment, set topic_primary to "NOT_RELEVANT" and confidence to 0.0. Do not force-classify unrelated articles into the taxonomy.
+- If the article is primarily about a third-party conflict (e.g. US-Iran, Russia-Ukraine) and China's role is only peripheral (diplomatic statements, observer commentary), set topic_primary to "NOT_RELEVANT".
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
+
 
 def analyse_article(title, content, language, source_name):
     """Send one article to Gemini and return structured analysis."""
@@ -85,26 +88,21 @@ FULL TEXT:
     try:
         return json.loads(response.text)
     except json.JSONDecodeError:
-        # Sometimes the model returns JSON wrapped in markdown code blocks
         text = response.text.strip()
         if text.startswith("```"):
-            text = text.split("\n", 1)[1]  # Remove first line
-            text = text.rsplit("```", 1)[0]  # Remove last ```
+            text = text.split("\n", 1)[1]
+            text = text.rsplit("```", 1)[0]
         return json.loads(text)
 
 
 def process_unanalysed_articles(limit=10):
-    """Find articles that haven't been analysed yet and process them.
-    
-    Args:
-        limit: Maximum number of articles to process in one run (to control API costs)
-    """
+    """Find articles that haven't been analysed yet and process them."""
     conn = get_connection()
 
-    # Get unprocessed articles, joined with their source info
     articles = conn.execute("""
         SELECT articles.id, articles.title_original, articles.content_original,
-               articles.language, sources.name as source_name
+               articles.language, sources.name as source_name,
+               sources.country as source_country
         FROM articles
         JOIN sources ON articles.source_id = sources.id
         WHERE articles.ai_processed = 0
@@ -121,27 +119,28 @@ def process_unanalysed_articles(limit=10):
     # Pre-filter: check keyword relevance before spending API tokens
     relevant_articles = []
     filtered_count = 0
-    
+
     for article in articles:
         is_relevant, categories, keywords = check_relevance(
             article['title_original'],
             article['content_original'],
-            article['language']
+            article['language'],
+            source_country=article['source_country']
         )
-        
+
         if is_relevant:
             relevant_articles.append(article)
         else:
-            # Mark as filtered — won't be processed again
             conn.execute(
                 "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
-                (datetime.now(timezone.utc).isoformat(), article['id']))
+                (datetime.now(timezone.utc).isoformat(), article['id'])
+            )
             filtered_count += 1
-    
+
     conn.commit()
-    
+
     print(f"Pre-filter: {len(articles)} articles checked, {len(relevant_articles)} relevant, {filtered_count} filtered out\n")
-    
+
     if not relevant_articles:
         print("No relevant articles to process.")
         conn.close()
@@ -162,13 +161,15 @@ def process_unanalysed_articles(limit=10):
                 title=title,
                 content=article['content_original'],
                 language=article['language'],
-                source_name=article['source_name'])
+                source_name=article['source_name']
+            )
 
             # Skip articles the AI identifies as irrelevant
             if analysis.get('topic_primary') == 'NOT_RELEVANT':
                 conn.execute(
                     "UPDATE articles SET ai_processed = -1, ai_processed_at = ? WHERE id = ?",
-                    (datetime.now(timezone.utc).isoformat(), article['id']))
+                    (datetime.now(timezone.utc).isoformat(), article['id'])
+                )
                 conn.commit()
                 print(f"    Skipped: not relevant to cross-strait monitoring")
                 continue
@@ -182,7 +183,8 @@ def process_unanalysed_articles(limit=10):
                 analysis.get('title_en', title),
                 analysis.get('summary_en', ''),
                 datetime.now(timezone.utc).isoformat(),
-                article['id']))
+                article['id']
+            ))
 
             # Insert analysis results
             conn.execute("""
@@ -242,6 +244,12 @@ def process_unanalysed_articles(limit=10):
             # Escalation review: re-analyse with Flash for flagged articles
             if analysis.get('is_escalation_signal') or analysis.get('urgency') == 'flash':
                 try:
+                    # Save Flash Lite values BEFORE overwriting with Flash review
+                    lite_sentiment = analysis.get('sentiment')
+                    lite_escalation = analysis.get('is_escalation_signal')
+                    lite_topic = analysis.get('topic_primary')
+                    lite_confidence = analysis.get('confidence', 1.0)
+
                     review = client.models.generate_content(
                         model="gemini-2.5-flash",
                         contents=f"""{ANALYSIS_SYSTEM_PROMPT}
@@ -258,11 +266,14 @@ FULL TEXT:
                         }
                     )
                     review_analysis = json.loads(review.text)
+
+                    # Update analysis dict with Flash's assessment
                     analysis['sentiment'] = review_analysis.get('sentiment', analysis['sentiment'])
                     analysis['sentiment_score'] = review_analysis.get('sentiment_score', analysis['sentiment_score'])
                     analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis['is_escalation_signal'])
                     analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
                     analysis['entities'] = review_analysis.get('entities', analysis.get('entities', []))
+
                     # Update the database with Flash's assessment
                     conn.execute("""
                         UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
@@ -274,11 +285,46 @@ FULL TEXT:
                         'gemini-2.5-flash (review)', article['id']
                     ))
                     conn.commit()
+
+                    # --- HUMAN REVIEW FLAGGING ---
+                    # Compare Flash Lite originals vs Flash review
+                    review_reasons = []
+                    flash_confidence = review_analysis.get('confidence', 1.0)
+
+                    if review_analysis.get('sentiment') != lite_sentiment:
+                        review_reasons.append(
+                            f"Sentiment disagreement: Flash Lite={lite_sentiment} / Flash={review_analysis.get('sentiment')}"
+                        )
+
+                    if review_analysis.get('is_escalation_signal') != lite_escalation:
+                        review_reasons.append(
+                            f"Escalation disagreement: Flash Lite={lite_escalation} / Flash={review_analysis.get('is_escalation_signal')}"
+                        )
+
+                    if lite_confidence < 0.6 or flash_confidence < 0.6:
+                        review_reasons.append(
+                            f"Low confidence: Flash Lite={lite_confidence} / Flash={flash_confidence}"
+                        )
+
+                    if review_analysis.get('topic_primary') != lite_topic:
+                        review_reasons.append(
+                            f"Topic disagreement: Flash Lite={lite_topic} / Flash={review_analysis.get('topic_primary')}"
+                        )
+
+                    if review_reasons:
+                        conn.execute("""
+                            UPDATE ai_analysis
+                            SET needs_human_review = 1, review_reason = ?
+                            WHERE article_id = ?
+                        """, (' | '.join(review_reasons), article['id']))
+                        conn.commit()
+                        print(f"    ↳ Flagged for human review: {review_reasons[0]}")
+
                     print(f"    ↳ Escalation review (Flash): Sentiment={analysis['sentiment']} | Confirmed={analysis['is_escalation_signal']}")
+
                 except Exception as e:
                     print(f"    ↳ Escalation review failed: {e}")
 
-            import time
             time.sleep(0.3)
             success_count += 1
             print(f"    Topic: {analysis.get('topic_primary')} | Sentiment: {analysis.get('sentiment')} | Escalation: {analysis.get('is_escalation_signal')}")
@@ -286,10 +332,10 @@ FULL TEXT:
         except Exception as e:
             error_count += 1
             print(f"    ERROR: {e}")
-            # Mark as processed anyway so we don't retry forever
             conn.execute(
                 "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
-                datetime.now(timezone.utc).isoformat(), article['id'])
+                (datetime.now(timezone.utc).isoformat(), article['id'])
+            )
             conn.commit()
 
     conn.close()

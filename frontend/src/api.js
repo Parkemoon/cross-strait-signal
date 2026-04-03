@@ -35,3 +35,22 @@ export async function fetchNotes(articleId) {
   const res = await fetch(`${API_BASE}/api/notes/article/${articleId}`);
   return res.json();
 }
+
+export async function fetchReviewQueue() {
+  const res = await fetch(`${API_BASE}/review/queue`);
+  return res.json();
+}
+
+export async function fetchReviewStats() {
+  const res = await fetch(`${API_BASE}/review/stats`);
+  return res.json();
+}
+
+export async function resolveReview(analysisId, decision) {
+  const res = await fetch(`${API_BASE}/review/${analysisId}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(decision),
+  });
+  return res.json();
+}

@@ -23,19 +23,20 @@ async def scrape_mfa_spokesperson():
     if not source:
         # Add the source if it doesn't exist yet
         conn.execute("""
-            INSERT INTO sources (name, name_zh, url, source_type, country, language, tier, scrape_interval, scrape_method)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            'PRC MFA Spokesperson',
-            '外交部发言人',
-            'https://www.mfa.gov.cn/fyrbt_673021/jzhsl_673025/',
-            'government',
-            'PRC',
-            'zh-cn',
-            1,
-            120,
-            'html_scrape'
-        ))
+    INSERT INTO sources (name, name_zh, url, source_type, country, bias, language, tier, scrape_interval, scrape_method)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", (
+    'PRC MFA Spokesperson',
+    '外交部发言人',
+    'https://www.mfa.gov.cn/fyrbt_673021/jzhsl_673025/',
+    'government',
+    'PRC',
+    'state_official',
+    'zh-cn',
+    1,
+    120,
+    'html_scrape'
+))
         conn.commit()
         source = conn.execute(
             "SELECT * FROM sources WHERE name = 'PRC MFA Spokesperson'"

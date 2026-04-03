@@ -24,7 +24,10 @@ async def scrape_rss_source(source):
 
     print(f"\nScraping: {source['name']} ({source['url']})")
     
-    feed = feedparser.parse(source['url'])
+    feed = feedparser.parse(
+    source['url'],
+    agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+)
     
     if not feed.entries:
         print(f"  No entries found in feed")
@@ -53,6 +56,22 @@ async def scrape_rss_source(source):
                 resp = await client.get(url)
                 if resp.status_code == 200:
                     soup = BeautifulSoup(resp.text, 'html.parser')
+                    # Source-specific selectors first, then generic fallbacks
+                    content_div = (
+                        soup.select_one('div.text') or          # Liberty Times
+                        soup.select_one('div.article-content__paragraph') or  # UDN
+                        soup.select_one('div.archives') or
+                        soup.select_one('article') or
+                        soup.select_one('div.article-content') or
+                        soup.select_one('div.content')
+                    )
+                    if content_div:
+                        content = content_div.get_text(strip=True)
+                        # Trim at page furniture markers
+                        for cutoff in ['大家都關注', '相關新聞', '熱門新聞', '請加入', '延伸閱讀']:
+                            if cutoff in content:
+                                content = content[:content.index(cutoff)]
+                                break
                     # Try common article selectors
                     content_div = (
                         soup.select_one('div.archives') or
