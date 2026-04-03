@@ -162,15 +162,13 @@ def process_unanalysed_articles(limit=10):
                 title=title,
                 content=article['content_original'],
                 language=article['language'],
-                source_name=article['source_name']
-            )
+                source_name=article['source_name'])
 
             # Skip articles the AI identifies as irrelevant
             if analysis.get('topic_primary') == 'NOT_RELEVANT':
                 conn.execute(
                     "UPDATE articles SET ai_processed = -1, ai_processed_at = ? WHERE id = ?",
-                    (datetime.now(timezone.utc).isoformat(), article['id'])
-                )
+                    (datetime.now(timezone.utc).isoformat(), article['id']))
                 conn.commit()
                 print(f"    Skipped: not relevant to cross-strait monitoring")
                 continue
@@ -184,8 +182,7 @@ def process_unanalysed_articles(limit=10):
                 analysis.get('title_en', title),
                 analysis.get('summary_en', ''),
                 datetime.now(timezone.utc).isoformat(),
-                article['id']
-            ))
+                article['id']))
 
             # Insert analysis results
             conn.execute("""

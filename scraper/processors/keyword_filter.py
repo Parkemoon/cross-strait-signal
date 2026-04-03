@@ -4,6 +4,25 @@ Checks articles against a relevance keyword list BEFORE sending to the AI.
 No API calls — just fast string matching. This saves 80%+ of your API budget.
 """
 
+# An article MUST mention at least one of these to be considered relevant
+# This prevents Iran/Russia/Ukraine military news from getting through
+GEOGRAPHIC_ANCHORS = [
+    # Simplified Chinese
+    "台湾", "台海", "两岸", "大陆", "国台办", "中国", "北京", "解放军",
+    "东部战区", "南部战区", "中美", "中日", "南海", "东海", "一中",
+    "统一", "台独", "习近平", "王毅", "赖清德", "萧美琴", "李强", "顾立雄", "郑丽文", "韩国瑜", "何卫东",
+    "国民党", "民进党", "民主进步党", "民众党", "统促党", "新党", "亲民党", "基进党",
+    # Traditional Chinese
+    "台灣", "兩岸", "大陸", "國台辦", "中國", "東部戰區", "南部戰區", "國台辦", "海基會", "海協會",
+    "統一", "台獨", "習近平", "賴清德", "蕭美琴", "李強", "王毅", "顧立雄", "鄭麗文", "韓國瑜", "何衛東",
+    "國民黨", "民進黨", "民主進步黨", "民眾黨", "統促黨", "新黨", "親民黨", "基進黨",
+    # English
+    "taiwan", "taipei", "cross-strait", "cross strait", "beijing",
+    "prc", "china", "chinese", "pla", "xi jinping", "wang yi",
+    "lai ching-te", "one china", "strait", "mainland china",
+    "south china sea", "east china sea", "indo-pacific",
+]
+
 # Keywords that indicate cross-strait / geopolitical relevance
 # An article matching ANY of these gets sent to the AI for full analysis
 RELEVANCE_KEYWORDS = {
@@ -116,17 +135,30 @@ def check_relevance(title, content, language="zh"):
     """
     Check if an article is relevant to cross-strait monitoring.
     
+    Two-gate filter:
+    1. Must mention a geographic anchor (Taiwan, China, PLA, etc.)
+    2. Must also match at least one topic keyword
+    
     Returns:
         tuple: (is_relevant: bool, matched_categories: list, matched_keywords: list)
     """
-    # Combine title and content for searching, lowercase for English
     text = f"{title} {content}".lower()
     
+    # Gate 1: Must have a geographic anchor
+    has_anchor = False
+    for anchor in GEOGRAPHIC_ANCHORS:
+        if anchor.lower() in text:
+            has_anchor = True
+            break
+    
+    if not has_anchor:
+        return False, [], []
+    
+    # Gate 2: Must also match a topic keyword
     matched_categories = []
     matched_keywords = []
     
     for category, lang_keywords in RELEVANCE_KEYWORDS.items():
-        # Check both Chinese and English keywords regardless of article language
         for lang in ["zh", "en"]:
             for keyword in lang_keywords.get(lang, []):
                 if keyword.lower() in text:
