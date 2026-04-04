@@ -64,6 +64,7 @@ IMPORTANT:
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
 - RELEVANCE: If the article has NO connection to cross-strait relations, China-Taiwan dynamics, PRC foreign policy, or the wider Indo-Pacific security environment, set topic_primary to "NOT_RELEVANT" and confidence to 0.0. Do not force-classify unrelated articles into the taxonomy.
 - If the article is primarily about a third-party conflict (e.g. US-Iran, Russia-Ukraine) and China's role is only peripheral (diplomatic statements, observer commentary), set topic_primary to "NOT_RELEVANT".
+- For the names of Taiwanese individuals, use Wade-Giles or the official romanisation used by their affiliated organisation or other media. Key figures: 賴清德 = Lai Ching-te, 蕭美琴 = Hsiao Bi-khim, 鄭麗文 = Cheng Li-wen, 韓國瑜 = Han Kuo-yu, 柯文哲 = Ko Wen-je. Do not invent romanisations.
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
 
 

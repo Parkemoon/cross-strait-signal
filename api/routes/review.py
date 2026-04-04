@@ -83,6 +83,14 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
             (decision.escalation_override, analysis_id)
         )
 
+    # If dismissed, also hide the article from the dashboard
+    if decision.resolution == "dismissed":
+        article_id = dict(analysis)['article_id']
+        conn.execute(
+            "UPDATE articles SET is_hidden = 1 WHERE id = ?",
+            (article_id,)
+        )
+
     # Mark as resolved
     conn.execute("""
         UPDATE ai_analysis 

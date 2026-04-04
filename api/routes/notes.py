@@ -12,12 +12,14 @@ class NoteCreate(BaseModel):
     note_text: str
     sentiment_override: Optional[str] = None
     topic_override: Optional[str] = None
+    score_override: Optional[float] = None
 
 
 class NoteUpdate(BaseModel):
     note_text: Optional[str] = None
     sentiment_override: Optional[str] = None
     topic_override: Optional[str] = None
+    score_override: Optional[float] = None
 
 
 @router.post("/")
@@ -28,6 +30,25 @@ def create_note(note: NoteCreate):
         INSERT INTO analyst_notes (article_id, note_text, sentiment_override, topic_override)
         VALUES (?, ?, ?, ?)
     """, (note.article_id, note.note_text, note.sentiment_override, note.topic_override))
+
+    # Apply overrides directly to ai_analysis if provided
+    if note.sentiment_override:
+        conn.execute(
+            "UPDATE ai_analysis SET sentiment = ? WHERE article_id = ?",
+            (note.sentiment_override, note.article_id)
+        )
+    if note.topic_override:
+        conn.execute(
+            "UPDATE ai_analysis SET topic_primary = ? WHERE article_id = ?",
+            (note.topic_override, note.article_id)
+        )
+    
+    if note.score_override is not None:
+        conn.execute(
+            "UPDATE ai_analysis SET sentiment_score = ? WHERE article_id = ?",
+            (note.score_override, note.article_id)
+        )
+
     conn.commit()
     note_id = cursor.lastrowid
     conn.close()
@@ -49,6 +70,12 @@ def get_notes_for_article(article_id: int):
 def update_note(note_id: int, note: NoteUpdate):
     """Update an existing note."""
     conn = get_db()
+    
+    # Get article_id for this note
+    row = conn.execute(
+        "SELECT article_id FROM analyst_notes WHERE id = ?", (note_id,)
+    ).fetchone()
+
     updates = []
     params = []
     if note.note_text is not None:
@@ -60,12 +87,32 @@ def update_note(note_id: int, note: NoteUpdate):
     if note.topic_override is not None:
         updates.append("topic_override = ?")
         params.append(note.topic_override)
+    if note.score_override is not None:
+            conn.execute(
+                "UPDATE ai_analysis SET sentiment_score = ? WHERE article_id = ?",
+                (note.score_override, article_id)
+            )
 
     updates.append("updated_at = ?")
     params.append(datetime.now(timezone.utc).isoformat())
     params.append(note_id)
 
     conn.execute(f"UPDATE analyst_notes SET {', '.join(updates)} WHERE id = ?", params)
+
+    # Apply overrides to ai_analysis if provided
+    if row:
+        article_id = row['article_id']
+        if note.sentiment_override:
+            conn.execute(
+                "UPDATE ai_analysis SET sentiment = ? WHERE article_id = ?",
+                (note.sentiment_override, article_id)
+            )
+        if note.topic_override:
+            conn.execute(
+                "UPDATE ai_analysis SET topic_primary = ? WHERE article_id = ?",
+                (note.topic_override, article_id)
+            )
+
     conn.commit()
     conn.close()
     return {"id": note_id, "status": "updated"}

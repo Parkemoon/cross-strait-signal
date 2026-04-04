@@ -54,3 +54,22 @@ export async function resolveReview(analysisId, decision) {
   });
   return res.json();
 }
+
+export async function fetchArticleCluster(articleId) {
+  const res = await fetch(`${API_BASE}/api/articles/${articleId}/cluster`);
+  return res.json();
+}
+
+export async function hideArticle(articleId) {
+  const res = await fetch(`${API_BASE}/api/articles/${articleId}/hide`, {
+    method: "PATCH",
+  });
+  return res.json();
+}
+
+export async function markAsSignal(articleId) {
+  const res = await fetch(`${API_BASE}/api/articles/${articleId}/signal`, {
+    method: "PATCH",
+  });
+  return res.json();
+}

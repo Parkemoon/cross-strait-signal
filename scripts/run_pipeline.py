@@ -9,6 +9,10 @@ from scraper.scrapers.rss_scraper import scrape_all_rss_sources
 from scraper.scrapers.mfa_scraper import scrape_mfa_spokesperson
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 
+# Add scripts dir to path for cluster_events import
+sys.path.insert(0, os.path.dirname(__file__))
+from cluster_events import cluster_recent_articles
+
 
 async def main():
     print("=" * 60)
@@ -28,6 +32,11 @@ async def main():
     total_new = new_rss + new_mfa + new_tao
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
     process_unanalysed_articles(limit=100)
+
+    # Step 4: Cluster events
+    print("\n" + "=" * 60)
+    print("--- STEP 4: Event Clustering ---")
+    cluster_recent_articles(hours=48)
 
     print("\n" + "=" * 60)
     print("Pipeline complete.")
