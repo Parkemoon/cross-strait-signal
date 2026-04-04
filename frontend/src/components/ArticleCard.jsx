@@ -4,16 +4,52 @@ import TopicPill from "./TopicPill";
 import SentimentBadge from "./SentimentBadge";
 import { createNote } from "../api";
 
-export default function ArticleCard({ article }) {
+const SENTIMENT_OPTIONS = ["destabilising", "stabilising", "neutral", "ambiguous"];
+const TOPIC_OPTIONS = [
+  "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE",
+  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS",
+  "ECON_TRADE", "ECON_INVEST", "POL_DOMESTIC", "POL_TONGDU",
+  "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN",
+];
+
+export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
+  const [sentimentOverride, setSentimentOverride] = useState("");
+  const [topicOverride, setTopicOverride] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
 
   const handleSaveNote = async () => {
-    if (!noteText.trim()) return;
-    await createNote({ article_id: article.id, note_text: noteText });
+    if (!noteText.trim() && !sentimentOverride && !topicOverride) return;
+    await createNote({
+      article_id: article.id,
+      note_text: noteText,
+      sentiment_override: sentimentOverride || null,
+      topic_override: topicOverride || null,
+    });
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 2000);
+  };
+
+  const selectStyle = {
+    padding: "6px 8px",
+    background: "var(--bg-card)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-color)",
+    borderRadius: "3px",
+    fontSize: "12px",
+    fontFamily: "var(--font-mono)",
+    cursor: "pointer",
+  };
+
+  const labelStyle = {
+    fontSize: "10px",
+    fontFamily: "var(--font-mono)",
+    color: "var(--text-muted)",
+    textTransform: "uppercase",
+    letterSpacing: "1px",
+    display: "block",
+    marginBottom: "4px",
   };
 
   return (
@@ -39,7 +75,7 @@ export default function ArticleCard({ article }) {
           sourceName={article.source_name}
           country={article.source_country}
         />
-        <TopicPill topic={article.topic_primary} />
+        <TopicPill topic={article.topic_primary} onClick={onTopicClick} />
         <SentimentBadge
           sentiment={article.sentiment}
           score={article.sentiment_score}
@@ -71,7 +107,7 @@ export default function ArticleCard({ article }) {
         )}
       </div>
 
-      {/* Headline — serif */}
+      {/* Headline */}
       <h3
         style={{
           fontFamily: "var(--font-headline)",
@@ -136,16 +172,11 @@ export default function ArticleCard({ article }) {
               >
                 Extracted Entities
               </h4>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "6px",
-                  flexWrap: "wrap",
-                }}
-              >
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {article.entities.map((e, i) => (
                   <span
                     key={i}
+                    onClick={onEntityClick ? (evt) => { evt.stopPropagation(); onEntityClick(e.entity_name_en || e.entity_name); } : undefined}
                     style={{
                       background: "var(--tag-bg)",
                       color: "var(--tag-text)",
@@ -153,6 +184,7 @@ export default function ArticleCard({ article }) {
                       borderRadius: "2px",
                       fontSize: "12px",
                       fontFamily: "var(--font-body)",
+                      cursor: onEntityClick ? "pointer" : "default",
                     }}
                   >
                     {e.entity_name_en || e.entity_name}
@@ -201,7 +233,7 @@ export default function ArticleCard({ article }) {
                       fontSize: "13px",
                     }}
                   >
-                    — {article.key_quote_en}
+                    {"\u2014 "}{article.key_quote_en}
                   </p>
                 )}
               </blockquote>
@@ -209,18 +241,8 @@ export default function ArticleCard({ article }) {
           )}
 
           {/* Source link */}
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: "12px",
-              fontFamily: "var(--font-mono)",
-              color: "var(--accent-teal)",
-              textDecoration: "none",
-            }}
-          >
-            View original source →
+          <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--accent-teal)", textDecoration: "none" }}>
+            {"View original source \u2192"}
           </a>
 
           {/* Analyst commentary */}
@@ -232,11 +254,49 @@ export default function ArticleCard({ article }) {
                 color: "var(--text-muted)",
                 textTransform: "uppercase",
                 letterSpacing: "1.5px",
-                marginBottom: "8px",
+                marginBottom: "12px",
               }}
             >
               Analyst Commentary
             </h4>
+
+            {/* Override controls */}
+            <div
+              style={{
+                display: "flex",
+                gap: "16px",
+                marginBottom: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <label style={labelStyle}>Override Sentiment</label>
+                <select
+                  value={sentimentOverride}
+                  onChange={(e) => setSentimentOverride(e.target.value)}
+                  style={selectStyle}
+                >
+                  <option value="">— no override —</option>
+                  {SENTIMENT_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Override Topic</label>
+                <select
+                  value={topicOverride}
+                  onChange={(e) => setTopicOverride(e.target.value)}
+                  style={selectStyle}
+                >
+                  <option value="">— no override —</option>
+                  {TOPIC_OPTIONS.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <textarea
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
@@ -253,6 +313,7 @@ export default function ArticleCard({ article }) {
                 minHeight: "70px",
                 resize: "vertical",
                 lineHeight: 1.5,
+                boxSizing: "border-box",
               }}
             />
             <button

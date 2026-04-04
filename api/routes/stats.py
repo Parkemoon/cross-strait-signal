@@ -55,6 +55,27 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         WHERE a.published_at >= datetime('now', ?)
     """, (f'-{days} days',)).fetchone()
 
+    # Sentiment by source country
+    sentiment_by_country = conn.execute("""
+        SELECT s.country, AVG(ai.sentiment_score) as avg_score
+        FROM articles a
+        JOIN ai_analysis ai ON a.id = ai.article_id
+        JOIN sources s ON a.source_id = s.id
+        WHERE a.published_at >= datetime('now', ?)
+        GROUP BY s.country
+    """, (f'-{days} days',)).fetchall()
+
+    # Sentiment by political bias (Taiwan camps)
+    sentiment_by_bias = conn.execute("""
+        SELECT s.bias, AVG(ai.sentiment_score) as avg_score, COUNT(*) as count
+        FROM articles a
+        JOIN ai_analysis ai ON a.id = ai.article_id
+        JOIN sources s ON a.source_id = s.id
+        WHERE a.published_at >= datetime('now', ?)
+          AND s.bias IN ('green', 'green_leaning', 'blue')
+        GROUP BY s.bias
+    """, (f'-{days} days',)).fetchall()
+
     # Escalation signals
     escalations = conn.execute("""
         SELECT a.id, a.title_original, a.title_en, ai.summary_en,
@@ -89,6 +110,8 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         ORDER BY date
     """, (f'-{days} days',)).fetchall()
 
+    
+
     conn.close()
 
     return {
@@ -101,6 +124,8 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         "escalation_signals": [dict(e) for e in escalations],
         "top_entities": [dict(e) for e in top_entities],
         "sentiment_trend": [dict(s) for s in sentiment_trend],
+        "sentiment_by_country": [dict(r) for r in sentiment_by_country],
+        "sentiment_by_bias": [dict(r) for r in sentiment_by_bias],
     }
 
 

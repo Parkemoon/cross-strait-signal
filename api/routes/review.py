@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime, timezone
 from scraper.utils.db import get_connection
 
-router = APIRouter()
+router = APIRouter(tags=["review"])
 
 
 class ReviewDecision(BaseModel):
