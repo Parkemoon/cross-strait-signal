@@ -122,6 +122,24 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
         Signals only
       </label>
 
+      {Object.values(filters).some(v => v !== undefined && v !== false && v !== "") && (
+        <button
+          onClick={() => setFilters({})}
+          style={{
+            background: "transparent",
+            color: "var(--text-muted)",
+            border: "1px solid var(--border-color)",
+            borderRadius: "3px",
+            padding: "7px 12px",
+            fontSize: "12px",
+            fontFamily: "var(--font-mono)",
+            cursor: "pointer",
+          }}
+        >
+          {"✕ Clear filters"}
+        </button>
+      )}
+
       <input
         type="text"
         placeholder="Search articles..."

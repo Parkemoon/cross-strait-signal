@@ -25,10 +25,13 @@ def list_articles(
     where_clauses = []
     params = []
 
+    # Always exclude hidden articles
+    where_clauses.append("a.is_hidden = 0")
+
     if entity:
         where_clauses.append("EXISTS (SELECT 1 FROM entities e WHERE e.article_id = a.id AND (e.entity_name_en LIKE ? OR e.entity_name LIKE ?))")
         params.extend([f"%{entity}%", f"%{entity}%"])
-        
+
     if topic:
         where_clauses.append("ai.topic_primary = ?")
         params.append(topic)
@@ -128,6 +131,39 @@ def list_articles(
         "articles": articles
     }
 
+@router.get("/{article_id}/cluster")
+def get_article_cluster(article_id: int):
+    """Get all articles in the same event cluster as this article."""
+    conn = get_db()
+
+    # Get the cluster ID for this article
+    row = conn.execute(
+        "SELECT event_cluster_id FROM articles WHERE id = ?",
+        (article_id,)
+    ).fetchone()
+
+    if not row or not row['event_cluster_id']:
+        conn.close()
+        return {"cluster": []}
+
+    cluster_id = row['event_cluster_id']
+
+    # Get all articles in the same cluster
+    rows = conn.execute("""
+        SELECT
+            a.id, a.title_original, a.title_en, a.url, a.published_at,
+            ai.sentiment, ai.sentiment_score, ai.summary_en, ai.topic_primary,
+            s.name as source_name, s.country as source_country, s.bias
+        FROM articles a
+        JOIN ai_analysis ai ON a.id = ai.article_id
+        JOIN sources s ON a.source_id = s.id
+        WHERE a.event_cluster_id = ?
+          AND a.id != ?
+        ORDER BY a.published_at ASC
+    """, (cluster_id, article_id)).fetchall()
+
+    conn.close()
+    return {"cluster": [dict(r) for r in rows]}
 
 @router.get("/{article_id}")
 def get_article(article_id: int):
@@ -171,3 +207,26 @@ def get_article(article_id: int):
 
     conn.close()
     return article
+
+
+@router.patch("/{article_id}/hide")
+def hide_article(article_id: int):
+    """Soft delete — hide article from dashboard without removing from database."""
+    conn = get_db()
+    conn.execute("UPDATE articles SET is_hidden = 1 WHERE id = ?", (article_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "hidden", "article_id": article_id}
+
+
+@router.patch("/{article_id}/signal")
+def mark_as_signal(article_id: int):
+    """Manually mark an article as an escalation signal."""
+    conn = get_db()
+    conn.execute("""
+        UPDATE ai_analysis SET is_escalation_signal = 1
+        WHERE article_id = ?
+    """, (article_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "signalled", "article_id": article_id}

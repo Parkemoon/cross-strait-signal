@@ -2,7 +2,8 @@ import { useState } from "react";
 import SourceBadge from "./SourceBadge";
 import TopicPill from "./TopicPill";
 import SentimentBadge from "./SentimentBadge";
-import { createNote } from "../api";
+import { createNote, hideArticle, markAsSignal } from "../api";
+import { fetchArticleCluster } from "../api";
 
 const SENTIMENT_OPTIONS = ["destabilising", "stabilising", "neutral", "ambiguous"];
 const TOPIC_OPTIONS = [
@@ -18,6 +19,11 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
   const [sentimentOverride, setSentimentOverride] = useState("");
   const [topicOverride, setTopicOverride] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
+  const [clusterArticles, setClusterArticles] = useState(null);
+  const [clusterLoading, setClusterLoading] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [isSignal, setIsSignal] = useState(article.is_escalation_signal === 1);
+  const [scoreOverride, setScoreOverride] = useState("");
 
   const handleSaveNote = async () => {
     if (!noteText.trim() && !sentimentOverride && !topicOverride) return;
@@ -26,9 +32,33 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
       note_text: noteText,
       sentiment_override: sentimentOverride || null,
       topic_override: topicOverride || null,
+      score_override: scoreOverride !== "" ? parseFloat(scoreOverride) : null,
     });
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 2000);
+  };
+
+  const handleExpand = async () => {
+  const newExpanded = !expanded;
+  setExpanded(newExpanded);
+  if (newExpanded && article.cluster_size > 1 && clusterArticles === null) {
+    setClusterLoading(true);
+    const data = await fetchArticleCluster(article.id);
+    setClusterArticles(data.cluster || []);
+    setClusterLoading(false);
+  }
+};
+
+  const handleHide = async (e) => {
+    e.stopPropagation();
+    await hideArticle(article.id);
+    setHidden(true);
+  };
+
+  const handleMarkSignal = async (e) => {
+    e.stopPropagation();
+    await markAsSignal(article.id);
+    setIsSignal(true);
   };
 
   const selectStyle = {
@@ -52,6 +82,8 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
     marginBottom: "4px",
   };
 
+  if (hidden) return null;
+
   return (
     <article
       style={{
@@ -59,7 +91,7 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
         padding: "18px 0",
         cursor: "pointer",
       }}
-      onClick={() => setExpanded(!expanded)}
+      onClick={handleExpand}
     >
       {/* Metadata row */}
       <div
@@ -85,12 +117,27 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
             color: "var(--text-muted)",
             fontSize: "12px",
             fontFamily: "var(--font-mono)",
-            marginLeft: "auto",
           }}
         >
           {article.published_at?.slice(0, 10)}
         </span>
-        {article.is_escalation_signal === 1 && (
+        {article.cluster_size > 1 && (
+          <span
+            style={{
+              background: "var(--bg-secondary)",
+              color: "var(--accent-teal)",
+              border: "1px solid var(--accent-teal)",
+              padding: "1px 8px",
+              borderRadius: "2px",
+              fontSize: "10px",
+              fontFamily: "var(--font-mono)",
+              cursor: "pointer",
+            }}
+          >
+            {article.cluster_size} sources
+          </span>
+        )}
+        {isSignal && (
           <span
             style={{
               background: "var(--accent-red)",
@@ -105,6 +152,47 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
             SIGNAL
           </span>
         )}
+
+{/* Action buttons */}
+        <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
+          {!isSignal && (
+            <button
+              onClick={handleMarkSignal}
+              title="Mark as escalation signal"
+              style={{
+                background: "transparent",
+                border: "1px solid var(--accent-red)",
+                color: "var(--accent-red)",
+                borderRadius: "2px",
+                padding: "1px 7px",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                cursor: "pointer",
+                lineHeight: 1.6,
+              }}
+            >
+              {"! Signal"}
+            </button>
+          )}
+          <button
+            onClick={handleHide}
+            title="Hide this article"
+            style={{
+              background: "transparent",
+              border: "1px solid var(--border-color)",
+              color: "var(--text-muted)",
+              borderRadius: "2px",
+              padding: "1px 7px",
+              fontSize: "10px",
+              fontFamily: "var(--font-mono)",
+              cursor: "pointer",
+              lineHeight: 1.6,
+            }}
+          >
+            {"✕"}
+          </button>
+        </div>
+
       </div>
 
       {/* Headline */}
@@ -245,6 +333,81 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
             {"View original source \u2192"}
           </a>
 
+          {/* Coverage comparison */}
+          {article.cluster_size > 1 && (
+            <div style={{ marginTop: "20px" }}>
+              <h4 style={{
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "1.5px",
+                marginBottom: "10px",
+              }}>
+                Also covered by {article.cluster_size - 1} other {article.cluster_size - 1 === 1 ? "source" : "sources"}
+              </h4>
+              {clusterLoading ? (
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                  Loading coverage...
+                </p>
+              ) : clusterArticles?.map((c, i) => (
+                <div key={i} style={{
+                  background: "var(--bg-secondary)",
+                  borderRadius: "3px",
+                  padding: "10px 12px",
+                  marginBottom: "6px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: "10px",
+                      fontFamily: "var(--font-mono)",
+                      color: c.country === "PRC" ? "var(--accent-red)" : "var(--accent-blue)",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      marginBottom: "4px",
+                    }}>
+                      {c.source_name}
+                    </div>
+                    <div style={{
+                      fontSize: "13px",
+                      fontFamily: "var(--font-body)",
+                      color: "var(--text-secondary)",
+                      lineHeight: 1.4,
+                    }}>
+                      {c.title_en || c.title_original}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{
+                      fontSize: "11px",
+                      fontFamily: "var(--font-mono)",
+                      color: c.sentiment_score > 0.3
+                        ? "var(--accent-red)"
+                        : c.sentiment_score < -0.3
+                        ? "var(--accent-green)"
+                        : "var(--accent-amber)",
+                      fontWeight: 600,
+                    }}>
+                      {c.sentiment_score > 0 ? "+" : ""}{c.sentiment_score?.toFixed(2)}
+                    </div>
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" style={{
+                      fontSize: "10px",
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--accent-teal)",
+                      textDecoration: "none",
+                    }}>
+                      {"Source \u2197"}
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Analyst commentary */}
           <div style={{ marginTop: "20px" }}>
             <h4
@@ -281,6 +444,22 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Override Score (-1.0 to +1.0)</label>
+                <input
+                  type="number"
+                  min="-1"
+                  max="1"
+                  step="0.1"
+                  value={scoreOverride}
+                  onChange={(e) => setScoreOverride(e.target.value)}
+                  placeholder="e.g. +0.6"
+                  style={{
+                    ...selectStyle,
+                    width: "120px",
+                  }}
+                />
               </div>
               <div>
                 <label style={labelStyle}>Override Topic</label>

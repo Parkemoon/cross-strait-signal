@@ -93,7 +93,7 @@ function ReviewCard({ item, onResolved }) {
           )}
         </div>
         
-          href={item.url}
+        <a href={item.url}
           target="_blank"
           rel="noreferrer"
           style={{
@@ -104,7 +104,7 @@ function ReviewCard({ item, onResolved }) {
             marginLeft: "16px",
             whiteSpace: "nowrap",
           }}
-        <a>
+        >
           {"Source \u2197"}
         </a>
       </div>
