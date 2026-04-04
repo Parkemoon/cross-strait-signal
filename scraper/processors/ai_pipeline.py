@@ -27,7 +27,7 @@ Analyse the following article and return a JSON object with this exact structure
   "summary_en": "2-3 sentence English summary of the article's key content and significance",
   "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, ECON_TRADE, ECON_INVEST, POL_DOMESTIC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, HUMANITARIAN",
   "topic_secondary": null,
-  "sentiment": "one of: escalatory, conciliatory, neutral, ambiguous",
+  "sentiment": "one of: destabilising, stabilising, neutral, ambiguous",
   "sentiment_score": 0.0,
   "urgency": "one of: flash, priority, routine",
   "key_quote": "most significant direct quote from the article in original language",
@@ -54,7 +54,9 @@ Analyse the following article and return a JSON object with this exact structure
 }
 
 IMPORTANT:
-- sentiment_score ranges from -1.0 (strongly conciliatory) to +1.0 (strongly escalatory)
+- sentiment_score ranges from -1.0 (strongly stabilising) to +1.0 (strongly destabilising)
+- sentiment axis is stabilising/destabilising relative to the cross-strait status quo — a DPP sovereignty push and a PLA exercise are both destabilising; a TAO investment welcome and a KMT mainland visit can be stabilising. Do not pre-judge which side causes instability.
+- stabilising = -1.0 to -0.3, neutral = -0.3 to +0.3, destabilising = +0.3 to +1.0
 - Only flag is_escalation_signal for genuinely significant developments, not routine rhetoric
 - urgency: flash = breaking/status quo change, priority = notable, routine = standard coverage
 - Extract ALL named entities: people, military units, ships, aircraft, locations, organisations

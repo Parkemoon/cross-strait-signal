@@ -1,6 +1,6 @@
 const SENTIMENT_STYLES = {
-  escalatory: { color: "var(--accent-red)", label: "Escalatory" },
-  conciliatory: { color: "var(--accent-green)", label: "Conciliatory" },
+  destabilising: { color: "var(--accent-red)", label: "Destabilising" },
+  stabilising: { color: "var(--accent-green)", label: "Stabilising" },
   neutral: { color: "var(--text-muted)", label: "Neutral" },
   ambiguous: { color: "var(--accent-amber)", label: "Ambiguous" },
 };

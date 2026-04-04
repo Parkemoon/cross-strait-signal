@@ -30,12 +30,13 @@ const TOPIC_COLORS = {
   HUMANITARIAN: "var(--accent-blue)",
 };
 
-export default function TopicPill({ topic }) {
+export default function TopicPill({ topic, onClick }) {
   const color = TOPIC_COLORS[topic] || "var(--text-muted)";
   const label = TOPIC_LABELS[topic] || topic?.replace(/_/g, " ");
 
   return (
     <span
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(topic); } : undefined}
       style={{
         border: `1px solid ${color}`,
         color: color,
@@ -44,7 +45,10 @@ export default function TopicPill({ topic }) {
         fontSize: "11px",
         fontFamily: "var(--font-mono)",
         letterSpacing: "0.3px",
+        cursor: onClick ? "pointer" : "default",
+        transition: "opacity 0.15s",
       }}
+      title={onClick ? `Filter by ${label}` : undefined}
     >
       {label}
     </span>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchReviewQueue, resolveReview } from "../api";
 
-const SENTIMENT_OPTIONS = ["escalatory", "conciliatory", "neutral", "ambiguous"];
+const SENTIMENT_OPTIONS = ["destabilising", "stabilising", "neutral", "ambiguous"];;
 const TOPIC_OPTIONS = [
   "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE",
   "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS",

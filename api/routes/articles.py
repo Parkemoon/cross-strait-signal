@@ -7,14 +7,16 @@ router = APIRouter(prefix="/api/articles", tags=["articles"])
 
 @router.get("/")
 def list_articles(
+    entity: Optional[str] = Query(None, description="Filter by entity name"),
     topic: Optional[str] = Query(None, description="Filter by topic code, e.g. MIL_EXERCISE"),
-    sentiment: Optional[str] = Query(None, description="positive, negative, neutral, ambiguous"),
+    sentiment: Optional[str] = Query(None, description="destabilising, stabilising, neutral, ambiguous"),
     source_country: Optional[str] = Query(None, description="PRC or TW"),
     urgency: Optional[str] = Query(None, description="flash, priority, routine"),
     escalation_only: bool = Query(False, description="Only show escalation signals"),
     search: Optional[str] = Query(None, description="Search in titles and content"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100)
+    
 ):
     """List articles with their AI analysis. Supports filtering and search."""
     conn = get_db()
@@ -23,6 +25,10 @@ def list_articles(
     where_clauses = []
     params = []
 
+    if entity:
+        where_clauses.append("EXISTS (SELECT 1 FROM entities e WHERE e.article_id = a.id AND (e.entity_name_en LIKE ? OR e.entity_name LIKE ?))")
+        params.extend([f"%{entity}%", f"%{entity}%"])
+        
     if topic:
         where_clauses.append("ai.topic_primary = ?")
         params.append(topic)

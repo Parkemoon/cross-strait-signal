@@ -22,7 +22,7 @@ const TOPIC_LABELS = {
   HUMANITARIAN: "Humanitarian",
 };
 
-export default function FilterBar({ filters, setFilters }) {
+export default function FilterBar({ filters, setFilters, topEntities }) {
   const update = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }));
   };
@@ -68,8 +68,8 @@ export default function FilterBar({ filters, setFilters }) {
         style={selectStyle}
       >
         <option value="">All Sentiment</option>
-        <option value="escalatory">Escalatory</option>
-        <option value="conciliatory">Conciliatory</option>
+        <option value="destabilising">Destabilising</option>
+        <option value="stabilising">Stabilising</option>
         <option value="neutral">Neutral</option>
         <option value="ambiguous">Ambiguous</option>
       </select>
@@ -83,6 +83,21 @@ export default function FilterBar({ filters, setFilters }) {
         <option value="PRC">PRC Sources</option>
         <option value="TW">Taiwan Sources</option>
       </select>
+
+      {topEntities && topEntities.length > 0 && (
+        <select
+          value={filters.entity || ""}
+          onChange={(e) => update("entity", e.target.value)}
+          style={selectStyle}
+        >
+          <option value="">All Entities</option>
+          {topEntities.map((e) => (
+            <option key={e.entity_name_en} value={e.entity_name_en}>
+              {e.entity_name_en}
+            </option>
+          ))}
+        </select>
+      )}
 
       <label
         style={{

@@ -198,7 +198,11 @@ export default function App() {
               />
 
               {/* Filters */}
-              <FilterBar filters={filters} setFilters={setFilters} />
+              <FilterBar
+                filters={filters}
+                setFilters={setFilters}
+                topEntities={stats?.top_entities}
+              />
 
               {/* Article feed */}
               {loading ? (
@@ -226,7 +230,19 @@ export default function App() {
               ) : (
                 <>
                   {articles.map((article) => (
-                    <ArticleCard key={article.id} article={article} />
+                    <ArticleCard
+                      key={article.id}
+                      article={article}
+                      onTopicClick={(topic) => {
+                        setFilters((f) => ({ ...f, topic }));
+                        setPage(1);
+          
+                      }}
+                      onEntityClick={(entityName) => {
+                        setFilters((f) => ({ ...f, entity: entityName, search: undefined }));
+                        setPage(1);
+                      }}
+                    />
                   ))}
 
                   {/* Pagination */}
