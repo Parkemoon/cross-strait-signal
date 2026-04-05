@@ -62,9 +62,11 @@ IMPORTANT:
 - Extract ALL named entities: people, military units, ships, aircraft, locations, organisations
 - All strings in the JSON must have special characters properly escaped.
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
-- RELEVANCE: If the article has NO connection to cross-strait relations, China-Taiwan dynamics, PRC foreign policy, or the wider Indo-Pacific security environment, set topic_primary to "NOT_RELEVANT" and confidence to 0.0. Do not force-classify unrelated articles into the taxonomy.
-- If the article is primarily about a third-party conflict (e.g. US-Iran, Russia-Ukraine) and China's role is only peripheral (diplomatic statements, observer commentary), set topic_primary to "NOT_RELEVANT".
-- For the names of Taiwanese individuals, use Wade-Giles or the official romanisation used by their affiliated organisation or other media. Key figures: 賴清德 = Lai Ching-te, 蕭美琴 = Hsiao Bi-khim, 鄭麗文 = Cheng Li-wen, 韓國瑜 = Han Kuo-yu, 柯文哲 = Ko Wen-je. Do not invent romanisations.
+- RELEVANCE: If the article has NO direct connection to PRC-Taiwan relations, cross-strait dynamics, PRC foreign/military policy, or Taiwan defence/security policy, set topic_primary to "NOT_RELEVANT" and confidence to 0.0.
+- If the article is primarily about a third-party conflict (e.g. US-Iran, Russia-Ukraine) and China's role is only peripheral, set topic_primary to "NOT_RELEVANT".
+- If the article is about Taiwan domestic affairs with NO cross-strait dimension (local elections unrelated to cross-strait, crime, weather, sports, entertainment, consumer news, social media trends), set topic_primary to "NOT_RELEVANT".
+- Only classify an article if it directly involves: PRC-Taiwan military/diplomatic/economic relations, PRC statements about Taiwan, Taiwan defence/security policy, cross-strait political dynamics, or PRC foreign policy with direct Taiwan implications.
+- For Taiwanese political figures, use the official romanisation used by their party or office. Key figures: 賴清德 = Lai Ching-te, 蕭美琴 = Hsiao Bi-khim, 鄭麗文 = Cheng Li-wen, 韓國瑜 = Han Kuo-yu, 柯文哲 = Ko Wen-je. Do not invent romanisations.
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
 
 
@@ -244,6 +246,14 @@ def process_unanalysed_articles(limit=10):
 
             conn.commit()
 
+             # Flag low confidence articles for human review
+            if analysis.get('confidence', 1.0) < 0.7:
+                conn.execute("""
+                    UPDATE ai_analysis SET needs_human_review = 1, review_reason = ?
+                    WHERE article_id = ?
+                """, (f"Low confidence: {analysis.get('confidence', 0):.2f}", article['id']))
+                conn.commit()
+
             # Escalation review: re-analyse with Flash for flagged articles
             if analysis.get('is_escalation_signal') or analysis.get('urgency') == 'flash':
                 try:
@@ -304,7 +314,7 @@ FULL TEXT:
                             f"Escalation disagreement: Flash Lite={lite_escalation} / Flash={review_analysis.get('is_escalation_signal')}"
                         )
 
-                    if lite_confidence < 0.6 or flash_confidence < 0.6:
+                    if lite_confidence < 0.7 or flash_confidence < 0.7:
                         review_reasons.append(
                             f"Low confidence: Flash Lite={lite_confidence} / Flash={flash_confidence}"
                         )

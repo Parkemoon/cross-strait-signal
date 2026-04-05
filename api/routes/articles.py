@@ -25,8 +25,9 @@ def list_articles(
     where_clauses = []
     params = []
 
-    # Always exclude hidden articles
+    # Always exclude hidden articles and articles pending review
     where_clauses.append("a.is_hidden = 0")
+    where_clauses.append("(ai.needs_human_review = 0 OR ai.review_resolved = 1)")
 
     if entity:
         where_clauses.append("EXISTS (SELECT 1 FROM entities e WHERE e.article_id = a.id AND (e.entity_name_en LIKE ? OR e.entity_name LIKE ?))")
