@@ -90,8 +90,46 @@ SOURCES = [
         'scrape_interval': 360,
         'scrape_method': 'rss',
     },
-]
+    {
+        'name': 'The Paper',
+        'name_zh': '澎湃新聞',
+        'url': 'https://feedx.net/rss/thepaper.xml',
+        'source_type': 'state_media',
+        'country': 'PRC',
+        'bias': 'state_official',
+        'language': 'zh-cn',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
+    {
+        'name': 'Guangming Daily',
+        'name_zh': '光明日報',
+        'url': 'https://plink.anyfeeder.com/guangmingribao',
+        'source_type': 'state_media',
+        'country': 'PRC',
+        'bias': 'state_official',
+        'language': 'zh-cn',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
 
+    # International Chinese-language Sources
+
+    {
+        'name': 'Zaobao Cross-Strait',
+        'name_zh': '聯合早報中港台',
+        'url': 'https://plink.anyfeeder.com/zaobao/realtime/china',
+        'source_type': 'independent_media',
+        'country': 'SG',
+        'bias': 'centrist',
+        'language': 'zh-cn',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
+]
 
 def seed_sources():
     conn = sqlite3.connect(DB_PATH)

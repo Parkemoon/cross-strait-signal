@@ -56,7 +56,7 @@ def check_relevance(title, content, language="zh", source_country=None):
     """
     text = f"{title} {content}".lower()
 
-    if source_country == 'PRC':
+    if source_country in ('PRC', 'SG'):
         anchor_list = PRC_MUST_MENTION_TAIWAN
     elif source_country == 'TW':
         anchor_list = TW_MUST_MENTION_PRC
