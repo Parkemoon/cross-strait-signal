@@ -1,20 +1,29 @@
 # Cross-Strait Signal
 
-**An open-source intelligence dashboard monitoring PRC-Taiwan dynamics through automated bilingual media analysis.**
+An open-source intelligence dashboard monitoring PRC-Taiwan cross-strait dynamics through automated bilingual Chinese-language media analysis.
 
-Cross-Strait Signal scrapes Chinese-language government, military, and media sources from both sides of the Taiwan Strait, processes them through a multi-tier AI analytical pipeline, and serves the results through a React dashboard and filterable REST API.
+---
+
+Cross-Strait Signal scrapes Chinese-language news sources from both sides of the Taiwan Strait, processes them through a multi-tier AI pipeline, and serves results through a React dashboard backed by a FastAPI API. The system is designed to surface destabilising signals from **both** sides — including Taiwanese actions (independence-by-stealth, constitutional norm erosion) — not as a "China bad, Taiwan good" instrument.
+
+**Live instance:** `http://217.174.245.116` (password protected)  
+**GitHub:** `https://github.com/Parkemoon/cross-strait-signal`
+
+---
 
 ## What it does
 
-- **Scrapes 8 active sources** across the PRC and Taiwan — 国台办 (Taiwan Affairs Office) press conferences, MFA spokesperson transcripts, Xinhua (新华社), CNA Chinese (中央社), People's Daily (人民日报), China News Service (中国新闻网), Global Times (环球时报), and Liberty Times (自由時報)
-- **Directional relevance filtering** — PRC sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
-- **Three-tier AI analysis**: Google Gemini 2.5 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
-- **Structured analytical output** per article: topic classification (13 categories), sentiment scoring (-1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
-- **Human review queue** flags articles where the two AI models disagree on sentiment, topic, or escalation status — allowing editorial override before publication to the dashboard
-- **Analyst commentary layer** allows human override of AI classifications at any point
-- **Source bias tracking** — each source tagged with editorial alignment (green / green_leaning / blue / state_official / state_nationalist)
-- **React dashboard** with dark/light theme, priority signals section, filterable article feed, and review queue UI
-- **REST API** with filtering by topic, sentiment, source country, urgency, escalation status, and bilingual full-text search
+- Scrapes 11 active sources across the PRC, Taiwan, and Singapore — 国台办 (Taiwan Affairs Office) press conferences, MFA spokesperson transcripts, Xinhua (新华社), CNA Chinese (中央社), People's Daily (人民日报), China News Service (中国新闻网), Global Times (环球时报), The Paper (澎湃新聞), Guangming Daily (光明日報), Liberty Times (自由時報), and Zaobao Cross-Strait (联合早报)
+- Directional relevance filtering — PRC/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
+- Three-tier AI analysis: Google Gemini 2.5 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
+- Structured analytical output per article: topic classification (13 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
+- Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — allowing editorial override before publication to the dashboard
+- Analyst commentary layer allows human override of AI classifications at any point
+- Source bias tracking — each source tagged with editorial alignment (green / green_leaning / blue / centrist / state_official / state_nationalist)
+- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, and review queue UI
+- REST API with filtering by topic, sentiment, source country, urgency, escalation status, and bilingual full-text search
+
+---
 
 ## Why it exists
 
@@ -22,16 +31,18 @@ There is no accessible, bilingual tool for tracking cross-strait signals that co
 
 This tool processes Chinese government and military media in minutes, extracts structured intelligence, and flags escalation signals — work that would take a monolingual analyst hours. The AI layer accelerates analysis; native Mandarin reading ability verifies it.
 
+---
+
 ## Architecture
 
 ```
-Sources (PRC + Taiwan, Chinese-language priority)
+Sources (PRC + Taiwan + Singapore, Chinese-language priority)
 ├── RSS scraper (CNA Chinese, Xinhua, People's Daily, China News Service,
-│               Global Times, Liberty Times)
+│               Global Times, The Paper, Guangming Daily, Liberty Times, Zaobao)
 ├── HTML scrapers (国台办 weekly pressers, MFA spokesperson transcripts)
 │
-Keyword Pre-filter (directional — no API calls)
-├── PRC sources: must mention Taiwan/ROC territory to proceed
+Keyword Pre-filter (directional — no API calls on irrelevant articles)
+├── PRC/SG sources: must mention Taiwan/ROC territory to proceed
 ├── TW sources: must mention PRC/mainland/HK/Macau to proceed
 │
 Three-Tier AI Analysis Pipeline
@@ -46,34 +57,91 @@ FastAPI Backend
 ├── GET /api/articles/{id} — single article with full details
 ├── GET /api/stats — dashboard summary (topic breakdown, sentiment trend, entities)
 ├── GET /api/stats/entities — entity leaderboard by mention count
-├── POST /api/notes — analyst commentary with sentiment/topic override
+├── POST /api/notes — analyst commentary with sentiment/topic/score override
 ├── GET /review/queue — articles pending human review
 ├── POST /review/{id}/resolve — resolve review with confirm/override/dismiss
 ├── GET /review/stats — pending/resolved review counts
-├── GET /docs — interactive API documentation
+└── GET /docs — interactive API documentation
 │
 React Dashboard
 ├── Priority Signals (flash/priority urgency articles)
-├── Signal Feed (filterable article list)
-├── Stats Sidebar (topic breakdown, sentiment gauge, entity tracker)
-├── Review Queue (human review UI with override capability)
+├── Signal Feed (filterable article list with event clustering)
+├── Strait Watch gauges (overall + by source country + by political camp)
+├── Sentiment trend chart and topic breakdown chart (Recharts)
+├── Inline editorial overrides (sentiment, topic, score on any article card)
+├── Analyst commentary per article
+├── Review Queue (human review UI with confirm/override/dismiss)
 └── Dark/light theme toggle
 ```
 
-## Source list
+---
 
-| Source | Country | Language | Bias | Type |
-|--------|---------|----------|------|------|
-| CNA Chinese (中央社) | TW | zh-tw | green_leaning | State media |
-| Liberty Times (自由時報) | TW | zh-tw | green | Independent |
-| Xinhua (新华社) | PRC | zh-cn | state_official | State media |
-| People's Daily Politics (人民日报) | PRC | zh-cn | state_official | State media |
-| China News Service (中国新闻网) | PRC | zh-cn | state_official | State media |
-| Global Times (环球时报) | PRC | zh-cn | state_nationalist | State media |
-| PRC MFA Spokesperson (外交部) | PRC | zh-cn | state_official | Government |
-| Taiwan Affairs Office (国台办) | PRC | zh-cn | state_official | Government |
+## Tech Stack
 
-## Topic taxonomy
+| Layer | Technology |
+|-------|-----------|
+| Backend API | FastAPI (Python) |
+| Database | SQLite |
+| AI Pipeline | Google Gemini 2.5 Flash Lite + Flash |
+| Scraping | feedparser, BeautifulSoup, requests |
+| Frontend | React 18, Recharts |
+| Web Server | Nginx (reverse proxy + static serving) |
+| Process Manager | systemd |
+| Hosting | Ionos VPS S+, Ubuntu 24.04 |
+
+---
+
+## Source List
+
+### Bias Labels
+
+| Label | Meaning |
+|-------|---------|
+| `green` | Explicitly pro-independence editorial line |
+| `green_leaning` | State-controlled under DPP-led government |
+| `blue` | Consistent KMT-aligned editorial line |
+| `centrist` | Editorially independent |
+| `state_official` | PRC state media or government organ |
+| `state_nationalist` | PRC nationalist commentary |
+
+### Active Sources
+
+**Taiwan**
+
+| Source | Bias | Method |
+|--------|------|--------|
+| CNA Chinese (中央社) | green_leaning | RSS |
+| Liberty Times (自由時報) | green | RSS |
+
+**PRC**
+
+| Source | Bias | Method |
+|--------|------|--------|
+| Xinhua Chinese (新华社) | state_official | RSS |
+| People's Daily Politics (人民日报时政) | state_official | RSS |
+| China News Service (中国新闻网) | state_official | RSS |
+| Global Times (环球时报) | state_nationalist | RSS |
+| The Paper (澎湃新聞) | state_official | RSS |
+| Guangming Daily (光明日報) | state_official | RSS |
+| PRC MFA Spokesperson (外交部发言人) | state_official | HTML scraper |
+| Taiwan Affairs Office (国台办) | state_official | HTML scraper |
+
+**International**
+
+| Source | Bias | Method |
+|--------|------|--------|
+| Zaobao Cross-Strait (联合早报中港台) | centrist | RSS |
+
+### Deactivated / Pending
+
+- **UDN (聯合報)** — blue KMT-aligned Taiwan paper; RSS deprecated, HTML scraper in progress
+- **China Times (中國時報)** — 403 errors
+- **Taipei Times** — English, dropped in favour of Chinese-language primacy
+- **CGTN World** — English, dropped
+
+---
+
+## Topic Taxonomy
 
 | Code | Description |
 |------|-------------|
@@ -86,14 +154,32 @@ React Dashboard
 | `ECON_TRADE` | Cross-strait trade, supply chain, ECFA |
 | `ECON_INVEST` | FDI flows, business restrictions, tech sector |
 | `POL_DOMESTIC` | Taiwan elections, party dynamics, PRC internal politics |
-| `POL_TONGDU` | One China references, reunification rhetoric, sovereignty claims |
+| `POL_TONGDU` | 統獨 spectrum — unification/independence dynamics (bidirectional) |
 | `INFO_WARFARE` | Disinformation, cognitive warfare, media manipulation |
 | `LEGAL_GREY` | Coast guard activity, sand dredging, cable incidents |
 | `HUMANITARIAN` | People-to-people exchange, cultural events, humanitarian issues |
 
-## Model strategy
+`POL_TONGDU` (統獨) rather than `POL_UNIFICATION` — the bidirectional framing reflects that both independence moves and unification rhetoric shift the status quo.
 
-The pipeline uses **Google Gemini 2.5 Flash Lite** as the default processing engine (cost-effective, strong Chinese-language performance) with **Gemini 2.5 Flash** for escalation review on flagged articles. DeepSeek was evaluated and rejected due to documented political censorship on cross-strait topics. The `POL_TONGDU` (統獨) classification deliberately captures the full unification-independence spectrum rather than framing cross-strait dynamics as a one-directional PRC threat.
+---
+
+## Sentiment Axis
+
+| Score | Label | Meaning |
+|-------|-------|---------|
+| −1.0 to −0.3 | Stabilising | Reduces cross-strait tension |
+| −0.3 to +0.3 | Neutral | No significant cross-strait impact |
+| +0.3 to +1.0 | Destabilising | Increases cross-strait tension |
+
+The axis is **bidirectional** — a DPP sovereignty push and a PLA exercise are both destabilising. A TAO investment welcome and a KMT mainland visit can be stabilising. The framing deliberately avoids pre-judging which side causes instability.
+
+---
+
+## Model Strategy
+
+The pipeline uses Google Gemini 2.5 Flash Lite as the default processing engine (cost-effective, strong Chinese-language performance) with Gemini 2.5 Flash for escalation review on flagged articles. DeepSeek was evaluated and rejected due to documented political censorship on cross-strait topics — it consistently refused to analyse or misclassified content involving Taiwan independence, PLA exercises, and cross-strait political dynamics.
+
+---
 
 ## Setup
 
@@ -110,7 +196,6 @@ Create a `.env` file in the project root:
 
 ```
 GEMINI_API_KEY=your_gemini_key_here
-ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
 Initialise the database and seed sources:
@@ -137,8 +222,110 @@ cd frontend
 npm start
 ```
 
-API docs available at `http://localhost:8000/docs`
+API docs available at `http://localhost:8000/docs`  
 Dashboard available at `http://localhost:3000`
+
+---
+
+## Deployment
+
+### Server Setup
+
+```bash
+cd /var/www
+git clone https://github.com/Parkemoon/cross-strait-signal.git
+cd cross-strait-signal
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd frontend && npm install && npm run build && cd ..
+python scripts/init_db.py
+python scripts/seed_sources.py
+```
+
+### systemd Service
+
+```ini
+# /etc/systemd/system/cross-strait-signal.service
+[Unit]
+Description=Cross-Strait Signal API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/cross-strait-signal
+Environment=PATH=/var/www/cross-strait-signal/venv/bin
+ExecStart=/var/www/cross-strait-signal/venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Nginx Config
+
+```nginx
+server {
+    listen 80;
+    server_name 217.174.245.116;
+
+    auth_basic "Cross-Strait Signal";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+
+    root /var/www/cross-strait-signal/frontend/build;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /review/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+### Cron Schedule
+
+```bash
+# Pipeline runs every 6 hours
+0 */6 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
+```
+
+### Deploy Workflow
+
+```bash
+# Local — commit and push
+git add .
+git commit -m "Your changes"
+git push
+
+# Server — pull and rebuild
+ssh root@217.174.245.116
+/var/www/cross-strait-signal/deploy.sh
+```
+
+---
+
+## Design Principles
+
+- **Chinese-language sources are primary.** English versions of Chinese outlets break stories later and with less analytical depth.
+- **Bias labels reflect editorial reality, not diplomatic hedging.** CNA is `green_leaning` (state-controlled under DPP), not centrist. UDN is `blue` (consistent editorial line), not merely blue-leaning.
+- **The sentiment axis is bidirectional.** Destabilising actions from either side register on the same scale.
+- **POL_TONGDU not POL_UNIFICATION.** The 統獨 spectrum runs in both directions.
+- **Human judgment overrides AI.** The review queue and inline overrides exist because AI classification of politically sensitive content requires editorial judgment.
+- **Pending review articles are hidden from the feed.** Nothing reaches the public dashboard until it has passed either AI confidence thresholds or human review.
+
+---
 
 ## Roadmap
 
@@ -150,21 +337,29 @@ Dashboard available at `http://localhost:3000`
 - [x] Analyst commentary and classification override
 - [x] React dashboard with dark/light theme
 - [x] Priority signals section and review queue UI
-- [ ] Sentiment trend visualisation
-- [ ] Topic breakdown chart
-- [ ] Automated scheduling (APScheduler)
-- [ ] VPS deployment
+- [x] Sentiment trend visualisation
+- [x] Topic breakdown chart
+- [x] Event clustering (Jaccard similarity, 48-hour window)
+- [x] Automated scheduling (cron)
+- [x] VPS deployment
 - [ ] UDN HTML scraper (RSS feed deprecated)
-- [ ] Provincial PRC media sources (Fujian, Shanghai, Guangdong)
-- [ ] Social media signal layer (Weibo, PTT)
+- [ ] Provincial PRC media sources (海峽導報, 解放軍報, 观察者网)
+- [ ] Public read-only dashboard
+- [ ] Domain name registration
 - [ ] Leader activity tracker
 - [ ] Map layer (geocoded entity plotting)
+- [ ] Social media signal layer (Weibo, PTT)
 - [ ] ADS-B / AIS data integration (Phase 3)
 
-## Built by
+---
 
-**Ed Moon** — Bilingual English-Mandarin analyst and former News Director at TaiwanPlus, with a decade of senior editorial experience in Taiwan. MA Taiwan Studies (SOAS).
+## Author
+
+Ed Moon — bilingual English-Mandarin analyst, former Supervising Editor/News Director at TaiwanPlus, MA Taiwan Studies (SOAS).  
+Substack: [The East and Back](https://substack.com/@edmooon)
+
+---
 
 ## License
 
-MIT
+[GPL-3.0](LICENSE)

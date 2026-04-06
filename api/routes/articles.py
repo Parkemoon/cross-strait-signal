@@ -210,14 +210,21 @@ def get_article(article_id: int):
     return article
 
 
-@router.patch("/{article_id}/hide")
+@router.post("/{article_id}/hide")
 def hide_article(article_id: int):
-    """Soft delete — hide article from dashboard without removing from database."""
     conn = get_db()
-    conn.execute("UPDATE articles SET is_hidden = 1 WHERE id = ?", (article_id,))
+    conn.execute(
+        "UPDATE articles SET is_hidden = 1 WHERE id = ?",
+        (article_id,)
+    )
+    # Also clear escalation signal so it's removed from Priority Signals
+    conn.execute(
+        "UPDATE ai_analysis SET is_escalation_signal = 0 WHERE article_id = ?",
+        (article_id,)
+    )
     conn.commit()
     conn.close()
-    return {"status": "hidden", "article_id": article_id}
+    return {"status": "hidden"}
 
 
 @router.patch("/{article_id}/signal")
