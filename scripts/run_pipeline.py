@@ -41,7 +41,7 @@ async def main():
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
-    process_unanalysed_articles(limit=100)
+    process_unanalysed_articles(limit=500)
 
     # Step 4: Cluster events
     print("\n" + "=" * 60)
