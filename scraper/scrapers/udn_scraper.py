@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection, article_exists
 
 
-LIST_URL = 'https://udn.com/news/cate/2/6638'
+LIST_URL = 'https://udn.com/news/cate/2/6640'
 BASE_URL = 'https://udn.com'
 
 
@@ -99,7 +99,7 @@ async def scrape_udn():
                 article_resp.encoding = 'utf-8'
                 article_soup = BeautifulSoup(article_resp.text, 'html.parser')
 
-                content_div = article_soup.select_one('div.article-content__editor')
+                content_div = article_soup.select_one('div.article-content__paragraph')
                 if content_div:
                     content = content_div.get_text(strip=True)
             except Exception as e:
