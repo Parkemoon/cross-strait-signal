@@ -3,27 +3,105 @@ import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'cross_strait_signal.db')
 
+# Broad feeds replaced by targeted sections — deactivate these
+DEACTIVATE_SOURCES = [
+    'CNA Chinese',    # replaced by CNA Politics/Mainland/International/Finance
+    'Liberty Times',  # replaced by LTN Politics/World/Business/Defence
+]
+
 SOURCES = [
-    # Taiwan
+    # Taiwan — targeted sections
     {
-        'name': 'CNA Chinese',
-        'name_zh': '中央通訊社',
-        'url': 'https://feedx.net/rss/cna.xml',
+        'name': 'LTN Politics',
+        'name_zh': '自由時報政治',
+        'url': 'https://news.ltn.com.tw/rss/politics.xml',
+        'source_type': 'independent_media',
+        'country': 'TW',
+        'bias': 'green',
+        'language': 'zh-tw',
+        'tier': 1,
+        'scrape_interval': 240,
+        'scrape_method': 'rss',
+    },
+    {
+        'name': 'LTN World',
+        'name_zh': '自由時報國際',
+        'url': 'https://news.ltn.com.tw/rss/world.xml',
+        'source_type': 'independent_media',
+        'country': 'TW',
+        'bias': 'green',
+        'language': 'zh-tw',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
+    {
+        'name': 'LTN Business',
+        'name_zh': '自由時報財經',
+        'url': 'https://news.ltn.com.tw/rss/business.xml',
+        'source_type': 'independent_media',
+        'country': 'TW',
+        'bias': 'green',
+        'language': 'zh-tw',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
+    {
+        'name': 'LTN Defence',
+        'name_zh': '自由軍武頻道',
+        'url': 'https://def.ltn.com.tw/breakingnewslist',
+        'source_type': 'independent_media',
+        'country': 'TW',
+        'bias': 'green',
+        'language': 'zh-tw',
+        'tier': 1,
+        'scrape_interval': 240,
+        'scrape_method': 'html_scrape',
+    },
+    {
+        'name': 'CNA Politics',
+        'name_zh': '中央社政治',
+        'url': 'https://feeds.feedburner.com/rsscna/politics',
         'source_type': 'state_media',
         'country': 'TW',
         'bias': 'green_leaning',
         'language': 'zh-tw',
         'tier': 1,
-        'scrape_interval': 120,
+        'scrape_interval': 240,
         'scrape_method': 'rss',
     },
     {
-        'name': 'Liberty Times',
-        'name_zh': '自由時報',
-        'url': 'https://news.ltn.com.tw/rss/all.xml',
-        'source_type': 'independent_media',
+        'name': 'CNA Mainland',
+        'name_zh': '中央社兩岸',
+        'url': 'https://feeds.feedburner.com/rsscna/mainland',
+        'source_type': 'state_media',
         'country': 'TW',
-        'bias': 'green',
+        'bias': 'green_leaning',
+        'language': 'zh-tw',
+        'tier': 1,
+        'scrape_interval': 240,
+        'scrape_method': 'rss',
+    },
+    {
+        'name': 'CNA International',
+        'name_zh': '中央社國際',
+        'url': 'https://feeds.feedburner.com/rsscna/intworld',
+        'source_type': 'state_media',
+        'country': 'TW',
+        'bias': 'green_leaning',
+        'language': 'zh-tw',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
+    {
+        'name': 'CNA Finance',
+        'name_zh': '中央社財經',
+        'url': 'https://feeds.feedburner.com/rsscna/finance',
+        'source_type': 'state_media',
+        'country': 'TW',
+        'bias': 'green_leaning',
         'language': 'zh-tw',
         'tier': 2,
         'scrape_interval': 360,
@@ -39,6 +117,18 @@ SOURCES = [
         'language': 'zh-tw',
         'tier': 2,
         'scrape_interval': 360,
+        'scrape_method': 'html_scrape',
+    },
+    {
+        'name': 'YDN',
+        'name_zh': '青年日報',
+        'url': 'https://www.ydn.com.tw/tw/home/',
+        'source_type': 'state_media',
+        'country': 'TW',
+        'bias': 'state_official',
+        'language': 'zh-tw',
+        'tier': 1,
+        'scrape_interval': 240,
         'scrape_method': 'html_scrape',
     },
     # PRC
@@ -114,7 +204,6 @@ SOURCES = [
         'scrape_interval': 360,
         'scrape_method': 'rss',
     },
-
     {
         'name': 'Guancha',
         'name_zh': '观察者网',
@@ -151,21 +240,7 @@ SOURCES = [
         'scrape_interval': 240,
         'scrape_method': 'html_scrape',
     },
-    # Taiwan
-    {
-        'name': 'YDN',
-        'name_zh': '青年日報',
-        'url': 'https://www.ydn.com.tw/tw/home/',
-        'source_type': 'state_media',
-        'country': 'TW',
-        'bias': 'state_official',
-        'language': 'zh-tw',
-        'tier': 1,
-        'scrape_interval': 240,
-        'scrape_method': 'html_scrape',
-    },
     # International Chinese-language Sources
-
     {
         'name': 'Zaobao Cross-Strait',
         'name_zh': '聯合早報中港台',
@@ -180,17 +255,24 @@ SOURCES = [
     },
 ]
 
+
 def seed_sources():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
+    # Deactivate broad feeds replaced by targeted sections
+    for name in DEACTIVATE_SOURCES:
+        cursor.execute("SELECT id FROM sources WHERE name = ?", (name,))
+        if cursor.fetchone():
+            cursor.execute("UPDATE sources SET is_active = 0 WHERE name = ?", (name,))
+            print(f"  Deactivated: {name}")
+
     for source in SOURCES:
         cursor.execute("SELECT id FROM sources WHERE name = ?", (source['name'],))
         if cursor.fetchone():
-            # Update bias on existing records in case it wasn't set before
             cursor.execute(
-    "UPDATE sources SET bias = ?, url = ?, scrape_method = ? WHERE name = ?",
-    (source['bias'], source['url'], source['scrape_method'], source['name']))
+                "UPDATE sources SET bias = ?, url = ?, scrape_method = ?, is_active = 1 WHERE name = ?",
+                (source['bias'], source['url'], source['scrape_method'], source['name']))
             print(f"  Updated: {source['name']}")
             continue
 
