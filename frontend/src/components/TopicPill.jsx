@@ -13,6 +13,8 @@ const TOPIC_LABELS = {
   POL_TONGDU: "統獨",
   INFO_WARFARE: "Info Warfare",
   LEGAL_GREY: "Grey Zone",
+  TRANSPORT: "Transport",
+  INT_ORG: "Intl Organisations",
   HUMANITARIAN: "Humanitarian",
 };
 
@@ -31,6 +33,8 @@ const TOPIC_COLORS = {
   POL_TONGDU: "var(--accent-red)",
   INFO_WARFARE: "var(--accent-amber)",
   LEGAL_GREY: "var(--accent-teal)",
+  TRANSPORT: "var(--accent-teal)",
+  INT_ORG: "var(--accent-blue)",
   HUMANITARIAN: "var(--accent-blue)",
 };
 
