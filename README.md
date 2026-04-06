@@ -176,7 +176,8 @@ React Dashboard
 |------|-------------|
 | `MIL_EXERCISE` | PLA drills, live-fire exercises, joint exercises near Taiwan |
 | `MIL_MOVEMENT` | Troop deployments, naval transits, ADIZ incursions |
-| `MIL_HARDWARE` | Weapons systems, procurement, missile deployments |
+| `MIL_HARDWARE` | Weapons systems, procurement, specific platform news |
+| `MIL_POLICY` | Defence budgets, doctrine, white papers, conscription, arms sales decisions, MND statements |
 | `DIP_STATEMENT` | MFA remarks, TAO statements, official warnings |
 | `DIP_VISIT` | Leader travel, delegation visits, ally engagement |
 | `DIP_SANCTIONS` | Trade restrictions, entity listings, diplomatic downgrades |
