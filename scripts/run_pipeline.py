@@ -11,6 +11,7 @@ from scraper.scrapers.udn_scraper import scrape_udn
 from scraper.scrapers.guancha_scraper import scrape_guancha
 from scraper.scrapers.fjsen_scraper import scrape_fjsen
 from scraper.scrapers.pla_daily_scraper import scrape_pla_daily
+from scraper.scrapers.ydn_scraper import scrape_ydn
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 
 # Add scripts dir to path for cluster_events import
@@ -35,9 +36,10 @@ async def main():
     new_guancha = await scrape_guancha()
     new_fjsen = await scrape_fjsen()
     new_pla = await scrape_pla_daily()
+    new_ydn = await scrape_ydn()
 
     # Step 3: Analyse unprocessed articles
-    total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla
+    total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
     process_unanalysed_articles(limit=100)
 

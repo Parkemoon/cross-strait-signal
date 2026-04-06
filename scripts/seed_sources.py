@@ -151,6 +151,19 @@ SOURCES = [
         'scrape_interval': 240,
         'scrape_method': 'html_scrape',
     },
+    # Taiwan
+    {
+        'name': 'YDN',
+        'name_zh': '青年日報',
+        'url': 'https://www.ydn.com.tw/tw/home/',
+        'source_type': 'state_media',
+        'country': 'TW',
+        'bias': 'state_official',
+        'language': 'zh-tw',
+        'tier': 1,
+        'scrape_interval': 240,
+        'scrape_method': 'html_scrape',
+    },
     # International Chinese-language Sources
 
     {
