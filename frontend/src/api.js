@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE = "";
 
 export async function fetchArticles(params = {}) {
   const query = new URLSearchParams(params).toString();
@@ -62,7 +62,7 @@ export async function fetchArticleCluster(articleId) {
 
 export async function hideArticle(articleId) {
   const res = await fetch(`${API_BASE}/api/articles/${articleId}/hide`, {
-    method: "PATCH",
+    method: "POST",
   });
   return res.json();
 }
