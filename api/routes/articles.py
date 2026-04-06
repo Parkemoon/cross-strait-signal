@@ -97,7 +97,8 @@ def list_articles(
             s.name as source_name,
             s.name_zh as source_name_zh,
             s.country as source_country,
-            s.source_type
+            s.source_type,
+            s.bias
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id

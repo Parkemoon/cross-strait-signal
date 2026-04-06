@@ -11,21 +11,24 @@ const BIAS_COLORS = {
 };
 
 const SOURCE_ABBREV = {
-  // TW — green
-  "LTN Politics":      "LTN-P",
-  "LTN World":         "LTN-W",
-  "LTN Business":      "LTN-B",
-  "LTN Defence":       "LTN-D",
-  // TW — green_leaning
-  "CNA Politics":      "CNA-P",
-  "CNA Mainland":      "CNA-M",
-  "CNA International": "CNA-I",
-  "CNA Finance":       "CNA-F",
-  // TW — blue
-  "UDN":               "UDN",
-  "UDN Breaking":      "UDN-B",
-  "UDN International": "UDN-I",
-  "UDN Business":      "UDN-Bz",
+  // TW — green (all LTN sections → LTN)
+  "Liberty Times":     "LTN",
+  "LTN Politics":      "LTN",
+  "LTN World":         "LTN",
+  "LTN Business":      "LTN",
+  "LTN Defence":       "LTN",
+  // TW — green_leaning (all CNA sections → CNA)
+  "CNA Chinese":       "CNA",
+  "CNA Politics":      "CNA",
+  "CNA Mainland":      "CNA",
+  "CNA International": "CNA",
+  "CNA Finance":       "CNA",
+  // TW — blue (all UDN sections → UDN)
+  "UDN":                  "UDN",
+  "UDN Cross-Strait":     "UDN",
+  "UDN Breaking":         "UDN",
+  "UDN International":    "UDN",
+  "UDN Business":         "UDN",
   // TW — state_official
   "YDN":               "YDN",
   // PRC — state_official
