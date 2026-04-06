@@ -1,4 +1,17 @@
-export default function FlashTraffic({ escalations }) {
+import { useState, useEffect } from "react";
+import ArticleCard from "./ArticleCard";
+
+export default function FlashTraffic({ escalations: initialEscalations, onTopicClick, onEntityClick }) {
+  const [escalations, setEscalations] = useState(initialEscalations || []);
+
+  useEffect(() => {
+    setEscalations(initialEscalations || []);
+  }, [initialEscalations]);
+
+  const handleSignalOff = (articleId) => {
+    setEscalations((prev) => prev.filter((e) => e.id !== articleId));
+  };
+
   if (!escalations || escalations.length === 0) return null;
 
   return (
@@ -32,93 +45,23 @@ export default function FlashTraffic({ escalations }) {
         </span>
       </div>
 
-      {escalations.map((item) => (
-        <div
-          key={item.id}
-          style={{
-            background: "var(--escalation-bg)",
-            borderLeft: "4px solid var(--escalation-border)",
-            padding: "18px 22px",
-            marginBottom: "12px",
-            borderRadius: "2px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <span
-              style={{
-                background: "var(--accent-red)",
-                color: "#fff",
-                padding: "2px 10px",
-                borderRadius: "2px",
-                fontSize: "10px",
-                fontWeight: 600,
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-              }}
-            >
-              Signal
-            </span>
-            <span
-              style={{
-                color: "var(--text-muted)",
-                fontSize: "12px",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {item.source_name} · {item.published_at?.slice(0, 10)}
-            </span>
-          </div>
+      <div
+        style={{
+          borderLeft: "3px solid var(--accent-red)",
+          paddingLeft: "16px",
+        }}
+      >
+        {escalations.map((item) => (
+          <ArticleCard
+            key={item.id}
+            article={item}
+            onTopicClick={onTopicClick}
+            onEntityClick={onEntityClick}
+            onSignalOff={handleSignalOff}
+          />
+        ))}
+      </div>
 
-          <h3
-            style={{
-              fontFamily: "var(--font-headline)",
-              fontSize: "17px",
-              fontWeight: 400,
-              marginBottom: "8px",
-              color: "var(--text-primary)",
-              lineHeight: 1.4,
-            }}
-          >
-            {item.title_en || item.title_original}
-          </h3>
-
-          <p
-            style={{
-              fontSize: "14px",
-              fontFamily: "var(--font-body)",
-              color: "var(--text-secondary)",
-              lineHeight: 1.65,
-              marginBottom: "8px",
-            }}
-          >
-            {item.summary_en}
-          </p>
-
-          {item.escalation_note && (
-            <p
-              style={{
-                fontSize: "13px",
-                fontFamily: "var(--font-body)",
-                color: "var(--accent-amber)",
-                fontStyle: "italic",
-                lineHeight: 1.5,
-              }}
-            >
-              ▸ {item.escalation_note}
-            </p>
-          )}
-        </div>
-      ))}
-
-      {/* Divider after priority signals */}
       <div
         style={{
           height: "1px",

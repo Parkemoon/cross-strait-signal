@@ -155,7 +155,11 @@ export default function App() {
           ) : (
             <>
               {/* Priority Signals */}
-              <FlashTraffic escalations={stats?.escalation_signals} />
+              <FlashTraffic
+                escalations={stats?.escalation_signals}
+                onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
+                onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
+              />
 
               {/* Section header */}
               <div
