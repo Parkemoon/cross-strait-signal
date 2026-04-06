@@ -115,6 +115,42 @@ SOURCES = [
         'scrape_method': 'rss',
     },
 
+    {
+        'name': 'Guancha',
+        'name_zh': '观察者网',
+        'url': 'https://www.guancha.cn/taihaifengyun',
+        'source_type': 'independent_media',
+        'country': 'PRC',
+        'bias': 'state_nationalist',
+        'language': 'zh-cn',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'html_scrape',
+    },
+    {
+        'name': 'Haixia Daobao',
+        'name_zh': '海峽導報',
+        'url': 'http://taihai.fjsen.com/',
+        'source_type': 'state_media',
+        'country': 'PRC',
+        'bias': 'state_official',
+        'language': 'zh-cn',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'html_scrape',
+    },
+    {
+        'name': 'PLA Daily',
+        'name_zh': '解放軍報',
+        'url': 'http://www.81.cn/fyr/',
+        'source_type': 'state_media',
+        'country': 'PRC',
+        'bias': 'state_official',
+        'language': 'zh-cn',
+        'tier': 1,
+        'scrape_interval': 240,
+        'scrape_method': 'html_scrape',
+    },
     # International Chinese-language Sources
 
     {
