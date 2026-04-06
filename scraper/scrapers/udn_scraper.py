@@ -10,26 +10,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection, article_exists
 
 
-LIST_URL = 'https://udn.com/news/cate/2/6640'
 BASE_URL = 'https://udn.com'
 
 
-async def scrape_udn():
-    """Scrape UDN 聯合新聞網 cross-strait section (最新文章)."""
+async def scrape_udn(source):
+    """Scrape a single UDN section given a source row from the database."""
     conn = get_connection()
-
-    source = conn.execute(
-        "SELECT * FROM sources WHERE name = 'UDN'"
-    ).fetchone()
-
-    if not source:
-        print("  UDN source not found in database — run seed_sources.py first")
-        conn.close()
-        return 0
-
-    print(f"\nScraping: UDN")
-
     new_count = 0
+
+    print(f"\nScraping: {source['name']} ({source['url']})")
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -38,10 +27,10 @@ async def scrape_udn():
 
     async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=headers) as client:
         try:
-            resp = await client.get(LIST_URL)
+            resp = await client.get(source['url'])
             resp.encoding = 'utf-8'
         except Exception as e:
-            print(f"  Error fetching UDN list page: {e}")
+            print(f"  Error fetching list page: {e}")
             conn.close()
             return 0
 
@@ -116,10 +105,24 @@ async def scrape_udn():
 
     conn.commit()
     conn.close()
-    print(f"  Saved {new_count} new articles from UDN")
+    print(f"  Saved {new_count} new articles from {source['name']}")
     return new_count
+
+
+async def scrape_all_udn_sources():
+    """Scrape all active UDN section sources."""
+    conn = get_connection()
+    sources = conn.execute(
+        "SELECT * FROM sources WHERE name LIKE 'UDN%' AND is_active = 1"
+    ).fetchall()
+    conn.close()
+
+    total = 0
+    for source in sources:
+        total += await scrape_udn(source)
+    return total
 
 
 if __name__ == '__main__':
     import asyncio
-    asyncio.run(scrape_udn())
+    asyncio.run(scrape_all_udn_sources())
