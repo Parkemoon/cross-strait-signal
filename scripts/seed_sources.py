@@ -32,7 +32,7 @@ SOURCES = [
     {
         'name': 'UDN',
         'name_zh': '聯合報',
-        'url': 'https://udn.com/news/cate/2/6638',
+        'url': 'https://udn.com/news/cate/2/6640',
         'source_type': 'independent_media',
         'country': 'TW',
         'bias': 'blue',
