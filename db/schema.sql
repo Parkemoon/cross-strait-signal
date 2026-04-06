@@ -123,3 +123,25 @@ CREATE VIRTUAL TABLE articles_fts USING fts5(
     content='articles',
     content_rowid='id'
 );
+
+-- ============================================================
+-- SOCIAL PULSE (Weibo Hot Search + PTT trending posts)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS social_pulse (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    platform          TEXT NOT NULL,       -- 'weibo' or 'ptt'
+    item_key          TEXT NOT NULL,       -- weibo: keyword, ptt: post URL
+    title             TEXT NOT NULL,       -- original Chinese keyword or post title
+    title_en          TEXT,                -- AI-translated English (Gemini Flash Lite)
+    title_en_override TEXT,                -- manual analyst correction
+    rank_position     INTEGER,             -- Weibo: rank in hot search top 50
+    heat_index        INTEGER,             -- Weibo: heat/热度 value
+    push_count        INTEGER,             -- PTT: upvote count (100 = 爆)
+    boo_count         INTEGER,             -- PTT: downvote count
+    board             TEXT,                -- PTT: board name
+    url               TEXT,                -- PTT: post URL
+    scraped_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_pulse_platform_time ON social_pulse(platform, scraped_at DESC);

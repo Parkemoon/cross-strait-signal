@@ -1,0 +1,106 @@
+"""
+Lightweight translation pass for social_pulse items.
+Uses Gemini Flash Lite — translation only, no classification.
+Runs after social scrapers, before the main AI article pipeline.
+"""
+
+import os
+import sys
+import time
+from dotenv import load_dotenv
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+load_dotenv()
+
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+from google import genai
+from scraper.utils.db import get_connection
+
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+TRANSLATION_PROMPT = """You are translating Chinese social media content into English for a cross-strait intelligence dashboard.
+
+Translate each item below. These are either Weibo trending keywords or PTT (Taiwan BBS) post titles.
+
+Rules:
+- Preserve political and military terminology precisely
+- PTT titles use informal internet Chinese, slang, and sometimes coded language — translate the meaning, not just the words
+- Weibo keywords are often 2-6 character topic labels — give a concise but clear English equivalent
+- Do not add commentary or explanation
+- Return ONLY a JSON array of strings, one translation per item, in the same order as input
+- Example input: ["台海軍演", "共機擾台"] → Example output: ["Taiwan Strait military exercise", "PLA aircraft incursion into Taiwan airspace"]
+
+Items to translate:
+{items}
+
+Return ONLY a JSON array of strings. No markdown, no commentary."""
+
+
+def translate_social_pulse(batch_size=20):
+    """Translate untranslated social_pulse items using Gemini Flash Lite."""
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT id, title, platform FROM social_pulse
+        WHERE title_en IS NULL AND item_key != '__none__'
+        ORDER BY scraped_at DESC
+        LIMIT 100
+    """).fetchall()
+
+    if not rows:
+        print("  No social pulse items to translate")
+        conn.close()
+        return
+
+    print(f"  Translating {len(rows)} social pulse items...")
+
+    # Process in batches
+    for i in range(0, len(rows), batch_size):
+        batch = rows[i:i + batch_size]
+        titles = [r['title'] for r in batch]
+
+        prompt = TRANSLATION_PROMPT.format(items=str(titles))
+
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash-lite',
+                contents=prompt,
+            )
+            raw = response.text.strip()
+
+            # Strip markdown code blocks if present
+            if raw.startswith('```'):
+                raw = raw.split('```')[1]
+                if raw.startswith('json'):
+                    raw = raw[4:]
+                raw = raw.strip()
+
+            import json
+            translations = json.loads(raw)
+
+            if not isinstance(translations, list) or len(translations) != len(batch):
+                print(f"  Translation batch returned unexpected format, skipping")
+                continue
+
+            for row, translation in zip(batch, translations):
+                conn.execute(
+                    "UPDATE social_pulse SET title_en = ? WHERE id = ?",
+                    (translation.strip(), row['id'])
+                )
+                print(f"  [{row['platform']}] {row['title'][:40]} → {translation[:50]}")
+
+            conn.commit()
+            time.sleep(0.5)  # brief pause between batches
+
+        except Exception as e:
+            print(f"  Translation batch failed: {e}")
+            continue
+
+    conn.close()
+    print("  Social pulse translation complete")
+
+
+if __name__ == '__main__':
+    translate_social_pulse()

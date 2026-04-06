@@ -13,14 +13,15 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 
 ## What it does
 
-- Scrapes 11 active sources across the PRC, Taiwan, and Singapore — 国台办 (Taiwan Affairs Office) press conferences, MFA spokesperson transcripts, Xinhua (新华社), CNA Chinese (中央社), People's Daily (人民日报), China News Service (中国新闻网), Global Times (环球时报), The Paper (澎湃新聞), Guangming Daily (光明日報), Liberty Times (自由時報), and Zaobao Cross-Strait (联合早报)
+- Scrapes ~25 active sources across PRC, Taiwan, and Singapore — including RSS feeds and bespoke HTML scrapers for sites without usable feeds (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN, LTN Defence, UDN sections)
 - Directional relevance filtering — PRC/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
 - Three-tier AI analysis: Google Gemini 2.5 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
-- Structured analytical output per article: topic classification (13 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
+- Structured analytical output per article: topic classification (18 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
 - Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — allowing editorial override before publication to the dashboard
 - Analyst commentary layer allows human override of AI classifications at any point
 - Source bias tracking — each source tagged with editorial alignment (green / green_leaning / blue / centrist / state_official / state_nationalist)
-- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, and review queue UI
+- Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction
+- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Social Pulse panel, and review queue UI
 - REST API with filtering by topic, sentiment, source country, urgency, escalation status, and bilingual full-text search
 
 ---
@@ -37,18 +38,23 @@ This tool processes Chinese government and military media in minutes, extracts s
 
 ```
 Sources (PRC + Taiwan + Singapore, Chinese-language priority)
-├── RSS scraper (CNA Chinese, Xinhua, People's Daily, China News Service,
-│               Global Times, The Paper, Guangming Daily, Liberty Times, Zaobao)
-├── HTML scrapers (国台办 weekly pressers, MFA spokesperson transcripts)
+├── RSS scraper (Xinhua, People's Daily, China News Service, Global Times, The Paper,
+│               Guangming Daily, CNA sections, LTN sections, Zaobao)
+├── HTML scrapers (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN,
+│                 LTN Defence, UDN sections)
+├── Social scrapers (Weibo hot search JSON API, PTT BBS boards)
 │
 Keyword Pre-filter (directional — no API calls on irrelevant articles)
 ├── PRC/SG sources: must mention Taiwan/ROC territory to proceed
 ├── TW sources: must mention PRC/mainland/HK/Macau to proceed
 │
-Three-Tier AI Analysis Pipeline
+Three-Tier AI Analysis Pipeline (articles only)
 ├── Tier 1: Gemini 2.5 Flash Lite — topic, sentiment, entities, urgency
 ├── Tier 2: Gemini 2.5 Flash — escalation review for flagged articles
 ├── Tier 3: Human review queue — model disagreement resolution
+│
+Social Translation (separate lightweight pipeline)
+└── Gemini 2.5 Flash Lite — batch-translates Weibo/PTT titles only
 │
 Storage: SQLite with full-text search (FTS5)
 │
@@ -58,6 +64,8 @@ FastAPI Backend
 ├── GET /api/stats — dashboard summary (topic breakdown, sentiment trend, entities)
 ├── GET /api/stats/entities — entity leaderboard by mention count
 ├── POST /api/notes — analyst commentary with sentiment/topic/score override
+├── GET /api/social/ — latest Weibo top 50 + PTT trending posts
+├── PATCH /api/social/{id}/translation — save analyst translation correction
 ├── GET /review/queue — articles pending human review
 ├── POST /review/{id}/resolve — resolve review with confirm/override/dismiss
 ├── GET /review/stats — pending/resolved review counts
@@ -65,6 +73,7 @@ FastAPI Backend
 │
 React Dashboard
 ├── Priority Signals (flash/priority urgency articles)
+├── Social Pulse panel (Weibo top 50 + PTT, collapsed by default)
 ├── Signal Feed (filterable article list with event clustering)
 ├── Strait Watch gauges (overall + by source country + by political camp)
 ├── Sentiment trend chart and topic breakdown chart (Recharts)
@@ -83,8 +92,8 @@ React Dashboard
 | Backend API | FastAPI (Python) |
 | Database | SQLite |
 | AI Pipeline | Google Gemini 2.5 Flash Lite + Flash |
-| Scraping | feedparser, BeautifulSoup, requests |
-| Frontend | React 18, Recharts |
+| Scraping | feedparser, BeautifulSoup, httpx |
+| Frontend | React 19, Recharts |
 | Web Server | Nginx (reverse proxy + static serving) |
 | Process Manager | systemd |
 | Hosting | Ionos VPS S+, Ubuntu 24.04 |
@@ -110,8 +119,19 @@ React Dashboard
 
 | Source | Bias | Method |
 |--------|------|--------|
-| CNA Chinese (中央社) | green_leaning | RSS |
-| Liberty Times (自由時報) | green | RSS |
+| LTN Politics (自由時報政治) | green | RSS |
+| LTN World (自由時報國際) | green | RSS |
+| LTN Business (自由時報財經) | green | RSS |
+| LTN Defence (自由軍武頻道) | green | HTML scraper |
+| CNA Politics (中央社政治) | green_leaning | RSS |
+| CNA Mainland (中央社兩岸) | green_leaning | RSS |
+| CNA International (中央社國際) | green_leaning | RSS |
+| CNA Finance (中央社財經) | green_leaning | RSS |
+| UDN Cross-Strait (聯合報兩岸) | blue | HTML scraper |
+| UDN Breaking (聯合報即時) | blue | HTML scraper |
+| UDN International (聯合報國際) | blue | HTML scraper |
+| UDN Business (聯合報財經) | blue | HTML scraper |
+| YDN (青年日報) | state_official | HTML scraper |
 
 **PRC**
 
@@ -125,6 +145,9 @@ React Dashboard
 | Guangming Daily (光明日報) | state_official | RSS |
 | PRC MFA Spokesperson (外交部发言人) | state_official | HTML scraper |
 | Taiwan Affairs Office (国台办) | state_official | HTML scraper |
+| Guancha (观察者网) | state_nationalist | HTML scraper |
+| Haixia Daobao (海峽導報) | state_official | HTML scraper |
+| PLA Daily (解放軍報) | state_official | HTML scraper |
 
 **International**
 
@@ -132,9 +155,15 @@ React Dashboard
 |--------|------|--------|
 | Zaobao Cross-Strait (联合早报中港台) | centrist | RSS |
 
-### Deactivated / Pending
+**Social (not in article pipeline)**
 
-- **UDN (聯合報)** — blue KMT-aligned Taiwan paper; RSS deprecated, HTML scraper in progress
+| Source | Method |
+|--------|--------|
+| Weibo Hot Search (微博热搜) | JSON API |
+| PTT Military / Gossiping / HatePolitics | HTML scraper |
+
+### Deactivated
+
 - **China Times (中國時報)** — 403 errors
 - **Taipei Times** — English, dropped in favour of Chinese-language primacy
 - **CGTN World** — English, dropped
@@ -153,11 +182,17 @@ React Dashboard
 | `DIP_SANCTIONS` | Trade restrictions, entity listings, diplomatic downgrades |
 | `ECON_TRADE` | Cross-strait trade, supply chain, ECFA |
 | `ECON_INVEST` | FDI flows, business restrictions, tech sector |
-| `POL_DOMESTIC` | Taiwan elections, party dynamics, PRC internal politics |
+| `DIP_SANCTIONS` | Trade restrictions, entity listings, diplomatic downgrades |
+| `PARTY_VISIT` | KMT/opposition visits to PRC (distinct from state-level DIP_VISIT) |
+| `ECON_INVEST` | FDI flows, business restrictions, tech sector |
+| `POL_DOMESTIC_TW` | Taiwan elections, party dynamics, domestic politics (subject = Taiwan) |
+| `POL_DOMESTIC_PRC` | PRC internal politics, leadership, domestic governance |
 | `POL_TONGDU` | 統獨 spectrum — unification/independence dynamics (bidirectional) |
 | `INFO_WARFARE` | Disinformation, cognitive warfare, media manipulation |
 | `LEGAL_GREY` | Coast guard activity, sand dredging, cable incidents |
 | `HUMANITARIAN` | People-to-people exchange, cultural events, humanitarian issues |
+| `TRANSPORT` | Cross-strait transport links, aviation, shipping |
+| `INT_ORG` | Taiwan's participation in international organisations |
 
 `POL_TONGDU` (統獨) rather than `POL_UNIFICATION` — the bidirectional framing reflects that both independence moves and unification rhetoric shift the status quo.
 
@@ -297,8 +332,8 @@ server {
 ### Cron Schedule
 
 ```bash
-# Pipeline runs every 6 hours
-0 */6 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
+# Pipeline runs every 3 hours
+0 */3 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
 ```
 
 ### Deploy Workflow
@@ -340,15 +375,18 @@ ssh root@217.174.245.116
 - [x] Sentiment trend visualisation
 - [x] Topic breakdown chart
 - [x] Event clustering (Jaccard similarity, 48-hour window)
-- [x] Automated scheduling (cron)
+- [x] Automated scheduling (cron, every 3 hours)
 - [x] VPS deployment
-- [ ] UDN HTML scraper (RSS feed deprecated)
-- [ ] Provincial PRC media sources (海峽導報, 解放軍報, 观察者网)
+- [x] UDN HTML scraper (4 sections)
+- [x] Provincial PRC media sources (海峽導報, 解放軍報, 观察者网)
+- [x] LTN Defence scraper
+- [x] YDN (ROC MND newspaper) scraper
+- [x] Source badges colour-coded by political bias
+- [x] Social media signal layer (Weibo hot search + PTT trending)
 - [ ] Public read-only dashboard
 - [ ] Domain name registration
 - [ ] Leader activity tracker
 - [ ] Map layer (geocoded entity plotting)
-- [ ] Social media signal layer (Weibo, PTT)
 - [ ] ADS-B / AIS data integration (Phase 3)
 
 ---

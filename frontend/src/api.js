@@ -73,3 +73,17 @@ export async function toggleSignal(articleId) {
   });
   return res.json();
 }
+
+export async function fetchSocialPulse() {
+  const res = await fetch(`${API_BASE}/api/social`);
+  return res.json();
+}
+
+export async function correctSocialTranslation(id, titleEnOverride) {
+  const res = await fetch(`${API_BASE}/api/social/${id}/translation`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title_en_override: titleEnOverride }),
+  });
+  return res.json();
+}
