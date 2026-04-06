@@ -51,6 +51,32 @@
   --header-text: #e8e6e1;
 }
 
+/* Inverted token set — used for Priority Signals section */
+/* In light mode this looks like dark mode, in dark mode like light mode */
+.signal-inverted {
+  --bg-primary: #1c1c1c;
+  --bg-secondary: #252525;
+  --bg-card: #2c2c2c;
+  --text-primary: #fafaf8;
+  --text-secondary: #c8c5c0;
+  --text-muted: #888580;
+  --border-color: #3a3835;
+  --tag-bg: #333330;
+  --tag-text: #b8b5b0;
+}
+
+.dark .signal-inverted {
+  --bg-primary: #f0efeb;
+  --bg-secondary: #e2dfd9;
+  --bg-card: #fafaf8;
+  --text-primary: #1c1c1c;
+  --text-secondary: #4a4a4a;
+  --text-muted: #7a7870;
+  --border-color: #d0ccc5;
+  --tag-bg: #e8e5e0;
+  --tag-text: #5a5a58;
+}
+
 * {
   margin: 0;
   padding: 0;

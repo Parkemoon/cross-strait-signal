@@ -46,9 +46,13 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
       </div>
 
       <div
+        className="signal-inverted"
         style={{
-          borderLeft: "3px solid var(--accent-red)",
-          paddingLeft: "16px",
+          background: "var(--bg-primary)",
+          borderRadius: "4px",
+          borderTop: "3px solid var(--accent-red)",
+          padding: "4px 20px 4px",
+          marginBottom: "24px",
         }}
       >
         {escalations.map((item) => (
@@ -61,15 +65,6 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
           />
         ))}
       </div>
-
-      <div
-        style={{
-          height: "1px",
-          background: "var(--border-color)",
-          marginTop: "8px",
-          marginBottom: "8px",
-        }}
-      />
     </div>
   );
 }
