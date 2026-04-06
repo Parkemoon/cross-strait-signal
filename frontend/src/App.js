@@ -32,7 +32,7 @@ export default function App() {
 
   useEffect(() => {
     fetchStats(30).then(setStats);
-    fetch("http://localhost:8000/review/stats")
+    fetch("/review/stats")
       .then((r) => r.json())
       .then((d) => setReviewPending(d.pending || 0))
       .catch(() => {});
