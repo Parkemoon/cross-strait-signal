@@ -76,17 +76,34 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         GROUP BY s.bias
     """, (f'-{days} days',)).fetchall()
 
-    # Escalation signals
-    escalations = conn.execute("""
-        SELECT a.id, a.title_original, a.title_en, ai.summary_en,
-               ai.escalation_note, a.published_at, s.name as source_name
+    # Escalation signals — full article data for interactive cards
+    escalation_rows = conn.execute("""
+        SELECT a.id, a.url, a.title_original, a.title_en, a.language,
+               a.published_at, a.content_original,
+               ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
+               ai.urgency, ai.summary_en, ai.key_quote, ai.key_quote_en,
+               ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
+               ai.confidence,
+               s.name as source_name, s.name_zh as source_name_zh,
+               s.country as source_country, s.source_type
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE ai.is_escalation_signal = 1
+          AND a.is_hidden = 0
           AND a.published_at >= datetime('now', '-1 day')
         ORDER BY a.published_at DESC
     """).fetchall()
+
+    escalations = []
+    for row in escalation_rows:
+        article = dict(row)
+        entities = conn.execute("""
+            SELECT entity_name, entity_name_en, entity_type, entity_role, location_name
+            FROM entities WHERE article_id = ?
+        """, (article['id'],)).fetchall()
+        article['entities'] = [dict(e) for e in entities]
+        escalations.append(article)
 
     # Top entities
     top_entities = conn.execute("""
@@ -121,7 +138,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         "topics": [dict(t) for t in topics],
         "sentiments": [dict(s) for s in sentiments],
         "sources": [dict(s) for s in sources],
-        "escalation_signals": [dict(e) for e in escalations],
+        "escalation_signals": escalations,
         "top_entities": [dict(e) for e in top_entities],
         "sentiment_trend": [dict(s) for s in sentiment_trend],
         "sentiment_by_country": [dict(r) for r in sentiment_by_country],

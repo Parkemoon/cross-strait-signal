@@ -13,7 +13,7 @@ const TOPIC_OPTIONS = [
   "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN",
 ];
 
-export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
+export default function ArticleCard({ article, onTopicClick, onEntityClick, onSignalOff }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [sentimentOverride, setSentimentOverride] = useState("");
@@ -59,6 +59,9 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
     e.stopPropagation();
     const result = await toggleSignal(article.id);
     setIsSignal(result.is_escalation_signal === 1);
+    if (result.is_escalation_signal === 0 && onSignalOff) {
+      onSignalOff(article.id);
+    }
   };
 
   const selectStyle = {
