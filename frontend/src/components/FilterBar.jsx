@@ -1,6 +1,6 @@
 const TOPICS = [
   "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE",
-  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS",
+  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT",
   "ECON_TRADE", "ECON_INVEST",
   "POL_DOMESTIC", "POL_TONGDU",
   "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN",
@@ -11,7 +11,8 @@ const TOPIC_LABELS = {
   MIL_MOVEMENT: "Force Movement",
   MIL_HARDWARE: "Hardware",
   DIP_STATEMENT: "Diplomacy",
-  DIP_VISIT: "State Visit",
+  DIP_VISIT: "Official Visit",
+  PARTY_VISIT: "Party Visit",
   DIP_SANCTIONS: "Sanctions",
   ECON_TRADE: "Trade",
   ECON_INVEST: "Investment",
