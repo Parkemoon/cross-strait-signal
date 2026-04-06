@@ -8,7 +8,7 @@ import { fetchArticleCluster } from "../api";
 const SENTIMENT_OPTIONS = ["destabilising", "stabilising", "neutral", "ambiguous"];
 const TOPIC_OPTIONS = [
   "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE",
-  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS",
+  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT",
   "ECON_TRADE", "ECON_INVEST", "POL_DOMESTIC", "POL_TONGDU",
   "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN",
 ];
