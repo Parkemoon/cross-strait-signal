@@ -2,7 +2,7 @@ import { useState } from "react";
 import SourceBadge from "./SourceBadge";
 import TopicPill from "./TopicPill";
 import SentimentBadge from "./SentimentBadge";
-import { createNote, hideArticle, markAsSignal } from "../api";
+import { createNote, hideArticle, toggleSignal } from "../api";
 import { fetchArticleCluster } from "../api";
 
 const SENTIMENT_OPTIONS = ["destabilising", "stabilising", "neutral", "ambiguous"];
@@ -55,10 +55,10 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
     setHidden(true);
   };
 
-  const handleMarkSignal = async (e) => {
+  const handleToggleSignal = async (e) => {
     e.stopPropagation();
-    await markAsSignal(article.id);
-    setIsSignal(true);
+    const result = await toggleSignal(article.id);
+    setIsSignal(result.is_escalation_signal === 1);
   };
 
   const selectStyle = {
@@ -155,25 +155,23 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick }) {
 
 {/* Action buttons */}
         <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
-          {!isSignal && (
-            <button
-              onClick={handleMarkSignal}
-              title="Mark as escalation signal"
-              style={{
-                background: "transparent",
-                border: "1px solid var(--accent-red)",
-                color: "var(--accent-red)",
-                borderRadius: "2px",
-                padding: "1px 7px",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                cursor: "pointer",
-                lineHeight: 1.6,
-              }}
-            >
-              {"! Signal"}
-            </button>
-          )}
+          <button
+            onClick={handleToggleSignal}
+            title={isSignal ? "Remove signal flag" : "Mark as escalation signal"}
+            style={{
+              background: isSignal ? "var(--accent-red)" : "transparent",
+              border: "1px solid var(--accent-red)",
+              color: isSignal ? "#fff" : "var(--accent-red)",
+              borderRadius: "2px",
+              padding: "1px 7px",
+              fontSize: "10px",
+              fontFamily: "var(--font-mono)",
+              cursor: "pointer",
+              lineHeight: 1.6,
+            }}
+          >
+            {isSignal ? "✕ Signal" : "! Signal"}
+          </button>
           <button
             onClick={handleHide}
             title="Hide this article"

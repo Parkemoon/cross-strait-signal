@@ -67,7 +67,7 @@ export async function hideArticle(articleId) {
   return res.json();
 }
 
-export async function markAsSignal(articleId) {
+export async function toggleSignal(articleId) {
   const res = await fetch(`${API_BASE}/api/articles/${articleId}/signal`, {
     method: "PATCH",
   });

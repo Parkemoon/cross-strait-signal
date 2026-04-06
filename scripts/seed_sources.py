@@ -32,14 +32,14 @@ SOURCES = [
     {
         'name': 'UDN',
         'name_zh': '聯合報',
-        'url': 'https://udn.com/rssfeed/news/2/6638/7314?ch=news',
+        'url': 'https://udn.com/news/cate/2/6638',
         'source_type': 'independent_media',
         'country': 'TW',
         'bias': 'blue',
         'language': 'zh-tw',
         'tier': 2,
         'scrape_interval': 360,
-        'scrape_method': 'rss',
+        'scrape_method': 'html_scrape',
     },
     # PRC
     {
@@ -140,8 +140,8 @@ def seed_sources():
         if cursor.fetchone():
             # Update bias on existing records in case it wasn't set before
             cursor.execute(
-    "UPDATE sources SET bias = ?, url = ? WHERE name = ?",
-    (source['bias'], source['url'], source['name']))
+    "UPDATE sources SET bias = ?, url = ?, scrape_method = ? WHERE name = ?",
+    (source['bias'], source['url'], source['scrape_method'], source['name']))
             print(f"  Updated: {source['name']}")
             continue
 

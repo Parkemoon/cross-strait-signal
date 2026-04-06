@@ -228,13 +228,18 @@ def hide_article(article_id: int):
 
 
 @router.patch("/{article_id}/signal")
-def mark_as_signal(article_id: int):
-    """Manually mark an article as an escalation signal."""
+def toggle_signal(article_id: int):
+    """Toggle escalation signal flag on an article."""
     conn = get_db()
-    conn.execute("""
-        UPDATE ai_analysis SET is_escalation_signal = 1
-        WHERE article_id = ?
-    """, (article_id,))
+    row = conn.execute(
+        "SELECT is_escalation_signal FROM ai_analysis WHERE article_id = ?",
+        (article_id,)
+    ).fetchone()
+    new_value = 0 if (row and row["is_escalation_signal"]) else 1
+    conn.execute(
+        "UPDATE ai_analysis SET is_escalation_signal = ? WHERE article_id = ?",
+        (new_value, article_id)
+    )
     conn.commit()
     conn.close()
-    return {"status": "signalled", "article_id": article_id}
+    return {"is_escalation_signal": new_value, "article_id": article_id}
