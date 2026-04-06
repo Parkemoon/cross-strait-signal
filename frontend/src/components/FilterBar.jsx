@@ -3,7 +3,7 @@ const TOPICS = [
   "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT",
   "ECON_TRADE", "ECON_INVEST",
   "POL_DOMESTIC_TW", "POL_DOMESTIC_PRC", "POL_TONGDU",
-  "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN",
+  "INFO_WARFARE", "LEGAL_GREY", "TRANSPORT", "INT_ORG", "HUMANITARIAN",
 ];
 
 const TOPIC_LABELS = {
@@ -21,6 +21,8 @@ const TOPIC_LABELS = {
   POL_TONGDU: "統獨 Spectrum",
   INFO_WARFARE: "Info Warfare",
   LEGAL_GREY: "Grey Zone",
+  TRANSPORT: "Transport",
+  INT_ORG: "Intl Organisations",
   HUMANITARIAN: "Humanitarian",
 };
 
