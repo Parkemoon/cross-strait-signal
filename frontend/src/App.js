@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchArticles, fetchStats } from "./api";
 import ThemeToggle from "./components/ThemeToggle";
 import FlashTraffic from "./components/FlashTraffic";
+import SocialPulse from "./components/SocialPulse";
 import ArticleCard from "./components/ArticleCard";
 import StatsSidebar from "./components/StatsSidebar";
 import FilterBar from "./components/FilterBar";
@@ -160,6 +161,8 @@ export default function App() {
                 onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
                 onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
               />
+
+              <SocialPulse />
 
               {/* Section header */}
               <div

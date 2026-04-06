@@ -13,7 +13,10 @@ from scraper.scrapers.fjsen_scraper import scrape_fjsen
 from scraper.scrapers.pla_daily_scraper import scrape_pla_daily
 from scraper.scrapers.ydn_scraper import scrape_ydn
 from scraper.scrapers.ltn_defence_scraper import scrape_ltn_defence
+from scraper.scrapers.weibo_hot_scraper import scrape_weibo_hot
+from scraper.scrapers.ptt_scraper import scrape_ptt
 from scraper.processors.ai_pipeline import process_unanalysed_articles
+from scraper.processors.social_translator import translate_social_pulse
 
 # Add scripts dir to path for cluster_events import
 sys.path.insert(0, os.path.dirname(__file__))
@@ -39,6 +42,12 @@ async def main():
     new_pla = await scrape_pla_daily()
     new_ydn = await scrape_ydn()
     new_ltn_defence = await scrape_ltn_defence()
+    await scrape_weibo_hot()
+    await scrape_ptt()
+
+    # Step 2b: Translate social pulse items
+    print("\n--- STEP 2b: Social Pulse Translation ---")
+    translate_social_pulse()
 
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence

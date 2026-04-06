@@ -89,8 +89,13 @@ Two types:
 | `guancha_scraper.py` | Guancha 观察者网 |
 | `fjsen_scraper.py` | Haixia Daobao 海峽導報 |
 | `pla_daily_scraper.py` | PLA Daily 解放軍報 (81.cn — HTTP only, not HTTPS) |
+| `weibo_hot_scraper.py` | Weibo Hot Search — fetches top 50 from `weibo.com/ajax/side/hotSearch` JSON API; stores all items in `social_pulse` table |
+| `ptt_scraper.py` | PTT BBS — scrapes Military (5 pages), Gossiping (15 pages), HatePolitics (12 pages); requires `over18=1` cookie; page depth in `BOARD_PAGES` dict |
 
 When adding a new HTML scraper: follow the pattern in any existing one. Register the source in `seed_sources.py` and add the import + call to `run_pipeline.py`.
+
+### Social Pulse (`scraper/processors/social_translator.py`)
+Separate lightweight pipeline for social data — does NOT go through the article AI pipeline. Batch-translates `social_pulse` rows where `title_en IS NULL` using Gemini 2.5 Flash Lite. Runs as Step 2b in `run_pipeline.py` after the social scrapers.
 
 ### Event Clustering (`scripts/cluster_events.py`)
 Groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
@@ -103,12 +108,14 @@ SQLite with FTS5 full-text search. Key tables:
 - **analyst_notes**: human editorial commentary with sentiment/topic override capability
 - **articles_fts**: FTS5 virtual table for bilingual full-text search
 - **sources**: `is_active=0` deactivates a source without deleting its articles
+- **social_pulse**: Weibo and PTT items — `platform`, `item_key` (dedup key), `title` (Chinese), `title_en` (AI translation), `title_en_override` (analyst correction), engagement fields (`rank_position`, `heat_index` for Weibo; `push_count`, `boo_count`, `board`, `url` for PTT)
 
 ### API Layer (`api/routes/`)
 - `articles.py`: GET `/api/articles` (8 filter params), cluster, hide, signal endpoints; `/signal` is a toggle
 - `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window
 - `notes.py`: CRUD for analyst notes with AI override support
 - `review.py`: review queue — confirm / override / dismiss
+- `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
 
 ### Frontend (`frontend/src/`)
 React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key components:
@@ -116,8 +123,10 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `ArticleCard.jsx`: article display with inline sentiment/topic override and analyst notes; `onSignalOff` prop for FlashTraffic removal
 - `ReviewQueue.js`: human review UI
 - `SignalCharts.jsx`: sentiment trend + topic breakdown charts
-- `StatsSidebar.jsx`: dashboard gauges by country and bias label
+- `StatsSidebar.jsx`: dashboard gauges by country and bias label; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
+- `SocialPulse.jsx`: collapsed by default; header shows "Weibo N · PTT N" counts; expands to two-column panel — Weibo items all shown with cross-strait ones highlighted (full opacity, red badge) and others dimmed; inline translation correction via pencil icon
+- `SourceBadge.jsx`: colour-coded by `bias` prop, not country — `SOURCE_ABBREV` map covers all active sources
 
 All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localhost:8000` via `"proxy"` in `package.json`.
 
