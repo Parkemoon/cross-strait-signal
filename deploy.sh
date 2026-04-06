@@ -18,7 +18,7 @@ git push
 # 3. Pull and restart on server
 echo ""
 echo "--- Deploying to server (password prompt incoming) ---"
-ssh -t root@217.174.245.116 "cd /var/www/cross-strait-signal && ./deploy.sh"
+ssh -t root@217.174.245.116 "bash /var/www/cross-strait-signal/server_deploy.sh"
 
 echo ""
 echo "=== Deploy complete ==="
