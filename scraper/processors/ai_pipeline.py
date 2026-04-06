@@ -25,7 +25,7 @@ Analyse the following article and return a JSON object with this exact structure
 {
   "title_en": "English translation of the title (or original if already English)",
   "summary_en": "2-3 sentence English summary of the article's key content and significance",
-  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, HUMANITARIAN",
+  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC_TW, POL_DOMESTIC_PRC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, HUMANITARIAN",
   "topic_secondary": null,
   "sentiment": "one of: destabilising, stabilising, neutral, ambiguous",
   "sentiment_score": 0.0,
@@ -57,6 +57,7 @@ IMPORTANT:
 - sentiment_score ranges from -1.0 (strongly stabilising) to +1.0 (strongly destabilising)
 - sentiment axis is stabilising/destabilising relative to the cross-strait status quo — a DPP sovereignty push and a PLA exercise are both destabilising; a TAO investment welcome and a KMT mainland visit can be stabilising. Do not pre-judge which side causes instability.
 - stabilising = -1.0 to -0.3, neutral = -0.3 to +0.3, destabilising = +0.3 to +1.0
+- POL_DOMESTIC_TW covers Taiwan domestic politics with a cross-strait dimension (e.g. Taiwan legislature debating defence budgets, DPP/KMT domestic positioning on cross-strait policy, Taiwan election dynamics). POL_DOMESTIC_PRC covers PRC domestic politics with cross-strait relevance (e.g. NPC decisions affecting Taiwan policy, CCP leadership changes, PRC internal political signalling toward Taiwan). Use the subject of the article, not the source — a PRC outlet reporting on Taiwan domestic politics is POL_DOMESTIC_TW.
 - DIP_VISIT is strictly for official state or government visits — head of state, government ministers, or official delegations acting in a governmental capacity. PARTY_VISIT is for party-to-party visits and meetings — KMT-CCP Forums, opposition party delegations to the mainland, CCP officials meeting Taiwan party figures in a non-governmental capacity. A KMT chair visiting Beijing is always PARTY_VISIT, never DIP_VISIT.
 - Only flag is_escalation_signal for genuinely significant developments, not routine rhetoric
 - urgency: flash = breaking/status quo change, priority = notable, routine = standard coverage
