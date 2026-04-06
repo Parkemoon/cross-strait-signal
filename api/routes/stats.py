@@ -84,9 +84,9 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE ai.is_escalation_signal = 1
-          AND a.published_at >= datetime('now', ?)
+          AND a.published_at >= datetime('now', '-1 day')
         ORDER BY a.published_at DESC
-    """, (f'-{days} days',)).fetchall()
+    """).fetchall()
 
     # Top entities
     top_entities = conn.execute("""

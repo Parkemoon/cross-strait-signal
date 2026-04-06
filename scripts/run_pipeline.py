@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from scraper.scrapers.tao_scraper import scrape_tao
 from scraper.scrapers.rss_scraper import scrape_all_rss_sources
 from scraper.scrapers.mfa_scraper import scrape_mfa_spokesperson
+from scraper.scrapers.udn_scraper import scrape_udn
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 
 # Add scripts dir to path for cluster_events import
@@ -27,9 +28,10 @@ async def main():
     print("\n--- STEP 2: Scraping HTML sources ---")
     new_mfa = await scrape_mfa_spokesperson()
     new_tao = await scrape_tao()
+    new_udn = await scrape_udn()
 
     # Step 3: Analyse unprocessed articles
-    total_new = new_rss + new_mfa + new_tao
+    total_new = new_rss + new_mfa + new_tao + new_udn
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
     process_unanalysed_articles(limit=100)
 
