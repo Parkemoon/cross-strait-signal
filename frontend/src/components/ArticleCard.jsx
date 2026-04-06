@@ -108,7 +108,7 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
       >
         <SourceBadge
           sourceName={article.source_name}
-          country={article.source_country}
+          bias={article.bias}
         />
         <TopicPill topic={article.topic_primary} onClick={onTopicClick} />
         <SentimentBadge
