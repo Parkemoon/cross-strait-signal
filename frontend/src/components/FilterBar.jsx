@@ -73,10 +73,10 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
         style={selectStyle}
       >
         <option value="">All Sentiment</option>
-        <option value="destabilising">Destabilising</option>
-        <option value="stabilising">Stabilising</option>
+        <option value="hostile">Hostile</option>
+        <option value="cooperative">Cooperative</option>
         <option value="neutral">Neutral</option>
-        <option value="ambiguous">Ambiguous</option>
+        <option value="mixed">Mixed</option>
       </select>
 
       <select

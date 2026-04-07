@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
 import { fetchReviewQueue, resolveReview } from "../api";
 
-const SENTIMENT_OPTIONS = ["destabilising", "stabilising", "neutral", "ambiguous"];;
+const SENTIMENT_OPTIONS = ["hostile", "cooperative", "neutral", "mixed"];
 const TOPIC_OPTIONS = [
-  "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE",
-  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS",
-  "ECON_TRADE", "ECON_INVEST", "POL_DOMESTIC", "POL_TONGDU",
-  "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN",
+  "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE", "MIL_POLICY",
+  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT",
+  "ECON_TRADE", "ECON_INVEST", "POL_DOMESTIC_TW", "POL_DOMESTIC_PRC", "POL_TONGDU",
+  "INFO_WARFARE", "LEGAL_GREY", "HUMANITARIAN", "TRANSPORT", "INT_ORG",
 ];
 
 const SENTIMENT_COLOURS = {
-  escalatory: "#c0392b",
-  conciliatory: "#27ae60",
+  hostile: "#c0392b",
+  cooperative: "#27ae60",
   neutral: "#7f8c8d",
-  ambiguous: "#e67e22",
+  mixed: "#e67e22",
 };
 
 function ReviewCard({ item, onResolved }) {

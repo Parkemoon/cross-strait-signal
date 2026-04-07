@@ -48,8 +48,8 @@ function StabilityGauge({ label, score, days, compact }) {
         fontFamily: "var(--font-mono)",
         color: "var(--text-muted)",
       }}>
-        <span>Stabilising</span>
-        <span>Destabilising</span>
+        <span>Hostile</span>
+        <span>Cooperative</span>
       </div>
       <div style={{
         height: "4px",
@@ -61,7 +61,7 @@ function StabilityGauge({ label, score, days, compact }) {
           position: "absolute",
           inset: 0,
           borderRadius: "3px",
-          background: "linear-gradient(to right, var(--accent-green), var(--accent-amber), var(--accent-red))",
+          background: "linear-gradient(to right, var(--accent-red), var(--accent-amber), var(--accent-green))",
           opacity: 0.25,
         }} />
         <div style={{

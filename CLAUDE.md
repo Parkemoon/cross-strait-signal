@@ -167,7 +167,7 @@ GEMINI_API_KEY=your_key_here
 
 **POL_DOMESTIC_TW / POL_DOMESTIC_PRC**: Classified by the *subject* of the article, not the source country.
 
-**Sentiment values**: `destabilising` / `stabilising` / `neutral` / `ambiguous` with numeric score (−1.0 to +1.0)
+**Sentiment values**: `hostile` / `cooperative` / `neutral` / `mixed` with numeric score (−1.0 hostile to +1.0 cooperative). Measures how positively or negatively the article frames the opposing side of the strait, not geopolitical "stability." PRC source → how does it portray Taiwan? TW source → how does it portray the PRC?
 
 **Urgency levels**: `flash` / `priority` / `routine`
 

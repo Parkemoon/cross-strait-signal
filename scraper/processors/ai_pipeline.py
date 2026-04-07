@@ -42,7 +42,7 @@ Analyse the following article and return a JSON object with this exact structure
   "summary_en": "2-3 sentence English summary of the article's key content and significance",
   "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, MIL_POLICY, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC_TW, POL_DOMESTIC_PRC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, TRANSPORT, INT_ORG, HUMANITARIAN, NOT_RELEVANT",
   "topic_secondary": null,
-  "sentiment": "one of: destabilising, stabilising, neutral, ambiguous",
+  "sentiment": "one of: hostile, cooperative, neutral, mixed",
   "sentiment_score": 0.0,
   "urgency": "one of: flash, priority, routine",
   "key_quote": "most significant direct quote from the article in original language",
@@ -69,10 +69,15 @@ Analyse the following article and return a JSON object with this exact structure
 }
 
 CLASSIFICATION RULES:
-- sentiment_score ranges from -1.0 (strongly stabilising) to +1.0 (strongly destabilising)
-- sentiment axis is stabilising/destabilising relative to the cross-strait status quo — a DPP sovereignty push and a PLA exercise are both destabilising; a TAO investment welcome and a KMT mainland visit are stabilising. Do not pre-judge which side causes instability.
-- Score the PRIMARY EVENT of the article, not an average of all signals present. If a KMT delegation visits Beijing and makes de-escalatory statements, score that as stabilising even if the DPP government criticises the visit — the criticism is a secondary element. If a PLA exercise happens and Taiwan's president responds calmly, score the exercise as destabilising.
-- stabilising = -1.0 to -0.3, neutral = -0.3 to +0.3, destabilising = +0.3 to +1.0
+- sentiment_score measures cross-strait sentiment — how positively or negatively the article frames the opposing side or the overall relationship. Score from -1.0 (strongly hostile) to +1.0 (strongly cooperative).
+- For PRC sources: how does the article portray Taiwan, Taiwanese actors, or cross-strait relations?
+- For Taiwan sources: how does the article portray the PRC, mainland actors, or cross-strait relations?
+- For international/SG sources: what is the overall tone toward cross-strait dynamics?
+- hostile (-1.0 to -0.3): threatening, antagonistic, confrontational, emphasising division, military pressure, sovereignty assertions against the other side
+- neutral (-0.3 to +0.3): factual reporting without strong positive or negative framing
+- cooperative (+0.3 to +1.0): warm, friendly, emphasising shared identity, engagement, dialogue, trade, people-to-people ties
+- mixed: article contains both hostile and cooperative elements that cannot be clearly resolved to one direction
+- Score the PRIMARY EVENT of the article, not an average of all perspectives. A KMT-CCP forum with cooperative statements scores cooperative even if the DPP criticises it. A PLA exercise scores hostile even if Taiwan responds calmly.
 - MIL_POLICY covers military doctrine, defence budgets, force structure decisions, conscription policy, arms sales approvals (the political/policy decision, not the hardware itself), defence white papers, and MND statements on defence posture. Use MIL_HARDWARE for articles primarily about a specific weapon or platform; use MIL_POLICY when the focus is on a decision, budget, strategy, or institutional change. DIP_STATEMENT is for MFA/TAO diplomatic pronouncements; MIL_POLICY is for defence ministry/military institutional policy.
 - TRANSPORT covers cross-strait transport and connectivity: flights, shipping, ferry links, port closures, aviation routes, and infrastructure connecting Taiwan and the mainland (including Kinmen-Xiamen links). Do not use HUMANITARIAN for transport disruptions.
 - INT_ORG covers Taiwan's participation in, exclusion from, or treatment by international organisations (UN, WHO, UNESCO, ICAO, Interpol, etc.), and PRC efforts to block or shape Taiwan's international standing through multilateral bodies. Also covers PRC nationals in leadership roles at international organisations where this has cross-strait relevance.

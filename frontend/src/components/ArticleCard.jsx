@@ -5,7 +5,7 @@ import SentimentBadge from "./SentimentBadge";
 import { createNote, hideArticle, toggleSignal } from "../api";
 import { fetchArticleCluster } from "../api";
 
-const SENTIMENT_OPTIONS = ["destabilising", "stabilising", "neutral", "ambiguous"];
+const SENTIMENT_OPTIONS = ["hostile", "cooperative", "neutral", "mixed"];
 const TOPIC_OPTIONS = [
   "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE",
   "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT",

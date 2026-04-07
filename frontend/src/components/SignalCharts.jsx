@@ -145,8 +145,8 @@ export function SentimentTrendChart({ data, days }) {
           fontFamily: "var(--font-mono)",
           color: "var(--text-muted)",
         }}>
-          <span style={{ color: "var(--accent-green)" }}>Stabilising</span>
-          <span style={{ color: "var(--accent-red)" }}>Destabilising</span>
+          <span style={{ color: "var(--accent-red)" }}>Hostile</span>
+          <span style={{ color: "var(--accent-green)" }}>Cooperative</span>
         </div>
       </div>
     </div>

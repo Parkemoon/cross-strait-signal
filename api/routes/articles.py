@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/articles", tags=["articles"])
 def list_articles(
     entity: Optional[str] = Query(None, description="Filter by entity name"),
     topic: Optional[str] = Query(None, description="Filter by topic code, e.g. MIL_EXERCISE"),
-    sentiment: Optional[str] = Query(None, description="destabilising, stabilising, neutral, ambiguous"),
+    sentiment: Optional[str] = Query(None, description="hostile, cooperative, neutral, mixed"),
     source_country: Optional[str] = Query(None, description="PRC or TW"),
     urgency: Optional[str] = Query(None, description="flash, priority, routine"),
     escalation_only: bool = Query(False, description="Only show escalation signals"),
