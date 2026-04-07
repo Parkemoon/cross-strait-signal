@@ -208,7 +208,7 @@ SOURCES = [
     {
         'name': 'Global Times',
         'name_zh': '环球时报台海',
-        'url': 'http://localhost:1200/huanqiu/news/taiwai',
+        'url': 'http://localhost:1200/huanqiu/news/taiwan',
         'source_type': 'state_media',
         'country': 'PRC',
         'bias': 'state_nationalist',
