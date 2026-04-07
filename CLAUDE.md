@@ -63,16 +63,20 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 ```
 
 ### Three-Tier AI Pipeline (`scraper/processors/ai_pipeline.py`)
-- **Tier 1**: Gemini 2.5 Flash Lite — classifies all pre-filtered articles (batch limit: 500)
-- **Tier 2**: Gemini 2.5 Flash — re-reviews only escalation-flagged articles
+- **Tier 1**: Gemini 2.5 Flash Lite — classifies all pre-filtered articles (batch limit: 500); `temperature=0.1`
+- **Tier 2**: Gemini 2.5 Flash — re-reviews only escalation-flagged articles; same temperature
 - **Tier 3**: Human review queue — for articles where Tier 1 and Tier 2 disagree; articles stay hidden from dashboard until resolved
+
+**Dynamic glossary injection** (`scraper/processors/glossary.json`): loaded once at module level; before each API call, article text is scanned and matching terms (politicians, military assets, institutions in both Simplified and Traditional Chinese) are injected as a `CRITICAL TERMINOLOGY MAPPING` block to prevent romanisation hallucinations. Add new terms to `glossary.json` without touching Python.
+
+**Relevance gate**: the prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.
 
 ### Keyword Pre-Filter (`scraper/processors/keyword_filter.py`)
 Directional logic:
 - PRC/Singapore sources: must mention Taiwan, ROC, or relevant territories
 - Taiwan sources: must mention PRC, mainland, Hong Kong, or Macau
 
-Irrelevant articles are marked `ai_processed=1` and skipped — they never reach the AI API.
+Only `title + content[:2000]` is checked — full content is not used, to prevent page navigation/sidebar cruft from passing irrelevant articles. Irrelevant articles are marked `ai_processed=1` and skipped — they never reach the AI API.
 
 ### Scrapers (`scraper/scrapers/`)
 Two types:
@@ -125,7 +129,7 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `SignalCharts.jsx`: sentiment trend + topic breakdown charts
 - `StatsSidebar.jsx`: dashboard gauges by country and bias label; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
-- `SocialPulse.jsx`: collapsed by default; header shows "Weibo N · PTT N" counts; expands to two-column panel — Weibo items all shown with cross-strait ones highlighted (full opacity, red badge) and others dimmed; inline translation correction via pencil icon
+- `SocialPulse.jsx`: collapsed by default; header shows "Weibo N · PTT N" counts (N = cross-strait relevant count); expands to two-column panel — Weibo column shows **only** cross-strait relevant items (with rank position); shows "No cross-strait related topics in top 50 trending" when none; inline translation correction via pencil icon
 - `SourceBadge.jsx`: colour-coded by `bias` prop, not country — `SOURCE_ABBREV` map covers all active sources
 
 All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localhost:8000` via `"proxy"` in `package.json`.
@@ -139,6 +143,12 @@ Two-script deploy pattern:
 Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`.
 
 After deploying changes to `seed_sources.py`, always run `python scripts/seed_sources.py` on the server to apply source additions/deactivations.
+
+**RSSHub**: Four PRC/SG sources (People's Daily, Global Times, The Paper, Zaobao) use a self-hosted RSSHub instance on the server (`http://localhost:1200`). It runs as a Docker container:
+```bash
+docker run -d --name rsshub --restart always -p 1200:1200 diygod/rsshub
+```
+If these feeds return 0 entries, check `docker ps` to confirm the container is running. rsshub.app (the public instance) blocks automated clients — always use localhost.
 
 ## Environment
 
@@ -165,7 +175,7 @@ GEMINI_API_KEY=your_key_here
 
 **Active TW sources**: LTN Politics/World/Business/Defence (green), CNA Politics/Mainland/International/Finance (green_leaning), UDN Cross-Strait/Breaking/International/Business (blue), YDN (state_official)
 
-**Active PRC sources**: Xinhua, People's Daily, China News Service, Global Times, The Paper, Guangming Daily, MFA Spokesperson, Taiwan Affairs Office, Guancha, Haixia Daobao, PLA Daily
+**Active PRC sources**: Xinhua, People's Daily, China News Service, Global Times, The Paper, MFA Spokesperson, Taiwan Affairs Office, Guancha, Haixia Daobao, PLA Daily
 
 **Active SG sources**: Zaobao Cross-Strait (centrist)
 
