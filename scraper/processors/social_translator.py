@@ -7,6 +7,7 @@ Runs after social scrapers, before the main AI article pipeline.
 import os
 import sys
 import time
+import json
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -17,6 +18,23 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 from google import genai
 from scraper.utils.db import get_connection
+
+_GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
+with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
+    _MASTER_GLOSSARY = json.load(_f)
+
+
+def _build_glossary_block(titles):
+    """Return a terminology mapping block for any glossary terms found in the batch."""
+    combined = ' '.join(titles)
+    found = {zh: en for zh, en in _MASTER_GLOSSARY.items() if zh in combined}
+    if not found:
+        return ""
+    lines = [f"- {zh} MUST be translated as: {en}" for zh, en in found.items()]
+    return (
+        "\n\nCRITICAL TERMINOLOGY MAPPING — you are strictly forbidden from deviating from these translations:\n"
+        + "\n".join(lines)
+    )
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
@@ -61,7 +79,8 @@ def translate_social_pulse(batch_size=20):
         batch = rows[i:i + batch_size]
         titles = [r['title'] for r in batch]
 
-        prompt = TRANSLATION_PROMPT.format(items=str(titles))
+        glossary_block = _build_glossary_block(titles)
+        prompt = TRANSLATION_PROMPT.format(items=str(titles)) + glossary_block
 
         try:
             response = client.models.generate_content(
@@ -77,7 +96,6 @@ def translate_social_pulse(batch_size=20):
                     raw = raw[4:]
                 raw = raw.strip()
 
-            import json
             translations = json.loads(raw)
 
             if not isinstance(translations, list) or len(translations) != len(batch):
