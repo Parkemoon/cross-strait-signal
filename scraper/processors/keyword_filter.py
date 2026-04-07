@@ -54,7 +54,7 @@ def check_relevance(title, content, language="zh", source_country=None):
     Returns:
         tuple: (is_relevant: bool, matched_categories: list, matched_keywords: list)
     """
-    text = f"{title} {content}".lower()
+    text = f"{title} {content[:2000]}".lower()
 
     if source_country in ('PRC', 'SG'):
         anchor_list = PRC_MUST_MENTION_TAIWAN

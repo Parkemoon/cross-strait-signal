@@ -7,6 +7,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'cross_strait_sign
 DEACTIVATE_SOURCES = [
     'CNA Chinese',    # replaced by CNA Politics/Mainland/International/Finance
     'Liberty Times',  # replaced by LTN Politics/World/Business/Defence
+    'Guangming Daily', # anyfeeder proxy dead, rarely cross-strait relevant
 ]
 
 SOURCES = [
@@ -182,8 +183,8 @@ SOURCES = [
     },
     {
         'name': "People's Daily Politics",
-        'name_zh': '人民日报时政',
-        'url': 'https://plink.anyfeeder.com/people/politics',
+        'name_zh': '人民日报台湾',
+        'url': 'http://localhost:1200/people/tw',
         'source_type': 'state_media',
         'country': 'PRC',
         'bias': 'state_official',
@@ -206,8 +207,8 @@ SOURCES = [
     },
     {
         'name': 'Global Times',
-        'name_zh': '环球时报',
-        'url': 'https://plink.anyfeeder.com/weixin/hqsbwx',
+        'name_zh': '环球时报台海',
+        'url': 'http://localhost:1200/huanqiu/news/taiwai',
         'source_type': 'state_media',
         'country': 'PRC',
         'bias': 'state_nationalist',
@@ -219,19 +220,7 @@ SOURCES = [
     {
         'name': 'The Paper',
         'name_zh': '澎湃新聞',
-        'url': 'https://feedx.net/rss/thepaper.xml',
-        'source_type': 'state_media',
-        'country': 'PRC',
-        'bias': 'state_official',
-        'language': 'zh-cn',
-        'tier': 2,
-        'scrape_interval': 360,
-        'scrape_method': 'rss',
-    },
-    {
-        'name': 'Guangming Daily',
-        'name_zh': '光明日報',
-        'url': 'https://plink.anyfeeder.com/guangmingribao',
+        'url': 'http://localhost:1200/thepaper/featured',
         'source_type': 'state_media',
         'country': 'PRC',
         'bias': 'state_official',
@@ -280,7 +269,7 @@ SOURCES = [
     {
         'name': 'Zaobao Cross-Strait',
         'name_zh': '聯合早報中港台',
-        'url': 'https://plink.anyfeeder.com/zaobao/realtime/china',
+        'url': 'http://localhost:1200/zaobao/realtime/china',
         'source_type': 'independent_media',
         'country': 'SG',
         'bias': 'centrist',

@@ -10,12 +10,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection, article_exists
 
 
+FEED_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+}
+
+
 async def scrape_rss_source(source):
     """Scrape articles from an RSS source and store new ones in the database.
-    
+
     Args:
         source: a database row from the sources table
-    
+
     Returns:
         Number of new articles saved
     """
@@ -23,20 +29,30 @@ async def scrape_rss_source(source):
     new_count = 0
 
     print(f"\nScraping: {source['name']} ({source['url']})")
-    
-    feed = feedparser.parse(
-    source['url'],
-    agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-)
-    
+
+    # Fetch feed content via httpx so we control headers (feedparser's built-in
+    # fetcher uses a bare UA that rsshub.app and some proxies reject)
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=FEED_HEADERS) as client:
+            feed_resp = await client.get(source['url'])
+        if feed_resp.status_code != 200:
+            print(f"  Feed returned HTTP {feed_resp.status_code}")
+            conn.close()
+            return 0
+        feed = feedparser.parse(feed_resp.content)
+    except Exception as e:
+        print(f"  Could not fetch feed: {e}")
+        conn.close()
+        return 0
+
     if not feed.entries:
         print(f"  No entries found in feed")
         conn.close()
         return 0
-    
+
     print(f"  Found {len(feed.entries)} entries in feed")
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30, headers=FEED_HEADERS) as client:
         for entry in feed.entries:
             url = entry.get('link', '')
             

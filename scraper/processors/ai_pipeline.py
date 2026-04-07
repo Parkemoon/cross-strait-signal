@@ -6,6 +6,10 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from scraper.processors.keyword_filter import check_relevance
 
+_GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
+with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
+    _MASTER_GLOSSARY = json.load(_f)
+
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -16,16 +20,27 @@ from scraper.utils.db import get_connection
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-ANALYSIS_SYSTEM_PROMPT = """You are an intelligence analyst specialising in cross-strait 
-relations between the People's Republic of China and Taiwan. You are processing a media 
+ANALYSIS_SYSTEM_PROMPT = """You are an intelligence analyst specialising in cross-strait
+relations between the People's Republic of China and Taiwan. You are processing a media
 article for a monitoring dashboard.
+
+STEP 1 — RELEVANCE GATE (decide this first, before anything else):
+Ask yourself: is this article's PRIMARY subject PRC-Taiwan cross-strait dynamics?
+Set is_cross_strait_primary to false if ANY of the following apply:
+- The article is primarily about a third-party event (e.g. Iran war, Russia-Ukraine, US domestic politics) and PRC/Taiwan appears only as a comparison, analogy, or peripheral reference
+- The article is about Taiwan domestic affairs with no cross-strait dimension (crime, weather, sports, entertainment, consumer news, local governance, obituaries)
+- PRC or Taiwan is mentioned only in passing, not as the main subject
+If is_cross_strait_primary is false, set topic_primary to "NOT_RELEVANT" and confidence to 0.0. Do not fill in other fields.
+
+IMPORTANT EXCEPTION — PRC sources writing about Taiwan: If the SOURCE is a PRC outlet (People's Daily, Xinhua, Global Times, The Paper, TAO, MFA, Guancha, PLA Daily, Haixia Daobao, etc.) and Taiwan is the article's PRIMARY subject, treat it as relevant regardless of topic. PRC state and nationalist media coverage of Taiwanese society, culture, festivals, and everyday life carries cross-strait analytical value as identity and sovereignty framing. Use POL_TONGDU for articles that emphasise Taiwan's Chinese cultural heritage, cross-strait people-to-people ties, or shared identity — this framing is analytically equivalent to Taiwanese sources emphasising indigenous identity or distinct Taiwanese nationhood; both are moves on the unification/independence spectrum and should be treated symmetrically. Use INFO_WARFARE only for active disinformation or cognitive warfare operations (e.g. fabricated stories, coordinated inauthentic narratives). Use POL_DOMESTIC_TW for PRC reporting on Taiwan's political life.
 
 Analyse the following article and return a JSON object with this exact structure:
 
 {
+  "is_cross_strait_primary": true,
   "title_en": "English translation of the title (or original if already English)",
   "summary_en": "2-3 sentence English summary of the article's key content and significance",
-  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, MIL_POLICY, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC_TW, POL_DOMESTIC_PRC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, TRANSPORT, INT_ORG, HUMANITARIAN",
+  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, MIL_POLICY, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC_TW, POL_DOMESTIC_PRC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, TRANSPORT, INT_ORG, HUMANITARIAN, NOT_RELEVANT",
   "topic_secondary": null,
   "sentiment": "one of: destabilising, stabilising, neutral, ambiguous",
   "sentiment_score": 0.0,
@@ -53,7 +68,7 @@ Analyse the following article and return a JSON object with this exact structure
   "confidence": 0.8
 }
 
-IMPORTANT:
+CLASSIFICATION RULES:
 - sentiment_score ranges from -1.0 (strongly stabilising) to +1.0 (strongly destabilising)
 - sentiment axis is stabilising/destabilising relative to the cross-strait status quo — a DPP sovereignty push and a PLA exercise are both destabilising; a TAO investment welcome and a KMT mainland visit can be stabilising. Do not pre-judge which side causes instability.
 - stabilising = -1.0 to -0.3, neutral = -0.3 to +0.3, destabilising = +0.3 to +1.0
@@ -67,17 +82,28 @@ IMPORTANT:
 - Extract ALL named entities: people, military units, ships, aircraft, locations, organisations
 - All strings in the JSON must have special characters properly escaped.
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
-- RELEVANCE: If the article has NO direct connection to PRC-Taiwan relations, cross-strait dynamics, PRC foreign/military policy, or Taiwan defence/security policy, set topic_primary to "NOT_RELEVANT" and confidence to 0.0.
-- If the article is primarily about a third-party conflict (e.g. US-Iran, Russia-Ukraine) and China's role is only peripheral, set topic_primary to "NOT_RELEVANT".
-- If the article is about Taiwan domestic affairs with NO cross-strait dimension (local elections unrelated to cross-strait, crime, weather, sports, entertainment, consumer news, social media trends), set topic_primary to "NOT_RELEVANT".
-- Only classify an article if it directly involves: PRC-Taiwan military/diplomatic/economic relations, PRC statements about Taiwan, Taiwan defence/security policy, cross-strait political dynamics, or PRC foreign policy with direct Taiwan implications.
-- For Taiwanese political figures, use the official romanisation used by their party or office. Key figures: 賴清德 = Lai Ching-te, 蕭美琴 = Hsiao Bi-khim, 鄭麗文 = Cheng Li-wen, 韓國瑜 = Han Kuo-yu, 柯文哲 = Ko Wen-je. Do not invent romanisations.
+- For Taiwanese political figures, use Wade-Giles or Tongyong Pinyin as used by their office. Do not default to Hanyu Pinyin for Taiwanese entities. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
+
+
+def generate_dynamic_glossary(content: str) -> str:
+    """Scan article text against master glossary, return only matched terms."""
+    found = {zh: en for zh, en in _MASTER_GLOSSARY.items() if zh in content}
+    if not found:
+        return ""
+    lines = [f"- {zh} MUST be translated as: {en}" for zh, en in found.items()]
+    return (
+        "\n\nCRITICAL TERMINOLOGY MAPPING:\n"
+        "You must strictly use the following English translations for these specific terms "
+        "found in the text. Do not use alternative romanisations:\n"
+        + "\n".join(lines)
+    )
 
 
 def analyse_article(title, content, language, source_name):
     """Send one article to Gemini and return structured analysis."""
-    prompt = f"""{ANALYSIS_SYSTEM_PROMPT}
+    glossary_block = generate_dynamic_glossary(content)
+    prompt = f"""{ANALYSIS_SYSTEM_PROMPT}{glossary_block}
 
 SOURCE: {source_name}
 LANGUAGE: {language}
@@ -91,7 +117,8 @@ FULL TEXT:
         contents=prompt,
         config={
             "response_mime_type": "application/json",
-            "max_output_tokens": 8000
+            "max_output_tokens": 8000,
+            "temperature": 0.1
         }
     )
 
@@ -173,6 +200,10 @@ def process_unanalysed_articles(limit=10):
                 language=article['language'],
                 source_name=article['source_name']
             )
+
+            # Enforce relevance gate — either field is sufficient to reject
+            if not analysis.get('is_cross_strait_primary', True):
+                analysis['topic_primary'] = 'NOT_RELEVANT'
 
             # Skip articles the AI identifies as irrelevant
             if analysis.get('topic_primary') == 'NOT_RELEVANT':
@@ -268,9 +299,10 @@ def process_unanalysed_articles(limit=10):
                     lite_topic = analysis.get('topic_primary')
                     lite_confidence = analysis.get('confidence', 1.0)
 
+                    escalation_glossary = generate_dynamic_glossary(article['content_original'])
                     review = client.models.generate_content(
                         model="gemini-2.5-flash",
-                        contents=f"""{ANALYSIS_SYSTEM_PROMPT}
+                        contents=f"""{ANALYSIS_SYSTEM_PROMPT}{escalation_glossary}
 
 SOURCE: {article['source_name']}
 LANGUAGE: {article['language']}
@@ -280,7 +312,8 @@ FULL TEXT:
 {article['content_original'][:5000]}""",
                         config={
                             "response_mime_type": "application/json",
-                            "max_output_tokens": 8000
+                            "max_output_tokens": 8000,
+                            "temperature": 0.1
                         }
                     )
                     review_analysis = json.loads(review.text)
