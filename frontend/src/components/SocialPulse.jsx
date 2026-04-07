@@ -227,7 +227,8 @@ export default function SocialPulse() {
     }
   };
 
-  const crossStraitCount = weiboItems.filter(i => i.is_cross_strait).length;
+  const crossStraitItems = weiboItems.filter(i => i.is_cross_strait);
+  const crossStraitCount = crossStraitItems.length;
 
   return (
     <div style={{ marginBottom: "32px" }}>
@@ -286,13 +287,13 @@ export default function SocialPulse() {
           }}>
             PRC · Weibo 微博热搜
           </div>
-          {hasWeibo ? (
-            weiboItems.map((item) => (
+          {crossStraitItems.length > 0 ? (
+            crossStraitItems.map((item) => (
               <WeiboItem key={item.id} item={item} onTranslationSaved={handleTranslationSaved} />
             ))
           ) : (
             <div style={{ color: "var(--text-muted)", fontSize: "12px", fontStyle: "italic", paddingTop: "8px" }}>
-              No data yet
+              {hasWeibo ? "No cross-strait related topics in top 50 trending" : "No data yet"}
             </div>
           )}
         </div>
