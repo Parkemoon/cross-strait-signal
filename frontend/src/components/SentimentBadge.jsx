@@ -1,8 +1,8 @@
 const SENTIMENT_STYLES = {
-  destabilising: { color: "var(--accent-red)", label: "Destabilising" },
-  stabilising: { color: "var(--accent-green)", label: "Stabilising" },
+  hostile: { color: "var(--accent-red)", label: "Hostile" },
+  cooperative: { color: "var(--accent-green)", label: "Cooperative" },
   neutral: { color: "var(--text-muted)", label: "Neutral" },
-  ambiguous: { color: "var(--accent-amber)", label: "Ambiguous" },
+  mixed: { color: "var(--accent-amber)", label: "Mixed" },
 };
 
 export default function SentimentBadge({ sentiment, score }) {
