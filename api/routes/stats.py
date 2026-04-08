@@ -19,75 +19,85 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
     """Dashboard summary statistics."""
     conn = get_db()
 
+    # Visibility filter — matches what the articles feed uses
+    VISIBLE = "a.is_hidden = 0 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
+
     # Total articles
-    total = conn.execute("""
+    total = conn.execute(f"""
         SELECT COUNT(*) FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
     """, (f'-{days} days',)).fetchone()[0]
 
     # Articles by topic
-    topics = conn.execute("""
+    topics = conn.execute(f"""
         SELECT ai.topic_primary, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
         GROUP BY ai.topic_primary
         ORDER BY count DESC
     """, (f'-{days} days',)).fetchall()
 
     # Articles by sentiment
-    sentiments = conn.execute("""
+    sentiments = conn.execute(f"""
         SELECT ai.sentiment, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
         GROUP BY ai.sentiment
         ORDER BY count DESC
     """, (f'-{days} days',)).fetchall()
 
     # Articles by source
-    sources = conn.execute("""
+    sources = conn.execute(f"""
         SELECT s.name, s.country, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
         GROUP BY s.id
         ORDER BY count DESC
     """, (f'-{days} days',)).fetchall()
 
     # Average sentiment score (the "temperature gauge")
-    avg_sentiment = conn.execute("""
+    avg_sentiment = conn.execute(f"""
         SELECT AVG(ai.sentiment_score) as avg_score
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
     """, (f'-{days} days',)).fetchone()
 
     # Sentiment by source country
-    sentiment_by_country = conn.execute("""
+    sentiment_by_country = conn.execute(f"""
         SELECT s.country, AVG(ai.sentiment_score) as avg_score
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
         GROUP BY s.country
     """, (f'-{days} days',)).fetchall()
 
     # Sentiment by political bias (Taiwan camps)
-    sentiment_by_bias = conn.execute("""
+    sentiment_by_bias = conn.execute(f"""
         SELECT s.bias, AVG(ai.sentiment_score) as avg_score, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
           AND s.bias IN ('green', 'green_leaning', 'blue')
         GROUP BY s.bias
     """, (f'-{days} days',)).fetchall()
 
     # Escalation signals — full article data for interactive cards
-    escalation_rows = conn.execute("""
+    escalation_rows = conn.execute(f"""
         SELECT a.id, a.url, a.title_original, a.title_en, a.language,
                a.published_at, a.content_original,
                ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
@@ -100,7 +110,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE ai.is_escalation_signal = 1
-          AND a.is_hidden = 0
+          AND {VISIBLE}
           AND a.published_at >= datetime('now', '-1 day')
         ORDER BY a.published_at DESC
     """).fetchall()
@@ -116,23 +126,26 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         escalations.append(article)
 
     # Top entities
-    top_entities = conn.execute("""
+    top_entities = conn.execute(f"""
         SELECT e.entity_name_en, e.entity_type, COUNT(*) as mentions
         FROM entities e
         JOIN articles a ON e.article_id = a.id
+        JOIN ai_analysis ai ON ai.article_id = a.id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
         GROUP BY e.entity_name_en
         ORDER BY mentions DESC
         LIMIT 15
     """, (f'-{days} days',)).fetchall()
 
     # Daily sentiment trend
-    sentiment_trend = conn.execute("""
+    sentiment_trend = conn.execute(f"""
         SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
                COUNT(*) as article_count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
         GROUP BY date(a.published_at)
         ORDER BY date
     """, (f'-{days} days',)).fetchall()
@@ -164,7 +177,9 @@ def entity_search(
     """Search and rank entities by mention count."""
     conn = get_db()
 
-    where_clause = "WHERE a.published_at >= datetime('now', ?)"
+    where_clause = """WHERE a.published_at >= datetime('now', ?)
+        AND a.is_hidden = 0
+        AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"""
     params = [f'-{days} days']
 
     if entity_type:
@@ -175,6 +190,7 @@ def entity_search(
         SELECT e.entity_name, e.entity_name_en, e.entity_type, COUNT(*) as mentions
         FROM entities e
         JOIN articles a ON e.article_id = a.id
+        JOIN ai_analysis ai ON ai.article_id = a.id
         {where_clause}
         GROUP BY e.entity_name_en
         ORDER BY mentions DESC

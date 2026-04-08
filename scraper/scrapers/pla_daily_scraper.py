@@ -1,6 +1,8 @@
 import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+MAX_ARTICLE_AGE = timedelta(days=180)
 import sys
 import os
 import re
@@ -71,17 +73,39 @@ async def scrape_pla_daily():
 
             print(f"  New: {title[:70]}...")
 
-            # Parse date from URL or content
+            # Parse date — priority: Chinese date in title → date in URL → current UTC
+            # The 81.cn page template contains a static date that misleads content-based search,
+            # so we never extract dates from page content.
             published_at = datetime.now(timezone.utc).isoformat()
-            date_match = re.search(r'(\d{4})-(\d{2})-(\d{2})', full_url)
-            if date_match:
+            title_date = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', title)
+            if title_date:
                 try:
                     published_at = datetime(
-                        int(date_match.group(1)), int(date_match.group(2)), int(date_match.group(3)),
+                        int(title_date.group(1)), int(title_date.group(2)), int(title_date.group(3)),
                         tzinfo=timezone.utc
                     ).isoformat()
                 except ValueError:
                     pass
+            else:
+                url_date = re.search(r'(\d{4})-(\d{2})-(\d{2})', full_url)
+                if url_date:
+                    try:
+                        published_at = datetime(
+                            int(url_date.group(1)), int(url_date.group(2)), int(url_date.group(3)),
+                            tzinfo=timezone.utc
+                        ).isoformat()
+                    except ValueError:
+                        pass
+
+            # Skip articles older than 180 days
+            try:
+                art_dt = datetime.fromisoformat(published_at)
+                if art_dt.tzinfo is None:
+                    art_dt = art_dt.replace(tzinfo=timezone.utc)
+                if art_dt < datetime.now(timezone.utc) - MAX_ARTICLE_AGE:
+                    continue
+            except ValueError:
+                pass
 
             # Fetch transcript content
             content = ''
@@ -89,20 +113,6 @@ async def scrape_pla_daily():
                 article_resp = await client.get(full_url)
                 article_resp.encoding = 'utf-8'
                 article_soup = BeautifulSoup(article_resp.text, 'html.parser')
-
-                # Try to get date from content
-                date_text = article_soup.find(string=re.compile(r'\d{4}-\d{2}-\d{2}'))
-                if date_text:
-                    m = re.search(r'(\d{4})-(\d{2})-(\d{2})', date_text)
-                    if m:
-                        try:
-                            published_at = datetime(
-                                int(m.group(1)), int(m.group(2)), int(m.group(3)),
-                                tzinfo=timezone.utc
-                            ).isoformat()
-                        except ValueError:
-                            pass
-
                 content_div = article_soup.select_one('div.content')
                 if content_div:
                     content = content_div.get_text(strip=True)

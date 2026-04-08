@@ -100,7 +100,7 @@ CLASSIFICATION RULES:
 - neutral (-0.3 to +0.3): factual reporting without strong positive or negative framing
 - cooperative (+0.3 to +1.0): warm, friendly, emphasising shared identity, engagement, dialogue, trade, people-to-people ties
 - mixed: article contains both hostile and cooperative elements that cannot be clearly resolved to one direction
-- Score the PRIMARY EVENT of the article, not an average of all perspectives. A KMT-CCP forum with cooperative statements scores cooperative even if the DPP criticises it. A PLA exercise scores hostile even if Taiwan responds calmly.
+- Score the PRIMARY EVENT of the article, not an average of all perspectives. A KMT-CCP forum with cooperative statements scores cooperative even if the DPP criticises it. A PLA exercise scores hostile even if Taiwan responds calmly. A KMT or opposition party visit to the mainland — meetings, cultural exchanges, mausoleum visits, youth forums — scores cooperative regardless of the political symbolism involved (e.g. ROC calendar references, 1992 Consensus framing). The political complexity of such visits does not make them mixed; mixed requires genuine hostile and cooperative elements in roughly equal weight.
 - MIL_POLICY covers military doctrine, defence budgets, force structure decisions, conscription policy, arms sales approvals (the political/policy decision, not the hardware itself), defence white papers, and MND statements on defence posture. Use MIL_HARDWARE for articles primarily about a specific weapon or platform; use MIL_POLICY when the focus is on a decision, budget, strategy, or institutional change. DIP_STATEMENT is for MFA/TAO diplomatic pronouncements; MIL_POLICY is for defence ministry/military institutional policy.
 - TRANSPORT covers cross-strait transport and connectivity: flights, shipping, ferry links, port closures, aviation routes, and infrastructure connecting Taiwan and the mainland (including Kinmen-Xiamen links). Do not use HUMANITARIAN for transport disruptions.
 - INT_ORG covers Taiwan's participation in, exclusion from, or treatment by international organisations (UN, WHO, UNESCO, ICAO, Interpol, etc.), and PRC efforts to block or shape Taiwan's international standing through multilateral bodies. Also covers PRC nationals in leadership roles at international organisations where this has cross-strait relevance.
@@ -174,6 +174,7 @@ def process_unanalysed_articles(limit=10):
         JOIN sources ON articles.source_id = sources.id
         WHERE articles.ai_processed = 0
           AND articles.content_original != ''
+          AND (articles.published_at IS NULL OR articles.published_at >= datetime('now', '-180 days'))
         ORDER BY articles.published_at DESC
         LIMIT ?
     """, (limit,)).fetchall()

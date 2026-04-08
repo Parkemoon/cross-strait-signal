@@ -1,7 +1,9 @@
 import feedparser
 import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+MAX_ARTICLE_AGE = timedelta(days=180)
 import sys
 import os
 
@@ -106,6 +108,17 @@ async def scrape_rss_source(source):
                 try:
                     published_at = datetime(*entry.published_parsed[:6]).isoformat()
                 except Exception:
+                    pass
+
+            # Skip articles older than 180 days
+            if published_at:
+                try:
+                    art_dt = datetime.fromisoformat(published_at)
+                    if art_dt.tzinfo is None:
+                        art_dt = art_dt.replace(tzinfo=timezone.utc)
+                    if art_dt < datetime.now(timezone.utc) - MAX_ARTICLE_AGE:
+                        continue
+                except ValueError:
                     pass
 
             # Save to database
