@@ -10,6 +10,19 @@ _GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
 with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
     _MASTER_GLOSSARY = json.load(_f)
 
+_KEY_FIGURES_PATH = os.path.join(os.path.dirname(__file__), 'key_figures.json')
+try:
+    with open(_KEY_FIGURES_PATH, encoding='utf-8') as _kf:
+        _KEY_FIGURES_LIST = json.load(_kf)
+except Exception:
+    _KEY_FIGURES_LIST = []
+
+# alias (lowercased) → figure_id lookup
+_ALIAS_TO_FIGURE_ID = {}
+for _fig in _KEY_FIGURES_LIST:
+    for _alias in _fig.get('aliases', []):
+        _ALIAS_TO_FIGURE_ID[_alias.lower()] = _fig['id']
+
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -65,6 +78,15 @@ Analyse the following article and return a JSON object with this exact structure
       "category": "keyword taxonomy category"
     }
   ],
+  "key_figure_statements": [
+    {
+      "speaker": "name exactly as it appears in the article",
+      "statement_text": "MUST be in English — translate from Chinese/other language if needed; for quotes use direct speech, for actions a brief description",
+      "statement_zh": "original-language text — copy verbatim from article",
+      "statement_kind": "quote or action",
+      "confidence": 0.9
+    }
+  ],
   "confidence": 0.8
 }
 
@@ -89,6 +111,7 @@ CLASSIFICATION RULES:
 - All strings in the JSON must have special characters properly escaped.
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
 - For Taiwanese political figures, use Wade-Giles or Tongyong Pinyin as used by their office. Do not default to Hanyu Pinyin for Taiwanese entities. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
+- KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
 
 
@@ -284,6 +307,32 @@ def process_unanalysed_articles(limit=10):
                     article['id'],
                     kw.get('keyword', ''),
                     kw.get('category', '')
+                ))
+
+            # Insert key figure statements (pending analyst approval)
+            for stmt in analysis.get('key_figure_statements', []):
+                speaker = stmt.get('speaker', '').strip()
+                figure_id = _ALIAS_TO_FIGURE_ID.get(speaker.lower())
+                text = stmt.get('statement_text', '').strip()
+                if not figure_id or not text:
+                    continue
+                # Drop if model returned Chinese instead of translating
+                cjk_ratio = sum(1 for c in text if '\u4e00' <= c <= '\u9fff') / len(text)
+                if cjk_ratio > 0.15:
+                    continue
+                conn.execute("""
+                    INSERT INTO key_figure_statements
+                    (article_id, figure_id, speaker_raw, statement_text, statement_zh,
+                     statement_kind, confidence, approval_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+                """, (
+                    article['id'],
+                    figure_id,
+                    speaker,
+                    text,
+                    stmt.get('statement_zh'),
+                    stmt.get('statement_kind', 'quote'),
+                    stmt.get('confidence', 0.8)
                 ))
 
             conn.commit()

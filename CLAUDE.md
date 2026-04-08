@@ -34,6 +34,12 @@ cd frontend && npm start
 python scripts/run_pipeline.py
 ```
 
+### Key Figures backfill (one-off, after pipeline changes)
+```bash
+# Re-runs Tier 1 only on articles where a key figure entity was already detected
+python scripts/backfill_key_figure_statements.py --days 30 --limit 200
+```
+
 ### Frontend
 ```bash
 cd frontend
@@ -68,6 +74,8 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 - **Tier 3**: Human review queue — for articles where Tier 1 and Tier 2 disagree; articles stay hidden from dashboard until resolved
 
 **Dynamic glossary injection** (`scraper/processors/glossary.json`): loaded once at module level; before each API call, article text is scanned and matching terms (politicians, military assets, institutions in both Simplified and Traditional Chinese) are injected as a `CRITICAL TERMINOLOGY MAPPING` block to prevent romanisation hallucinations. Add new terms to `glossary.json` without touching Python.
+
+**Key figure statement extraction**: Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `scraper/processors/key_figures.json` — 12 figures with Chinese/English names, roles, portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — this is intentional to prevent misattribution.
 
 **Relevance gate**: the prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.
 
@@ -104,11 +112,14 @@ Separate lightweight pipeline for social data — does NOT go through the articl
 ### Event Clustering (`scripts/cluster_events.py`)
 Groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
 
-### Database Schema (`db/schema.sql`)
+### Database (`db/cross_strait_signal.db`)
+**Canonical DB file**: `db/cross_strait_signal.db` — used by both the API (`api/database.py`) and the scraper pipeline (`scraper/utils/db.py`). `db/signal.db` also exists but is not the live DB. Always apply schema changes to `cross_strait_signal.db`. `db/schema.sql` is the reference; `scripts/init_db.py` executes it (idempotent for `IF NOT EXISTS` tables only — existing tables are not migrated, apply changes with direct SQL).
+
 SQLite with FTS5 full-text search. Key tables:
 - **articles**: raw scraped content, `ai_processed` flag, `is_active` flag, unique constraint on URL
-- **ai_analysis**: structured AI output — `topic_primary`, `sentiment`, `sentiment_score` (−1.0 to +1.0), `urgency`, `is_escalation_signal`, `needs_human_review`, confidence
-- **entities**: named entities with type (person, military_unit, ship, aircraft, location, organisation, weapon_system) and geocoding fields
+- **ai_analysis**: structured AI output — `topic_primary`, `sentiment`, `sentiment_score` (−1.0 to +1.0), `urgency`, `is_escalation_signal`, `needs_human_review`, confidence. Note: `needs_human_review`, `review_resolved`, `is_hidden` and `sources.bias` are live columns not reflected in `schema.sql` — schema.sql has drifted from the live DB.
+- **entities**: named entities with type (person, military_unit, ship, aircraft, location, organisation, weapon_system) and geocoding fields (lat/lng deferred to Phase 2)
+- **key_figure_statements**: speaker-attributed quotes and actions extracted by Tier 1, requiring analyst approval before display — `figure_id` (matches `key_figures.json`), `statement_text` (English), `statement_kind` (`quote`/`action`), `approval_status` (`pending`/`approved`/`dismissed`)
 - **analyst_notes**: human editorial commentary with sentiment/topic override capability
 - **articles_fts**: FTS5 virtual table for bilingual full-text search
 - **sources**: `is_active=0` deactivates a source without deleting its articles
@@ -116,7 +127,7 @@ SQLite with FTS5 full-text search. Key tables:
 
 ### API Layer (`api/routes/`)
 - `articles.py`: GET `/api/articles` (8 filter params), cluster, hide, signal endpoints; `/signal` is a toggle
-- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window
+- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`
 - `notes.py`: CRUD for analyst notes with AI override support
 - `review.py`: review queue — confirm / override / dismiss
 - `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
@@ -130,6 +141,7 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `StatsSidebar.jsx`: dashboard gauges by country and bias label; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
 - `SocialPulse.jsx`: collapsed by default; header shows "Weibo N · PTT N" counts (N = cross-strait relevant count); expands to two-column panel — Weibo column shows **only** cross-strait relevant items (with rank position); shows "No cross-strait related topics in top 50 trending" when none; inline translation correction via pencil icon
+- `KeyFigures.jsx`: horizontal scrollable row of cards between SocialPulse and Signal Feed; each card shows portrait (Wikimedia Commons images in `frontend/public/figures/`, initials fallback), name, role, latest approved statement with source badge + date; pencil icon (amber when candidates pending) opens a per-card curation modal for approve/dismiss; cards show "No curated statement yet" until approved
 - `SourceBadge.jsx`: colour-coded by `bias` prop, not country — `SOURCE_ABBREV` map covers all active sources
 
 All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localhost:8000` via `"proxy"` in `package.json`.
@@ -186,3 +198,5 @@ GEMINI_API_KEY=your_key_here
 - Bias labels reflect editorial reality and should not be softened (e.g. CNA is green_leaning, not neutral)
 - The human review queue and inline analyst overrides exist because political classification requires editorial judgment — AI output is a starting point, not final word
 - Deactivating a source (`is_active=0`) preserves all its historical articles; use this instead of deleting
+- Key figure statements require **manual approval** before display — misattributing a quote to a senior political figure is a credibility-ender. Never auto-approve or bypass the `approval_status='pending'` gate.
+- When updating `glossary.json` romanisations, the old romanisation must also be added to the relevant figure's `aliases` array in `key_figures.json` — historical entity rows in the DB will still have the old name and must still resolve.

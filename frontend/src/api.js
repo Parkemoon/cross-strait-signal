@@ -79,6 +79,26 @@ export async function fetchSocialPulse() {
   return res.json();
 }
 
+export async function fetchKeyFigures() {
+  const res = await fetch(`${API_BASE}/api/stats/key-figures`);
+  return res.json();
+}
+
+export async function fetchKeyFigureCandidates() {
+  const res = await fetch(`${API_BASE}/api/stats/key-figures/candidates`);
+  return res.json();
+}
+
+export async function approveKeyFigureStatement(id) {
+  const res = await fetch(`${API_BASE}/api/stats/key-figures/statements/${id}/approve`, { method: "POST" });
+  return res.json();
+}
+
+export async function dismissKeyFigureStatement(id) {
+  const res = await fetch(`${API_BASE}/api/stats/key-figures/statements/${id}/dismiss`, { method: "POST" });
+  return res.json();
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   const res = await fetch(`${API_BASE}/api/social/${id}/translation`, {
     method: "PATCH",
