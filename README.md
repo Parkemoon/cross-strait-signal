@@ -20,8 +20,9 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 - Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — allowing editorial override before publication to the dashboard
 - Analyst commentary layer allows human override of AI classifications at any point
 - Source bias tracking — each source tagged with editorial alignment (green / green_leaning / blue / centrist / state_official / state_nationalist)
-- Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction
-- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Social Pulse panel, and review queue UI
+- Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction; lives in a persistent right-hand column
+- Key Figures panel — curated roster of 10 senior PRC and Taiwan officials; AI extracts attributed quotes and actions per figure as pending candidates, requiring analyst approval before display to prevent misattribution
+- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Key Figures panel, Social Pulse column, and review queue UI
 - REST API with filtering by topic, sentiment, source country, urgency, escalation status, and bilingual full-text search
 
 ---
@@ -66,6 +67,10 @@ FastAPI Backend
 ├── POST /api/notes — analyst commentary with sentiment/topic/score override
 ├── GET /api/social/ — latest Weibo top 50 + PTT trending posts
 ├── PATCH /api/social/{id}/translation — save analyst translation correction
+├── GET /api/stats/key-figures — latest approved statement per curated figure
+├── GET /api/stats/key-figures/candidates — pending statements grouped by figure
+├── POST /api/stats/key-figures/statements/{id}/approve — approve a candidate
+├── POST /api/stats/key-figures/statements/{id}/dismiss — dismiss a candidate
 ├── GET /review/queue — articles pending human review
 ├── POST /review/{id}/resolve — resolve review with confirm/override/dismiss
 ├── GET /review/stats — pending/resolved review counts
@@ -73,8 +78,9 @@ FastAPI Backend
 │
 React Dashboard
 ├── Priority Signals (flash/priority urgency articles)
-├── Social Pulse panel (Weibo top 50 + PTT, collapsed by default)
+├── Key Figures panel (10 curated officials, portraits, latest approved statement, curation modal)
 ├── Signal Feed (filterable article list with event clustering)
+├── Social Pulse column (Weibo cross-strait items + PTT trending, persistent right-hand column)
 ├── Strait Watch gauges (overall + by source country + by political camp)
 ├── Sentiment trend chart and topic breakdown chart (Recharts)
 ├── Inline editorial overrides (sentiment, topic, score on any article card)
@@ -203,11 +209,11 @@ React Dashboard
 
 | Score | Label | Meaning |
 |-------|-------|---------|
-| −1.0 to −0.3 | Stabilising | Reduces cross-strait tension |
-| −0.3 to +0.3 | Neutral | No significant cross-strait impact |
-| +0.3 to +1.0 | Destabilising | Increases cross-strait tension |
+| −1.0 to −0.3 | Hostile | Article frames the other side negatively — threatening, antagonistic, confrontational |
+| −0.3 to +0.3 | Neutral | Factual reporting without strong positive or negative framing of the other side |
+| +0.3 to +1.0 | Cooperative | Warm, engaging framing — shared identity, dialogue, trade, people-to-people ties |
 
-The axis is **bidirectional** — a DPP sovereignty push and a PLA exercise are both destabilising. A TAO investment welcome and a KMT mainland visit can be stabilising. The framing deliberately avoids pre-judging which side causes instability.
+Sentiment measures **how the source frames the opposing side of the strait**, not geopolitical stability. For PRC sources: how does the article portray Taiwan? For Taiwan sources: how does it portray the PRC? The axis is **bidirectional** — a PRC outlet publishing a hostile piece about Lai Ching-te and a Taiwan outlet publishing a hostile piece about PLA exercises both score negative. Taiwan-US military cooperation does not score as cross-strait cooperative.
 
 ---
 
@@ -384,9 +390,9 @@ ssh root@217.174.245.116
 - [x] YDN (ROC MND newspaper) scraper
 - [x] Source badges colour-coded by political bias
 - [x] Social media signal layer (Weibo hot search + PTT trending)
+- [x] Key Figures panel with manual curation workflow (attributed quotes/actions, analyst approval)
 - [ ] Public read-only dashboard
 - [ ] Domain name registration
-- [ ] Leader activity tracker
 - [ ] Map layer (geocoded entity plotting)
 - [ ] ADS-B / AIS data integration (Phase 3)
 

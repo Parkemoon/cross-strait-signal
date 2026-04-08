@@ -95,6 +95,7 @@ CLASSIFICATION RULES:
 - For PRC sources: how does the article portray Taiwan, Taiwanese actors, or cross-strait relations?
 - For Taiwan sources: how does the article portray the PRC, mainland actors, or cross-strait relations?
 - For international/SG sources: what is the overall tone toward cross-strait dynamics?
+- CRITICAL: Do NOT confuse cooperation between Taiwan and third parties (e.g. US, Japan, allies) with a cooperative sentiment toward the PRC. Taiwan-US military cooperation, arms sales, or joint exercises are not cross-strait cooperative signals — score them neutral or hostile depending on how the article frames the PRC, not on how Taiwan relates to the US.
 - hostile (-1.0 to -0.3): threatening, antagonistic, confrontational, emphasising division, military pressure, sovereignty assertions against the other side
 - neutral (-0.3 to +0.3): factual reporting without strong positive or negative framing
 - cooperative (+0.3 to +1.0): warm, friendly, emphasising shared identity, engagement, dialogue, trade, people-to-people ties
@@ -110,7 +111,7 @@ CLASSIFICATION RULES:
 - Extract ALL named entities: people, military units, ships, aircraft, locations, organisations
 - All strings in the JSON must have special characters properly escaped.
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
-- For Taiwanese political figures, use Wade-Giles or Tongyong Pinyin as used by their office. Do not default to Hanyu Pinyin for Taiwanese entities. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
+- For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
 - KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
 
