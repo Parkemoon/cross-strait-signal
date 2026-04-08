@@ -35,6 +35,7 @@ CREATE TABLE articles (
     word_count      INTEGER,
     event_cluster_id INTEGER,                    -- links related articles within 48h window
     cluster_size    INTEGER DEFAULT 1,           -- number of articles in this cluster
+    is_hidden       BOOLEAN DEFAULT 0,           -- hidden from feed (analyst action)
     is_active       BOOLEAN NOT NULL DEFAULT 1   -- soft delete flag
 );
 
