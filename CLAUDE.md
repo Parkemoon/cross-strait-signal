@@ -75,7 +75,7 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 
 **Dynamic glossary injection** (`scraper/processors/glossary.json`): loaded once at module level; before each API call, article text is scanned and matching terms (politicians, military assets, institutions in both Simplified and Traditional Chinese) are injected as a `CRITICAL TERMINOLOGY MAPPING` block to prevent romanisation hallucinations. Add new terms to `glossary.json` without touching Python.
 
-**Key figure statement extraction**: Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `scraper/processors/key_figures.json` — 12 figures with Chinese/English names, roles, portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — this is intentional to prevent misattribution.
+**Key figure statement extraction**: Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `scraper/processors/key_figures.json` — 10 figures with Chinese/English names, roles, party field (DPP/KMT/PRC), portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — this is intentional to prevent misattribution.
 
 **Relevance gate**: the prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.
 
@@ -116,8 +116,8 @@ Groups related articles within a 48-hour window using Jaccard similarity on titl
 **Canonical DB file**: `db/cross_strait_signal.db` — used by both the API (`api/database.py`) and the scraper pipeline (`scraper/utils/db.py`). `db/signal.db` also exists but is not the live DB. Always apply schema changes to `cross_strait_signal.db`. `db/schema.sql` is the reference; `scripts/init_db.py` executes it (idempotent for `IF NOT EXISTS` tables only — existing tables are not migrated, apply changes with direct SQL).
 
 SQLite with FTS5 full-text search. Key tables:
-- **articles**: raw scraped content, `ai_processed` flag, `is_active` flag, unique constraint on URL
-- **ai_analysis**: structured AI output — `topic_primary`, `sentiment`, `sentiment_score` (−1.0 to +1.0), `urgency`, `is_escalation_signal`, `needs_human_review`, confidence. Note: `needs_human_review`, `review_resolved`, `is_hidden` and `sources.bias` are live columns not reflected in `schema.sql` — schema.sql has drifted from the live DB.
+- **articles**: raw scraped content, `ai_processed` flag, `is_active` flag, `is_hidden` flag, `event_cluster_id`, `cluster_size`, unique constraint on URL
+- **ai_analysis**: structured AI output — `topic_primary`, `sentiment`, `sentiment_score` (−1.0 to +1.0), `urgency`, `is_escalation_signal`, `needs_human_review`, `review_resolved`, confidence.
 - **entities**: named entities with type (person, military_unit, ship, aircraft, location, organisation, weapon_system) and geocoding fields (lat/lng deferred to Phase 2)
 - **key_figure_statements**: speaker-attributed quotes and actions extracted by Tier 1, requiring analyst approval before display — `figure_id` (matches `key_figures.json`), `statement_text` (English), `statement_kind` (`quote`/`action`), `approval_status` (`pending`/`approved`/`dismissed`)
 - **analyst_notes**: human editorial commentary with sentiment/topic override capability
@@ -140,8 +140,8 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `SignalCharts.jsx`: sentiment trend + topic breakdown charts
 - `StatsSidebar.jsx`: dashboard gauges by country and bias label; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
-- `SocialPulse.jsx`: collapsed by default; header shows "Weibo N · PTT N" counts (N = cross-strait relevant count); expands to two-column panel — Weibo column shows **only** cross-strait relevant items (with rank position); shows "No cross-strait related topics in top 50 trending" when none; inline translation correction via pencil icon
-- `KeyFigures.jsx`: horizontal scrollable row of cards between SocialPulse and Signal Feed; each card shows portrait (Wikimedia Commons images in `frontend/public/figures/`, initials fallback), name, role, latest approved statement with source badge + date; pencil icon (amber when candidates pending) opens a per-card curation modal for approve/dismiss; cards show "No curated statement yet" until approved
+- `SocialPulse.jsx`: accepts `column` prop — in column mode (right-hand aside in App.js) always expanded, vertical stack layout; in default inline mode, collapsible with two-column Weibo/PTT panel. Weibo shows only cross-strait relevant items. Inline translation correction via pencil icon (hidden in read-only build).
+- `KeyFigures.jsx`: horizontal scrollable row of cards above SocialPulse; each card shows portrait (images in `frontend/public/figures/`, initials fallback with party colour), name, role, latest approved statement; pencil icon (amber when candidates pending) opens per-card curation modal; hidden in read-only build via `READ_ONLY` constant
 - `SourceBadge.jsx`: colour-coded by `bias` prop, not country — `SOURCE_ABBREV` map covers all active sources
 
 All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localhost:8000` via `"proxy"` in `package.json`.
@@ -150,9 +150,12 @@ All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localh
 
 Two-script deploy pattern:
 - `deploy.sh` (local): builds frontend, git push, SSHs to server to run `server_deploy.sh`
-- `server_deploy.sh` (server only): `git pull`, `npm run build`, `systemctl restart cross-strait-signal`
+- `server_deploy.sh` (server only): `git pull`, `npm run build` (admin), `npm run build:public` (public read-only), `systemctl restart cross-strait-signal`
 
+**Live URLs**: `strait-signal.net` (public read-only) · `admin.strait-signal.net` (password protected, admin build)
 Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`.
+
+**Read-only build**: `src/readOnly.js` exports `READ_ONLY = process.env.REACT_APP_READ_ONLY === 'true'`. Import it in any component that has write controls to hide them in the public build. Build with `npm run build:public` (sets `BUILD_PATH=build-public`). Nginx blocks POST/PATCH on the public server at the nginx level.
 
 After deploying changes to `seed_sources.py`, always run `python scripts/seed_sources.py` on the server to apply source additions/deactivations.
 
@@ -200,3 +203,6 @@ GEMINI_API_KEY=your_key_here
 - Deactivating a source (`is_active=0`) preserves all its historical articles; use this instead of deleting
 - Key figure statements require **manual approval** before display — misattributing a quote to a senior political figure is a credibility-ender. Never auto-approve or bypass the `approval_status='pending'` gate.
 - When updating `glossary.json` romanisations, the old romanisation must also be added to the relevant figure's `aliases` array in `key_figures.json` — historical entity rows in the DB will still have the old name and must still resolve.
+- Sentiment axis measures how an article frames the **opposing side of the strait**, not geopolitical stability. Taiwan-US military cooperation does NOT score as cross-strait cooperative — it's neutral or hostile depending on PRC framing. KMT/opposition party visits to the mainland score cooperative regardless of political symbolism.
+- Romanisation: use Wade-Giles/Tongyong for all Taiwanese entities (people, places, organisations); Hanyu Pinyin for PRC entities. Never leave a Chinese name untranslated — apply the appropriate system if no established romanisation exists.
+- Key figure party colours: PRC → red (`#dc2626`), DPP → green (`#16a34a`), KMT → blue (`#1d4ed8`). Set via `party` field in `key_figures.json`; `figureAccent()` in `KeyFigures.jsx` resolves it.
