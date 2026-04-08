@@ -32,7 +32,9 @@ CREATE TABLE articles (
     scraped_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ai_processed    BOOLEAN NOT NULL DEFAULT 0,
     ai_processed_at TIMESTAMP,
-    word_count      INTEGER
+    word_count      INTEGER,
+    event_cluster_id INTEGER,                    -- links related articles within 48h window
+    is_active       BOOLEAN NOT NULL DEFAULT 1   -- soft delete flag
 );
 
 CREATE TABLE ai_analysis (
