@@ -7,9 +7,12 @@ cd /var/www/cross-strait-signal
 echo "--- Pulling latest code ---"
 git pull
 
-echo "--- Building frontend ---"
+echo "--- Building frontend (admin) ---"
 cd frontend
 npm run build
+
+echo "--- Building frontend (public read-only) ---"
+npm run build:public
 cd ..
 
 echo "--- Restarting backend ---"
