@@ -87,6 +87,7 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
         <option value="">All Sources</option>
         <option value="PRC">PRC Sources</option>
         <option value="TW">Taiwan Sources</option>
+        <option value="intl">International Sources</option>
       </select>
 
       {topEntities && topEntities.length > 0 && (

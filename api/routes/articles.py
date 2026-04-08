@@ -42,8 +42,11 @@ def list_articles(
         params.append(sentiment)
 
     if source_country:
-        where_clauses.append("s.country = ?")
-        params.append(source_country)
+        if source_country == "intl":
+            where_clauses.append("s.country NOT IN ('PRC', 'TW')")
+        else:
+            where_clauses.append("s.country = ?")
+            params.append(source_country)
 
     if urgency:
         where_clauses.append("ai.urgency = ?")
