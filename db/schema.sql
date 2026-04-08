@@ -34,6 +34,7 @@ CREATE TABLE articles (
     ai_processed_at TIMESTAMP,
     word_count      INTEGER,
     event_cluster_id INTEGER,                    -- links related articles within 48h window
+    cluster_size    INTEGER DEFAULT 1,           -- number of articles in this cluster
     is_active       BOOLEAN NOT NULL DEFAULT 1   -- soft delete flag
 );
 
