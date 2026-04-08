@@ -118,7 +118,10 @@ export default function StatsSidebar({ stats, onTopicClick }) {
           days={stats.period_days}
         />
 
-        {stats.sentiment_by_country?.map((c) => (
+        {[...(stats.sentiment_by_country ?? [])].sort((a, b) => {
+            const order = { PRC: 0, TW: 1 };
+            return (order[a.country] ?? 2) - (order[b.country] ?? 2);
+          }).map((c) => (
           <StabilityGauge
             key={c.country}
             label={
