@@ -6,6 +6,7 @@ import {
   dismissKeyFigureStatement,
 } from "../api";
 import SourceBadge from "./SourceBadge";
+import { READ_ONLY } from "../readOnly";
 
 const PARTY_ACCENT = { PRC: "#dc2626", DPP: "#16a34a", KMT: "#1d4ed8" };
 
@@ -226,29 +227,31 @@ function FigureCard({ figure, pendingCount, onOpenCuration, onClearStatement }) 
             {name_zh} · {role}
           </div>
         </div>
-        {/* Curate button */}
-        <button
-          onClick={onOpenCuration}
-          title={pendingCount > 0 ? `${pendingCount} pending candidate${pendingCount > 1 ? "s" : ""}` : "Curate statement"}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            padding: "2px", flexShrink: 0, lineHeight: 1,
-            position: "relative",
-          }}
-        >
-          <span style={{ fontSize: "13px", color: pendingCount > 0 ? "#d97706" : "var(--text-muted)" }}>✎</span>
-          {pendingCount > 0 && (
-            <span style={{
-              position: "absolute", top: "-4px", right: "-4px",
-              background: "#d97706", color: "#fff",
-              fontSize: "8px", fontWeight: 700, fontFamily: "var(--font-mono)",
-              width: "14px", height: "14px", borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              {pendingCount > 9 ? "9+" : pendingCount}
-            </span>
-          )}
-        </button>
+        {/* Curate button — admin only */}
+        {!READ_ONLY && (
+          <button
+            onClick={onOpenCuration}
+            title={pendingCount > 0 ? `${pendingCount} pending candidate${pendingCount > 1 ? "s" : ""}` : "Curate statement"}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              padding: "2px", flexShrink: 0, lineHeight: 1,
+              position: "relative",
+            }}
+          >
+            <span style={{ fontSize: "13px", color: pendingCount > 0 ? "#d97706" : "var(--text-muted)" }}>✎</span>
+            {pendingCount > 0 && (
+              <span style={{
+                position: "absolute", top: "-4px", right: "-4px",
+                background: "#d97706", color: "#fff",
+                fontSize: "8px", fontWeight: 700, fontFamily: "var(--font-mono)",
+                width: "14px", height: "14px", borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {pendingCount > 9 ? "9+" : pendingCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Quote / summary / empty state */}
@@ -276,16 +279,18 @@ function FigureCard({ figure, pendingCount, onOpenCuration, onClearStatement }) 
             <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
               · {relativeTime(latest.published_at)}
             </span>
-            <button
-              onClick={(e) => { e.preventDefault(); onClearStatement(latest.statement_id); }}
-              title="Clear this statement"
-              style={{
-                marginLeft: "auto", background: "none", border: "none", cursor: "pointer",
-                color: "var(--text-muted)", fontSize: "11px", padding: "0 2px", lineHeight: 1,
-              }}
-            >
-              ✕
-            </button>
+            {!READ_ONLY && (
+              <button
+                onClick={(e) => { e.preventDefault(); onClearStatement(latest.statement_id); }}
+                title="Clear this statement"
+                style={{
+                  marginLeft: "auto", background: "none", border: "none", cursor: "pointer",
+                  color: "var(--text-muted)", fontSize: "11px", padding: "0 2px", lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            )}
           </div>
         </a>
       ) : (
@@ -376,7 +381,7 @@ export default function KeyFigures() {
         ))}
       </div>
 
-      {openCurationFor && curationFigure && (
+      {!READ_ONLY && openCurationFor && curationFigure && (
         <CandidateModal
           figure={curationFigure}
           candidates={candidates[openCurationFor] || []}

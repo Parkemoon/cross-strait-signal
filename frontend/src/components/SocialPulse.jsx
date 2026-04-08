@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchSocialPulse, correctSocialTranslation } from "../api";
+import { READ_ONLY } from "../readOnly";
 
 function TranslationField({ item, onSaved }) {
   const [editing, setEditing] = useState(false);
@@ -79,7 +80,7 @@ function TranslationField({ item, onSaved }) {
       }}>
         {displayTranslation || "translating…"}
       </span>
-      {displayTranslation && (
+      {!READ_ONLY && displayTranslation && (
         <button
           onClick={() => { setValue(displayTranslation); setEditing(true); }}
           title="Correct translation"

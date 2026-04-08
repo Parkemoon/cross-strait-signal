@@ -4,6 +4,7 @@ import TopicPill from "./TopicPill";
 import SentimentBadge from "./SentimentBadge";
 import { createNote, hideArticle, toggleSignal } from "../api";
 import { fetchArticleCluster } from "../api";
+import { READ_ONLY } from "../readOnly";
 
 const SENTIMENT_OPTIONS = ["hostile", "cooperative", "neutral", "mixed"];
 const TOPIC_OPTIONS = [
@@ -156,43 +157,45 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
           </span>
         )}
 
-{/* Action buttons */}
-        <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
-          <button
-            onClick={handleToggleSignal}
-            title={isSignal ? "Remove signal flag" : "Mark as escalation signal"}
-            style={{
-              background: isSignal ? "var(--accent-red)" : "transparent",
-              border: "1px solid var(--accent-red)",
-              color: isSignal ? "#fff" : "var(--accent-red)",
-              borderRadius: "2px",
-              padding: "1px 7px",
-              fontSize: "10px",
-              fontFamily: "var(--font-mono)",
-              cursor: "pointer",
-              lineHeight: 1.6,
-            }}
-          >
-            {isSignal ? "✕ Signal" : "! Signal"}
-          </button>
-          <button
-            onClick={handleHide}
-            title="Hide this article"
-            style={{
-              background: "transparent",
-              border: "1px solid var(--border-color)",
-              color: "var(--text-muted)",
-              borderRadius: "2px",
-              padding: "1px 7px",
-              fontSize: "10px",
-              fontFamily: "var(--font-mono)",
-              cursor: "pointer",
-              lineHeight: 1.6,
-            }}
-          >
-            {"✕"}
-          </button>
-        </div>
+{/* Action buttons — admin only */}
+        {!READ_ONLY && (
+          <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
+            <button
+              onClick={handleToggleSignal}
+              title={isSignal ? "Remove signal flag" : "Mark as escalation signal"}
+              style={{
+                background: isSignal ? "var(--accent-red)" : "transparent",
+                border: "1px solid var(--accent-red)",
+                color: isSignal ? "#fff" : "var(--accent-red)",
+                borderRadius: "2px",
+                padding: "1px 7px",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                cursor: "pointer",
+                lineHeight: 1.6,
+              }}
+            >
+              {isSignal ? "✕ Signal" : "! Signal"}
+            </button>
+            <button
+              onClick={handleHide}
+              title="Hide this article"
+              style={{
+                background: "transparent",
+                border: "1px solid var(--border-color)",
+                color: "var(--text-muted)",
+                borderRadius: "2px",
+                padding: "1px 7px",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                cursor: "pointer",
+                lineHeight: 1.6,
+              }}
+            >
+              {"✕"}
+            </button>
+          </div>
+        )}
 
       </div>
 
@@ -409,112 +412,114 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
             </div>
           )}
 
-          {/* Analyst commentary */}
-          <div style={{ marginTop: "20px" }}>
-            <h4
-              style={{
-                fontSize: "11px",
-                fontFamily: "var(--font-mono)",
-                color: "var(--text-muted)",
-                textTransform: "uppercase",
-                letterSpacing: "1.5px",
-                marginBottom: "12px",
-              }}
-            >
-              Analyst Commentary
-            </h4>
+          {/* Analyst commentary — admin only */}
+          {!READ_ONLY && (
+            <div style={{ marginTop: "20px" }}>
+              <h4
+                style={{
+                  fontSize: "11px",
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "1.5px",
+                  marginBottom: "12px",
+                }}
+              >
+                Analyst Commentary
+              </h4>
 
-            {/* Override controls */}
-            <div
-              style={{
-                display: "flex",
-                gap: "16px",
-                marginBottom: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Override Sentiment</label>
-                <select
-                  value={sentimentOverride}
-                  onChange={(e) => setSentimentOverride(e.target.value)}
-                  style={selectStyle}
-                >
-                  <option value="">— no override —</option>
-                  {SENTIMENT_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+              {/* Override controls */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "16px",
+                  marginBottom: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <label style={labelStyle}>Override Sentiment</label>
+                  <select
+                    value={sentimentOverride}
+                    onChange={(e) => setSentimentOverride(e.target.value)}
+                    style={selectStyle}
+                  >
+                    <option value="">— no override —</option>
+                    {SENTIMENT_OPTIONS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Override Score (-1.0 to +1.0)</label>
+                  <input
+                    type="number"
+                    min="-1"
+                    max="1"
+                    step="0.1"
+                    value={scoreOverride}
+                    onChange={(e) => setScoreOverride(e.target.value)}
+                    placeholder="e.g. +0.6"
+                    style={{
+                      ...selectStyle,
+                      width: "120px",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Override Topic</label>
+                  <select
+                    value={topicOverride}
+                    onChange={(e) => setTopicOverride(e.target.value)}
+                    style={selectStyle}
+                  >
+                    <option value="">— no override —</option>
+                    {TOPIC_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label style={labelStyle}>Override Score (-1.0 to +1.0)</label>
-                <input
-                  type="number"
-                  min="-1"
-                  max="1"
-                  step="0.1"
-                  value={scoreOverride}
-                  onChange={(e) => setScoreOverride(e.target.value)}
-                  placeholder="e.g. +0.6"
-                  style={{
-                    ...selectStyle,
-                    width: "120px",
-                  }}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Override Topic</label>
-                <select
-                  value={topicOverride}
-                  onChange={(e) => setTopicOverride(e.target.value)}
-                  style={selectStyle}
-                >
-                  <option value="">— no override —</option>
-                  {TOPIC_OPTIONS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
+
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Add editorial analysis or context..."
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  background: "var(--bg-secondary)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "3px",
+                  fontSize: "14px",
+                  fontFamily: "var(--font-body)",
+                  minHeight: "70px",
+                  resize: "vertical",
+                  lineHeight: 1.5,
+                  boxSizing: "border-box",
+                }}
+              />
+              <button
+                onClick={handleSaveNote}
+                style={{
+                  marginTop: "8px",
+                  padding: "7px 20px",
+                  background: noteSaved ? "var(--accent-green)" : "var(--accent-teal)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "3px",
+                  fontSize: "13px",
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
+              >
+                {noteSaved ? "✓ Saved" : "Save Note"}
+              </button>
             </div>
-
-            <textarea
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Add editorial analysis or context..."
-              style={{
-                width: "100%",
-                padding: "12px",
-                background: "var(--bg-secondary)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "3px",
-                fontSize: "14px",
-                fontFamily: "var(--font-body)",
-                minHeight: "70px",
-                resize: "vertical",
-                lineHeight: 1.5,
-                boxSizing: "border-box",
-              }}
-            />
-            <button
-              onClick={handleSaveNote}
-              style={{
-                marginTop: "8px",
-                padding: "7px 20px",
-                background: noteSaved ? "var(--accent-green)" : "var(--accent-teal)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "3px",
-                fontSize: "13px",
-                fontFamily: "var(--font-body)",
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "background 0.2s",
-              }}
-            >
-              {noteSaved ? "✓ Saved" : "Save Note"}
-            </button>
-          </div>
+          )}
         </div>
       )}
     </article>

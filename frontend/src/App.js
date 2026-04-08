@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchArticles, fetchStats } from "./api";
+import { READ_ONLY } from "./readOnly";
 import ThemeToggle from "./components/ThemeToggle";
 import FlashTraffic from "./components/FlashTraffic";
 import KeyFigures from "./components/KeyFigures";
@@ -87,44 +88,46 @@ export default function App() {
             {total} articles · {stats?.escalation_signals?.length || 0} signals
           </span>
 
-          {/* Review Queue button with pending badge */}
-          <button
-            onClick={() => setView(view === "review" ? "feed" : "review")}
-            style={{
-              padding: "6px 14px",
-              background: view === "review" ? "var(--accent)" : "var(--bg-card)",
-              color: view === "review" ? "#fff" : "var(--text-secondary)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontFamily: "var(--font-mono)",
-              position: "relative",
-            }}
-          >
-            Review
-            {reviewPending > 0 && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: "-6px",
-                  right: "-6px",
-                  background: "#e67e22",
-                  color: "#fff",
-                  borderRadius: "50%",
-                  width: "16px",
-                  height: "16px",
-                  fontSize: "10px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                {reviewPending}
-              </span>
-            )}
-          </button>
+          {/* Review Queue button with pending badge — admin only */}
+          {!READ_ONLY && (
+            <button
+              onClick={() => setView(view === "review" ? "feed" : "review")}
+              style={{
+                padding: "6px 14px",
+                background: view === "review" ? "var(--accent)" : "var(--bg-card)",
+                color: view === "review" ? "#fff" : "var(--text-secondary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontFamily: "var(--font-mono)",
+                position: "relative",
+              }}
+            >
+              Review
+              {reviewPending > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "-6px",
+                    right: "-6px",
+                    background: "#e67e22",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    width: "16px",
+                    height: "16px",
+                    fontSize: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {reviewPending}
+                </span>
+              )}
+            </button>
+          )}
 
           <ThemeToggle />
         </div>
@@ -151,8 +154,8 @@ export default function App() {
         </aside>
 
         {/* Main content */}
-        <main style={{ padding: view === "review" ? "0" : "28px 32px", minWidth: 0, overflow: "hidden" }}>
-          {view === "review" ? (
+        <main style={{ padding: (!READ_ONLY && view === "review") ? "0" : "28px 32px", minWidth: 0, overflow: "hidden" }}>
+          {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : (
             <>
