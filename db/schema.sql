@@ -13,6 +13,7 @@ CREATE TABLE sources (
     tier            INTEGER NOT NULL DEFAULT 2,  -- 1=official/military, 2=media, 3=think_tank, 4=osint
     scrape_interval INTEGER NOT NULL DEFAULT 360,-- minutes between scrapes
     scrape_method   TEXT NOT NULL DEFAULT 'rss', -- 'rss', 'html_scrape', 'api'
+    bias            TEXT,                        -- 'green', 'green_leaning', 'blue', 'centrist', 'state_official', 'state_nationalist'
     is_active       BOOLEAN NOT NULL DEFAULT 1,
     last_scraped    TIMESTAMP,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -52,8 +53,12 @@ CREATE TABLE ai_analysis (
     is_new_formulation BOOLEAN DEFAULT 0,        -- new diplomatic language detected
     is_escalation_signal BOOLEAN DEFAULT 0,      -- potential escalation indicator
     escalation_note TEXT,                        -- AI explanation if flagged
+    -- Human review
+    needs_human_review BOOLEAN DEFAULT 0,        -- flagged for analyst review
+    review_resolved    BOOLEAN DEFAULT 0,        -- review completed
+    is_hidden          BOOLEAN DEFAULT 0,        -- hidden from public feed pending review
     -- Metadata
-    model_used      TEXT NOT NULL DEFAULT 'claude-sonnet-4-20250514',
+    model_used      TEXT NOT NULL DEFAULT 'gemini-2.5-flash-lite',
     confidence      REAL,                        -- AI self-assessed confidence 0-1
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -105,6 +110,7 @@ CREATE TABLE analyst_notes (
     note_text       TEXT NOT NULL,           -- your editorial commentary
     sentiment_override TEXT,                  -- override AI sentiment if wrong
     topic_override  TEXT,                     -- override AI topic if wrong
+    score_override  REAL,                     -- override sentiment score (-1.0 to +1.0)
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
