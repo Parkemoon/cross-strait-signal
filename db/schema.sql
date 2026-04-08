@@ -145,3 +145,24 @@ CREATE TABLE IF NOT EXISTS social_pulse (
 );
 
 CREATE INDEX IF NOT EXISTS idx_social_pulse_platform_time ON social_pulse(platform, scraped_at DESC);
+
+-- ============================================================
+-- KEY FIGURE STATEMENTS (manual curation of attributed quotes/actions)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS key_figure_statements (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id      INTEGER NOT NULL REFERENCES articles(id),
+    figure_id       TEXT NOT NULL,                  -- matches key_figures.json id
+    speaker_raw     TEXT NOT NULL,                  -- name as extracted by AI
+    statement_text  TEXT NOT NULL,                  -- English (translated if needed)
+    statement_zh    TEXT,                           -- original-language version (optional)
+    statement_kind  TEXT NOT NULL,                  -- 'quote' or 'action'
+    confidence      REAL,
+    approval_status TEXT NOT NULL DEFAULT 'pending',-- 'pending' | 'approved' | 'dismissed'
+    reviewed_at     TIMESTAMP,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_kfs_figure_status ON key_figure_statements(figure_id, approval_status);
+CREATE INDEX IF NOT EXISTS idx_kfs_article ON key_figure_statements(article_id);

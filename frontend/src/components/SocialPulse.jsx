@@ -187,7 +187,7 @@ function PttItem({ item, onTranslationSaved }) {
   );
 }
 
-export default function SocialPulse() {
+export default function SocialPulse({ column = false }) {
   const [data, setData] = useState(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -230,24 +230,83 @@ export default function SocialPulse() {
   const crossStraitItems = weiboItems.filter(i => i.is_cross_strait);
   const crossStraitCount = crossStraitItems.length;
 
+  // Shared section content
+  const weiboSection = (
+    <>
+      <div style={{
+        fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
+        letterSpacing: "0.06em", color: "#dc2626", marginBottom: "4px", textTransform: "uppercase",
+      }}>
+        PRC · Weibo 微博热搜
+      </div>
+      {crossStraitItems.length > 0 ? (
+        crossStraitItems.map((item) => (
+          <WeiboItem key={item.id} item={item} onTranslationSaved={handleTranslationSaved} />
+        ))
+      ) : (
+        <div style={{ color: "var(--text-muted)", fontSize: "12px", fontStyle: "italic", paddingTop: "8px" }}>
+          {hasWeibo ? "No cross-strait related topics in top 50 trending" : "No data yet"}
+        </div>
+      )}
+    </>
+  );
+
+  const pttSection = (
+    <>
+      <div style={{
+        fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
+        letterSpacing: "0.06em", color: "#1d4ed8", marginBottom: "4px", textTransform: "uppercase",
+      }}>
+        TW · PTT 批踢踢
+      </div>
+      {hasPtt ? (
+        pttItems.map((item) => (
+          <PttItem key={item.id} item={item} onTranslationSaved={handleTranslationSaved} />
+        ))
+      ) : (
+        <div style={{ color: "var(--text-muted)", fontSize: "12px", fontStyle: "italic", paddingTop: "8px" }}>
+          No high-engagement posts found
+        </div>
+      )}
+    </>
+  );
+
+  // Column mode: always expanded, vertical stack, no card wrapper
+  if (column) {
+    return (
+      <>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "12px" }}>
+          <h3 style={{
+            fontFamily: "var(--font-headline)", fontSize: "13px", fontWeight: 600,
+            letterSpacing: "0.08em", textTransform: "uppercase", color: "#d97706", margin: 0,
+          }}>
+            Social Pulse
+          </h3>
+          <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+            {`${crossStraitCount} · ${pttItems.length}`}
+          </span>
+        </div>
+        <div style={{ paddingBottom: "24px", borderBottom: "1px solid var(--border-color)", marginBottom: "20px" }}>
+          {weiboSection}
+        </div>
+        <div>
+          {pttSection}
+        </div>
+      </>
+    );
+  }
+
+  // Default inline mode: collapsible, two-column panel
   return (
     <div style={{ marginBottom: "32px" }}>
-      {/* Header — always visible, click to expand/collapse */}
       <div
         onClick={() => setExpanded(e => !e)}
         style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: expanded ? "8px" : "0", cursor: "pointer", userSelect: "none" }}
       >
         <h3 style={{
-          fontFamily: "var(--font-headline)",
-          fontSize: "13px",
-          fontWeight: 600,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#d97706",
-          margin: 0,
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
+          fontFamily: "var(--font-headline)", fontSize: "13px", fontWeight: 600,
+          letterSpacing: "0.08em", textTransform: "uppercase", color: "#d97706", margin: 0,
+          display: "flex", alignItems: "center", gap: "6px",
         }}>
           Social Pulse
           <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-muted)", letterSpacing: 0, textTransform: "none" }}>
@@ -263,65 +322,20 @@ export default function SocialPulse() {
         </div>
       </div>
 
-      {/* Two-column panel — only shown when expanded */}
-      {!expanded ? null : <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "0",
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-color)",
-        borderTop: "3px solid #d97706",
-        borderRadius: "4px",
-        overflow: "hidden",
-      }}>
-        {/* PRC — Weibo */}
-        <div style={{ padding: "12px 16px", borderRight: "1px solid var(--border-color)" }}>
-          <div style={{
-            fontSize: "10px",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            color: "#dc2626",
-            marginBottom: "4px",
-            textTransform: "uppercase",
-          }}>
-            PRC · Weibo 微博热搜
+      {expanded && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0",
+          background: "var(--bg-card)", border: "1px solid var(--border-color)",
+          borderTop: "3px solid #d97706", borderRadius: "4px", overflow: "hidden",
+        }}>
+          <div style={{ padding: "12px 16px", borderRight: "1px solid var(--border-color)" }}>
+            {weiboSection}
           </div>
-          {crossStraitItems.length > 0 ? (
-            crossStraitItems.map((item) => (
-              <WeiboItem key={item.id} item={item} onTranslationSaved={handleTranslationSaved} />
-            ))
-          ) : (
-            <div style={{ color: "var(--text-muted)", fontSize: "12px", fontStyle: "italic", paddingTop: "8px" }}>
-              {hasWeibo ? "No cross-strait related topics in top 50 trending" : "No data yet"}
-            </div>
-          )}
-        </div>
-
-        {/* TW — PTT */}
-        <div style={{ padding: "12px 16px" }}>
-          <div style={{
-            fontSize: "10px",
-            fontFamily: "var(--font-mono)",
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            color: "#1d4ed8",
-            marginBottom: "4px",
-            textTransform: "uppercase",
-          }}>
-            TW · PTT 批踢踢
+          <div style={{ padding: "12px 16px" }}>
+            {pttSection}
           </div>
-          {hasPtt ? (
-            pttItems.map((item) => (
-              <PttItem key={item.id} item={item} onTranslationSaved={handleTranslationSaved} />
-            ))
-          ) : (
-            <div style={{ color: "var(--text-muted)", fontSize: "12px", fontStyle: "italic", paddingTop: "8px" }}>
-              No high-engagement posts found
-            </div>
-          )}
         </div>
-      </div>}
+      )}
     </div>
   );
 }

@@ -1,0 +1,108 @@
+[
+  {
+    "id": "xi_jinping",
+    "name_en": "Xi Jinping",
+    "name_zh": "習近平",
+    "role": "PRC President",
+    "side": "PRC",
+    "portrait": "xi_jinping.jpg",
+    "attribution": "Photo: Simon Dawson / No 10 Downing Street - Prime Minister Keir Starmer visits China, CC BY 4.0",
+    "aliases": ["習近平", "习近平", "Xi Jinping", "Xi"]
+  },
+  {
+    "id": "wang_huning",
+    "name_en": "Wang Huning",
+    "name_zh": "王滬寧",
+    "role": "CPPCC Chairman",
+    "side": "PRC",
+    "portrait": "wang_huning.jpg",
+    "attribution": "Photo: 中国新闻社, CC BY 3.0",
+    "aliases": ["王滬寧", "王沪宁", "Wang Huning"]
+  },
+  {
+    "id": "song_tao",
+    "name_en": "Song Tao",
+    "name_zh": "宋濤",
+    "role": "TAO Director",
+    "side": "PRC",
+    "portrait": "song_tao.jpg",
+    "attribution": "Photo: Karl Norman Alonoz for the Presidential Communications Operations Office - Presidential Communications Operations Office, Public Domain",
+    "aliases": ["宋濤", "宋涛", "Song Tao"]
+  },
+  {
+    "id": "zhu_fenglian",
+    "name_en": "Zhu Fenglian",
+    "name_zh": "朱鳳蓮",
+    "role": "TAO Spokesperson",
+    "side": "PRC",
+    "portrait": "zhu_fenglian.png",
+    "attribution": "Photo: 中国新闻网, CC BY 3.0",
+    "aliases": ["朱鳳蓮", "朱凤莲", "Zhu Fenglian"]
+  },
+  {
+    "id": "lai_chingte",
+    "name_en": "Lai Ching-te",
+    "name_zh": "賴清德",
+    "role": "TW President",
+    "side": "TW",
+    "party": "DPP",
+    "portrait": "lai_chingte.jpg",
+    "attribution": "Photo: Office of the President of the Republic of China",
+    "aliases": ["賴清德", "赖清德", "Lai Ching-te", "William Lai"]
+  },
+  {
+    "id": "cho_jungtai",
+    "name_en": "Cho Jung-tai",
+    "name_zh": "卓榮泰",
+    "role": "TW Premier",
+    "side": "TW",
+    "party": "DPP",
+    "portrait": "cho_jungtai.jpg",
+    "attribution": "Photo: Ministry of Foreign Affairs, ROC",
+    "aliases": ["卓榮泰", "卓荣泰", "Cho Jung-tai"]
+  },
+  {
+    "id": "wellington_koo",
+    "name_en": "Wellington Koo",
+    "name_zh": "顧立雄",
+    "role": "TW Defence Minister",
+    "side": "TW",
+    "party": "DPP",
+    "portrait": "wellington_koo.jpg",
+    "attribution": "Photo: Financial Supervisory Commission, ROC",
+    "aliases": ["顧立雄", "顾立雄", "Wellington Koo", "Koo Li-hsiung"]
+  },
+  {
+    "id": "chiu_chuicheng",
+    "name_en": "Chiu Chui-cheng",
+    "name_zh": "邱垂正",
+    "role": "MAC Minister",
+    "side": "TW",
+    "party": "DPP",
+    "portrait": "chiu_chuicheng.png",
+    "attribution": "Photo: Mainland Affairs Council, ROC",
+    "aliases": ["邱垂正", "Chiu Chui-cheng"]
+  },
+  {
+    "id": "liang_wenchieh",
+    "name_en": "Liang Wen-chieh",
+    "name_zh": "梁文傑",
+    "role": "MAC Spokesperson",
+    "side": "TW",
+    "party": "DPP",
+    "portrait": "liang_wenchieh.jpg",
+    "attribution": "Photo: Mainland Affairs Council, ROC",
+    "aliases": ["梁文傑", "梁文杰", "Liang Wen-chieh"]
+  },
+  {
+    "id": "cheng_liwun",
+    "name_en": "Cheng Li-wun",
+    "name_zh": "鄭麗文",
+    "role": "KMT Chair",
+    "side": "TW",
+    "party": "KMT",
+    "portrait": "cheng_liwun.jpg",
+    "attribution": "Photo: KOKUYO - Own work, CC BY-SA 4.0",
+    "aliases": ["鄭麗文", "郑丽文", "Cheng Li-wun", "Cheng Li-wen"]
+  }
+]

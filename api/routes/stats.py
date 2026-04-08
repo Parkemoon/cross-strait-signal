@@ -1,7 +1,17 @@
+import json
+import os
+
 from fastapi import APIRouter, Query
 from api.database import get_db
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
+
+_KEY_FIGURES_PATH = os.path.join(os.path.dirname(__file__), "../../scraper/processors/key_figures.json")
+try:
+    with open(_KEY_FIGURES_PATH, encoding="utf-8") as _f:
+        _KEY_FIGURES = json.load(_f)
+except Exception:
+    _KEY_FIGURES = []
 
 
 @router.get("/")
@@ -173,3 +183,119 @@ def entity_search(
 
     conn.close()
     return {"entities": [dict(r) for r in rows]}
+
+
+@router.get("/key-figures")
+def key_figures():
+    """Latest analyst-approved statement per curated key figure."""
+    conn = get_db()
+
+    rows = conn.execute("""
+        SELECT kfs.figure_id, kfs.id AS statement_id,
+               kfs.statement_text, kfs.statement_kind,
+               a.id AS article_id, a.url AS article_url, a.published_at,
+               s.name AS source_name, s.bias AS source_bias,
+               ai.topic_primary
+        FROM key_figure_statements kfs
+        JOIN articles a ON kfs.article_id = a.id
+        JOIN sources s ON s.id = a.source_id
+        JOIN ai_analysis ai ON ai.article_id = a.id
+        WHERE kfs.approval_status = 'approved'
+        ORDER BY a.published_at DESC
+    """).fetchall()
+
+    conn.close()
+
+    # Latest per figure (rows already ordered by published_at DESC)
+    latest_by_figure = {}
+    for row in rows:
+        fid = row["figure_id"]
+        if fid not in latest_by_figure:
+            latest_by_figure[fid] = dict(row)
+
+    results = []
+    for figure in _KEY_FIGURES:
+        fid = figure["id"]
+        row = latest_by_figure.get(fid)
+        latest = {
+            "statement_id": row["statement_id"],
+            "article_id": row["article_id"],
+            "article_url": row["article_url"],
+            "published_at": row["published_at"],
+            "source_name": row["source_name"],
+            "source_bias": row["source_bias"],
+            "topic_primary": row["topic_primary"],
+            "display_text": row["statement_text"],
+            "display_kind": row["statement_kind"],
+        } if row else None
+        results.append({
+            "id": fid,
+            "name_en": figure["name_en"],
+            "name_zh": figure["name_zh"],
+            "role": figure["role"],
+            "side": figure["side"],
+            "party": figure.get("party"),
+            "portrait": figure["portrait"],
+            "attribution": figure.get("attribution"),
+            "latest": latest,
+        })
+
+    return {"figures": results}
+
+
+@router.get("/key-figures/candidates")
+def key_figure_candidates():
+    """Pending statements awaiting analyst approval, grouped by figure_id."""
+    conn = get_db()
+
+    rows = conn.execute("""
+        SELECT kfs.id, kfs.figure_id, kfs.speaker_raw,
+               kfs.statement_text, kfs.statement_zh,
+               kfs.statement_kind, kfs.confidence, kfs.created_at,
+               a.id AS article_id, a.url AS article_url, a.published_at,
+               s.name AS source_name, s.bias AS source_bias
+        FROM key_figure_statements kfs
+        JOIN articles a ON kfs.article_id = a.id
+        JOIN sources s ON s.id = a.source_id
+        WHERE kfs.approval_status = 'pending'
+        ORDER BY a.published_at DESC
+    """).fetchall()
+
+    conn.close()
+
+    by_figure = {}
+    for row in rows:
+        fid = row["figure_id"]
+        if fid not in by_figure:
+            by_figure[fid] = []
+        by_figure[fid].append(dict(row))
+
+    return {"candidates": by_figure}
+
+
+@router.post("/key-figures/statements/{statement_id}/approve")
+def approve_statement(statement_id: int):
+    """Mark a key figure statement as approved for display."""
+    conn = get_db()
+    conn.execute("""
+        UPDATE key_figure_statements
+        SET approval_status = 'approved', reviewed_at = datetime('now')
+        WHERE id = ?
+    """, (statement_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "approved", "id": statement_id}
+
+
+@router.post("/key-figures/statements/{statement_id}/dismiss")
+def dismiss_statement(statement_id: int):
+    """Mark a key figure statement as dismissed."""
+    conn = get_db()
+    conn.execute("""
+        UPDATE key_figure_statements
+        SET approval_status = 'dismissed', reviewed_at = datetime('now')
+        WHERE id = ?
+    """, (statement_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "dismissed", "id": statement_id}

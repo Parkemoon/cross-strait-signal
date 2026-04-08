@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchArticles, fetchStats } from "./api";
 import ThemeToggle from "./components/ThemeToggle";
 import FlashTraffic from "./components/FlashTraffic";
+import KeyFigures from "./components/KeyFigures";
 import SocialPulse from "./components/SocialPulse";
 import ArticleCard from "./components/ArticleCard";
 import StatsSidebar from "./components/StatsSidebar";
@@ -133,7 +134,7 @@ export default function App() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "280px 1fr",
+          gridTemplateColumns: "280px 1fr 300px",
           minHeight: "calc(100vh - 52px)",
         }}
       >
@@ -150,7 +151,7 @@ export default function App() {
         </aside>
 
         {/* Main content */}
-        <main style={{ padding: view === "review" ? "0" : "28px 32px" }}>
+        <main style={{ padding: view === "review" ? "0" : "28px 32px", minWidth: 0, overflow: "hidden" }}>
           {view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : (
@@ -162,7 +163,7 @@ export default function App() {
                 onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
               />
 
-              <SocialPulse />
+              <KeyFigures />
 
               {/* Section header */}
               <div
@@ -310,6 +311,18 @@ export default function App() {
             </>
           )}
         </main>
+
+        {/* Right column — Social Pulse */}
+        <aside
+          style={{
+            background: "var(--sidebar-bg)",
+            borderLeft: "1px solid var(--border-color)",
+            padding: "24px 20px",
+            overflowY: "auto",
+          }}
+        >
+          <SocialPulse column />
+        </aside>
       </div>
 
       {/* Footer */}
