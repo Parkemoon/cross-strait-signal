@@ -121,7 +121,11 @@ export default function StatsSidebar({ stats, onTopicClick }) {
         {stats.sentiment_by_country?.map((c) => (
           <StabilityGauge
             key={c.country}
-            label={c.country === "PRC" ? "PRC Sources" : "Taiwan Sources"}
+            label={
+              c.country === "PRC" ? "PRC Sources" :
+              c.country === "TW" ? "Taiwan Sources" :
+              "International Sources"
+            }
             score={c.avg_score}
           />
         ))}
