@@ -2,7 +2,7 @@ const BIAS_ROWS = [
   { label: "green",             color: "#15803d", text: "#fff",     desc: "Explicitly pro-independence editorial line (e.g. Liberty Times)" },
   { label: "green_leaning",     color: "#4ade80", text: "#14532d",  desc: "State-controlled under DPP-led government (e.g. CNA, YDN)" },
   { label: "blue",              color: "#1d4ed8", text: "#fff",     desc: "Consistent KMT-aligned editorial line (e.g. UDN)" },
-  { label: "centrist",          color: "#6b7280", text: "#fff",     desc: "Editorially independent (e.g. Zaobao)" },
+  { label: "centrist",          color: "#6b7280", text: "#fff",     desc: "Editorially independent, either local or international (e.g. Zaobao)" },
   { label: "state_official",    color: "#dc2626", text: "#fff",     desc: "PRC state media or government organ (e.g. Xinhua, MFA, TAO)" },
   { label: "state_nationalist", color: "#b91c1c", text: "#fff",     desc: "PRC nationalist commentary (e.g. Global Times, Guancha)" },
 ];
@@ -100,23 +100,32 @@ export default function AboutModal({ onClose }) {
         <h3 style={sectionHead}>What this is</h3>
         <p style={body}>
           Cross-Strait Signal is an open-source intelligence dashboard monitoring PRC–Taiwan cross-strait
-          dynamics through automated bilingual media analysis. It scrapes ~25 active sources across the
-          People's Republic of China, Taiwan, and Singapore — Chinese-language outlets are treated as
-          primary, since they break stories earlier and with greater analytical depth than English
-          translations. Articles are processed through a multi-tier AI pipeline, human-reviewed for
-          accuracy, and structured into a filterable intelligence feed.
+          dynamics through automated bilingual media analysis. It scrapes dozens of active sources across
+          the People's Republic of China, Taiwan, and Singapore — Chinese-language outlets are treated as
+          primary, since they break stories earlier and with greater analytical depth than English media on
+          either side of the strait, while mainstream international media does great work and often has
+          exclusives, access to that information is easy for English speakers, while access to what the
+          people who are most impacted think is often lost. Articles are processed through a multi-tier AI
+          pipeline, human-reviewed for accuracy, and structured into a filterable intelligence feed.
         </p>
         <p style={{ ...body, marginTop: "12px" }}>
-          The system is designed to surface destabilising signals from <em>both</em> sides of the strait —
-          including Taiwanese independence moves and constitutional norm erosion alongside PRC military
-          activity. This is not a "China bad, Taiwan good" instrument.
+          There is also a social feed covering for the moment the top 50 trending on Weibo and the
+          Taiwanese Reddit-style board PTT. Neither of these can be read as giving a representative view
+          of a broad swath of cross-strait public opinion, but at the moment it is very hard to access
+          data for the social media of choice on either side (WeChat and Douyin for the PRC; Threads,
+          Instagram and Facebook for Taiwan).
+        </p>
+        <p style={{ ...body, marginTop: "12px" }}>
+          The system is designed to surface signals from both sides of the strait — including changes to
+          Taiwanese "status quo" alongside PRC military activity and nationalist rhetoric. It is
+          deliberately not supposed to imply one side's positive or negative activity is a one-way street.
         </p>
 
         {/* Sentiment axis */}
         <h3 style={sectionHead}>Sentiment axis</h3>
         <p style={body}>
-          Each article is scored on a −1.0 to +1.0 scale measuring how the source <em>frames the opposing
-          side of the strait</em> — not geopolitical stability in the abstract.
+          Each article is scored on a −1.0 to +1.0 scale measuring how the source frames the opposing
+          side of the strait.
         </p>
         <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", alignItems: "baseline" }}>
           {[
@@ -137,8 +146,7 @@ export default function AboutModal({ onClose }) {
         </div>
         <p style={{ ...body, marginTop: "12px", fontSize: "13px", color: "var(--text-muted)" }}>
           For PRC sources: how does the article portray Taiwan? For Taiwan sources: how does it portray
-          the PRC? Taiwan–US military cooperation does not score as cross-strait cooperative.
-          A PLA exercise piece and a DPP sovereignty move both score hostile on this scale.
+          the PRC?
         </p>
 
         {/* Source bias */}
@@ -173,15 +181,14 @@ export default function AboutModal({ onClose }) {
           classification (topic, sentiment, urgency, named entities, key quotes); Gemini 2.5 Flash
           re-reviews escalation-flagged articles; a human review queue catches cases where the two
           models disagree. Every article requires explicit analyst approval before appearing on this
-          feed — AI output is a starting point, not the final word. Translations and classifications
-          can be corrected inline by the analyst, and corrected fields are marked as human-verified.
+          feed. Translations and classifications can be corrected inline by the analyst, and corrected
+          fields are marked as human-verified.
         </p>
 
         {/* Author */}
         <h3 style={sectionHead}>Author</h3>
         <p style={body}>
-          Ed Moon — bilingual English–Mandarin analyst, former Supervising Editor and News Director at
-          TaiwanPlus, MA Taiwan Studies (SOAS University of London).{" "}
+          Ed Moon — bilingual English–Mandarin analyst, former Supervising Editor at TaiwanPlus.{" "}
           <a
             href="https://substack.com/@edmooon"
             target="_blank"
