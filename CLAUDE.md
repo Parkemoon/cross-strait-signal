@@ -181,11 +181,27 @@ GEMINI_API_KEY=your_key_here
 
 ## Key Domain Concepts
 
-**Topic taxonomy (19 categories)**: `MIL_EXERCISE`, `MIL_MOVEMENT`, `MIL_HARDWARE`, `MIL_POLICY`, `DIP_STATEMENT`, `DIP_VISIT`, `DIP_SANCTIONS`, `PARTY_VISIT`, `ECON_TRADE`, `ECON_INVEST`, `POL_DOMESTIC_TW`, `POL_DOMESTIC_PRC`, `POL_TONGDU`, `INFO_WARFARE`, `LEGAL_GREY`, `HUMANITARIAN`, `TRANSPORT`, `INT_ORG`
+**Topic taxonomy (27 categories)**: `MIL_EXERCISE`, `MIL_MOVEMENT`, `MIL_HARDWARE`, `MIL_POLICY`, `DIP_STATEMENT`, `DIP_VISIT`, `DIP_SANCTIONS`, `PARTY_VISIT`, `ARMS_SALES`, `ECON_TRADE`, `ECON_INVEST`, `ENERGY`, `POL_DOMESTIC_TW`, `POL_DOMESTIC_PRC`, `POL_TONGDU`, `INFO_WARFARE`, `CYBER`, `LEGAL_GREY`, `HUMANITARIAN`, `TRANSPORT`, `INT_ORG`, `US_PRC`, `US_TAIWAN`, `HK_MAC`, `CULTURE`, `SPORT`
 
 **POL_TONGDU** (統獨): Captures both unification rhetoric AND independence moves — bidirectional by design.
 
 **PARTY_VISIT**: KMT/opposition visits to PRC — distinct from `DIP_VISIT` (state-level). A KMT chair visiting Beijing is always `PARTY_VISIT`, never `DIP_VISIT`.
+
+**ARMS_SALES**: US or third-party arms transfer events and export control decisions — specific package approvals, delivery milestones, export licence decisions. Use `MIL_POLICY` for broader defence posture; `MIL_HARDWARE` when a platform is the primary subject.
+
+**US_PRC**: US-China relations as the primary subject — Washington-Beijing diplomacy, tech/trade sanctions, US Pacific deterrence posture against China. Use when the US-China relationship itself is the focus, not Taiwan's relationship with the US.
+
+**US_TAIWAN**: US-Taiwan relations — political support, economic ties, congressional legislation, US officials visiting/meeting Taiwanese counterparts, US statements on Taiwan's status.
+
+**HK_MAC**: Hong Kong and Macau with cross-strait relevance — "one country, two systems" credibility, Beijing governance, HK/Macau as bellwether or warning for Taiwan.
+
+**CULTURE**: Cross-strait cultural exchange and soft power — Taiwanese artists/films popular on the mainland or vice versa, tourism with cultural dimensions, people-to-people ties where cultural exchange (not sovereignty framing) is the primary subject. Use `POL_TONGDU` when cultural framing is explicitly about sovereignty or national identity.
+
+**CYBER**: Cyber operations, hacking, digital espionage, infrastructure intrusions — distinct from `INFO_WARFARE` (narrative/propaganda). PRC-attributed attacks on Taiwan, cross-strait cyber espionage cases, critical infrastructure intrusions.
+
+**SPORT**: Sporting events and disputes with cross-strait political dimensions — Olympic naming ("Chinese Taipei"), cross-strait athletic competitions, sports boycotts, sport as soft power.
+
+**ENERGY**: Energy security with cross-strait relevance — Taiwan LNG imports, nuclear policy, shipping lane economics, energy infrastructure vulnerability, PRC energy leverage.
 
 **POL_DOMESTIC_TW / POL_DOMESTIC_PRC**: Classified by the *subject* of the article, not the source country.
 
