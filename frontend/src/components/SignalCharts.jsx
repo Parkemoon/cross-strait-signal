@@ -38,6 +38,7 @@ const TOPIC_LABELS = {
 function SentimentTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const score = payload[0]?.value;
+  const count = payload[0]?.payload?.count;
   const color = score > 0.3
     ? "var(--accent-red)"
     : score < -0.3
@@ -57,7 +58,7 @@ function SentimentTooltip({ active, payload, label }) {
         {score > 0 ? "+" : ""}{score?.toFixed(3)}
       </div>
       <div style={{ color: "var(--text-muted)", fontSize: "10px", marginTop: "2px" }}>
-        {payload[1]?.value} articles
+        {count} articles
       </div>
     </div>
   );
@@ -112,7 +113,6 @@ export function SentimentTrendChart({ data, days }) {
               tickLine={false}
             />
             <YAxis
-              yAxisId="score"
               domain={[-1, 1]}
               ticks={[-1, -0.5, 0, 0.5, 1]}
               tickFormatter={(v) => v === 1 ? "+1" : v === -1 ? "-1" : v}
@@ -121,25 +121,17 @@ export function SentimentTrendChart({ data, days }) {
               axisLine={false}
               tickLine={false}
             />
-            <YAxis yAxisId="count" hide />
             <Tooltip content={<SentimentTooltip />} />
-            <ReferenceLine yAxisId="score" y={0} stroke="var(--border-color)" strokeDasharray="3 3" />
-            <ReferenceLine yAxisId="score" y={0.3} stroke="var(--accent-red)" strokeOpacity={0.2} strokeDasharray="2 4" />
-            <ReferenceLine yAxisId="score" y={-0.3} stroke="var(--accent-green)" strokeOpacity={0.2} strokeDasharray="2 4" />
+            <ReferenceLine y={0} stroke="var(--border-color)" strokeDasharray="3 3" />
+            <ReferenceLine y={0.3} stroke="var(--accent-red)" strokeOpacity={0.2} strokeDasharray="2 4" />
+            <ReferenceLine y={-0.3} stroke="var(--accent-green)" strokeOpacity={0.2} strokeDasharray="2 4" />
             <Line
-              yAxisId="score"
               type="monotone"
               dataKey="score"
               stroke="var(--accent-teal)"
               strokeWidth={2}
               dot={{ r: 3, fill: "var(--accent-teal)", strokeWidth: 0 }}
               activeDot={{ r: 5, fill: "var(--accent-teal)" }}
-            />
-            <Line
-              yAxisId="count"
-              dataKey="count"
-              stroke="transparent"
-              dot={false}
             />
           </LineChart>
         </ResponsiveContainer>
