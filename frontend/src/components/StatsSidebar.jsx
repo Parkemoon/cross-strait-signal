@@ -3,9 +3,9 @@ import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
 function StabilityGauge({ label, score, days, compact }) {
   const safeScore = score ?? 0;
   const color = safeScore > 0.3
-    ? "var(--accent-red)"
-    : safeScore < -0.3
     ? "var(--accent-green)"
+    : safeScore < -0.3
+    ? "var(--accent-red)"
     : "var(--accent-amber)";
 
   return (
