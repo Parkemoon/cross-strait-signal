@@ -392,7 +392,7 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
           fontWeight: 400,
           lineHeight: 1.4,
           marginBottom: "4px",
-          color: titleOverride ? "#f59e0b" : "var(--text-primary)",
+          color: (!READ_ONLY && titleOverride) ? "#f59e0b" : "var(--text-primary)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -422,7 +422,7 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
         style={{
           fontSize: "14px",
           fontFamily: "var(--font-body)",
-          color: summaryOverride ? "#f59e0b" : "var(--text-secondary)",
+          color: (!READ_ONLY && summaryOverride) ? "#f59e0b" : "var(--text-secondary)",
           lineHeight: 1.65,
         }}
         onClick={(e) => e.stopPropagation()}
@@ -513,7 +513,7 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
                 {article.key_quote}
                 <p
                   style={{
-                    color: quoteOverride ? "#f59e0b" : "var(--text-muted)",
+                    color: (!READ_ONLY && quoteOverride) ? "#f59e0b" : "var(--text-muted)",
                     marginTop: "4px",
                     fontStyle: "normal",
                     fontSize: "13px",
