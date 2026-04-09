@@ -211,7 +211,7 @@ GEMINI_API_KEY=your_key_here
 
 **Source bias labels**: `green`, `green_leaning`, `blue`, `centrist`, `state_official`, `state_nationalist`
 
-**Active TW sources**: LTN Politics/World/Business/Defence (green), CNA Politics/Mainland/International/Finance (green_leaning), UDN Cross-Strait/Breaking/International/Business (blue), YDN (green_leaning — MND state media under DPP executive; reclassify if government changes)
+**Active TW sources**: LTN Politics/World/Business/Defence (green), CNA Politics/Mainland/International/Finance (green_leaning), UDN Cross-Strait/Breaking/International/Business (blue), CT Cross-Strait/Politics/Military/Opinion (blue), YDN (green_leaning — MND state media under DPP executive; reclassify if government changes)
 
 **Active PRC sources**: Xinhua, People's Daily, China News Service, Global Times, The Paper, MFA Spokesperson, Taiwan Affairs Office, Guancha, Haixia Daobao, PLA Daily
 
