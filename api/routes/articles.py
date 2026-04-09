@@ -120,7 +120,7 @@ def list_articles(
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         {where_sql}
-        ORDER BY a.published_at DESC
+        ORDER BY {"a.analyst_approved ASC, " if include_pending else ""}a.published_at DESC
         LIMIT ? OFFSET ?
     """
     params.extend([page_size, offset])
