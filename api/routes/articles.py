@@ -17,7 +17,7 @@ def list_articles(
     entity: Optional[str] = Query(None, description="Filter by entity name"),
     topic: Optional[str] = Query(None, description="Filter by topic code, e.g. MIL_EXERCISE"),
     sentiment: Optional[str] = Query(None, description="hostile, cooperative, neutral, mixed"),
-    source_country: Optional[str] = Query(None, description="PRC or TW"),
+    source_place: Optional[str] = Query(None, description="PRC or TW"),
     urgency: Optional[str] = Query(None, description="flash, priority, routine"),
     escalation_only: bool = Query(False, description="Only show escalation signals"),
     search: Optional[str] = Query(None, description="Search in titles and content"),
@@ -51,12 +51,12 @@ def list_articles(
         where_clauses.append("ai.sentiment = ?")
         params.append(sentiment)
 
-    if source_country:
-        if source_country == "intl":
-            where_clauses.append("s.country NOT IN ('PRC', 'TW')")
+    if source_place:
+        if source_place == "intl":
+            where_clauses.append("s.place NOT IN ('PRC', 'TW')")
         else:
-            where_clauses.append("s.country = ?")
-            params.append(source_country)
+            where_clauses.append("s.place = ?")
+            params.append(source_place)
 
     if urgency:
         where_clauses.append("ai.urgency = ?")
@@ -113,7 +113,7 @@ def list_articles(
             ai.confidence,
             s.name as source_name,
             s.name_zh as source_name_zh,
-            s.country as source_country,
+            s.place as source_place,
             s.source_type,
             s.bias
         FROM articles a
@@ -172,7 +172,7 @@ def get_article_cluster(article_id: int):
         SELECT
             a.id, a.title_original, a.title_en, a.url, a.published_at,
             ai.sentiment, ai.sentiment_score, ai.summary_en, ai.topic_primary,
-            s.name as source_name, s.country as source_country, s.bias
+            s.name as source_name, s.place as source_place, s.bias
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
@@ -197,7 +197,7 @@ def get_article(article_id: int):
             ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
             ai.confidence, ai.model_used,
             s.name as source_name, s.name_zh as source_name_zh,
-            s.country as source_country, s.source_type
+            s.place as source_place, s.source_type
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id

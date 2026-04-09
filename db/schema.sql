@@ -8,7 +8,7 @@ CREATE TABLE sources (
     name_zh         TEXT,                        -- 中华人民共和国外交部
     url             TEXT NOT NULL,
     source_type     TEXT NOT NULL,               -- 'government', 'military', 'state_media', 'independent_media', 'think_tank', 'osint_feed'
-    country         TEXT NOT NULL,               -- 'PRC', 'TW', 'US', 'UK', 'intl'
+    place           TEXT NOT NULL,               -- 'PRC', 'TW', 'HK', 'SG', etc.
     language        TEXT NOT NULL,               -- 'zh-cn', 'zh-tw', 'en', 'multi'
     tier            INTEGER NOT NULL DEFAULT 2,  -- 1=official/military, 2=media, 3=think_tank, 4=osint
     scrape_interval INTEGER NOT NULL DEFAULT 360,-- minutes between scrapes

@@ -43,7 +43,7 @@ TW_MUST_MENTION_PRC = [
 ]
 
 
-def check_relevance(title, content, language="zh", source_country=None):
+def check_relevance(title, content, language="zh", source_place=None):
     """
     Directional relevance check.
     
@@ -56,9 +56,9 @@ def check_relevance(title, content, language="zh", source_country=None):
     """
     text = f"{title} {content[:2000]}".lower()
 
-    if source_country in ('PRC', 'SG'):
+    if source_place in ('PRC', 'SG'):
         anchor_list = PRC_MUST_MENTION_TAIWAN
-    elif source_country == 'TW':
+    elif source_place == 'TW':
         anchor_list = TW_MUST_MENTION_PRC
     else:
         # Fallback: check both directions
@@ -69,5 +69,5 @@ def check_relevance(title, content, language="zh", source_country=None):
 
     # Return format kept consistent with rest of pipeline
     # categories list repurposed to carry source direction
-    categories = ['cross_strait_prc'] if source_country == 'PRC' else ['cross_strait_tw']
+    categories = ['cross_strait_prc'] if source_place == 'PRC' else ['cross_strait_tw']
     return is_relevant, categories, matched_keywords

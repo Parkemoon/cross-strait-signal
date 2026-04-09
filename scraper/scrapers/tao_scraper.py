@@ -18,7 +18,7 @@ async def scrape_tao():
 
     if not source:
         conn.execute("""
-    INSERT INTO sources (name, name_zh, url, source_type, country, bias, language, tier, scrape_interval, scrape_method)
+    INSERT INTO sources (name, name_zh, url, source_type, place, bias, language, tier, scrape_interval, scrape_method)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """, (
     'Taiwan Affairs Office', '国务院台湾事务办公室',

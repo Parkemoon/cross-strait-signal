@@ -90,8 +90,8 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
       </select>
 
       <select
-        value={filters.source_country || ""}
-        onChange={(e) => update("source_country", e.target.value)}
+        value={filters.source_place || ""}
+        onChange={(e) => update("source_place", e.target.value)}
         style={selectStyle}
       >
         <option value="">All Sources</option>

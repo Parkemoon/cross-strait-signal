@@ -118,15 +118,15 @@ export default function StatsSidebar({ stats, onTopicClick }) {
           days={stats.period_days}
         />
 
-        {[...(stats.sentiment_by_country ?? [])].sort((a, b) => {
+        {[...(stats.sentiment_by_place ?? [])].sort((a, b) => {
             const order = { PRC: 0, TW: 1 };
-            return (order[a.country] ?? 2) - (order[b.country] ?? 2);
+            return (order[a.place] ?? 2) - (order[b.place] ?? 2);
           }).map((c) => (
           <StabilityGauge
-            key={c.country}
+            key={c.place}
             label={
-              c.country === "PRC" ? "PRC Sources" :
-              c.country === "TW" ? "Taiwan Sources" :
+              c.place === "PRC" ? "PRC Sources" :
+              c.place === "TW" ? "Taiwan Sources" :
               "International Sources"
             }
             score={c.avg_score}
