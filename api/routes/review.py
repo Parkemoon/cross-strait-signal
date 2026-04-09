@@ -133,7 +133,10 @@ def get_review_stats():
         "SELECT COUNT(*) FROM ai_analysis WHERE needs_human_review = 1 AND review_resolved = 1"
     ).fetchone()[0]
     pending_approval = conn.execute(
-        "SELECT COUNT(*) FROM articles WHERE analyst_approved = 0 AND is_hidden = 0 AND ai_processed = 1"
+        """SELECT COUNT(*) FROM articles a
+           JOIN ai_analysis ai ON a.id = ai.article_id
+           WHERE a.analyst_approved = 0 AND a.is_hidden = 0
+             AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"""
     ).fetchone()[0]
     conn.close()
     return {"pending": pending, "resolved": resolved, "pending_approval": pending_approval}
