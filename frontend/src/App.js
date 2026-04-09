@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchArticles, fetchStats } from "./api";
 import { READ_ONLY } from "./readOnly";
+import { useWindowWidth } from "./hooks/useWindowWidth";
 import ThemeToggle from "./components/ThemeToggle";
 import FlashTraffic from "./components/FlashTraffic";
 import KeyFigures from "./components/KeyFigures";
@@ -19,6 +20,9 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [view, setView] = useState("feed"); // "feed" | "review"
   const [reviewPending, setReviewPending] = useState(0);
+  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | "review"
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 768;
 
   useEffect(() => {
     setLoading(true);
@@ -48,7 +52,7 @@ export default function App() {
         style={{
           background: "var(--header-bg)",
           color: "var(--header-text)",
-          padding: "14px 28px",
+          padding: isMobile ? "10px 16px" : "14px 28px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -65,31 +69,35 @@ export default function App() {
           >
             Cross-Strait Signal
           </h1>
-          <span
-            style={{
-              fontSize: "11px",
-              fontFamily: "var(--font-mono)",
-              opacity: 0.5,
-              textTransform: "uppercase",
-              letterSpacing: "2px",
-            }}
-          >
-            Open-Source Intelligence
-          </span>
+          {!isMobile && (
+            <span
+              style={{
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                opacity: 0.5,
+                textTransform: "uppercase",
+                letterSpacing: "2px",
+              }}
+            >
+              Open-Source Intelligence
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span
-            style={{
-              fontSize: "11px",
-              fontFamily: "var(--font-mono)",
-              opacity: 0.5,
-            }}
-          >
-            {total} articles · {stats?.escalation_signals?.length || 0} signals
-          </span>
+          {!isMobile && (
+            <span
+              style={{
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                opacity: 0.5,
+              }}
+            >
+              {total} articles · {stats?.escalation_signals?.length || 0} signals
+            </span>
+          )}
 
-          {/* Review Queue button with pending badge — admin only */}
-          {!READ_ONLY && (
+          {/* Review Queue button with pending badge — admin only, desktop only */}
+          {!READ_ONLY && !isMobile && (
             <button
               onClick={() => setView(view === "review" ? "feed" : "review")}
               style={{
@@ -137,24 +145,31 @@ export default function App() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "280px 1fr 300px",
+          gridTemplateColumns: isMobile ? "1fr" : "280px 1fr 300px",
           minHeight: "calc(100vh - 52px)",
+          paddingBottom: isMobile ? "56px" : 0,
         }}
       >
         {/* Sidebar */}
         <aside
           style={{
             background: "var(--sidebar-bg)",
-            borderRight: "1px solid var(--border-color)",
+            borderRight: isMobile ? "none" : "1px solid var(--border-color)",
             padding: "24px 20px",
             overflowY: "auto",
+            display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
           }}
         >
           <StatsSidebar stats={stats} />
         </aside>
 
         {/* Main content */}
-        <main style={{ padding: (!READ_ONLY && view === "review") ? "0" : "28px 32px", minWidth: 0, overflow: "hidden" }}>
+        <main style={{
+          padding: isMobile ? "16px" : ((!READ_ONLY && view === "review") ? "0" : "28px 32px"),
+          minWidth: 0,
+          overflow: "hidden",
+          display: isMobile ? (mobileTab === "feed" || mobileTab === "review" ? "block" : "none") : "block",
+        }}>
           {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : (
@@ -319,21 +334,67 @@ export default function App() {
         <aside
           style={{
             background: "var(--sidebar-bg)",
-            borderLeft: "1px solid var(--border-color)",
+            borderLeft: isMobile ? "none" : "1px solid var(--border-color)",
             padding: "24px 20px",
             overflowY: "auto",
+            display: isMobile ? (mobileTab === "social" ? "block" : "none") : "block",
           }}
         >
           <SocialPulse column />
         </aside>
       </div>
 
-      {/* Footer */}
+      {/* Mobile tab bar */}
+      {isMobile && (
+        <nav style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "var(--header-bg)",
+          borderTop: "1px solid rgba(255,255,255,0.1)",
+          display: "flex",
+          zIndex: 100,
+        }}>
+          {[
+            { id: "feed", label: "Feed" },
+            { id: "stats", label: "Stats" },
+            { id: "social", label: "Social" },
+            ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setMobileTab(tab.id);
+                if (tab.id === "review") setView("review");
+                if (tab.id === "feed") setView("feed");
+              }}
+              style={{
+                flex: 1,
+                padding: "12px 4px",
+                background: "transparent",
+                color: mobileTab === tab.id ? "var(--header-text)" : "rgba(255,255,255,0.4)",
+                border: "none",
+                borderTop: mobileTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                cursor: "pointer",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {/* Footer — desktop only */}
       <footer
         style={{
           borderTop: "1px solid var(--border-color)",
           padding: "14px 28px",
-          display: "flex",
+          display: isMobile ? "none" : "flex",
           justifyContent: "space-between",
           fontSize: "11px",
           color: "var(--text-muted)",
