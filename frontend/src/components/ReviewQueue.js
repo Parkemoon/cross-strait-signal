@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchReviewQueue, resolveReview } from "../api";
+import { fetchReviewQueue, resolveReview, updateArticleTranslation } from "../api";
 
 const SENTIMENT_OPTIONS = ["hostile", "cooperative", "neutral", "mixed"];
 const TOPIC_OPTIONS = [
@@ -17,17 +17,34 @@ const SENTIMENT_COLOURS = {
 };
 
 function ReviewCard({ item, onResolved }) {
-  const [mode, setMode] = useState(null); // null | 'override' | 'confirming'
+  const [mode, setMode] = useState(null); // null | 'override'
   const [overrides, setOverrides] = useState({
     sentiment_override: item.sentiment,
     topic_override: item.topic_primary,
     escalation_override: item.is_escalation_signal,
     note: "",
   });
+  const [translations, setTranslations] = useState({
+    title_en_override: item.title_en_override || item.title_en || "",
+    summary_en_override: item.summary_en_override || item.summary_en || "",
+    key_quote_override: item.key_quote_override || item.key_quote_en || item.key_quote || "",
+  });
   const [submitting, setSubmitting] = useState(false);
 
+  // Save any changed translation fields, then resolve
   async function handleResolve(resolution) {
     setSubmitting(true);
+    // Only send fields that differ from the AI originals
+    const translationUpdates = {};
+    if (translations.title_en_override !== (item.title_en || ""))
+      translationUpdates.title_en_override = translations.title_en_override;
+    if (translations.summary_en_override !== (item.summary_en || ""))
+      translationUpdates.summary_en_override = translations.summary_en_override;
+    if (translations.key_quote_override !== (item.key_quote_en || item.key_quote || ""))
+      translationUpdates.key_quote_override = translations.key_quote_override;
+    if (Object.keys(translationUpdates).length > 0) {
+      await updateArticleTranslation(item.article_id, translationUpdates);
+    }
     await resolveReview(item.analysis_id, {
       resolution,
       ...(resolution === "overridden" ? overrides : { note: overrides.note }),
@@ -171,7 +188,87 @@ function ReviewCard({ item, onResolved }) {
         </span>
       </div>
 
-      {/* Override form */}
+      {/* Translation editing — always visible so you can correct before any action */}
+      {(
+        <div
+          style={{
+            background: "var(--bg-secondary)",
+            borderRadius: "4px",
+            padding: "14px",
+            marginBottom: "14px",
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            gap: "10px",
+          }}
+        >
+          <div>
+            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
+              Headline
+            </label>
+            <input
+              type="text"
+              value={translations.title_en_override}
+              onChange={(e) => setTranslations({ ...translations, title_en_override: e.target.value })}
+              style={{
+                width: "100%",
+                padding: "6px 8px",
+                background: "var(--bg-card)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "4px",
+                fontSize: "13px",
+                fontFamily: "var(--font-body)",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
+              Summary
+            </label>
+            <textarea
+              value={translations.summary_en_override}
+              onChange={(e) => setTranslations({ ...translations, summary_en_override: e.target.value })}
+              rows={3}
+              style={{
+                width: "100%",
+                padding: "6px 8px",
+                background: "var(--bg-card)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "4px",
+                fontSize: "13px",
+                fontFamily: "var(--font-body)",
+                resize: "vertical",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
+              Key quote translation
+            </label>
+            <input
+              type="text"
+              value={translations.key_quote_override}
+              onChange={(e) => setTranslations({ ...translations, key_quote_override: e.target.value })}
+              style={{
+                width: "100%",
+                padding: "6px 8px",
+                background: "var(--bg-card)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "4px",
+                fontSize: "13px",
+                fontFamily: "var(--font-body)",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Classification overrides */}
       {mode === "override" && (
         <div
           style={{

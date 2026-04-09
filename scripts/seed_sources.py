@@ -162,7 +162,7 @@ SOURCES = [
         'url': 'https://www.ydn.com.tw/tw/home/',
         'source_type': 'state_media',
         'country': 'TW',
-        'bias': 'state_official',
+        'bias': 'green_leaning',
         'language': 'zh-tw',
         'tier': 1,
         'scrape_interval': 240,

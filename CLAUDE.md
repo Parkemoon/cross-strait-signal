@@ -62,7 +62,8 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
     → Keyword pre-filter (directional: saves ~80% API cost)
     → Tier 1 AI: Gemini 2.5 Flash Lite (topic, sentiment, entities, urgency)
     → Tier 2 AI: Gemini 2.5 Flash (escalation review, conditional)
-    → Tier 3: Human review queue (model disagreements)
+    → Tier 3: Human review queue (model disagreements — translation editing + auto-approve on resolve)
+    → Editorial approval gate (analyst_approved=0 until sign-off; hidden from public feed)
     → SQLite + FTS5
     → FastAPI routes
     → React dashboard
@@ -119,7 +120,7 @@ Groups related articles within a 48-hour window using Jaccard similarity on titl
 **Canonical DB file**: `db/cross_strait_signal.db` — used by both the API (`api/database.py`) and the scraper pipeline (`scraper/utils/db.py`). `db/signal.db` also exists but is not the live DB. Always apply schema changes to `cross_strait_signal.db`. `db/schema.sql` is the reference; `scripts/init_db.py` executes it (idempotent for `IF NOT EXISTS` tables only — existing tables are not migrated, apply changes with direct SQL).
 
 SQLite with FTS5 full-text search. Key tables:
-- **articles**: raw scraped content, `ai_processed` flag, `is_active` flag, `is_hidden` flag, `event_cluster_id`, `cluster_size`, unique constraint on URL
+- **articles**: raw scraped content, `ai_processed` flag, `is_active` flag, `is_hidden` flag, `analyst_approved` flag (DEFAULT 0 — must be set to 1 before article appears on public feed), `title_en_override` / `summary_en_override` / `key_quote_override` (analyst translation corrections), `event_cluster_id`, `cluster_size`, unique constraint on URL
 - **ai_analysis**: structured AI output — `topic_primary`, `sentiment`, `sentiment_score` (−1.0 to +1.0), `urgency`, `is_escalation_signal`, `needs_human_review`, `review_resolved`, confidence.
 - **entities**: named entities with type (person, military_unit, ship, aircraft, location, organisation, weapon_system) and geocoding fields (lat/lng deferred to Phase 2)
 - **key_figure_statements**: speaker-attributed quotes and actions extracted by Tier 1, requiring analyst approval before display — `figure_id` (matches `key_figures.json`), `statement_text` (English), `statement_kind` (`quote`/`action`), `approval_status` (`pending`/`approved`/`dismissed`)
@@ -129,17 +130,17 @@ SQLite with FTS5 full-text search. Key tables:
 - **social_pulse**: Weibo and PTT items — `platform`, `item_key` (dedup key), `title` (Chinese), `title_en` (AI translation), `title_en_override` (analyst correction), engagement fields (`rank_position`, `heat_index` for Weibo; `push_count`, `boo_count`, `board`, `url` for PTT)
 
 ### API Layer (`api/routes/`)
-- `articles.py`: GET `/api/articles` (8 filter params), cluster, hide, signal endpoints; `/signal` is a toggle. `source_country=intl` is a special value that maps to `s.country NOT IN ('PRC', 'TW')` — do not hardcode individual country codes for international sources.
-- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`. **All aggregation queries must include `AND a.is_hidden = 0 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)`** to match feed visibility — use the `VISIBLE` constant defined at the top of `dashboard_stats()`.
+- `articles.py`: GET `/api/articles` (9 filter params including `include_pending`), cluster, hide, signal, approve, translation endpoints. `include_pending=true` skips the `analyst_approved=1` filter — admin frontend always sends this; public build never does. `POST /api/articles/{id}/approve` sets `analyst_approved=1`. `PATCH /api/articles/{id}/translation` updates `title_en_override`, `summary_en_override`, `key_quote_override`. `source_country=intl` maps to `s.country NOT IN ('PRC', 'TW')` — do not hardcode individual country codes for international sources.
+- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`. **All aggregation queries must include the `VISIBLE` constant** defined at the top of `dashboard_stats()`: `a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)`.
 - `notes.py`: CRUD for analyst notes with AI override support
-- `review.py`: review queue — confirm / override / dismiss
+- `review.py`: review queue — confirm / override / dismiss. Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
 - `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
 
 ### Frontend (`frontend/src/`)
 React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key components:
 - `FilterBar.jsx`: topic, sentiment, source_country, urgency, escalation, search filters. Source country options are PRC / Taiwan / International (`intl`) — never add hardcoded country codes here.
-- `ArticleCard.jsx`: article display with inline sentiment/topic override and analyst notes; `onSignalOff` prop for FlashTraffic removal
-- `ReviewQueue.js`: human review UI
+- `ArticleCard.jsx`: article display with inline sentiment/topic override and analyst notes; `onSignalOff` prop for FlashTraffic removal; `onApprove` callback for pending count updates. Unapproved articles (`analyst_approved=0`) show an amber left border and "⚠ Pending Approval" banner with Approve/Dismiss buttons (admin only). `FieldEditor` component handles inline editing of `title_en_override`, `summary_en_override`, `key_quote_override` — pencil icon reveals textarea; overridden fields render in amber.
+- `ReviewQueue.js`: human review UI with translation editing fields (headline, summary, key quote) always visible — changed fields saved via `updateArticleTranslation` before resolving. Confirm/override auto-approves the article.
 - `SignalCharts.jsx`: sentiment trend (Y-axis clamped to `[-1, 1]`, single YAxis) + topic breakdown charts. Sentiment colour convention: negative = hostile = red, positive = cooperative = green.
 - `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
@@ -194,7 +195,7 @@ GEMINI_API_KEY=your_key_here
 
 **Source bias labels**: `green`, `green_leaning`, `blue`, `centrist`, `state_official`, `state_nationalist`
 
-**Active TW sources**: LTN Politics/World/Business/Defence (green), CNA Politics/Mainland/International/Finance (green_leaning), UDN Cross-Strait/Breaking/International/Business (blue), YDN (state_official)
+**Active TW sources**: LTN Politics/World/Business/Defence (green), CNA Politics/Mainland/International/Finance (green_leaning), UDN Cross-Strait/Breaking/International/Business (blue), YDN (green_leaning — MND state media under DPP executive; reclassify if government changes)
 
 **Active PRC sources**: Xinhua, People's Daily, China News Service, Global Times, The Paper, MFA Spokesperson, Taiwan Affairs Office, Guancha, Haixia Daobao, PLA Daily
 
@@ -202,7 +203,8 @@ GEMINI_API_KEY=your_key_here
 
 ## Important Behaviors
 
-- Articles with `needs_human_review = 1` and unresolved status are **hidden from the public feed** until reviewed
+- **All articles require analyst approval** (`analyst_approved=1`) before appearing on the public feed. New articles start at `analyst_approved=0`. Use the Approve button on the article card or resolve via the review queue (confirm/override auto-approves).
+- Articles with `needs_human_review = 1` and unresolved status are **additionally hidden** until the review queue is resolved
 - Chinese-language sources are treated as primary — they break stories earlier
 - Bias labels reflect editorial reality and should not be softened (e.g. CNA is green_leaning, not neutral)
 - The human review queue and inline analyst overrides exist because political classification requires editorial judgment — AI output is a starting point, not final word

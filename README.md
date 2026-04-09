@@ -17,7 +17,9 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 - Directional relevance filtering — PRC/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
 - Three-tier AI analysis: Google Gemini 2.5 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
 - Structured analytical output per article: topic classification (18 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
-- Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — allowing editorial override before publication to the dashboard
+- Full editorial approval gate — every article is held from the public feed until the analyst explicitly approves it, ensuring no AI translation errors or misclassifications reach readers
+- Inline translation editing on headline, summary, and key quote — corrected fields highlighted amber to distinguish human-verified text from raw AI output
+- Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — translation editing available within the queue, auto-approves on resolution
 - Analyst commentary layer allows human override of AI classifications at any point
 - Source bias tracking — each source tagged with editorial alignment (green / green_leaning / blue / centrist / state_official / state_nationalist)
 - Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction; lives in a persistent right-hand column
@@ -54,6 +56,10 @@ Three-Tier AI Analysis Pipeline (articles only)
 ├── Tier 1: Gemini 2.5 Flash Lite — topic, sentiment, entities, urgency
 ├── Tier 2: Gemini 2.5 Flash — escalation review for flagged articles
 ├── Tier 3: Human review queue — model disagreement resolution
+│            (translation editing + auto-approve on resolution)
+│
+Editorial Approval Gate
+└── All articles held from public feed until analyst explicitly approves
 │
 Social Translation (separate lightweight pipeline)
 └── Gemini 2.5 Flash Lite — batch-translates Weibo/PTT titles only
@@ -61,8 +67,10 @@ Social Translation (separate lightweight pipeline)
 Storage: SQLite with full-text search (FTS5)
 │
 FastAPI Backend
-├── GET /api/articles — filtered article list with AI analysis and entities
+├── GET /api/articles — filtered article feed; ?include_pending=true for admin (shows unapproved)
 ├── GET /api/articles/{id} — single article with full details
+├── POST /api/articles/{id}/approve — mark article as analyst-approved for public feed
+├── PATCH /api/articles/{id}/translation — override headline, summary, or key quote translation
 ├── GET /api/stats — dashboard summary (topic breakdown, sentiment trend, entities)
 ├── GET /api/stats/entities — entity leaderboard by mention count
 ├── POST /api/notes — analyst commentary with sentiment/topic/score override
@@ -74,7 +82,7 @@ FastAPI Backend
 ├── POST /api/stats/key-figures/statements/{id}/dismiss — dismiss a candidate
 ├── GET /review/queue — articles pending human review
 ├── POST /review/{id}/resolve — resolve review with confirm/override/dismiss
-├── GET /review/stats — pending/resolved review counts
+├── GET /review/stats — pending/resolved counts + pending_approval count
 └── GET /docs — interactive API documentation
 │
 React Dashboard
@@ -85,8 +93,10 @@ React Dashboard
 ├── Strait Watch gauges (overall + PRC / TW / International + by political camp)
 ├── Sentiment trend chart and topic breakdown chart (Recharts)
 ├── Inline editorial overrides (sentiment, topic, score on any article card)
+├── Inline translation editing (headline, summary, key quote — amber highlight on override)
+├── Editorial approval gate (pending articles shown with amber border + approve/dismiss buttons)
 ├── Analyst commentary per article
-├── Review Queue (human review UI with confirm/override/dismiss)
+├── Review Queue (human review UI with translation editing + confirm/override/dismiss)
 └── Dark/light theme toggle
 ```
 
@@ -138,7 +148,7 @@ React Dashboard
 | UDN Breaking (聯合報即時) | blue | HTML scraper |
 | UDN International (聯合報國際) | blue | HTML scraper |
 | UDN Business (聯合報財經) | blue | HTML scraper |
-| YDN (青年日報) | state_official | HTML scraper |
+| YDN (青年日報) | green_leaning | HTML scraper |
 
 **PRC**
 
@@ -361,8 +371,8 @@ server {
 ### Cron Schedule
 
 ```bash
-# Pipeline runs every 3 hours
-0 */3 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
+# Pipeline runs twice daily — 7am and 7pm BST (6am/6pm UTC)
+0 6,18 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
 ```
 
 ### Deploy Workflow
@@ -384,8 +394,8 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 - **Bias labels reflect editorial reality, not diplomatic hedging.** CNA is `green_leaning` (state-controlled under DPP), not centrist. UDN is `blue` (consistent editorial line), not merely blue-leaning.
 - **The sentiment axis is bidirectional.** Destabilising actions from either side register on the same scale.
 - **POL_TONGDU not POL_UNIFICATION.** The 統獨 spectrum runs in both directions.
-- **Human judgment overrides AI.** The review queue and inline overrides exist because AI classification of politically sensitive content requires editorial judgment.
-- **Pending review articles are hidden from the feed.** Nothing reaches the public dashboard until it has passed either AI confidence thresholds or human review.
+- **Human judgment overrides AI.** The review queue, inline overrides, and translation editing exist because AI classification and translation of politically sensitive content requires editorial judgment.
+- **Every article requires analyst approval.** Nothing reaches the public dashboard without explicit sign-off. AI-flagged articles are additionally routed through the review queue before approval.
 
 ---
 
@@ -402,7 +412,7 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 - [x] Sentiment trend visualisation
 - [x] Topic breakdown chart
 - [x] Event clustering (Jaccard similarity, 48-hour window)
-- [x] Automated scheduling (cron, every 3 hours)
+- [x] Automated scheduling (cron, twice daily)
 - [x] VPS deployment
 - [x] UDN HTML scraper (4 sections)
 - [x] Provincial PRC media sources (海峽導報, 解放軍報, 观察者网)
@@ -414,6 +424,8 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 - [x] Public read-only dashboard (`strait-signal.net`) — write controls hidden at build time
 - [x] Domain name + SSL (`strait-signal.net` / `admin.strait-signal.net`, Cloudflare proxy)
 - [x] Mobile-responsive layout with tab navigation
+- [x] Editorial approval gate — all articles held from public feed until analyst sign-off
+- [x] Inline translation editing (headline, summary, key quote) with amber override indicator
 - [ ] Map layer (geocoded entity plotting)
 - [ ] ADS-B / AIS data integration (Phase 3)
 

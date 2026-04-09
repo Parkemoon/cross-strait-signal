@@ -36,7 +36,11 @@ CREATE TABLE articles (
     event_cluster_id INTEGER,                    -- links related articles within 48h window
     cluster_size    INTEGER DEFAULT 1,           -- number of articles in this cluster
     is_hidden       BOOLEAN DEFAULT 0,           -- hidden from feed (analyst action)
-    is_active       BOOLEAN NOT NULL DEFAULT 1   -- soft delete flag
+    is_active       BOOLEAN NOT NULL DEFAULT 1,  -- soft delete flag
+    analyst_approved BOOLEAN DEFAULT 0,          -- must be approved by analyst before appearing on public feed
+    title_en_override TEXT,                      -- analyst-corrected headline
+    summary_en_override TEXT,                    -- analyst-corrected summary
+    key_quote_override TEXT                      -- analyst-corrected key quote translation
 );
 
 CREATE TABLE ai_analysis (

@@ -20,7 +20,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
     conn = get_db()
 
     # Visibility filter — matches what the articles feed uses
-    VISIBLE = "a.is_hidden = 0 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
+    VISIBLE = "a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
 
     # Total articles
     total = conn.execute(f"""

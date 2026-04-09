@@ -99,6 +99,20 @@ export async function dismissKeyFigureStatement(id) {
   return res.json();
 }
 
+export async function approveArticle(articleId) {
+  const res = await fetch(`${API_BASE}/api/articles/${articleId}/approve`, { method: "POST" });
+  return res.json();
+}
+
+export async function updateArticleTranslation(articleId, overrides) {
+  const res = await fetch(`${API_BASE}/api/articles/${articleId}/translation`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(overrides),
+  });
+  return res.json();
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   const res = await fetch(`${API_BASE}/api/social/${id}/translation`, {
     method: "PATCH",
