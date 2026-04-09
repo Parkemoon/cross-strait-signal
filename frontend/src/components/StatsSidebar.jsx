@@ -127,6 +127,7 @@ export default function StatsSidebar({ stats, onTopicClick }) {
             label={
               c.place === "PRC" ? "PRC Sources" :
               c.place === "TW" ? "Taiwan Sources" :
+              c.place === "HK" || c.place === "MO" ? "HK/Macao Sources" :
               "International Sources"
             }
             score={c.avg_score}

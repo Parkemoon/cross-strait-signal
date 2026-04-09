@@ -26,7 +26,7 @@ const TOPIC_LABELS = {
   POL_TONGDU:      "統獨 Spectrum",
   US_PRC:          "US-PRC",
   US_TAIWAN:       "US-Taiwan",
-  HK_MAC:          "HK/Macau",
+  HK_MAC:          "HK/Macao",
   INFO_WARFARE:    "Info Warfare",
   CYBER:           "Cyber",
   LEGAL_GREY:      "Grey Zone",
@@ -97,6 +97,7 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
         <option value="">All Sources</option>
         <option value="PRC">PRC Sources</option>
         <option value="TW">Taiwan Sources</option>
+        <option value="hk">HK/Macao Sources</option>
         <option value="intl">International Sources</option>
       </select>
 

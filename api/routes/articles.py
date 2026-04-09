@@ -53,7 +53,9 @@ def list_articles(
 
     if source_place:
         if source_place == "intl":
-            where_clauses.append("s.place NOT IN ('PRC', 'TW')")
+            where_clauses.append("s.place NOT IN ('PRC', 'TW', 'HK', 'MO')")
+        elif source_place == "hk":
+            where_clauses.append("s.place IN ('HK', 'MO')")
         else:
             where_clauses.append("s.place = ?")
             params.append(source_place)
