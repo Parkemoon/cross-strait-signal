@@ -3,6 +3,7 @@ import { fetchArticles, fetchStats } from "./api";
 import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
 import ThemeToggle from "./components/ThemeToggle";
+import AboutModal from "./components/AboutModal";
 import FlashTraffic from "./components/FlashTraffic";
 import KeyFigures from "./components/KeyFigures";
 import SocialPulse from "./components/SocialPulse";
@@ -20,6 +21,7 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [view, setView] = useState("feed"); // "feed" | "review"
   const [reviewPending, setReviewPending] = useState(0);
+  const [showAbout, setShowAbout] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(0);
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | "review"
   const windowWidth = useWindowWidth();
@@ -86,6 +88,25 @@ export default function App() {
             >
               Open-Source Intelligence
             </span>
+          )}
+          {!isMobile && (
+            <button
+              onClick={() => setShowAbout(true)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                color: "var(--text-muted)",
+                opacity: 0.6,
+                padding: 0,
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+              }}
+            >
+              About
+            </button>
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -159,6 +180,30 @@ export default function App() {
             </button>
           )}
 
+          {isMobile && (
+            <button
+              onClick={() => setShowAbout(true)}
+              style={{
+                background: "none",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "50%",
+                width: "28px",
+                height: "28px",
+                cursor: "pointer",
+                fontSize: "13px",
+                color: "var(--header-text)",
+                opacity: 0.7,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                flexShrink: 0,
+              }}
+              title="About"
+            >
+              i
+            </button>
+          )}
           <ThemeToggle />
         </div>
       </header>
@@ -408,6 +453,9 @@ export default function App() {
         </aside>
       </div>
 
+
+      {/* About modal */}
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
 
       {/* Footer — desktop only */}
       <footer
