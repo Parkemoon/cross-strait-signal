@@ -3,10 +3,10 @@ import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
 function StabilityGauge({ label, score, days, compact }) {
   const safeScore = score ?? 0;
   const color = safeScore > 0.3
-    ? "var(--accent-green)"
+    ? "#f59e0b"
     : safeScore < -0.3
-    ? "var(--accent-red)"
-    : "var(--accent-amber)";
+    ? "#7c3aed"
+    : "#6b7280";
 
   return (
     <div style={{
@@ -61,7 +61,7 @@ function StabilityGauge({ label, score, days, compact }) {
           position: "absolute",
           inset: 0,
           borderRadius: "3px",
-          background: "linear-gradient(to right, var(--accent-red), var(--accent-amber), var(--accent-green))",
+          background: "linear-gradient(to right, #7c3aed, #6b7280, #f59e0b)",
           opacity: 0.25,
         }} />
         <div style={{
