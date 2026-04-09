@@ -104,7 +104,7 @@ export function SentimentTrendChart({ data, days }) {
         padding: "16px 8px 8px",
       }}>
         <ResponsiveContainer width="100%" height={120}>
-          <LineChart data={formatted} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+          <LineChart data={formatted} margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
             <XAxis
               dataKey="date"
               tick={{ fontSize: 9, fontFamily: "var(--font-mono)", fill: "var(--text-muted)" }}
@@ -114,10 +114,12 @@ export function SentimentTrendChart({ data, days }) {
             <YAxis
               yAxisId="score"
               domain={[-1, 1]}
+              ticks={[-1, -0.5, 0, 0.5, 1]}
+              tickFormatter={(v) => v === 1 ? "+1" : v === -1 ? "-1" : v}
+              width={28}
               tick={{ fontSize: 9, fontFamily: "var(--font-mono)", fill: "var(--text-muted)" }}
               axisLine={false}
               tickLine={false}
-              tickCount={5}
             />
             <YAxis yAxisId="count" hide />
             <Tooltip content={<SentimentTooltip />} />
