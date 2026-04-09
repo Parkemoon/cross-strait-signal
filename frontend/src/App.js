@@ -141,13 +141,55 @@ export default function App() {
         </div>
       </header>
 
+      {/* Mobile tab bar — sticky top, below header */}
+      {isMobile && (
+        <nav style={{
+          position: "sticky",
+          top: 0,
+          background: "var(--header-bg)",
+          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          display: "flex",
+          zIndex: 100,
+        }}>
+          {[
+            { id: "feed", label: "Feed" },
+            { id: "stats", label: "Stats" },
+            { id: "social", label: "Social" },
+            ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setMobileTab(tab.id);
+                if (tab.id === "review") setView("review");
+                if (tab.id === "feed") setView("feed");
+              }}
+              style={{
+                flex: 1,
+                padding: "14px 4px",
+                background: "transparent",
+                color: mobileTab === tab.id ? "var(--header-text)" : "rgba(255,255,255,0.4)",
+                border: "none",
+                borderBottom: mobileTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
+                fontSize: "12px",
+                fontFamily: "var(--font-mono)",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                cursor: "pointer",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {/* Main layout */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "280px 1fr 300px",
           minHeight: "calc(100vh - 52px)",
-          paddingBottom: isMobile ? "56px" : 0,
         }}
       >
         {/* Sidebar */}
@@ -344,50 +386,6 @@ export default function App() {
         </aside>
       </div>
 
-      {/* Mobile tab bar */}
-      {isMobile && (
-        <nav style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: "var(--header-bg)",
-          borderTop: "1px solid rgba(255,255,255,0.1)",
-          display: "flex",
-          zIndex: 100,
-        }}>
-          {[
-            { id: "feed", label: "Feed" },
-            { id: "stats", label: "Stats" },
-            { id: "social", label: "Social" },
-            ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setMobileTab(tab.id);
-                if (tab.id === "review") setView("review");
-                if (tab.id === "feed") setView("feed");
-              }}
-              style={{
-                flex: 1,
-                padding: "12px 4px",
-                background: "transparent",
-                color: mobileTab === tab.id ? "var(--header-text)" : "rgba(255,255,255,0.4)",
-                border: "none",
-                borderTop: mobileTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
-                fontSize: "11px",
-                fontFamily: "var(--font-mono)",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-                cursor: "pointer",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      )}
 
       {/* Footer — desktop only */}
       <footer
