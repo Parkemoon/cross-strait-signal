@@ -44,6 +44,8 @@ const SOURCE_ABBREV = {
   // PRC — state_nationalist
   "Global Times":  "GT",
   "Guancha":       "GC",
+  // HK — state_official (post-NSL)
+  "RTHK Greater China": "RTHK",
   // SG — centrist
   "Zaobao Cross-Strait": "ZB",
 };

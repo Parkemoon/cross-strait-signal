@@ -19,7 +19,7 @@ const TOPIC_LABELS = {
   HUMANITARIAN:    "Humanitarian",
   US_PRC:          "US-PRC",
   US_TAIWAN:       "US-Taiwan",
-  HK_MAC:          "HK/Macau",
+  HK_MAC:          "HK/Macao",
   CULTURE:         "Culture",
   CYBER:           "Cyber",
   ARMS_SALES:      "Arms Sales",

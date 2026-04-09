@@ -50,7 +50,7 @@ const TOPIC_LABELS = {
   POL_TONGDU:      "統獨",
   US_PRC:          "US-PRC",
   US_TAIWAN:       "US-Taiwan",
-  HK_MAC:          "HK/Macau",
+  HK_MAC:          "HK/Macao",
   INFO_WARFARE:    "Info Warfare",
   CYBER:           "Cyber",
   LEGAL_GREY:      "Grey Zone",

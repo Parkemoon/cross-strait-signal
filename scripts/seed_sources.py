@@ -265,6 +265,19 @@ SOURCES = [
         'scrape_interval': 240,
         'scrape_method': 'html_scrape',
     },
+    # Hong Kong
+    {
+        'name': 'RTHK Greater China',
+        'name_zh': '香港電台大灣區',
+        'url': 'https://rthk9.rthk.hk/rthk/news/rss/c_expressnews_greaterchina.xml',
+        'source_type': 'state_media',
+        'place': 'HK',
+        'bias': 'state_official',
+        'language': 'zh-hk',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
     # International Chinese-language Sources
     {
         'name': 'Zaobao Cross-Strait',
