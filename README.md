@@ -6,7 +6,7 @@ An open-source intelligence dashboard monitoring PRC-Taiwan cross-strait dynamic
 
 Cross-Strait Signal scrapes Chinese-language news sources from both sides of the Taiwan Strait, processes them through a multi-tier AI pipeline, and serves results through a React dashboard backed by a FastAPI API. The system is designed to surface destabilising signals from **both** sides — including Taiwanese actions (independence-by-stealth, constitutional norm erosion) — not as a "China bad, Taiwan good" instrument.
 
-**Live instance:** `http://217.174.245.116` (password protected)  
+**Live instance:** `https://strait-signal.net` (public read-only) · `https://admin.strait-signal.net` (password protected)  
 **GitHub:** `https://github.com/Parkemoon/cross-strait-signal`
 
 ---
@@ -22,7 +22,8 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 - Source bias tracking — each source tagged with editorial alignment (green / green_leaning / blue / centrist / state_official / state_nationalist)
 - Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction; lives in a persistent right-hand column
 - Key Figures panel — curated roster of 10 senior PRC and Taiwan officials; AI extracts attributed quotes and actions per figure as pending candidates, requiring analyst approval before display to prevent misattribution
-- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Key Figures panel, Social Pulse column, and review queue UI
+- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Key Figures panel, Social Pulse column, and review queue UI — fully responsive with mobile tab navigation
+- Two-build deployment: public read-only build (`strait-signal.net`) hides all write controls at build time; admin build (`admin.strait-signal.net`) exposes the full editorial interface
 - REST API with filtering by topic, sentiment, source country, urgency, escalation status, and bilingual full-text search
 
 ---
@@ -79,9 +80,9 @@ FastAPI Backend
 React Dashboard
 ├── Priority Signals (flash/priority urgency articles)
 ├── Key Figures panel (10 curated officials, portraits, latest approved statement, curation modal)
-├── Signal Feed (filterable article list with event clustering)
+├── Signal Feed (filterable article list with event clustering; filter by PRC / Taiwan / International)
 ├── Social Pulse column (Weibo cross-strait items + PTT trending, persistent right-hand column)
-├── Strait Watch gauges (overall + by source country + by political camp)
+├── Strait Watch gauges (overall + PRC / TW / International + by political camp)
 ├── Sentiment trend chart and topic breakdown chart (Recharts)
 ├── Inline editorial overrides (sentiment, topic, score on any article card)
 ├── Analyst commentary per article
@@ -308,10 +309,33 @@ WantedBy=multi-user.target
 
 ### Nginx Config
 
+Two server blocks — one per domain, both proxying to the same FastAPI backend.
+
+**Public** (`/etc/nginx/sites-available/cross-strait-signal-public`):
 ```nginx
 server {
     listen 80;
-    server_name 217.174.245.116;
+    server_name strait-signal.net www.strait-signal.net;
+
+    root /var/www/cross-strait-signal/frontend/build-public;
+    index index.html;
+
+    location / { try_files $uri $uri/ /index.html; }
+
+    location /api/ {
+        limit_except GET { deny all; }
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+**Admin** (`/etc/nginx/sites-available/cross-strait-signal-admin`):
+```nginx
+server {
+    listen 80;
+    server_name admin.strait-signal.net;
 
     auth_basic "Cross-Strait Signal";
     auth_basic_user_file /etc/nginx/.htpasswd;
@@ -319,9 +343,7 @@ server {
     root /var/www/cross-strait-signal/frontend/build;
     index index.html;
 
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
+    location / { try_files $uri $uri/ /index.html; }
 
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
@@ -346,15 +368,13 @@ server {
 ### Deploy Workflow
 
 ```bash
-# Local — commit and push
-git add .
-git commit -m "Your changes"
+# Local — commit, push, then SSH to server
 git push
-
-# Server — pull and rebuild
 ssh root@217.174.245.116
-/var/www/cross-strait-signal/deploy.sh
+cd /var/www/cross-strait-signal && ./server_deploy.sh
 ```
+
+`server_deploy.sh` runs `git pull`, builds both frontend versions (`npm run build` for admin, `npm run build:public` for public), and restarts the service.
 
 ---
 
@@ -391,8 +411,9 @@ ssh root@217.174.245.116
 - [x] Source badges colour-coded by political bias
 - [x] Social media signal layer (Weibo hot search + PTT trending)
 - [x] Key Figures panel with manual curation workflow (attributed quotes/actions, analyst approval)
-- [ ] Public read-only dashboard
-- [ ] Domain name registration
+- [x] Public read-only dashboard (`strait-signal.net`) — write controls hidden at build time
+- [x] Domain name + SSL (`strait-signal.net` / `admin.strait-signal.net`, Cloudflare proxy)
+- [x] Mobile-responsive layout with tab navigation
 - [ ] Map layer (geocoded entity plotting)
 - [ ] ADS-B / AIS data integration (Phase 3)
 
