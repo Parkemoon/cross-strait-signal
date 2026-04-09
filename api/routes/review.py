@@ -19,10 +19,13 @@ def get_review_queue():
     """Return all articles flagged for human review."""
     conn = get_connection()
     rows = conn.execute("""
-        SELECT 
+        SELECT
             a.id as article_id,
             a.title_original,
             a.title_en,
+            a.title_en_override,
+            a.summary_en_override,
+            a.key_quote_override,
             a.url,
             a.published_at,
             s.name as source_name,
@@ -34,6 +37,8 @@ def get_review_queue():
             ai.sentiment_score,
             ai.urgency,
             ai.summary_en,
+            ai.key_quote,
+            ai.key_quote_en,
             ai.is_escalation_signal,
             ai.escalation_note,
             ai.confidence,
@@ -83,17 +88,18 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
             (decision.escalation_override, analysis_id)
         )
 
-    # If dismissed, also hide the article from the dashboard
+    article_id = dict(analysis)['article_id']
+
     if decision.resolution == "dismissed":
-        article_id = dict(analysis)['article_id']
-        conn.execute(
-            "UPDATE articles SET is_hidden = 1 WHERE id = ?",
-            (article_id,)
-        )
+        # Hide dismissed articles
+        conn.execute("UPDATE articles SET is_hidden = 1 WHERE id = ?", (article_id,))
+    else:
+        # Confirm or override: auto-approve so article becomes visible on public feed
+        conn.execute("UPDATE articles SET analyst_approved = 1 WHERE id = ?", (article_id,))
 
     # Mark as resolved
     conn.execute("""
-        UPDATE ai_analysis 
+        UPDATE ai_analysis
         SET review_resolved = 1,
             reviewed_at = ?
         WHERE id = ?
@@ -101,7 +107,6 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
 
     # Save note to analyst_notes if provided
     if decision.note:
-        article_id = dict(analysis)['article_id']
         conn.execute("""
             INSERT INTO analyst_notes (article_id, note_text, sentiment_override, topic_override)
             VALUES (?, ?, ?, ?)
@@ -119,7 +124,7 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
 
 @router.get("/review/stats")
 def get_review_stats():
-    """Summary stats for the review queue."""
+    """Summary stats for the review queue and pending approval count."""
     conn = get_connection()
     pending = conn.execute(
         "SELECT COUNT(*) FROM ai_analysis WHERE needs_human_review = 1 AND review_resolved = 0"
@@ -127,5 +132,8 @@ def get_review_stats():
     resolved = conn.execute(
         "SELECT COUNT(*) FROM ai_analysis WHERE needs_human_review = 1 AND review_resolved = 1"
     ).fetchone()[0]
+    pending_approval = conn.execute(
+        "SELECT COUNT(*) FROM articles WHERE analyst_approved = 0 AND is_hidden = 0 AND ai_processed = 1"
+    ).fetchone()[0]
     conn.close()
-    return {"pending": pending, "resolved": resolved}
+    return {"pending": pending, "resolved": resolved, "pending_approval": pending_approval}

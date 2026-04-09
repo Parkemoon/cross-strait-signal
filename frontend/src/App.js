@@ -20,6 +20,7 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [view, setView] = useState("feed"); // "feed" | "review"
   const [reviewPending, setReviewPending] = useState(0);
+  const [pendingApproval, setPendingApproval] = useState(0);
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | "review"
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
@@ -27,6 +28,7 @@ export default function App() {
   useEffect(() => {
     setLoading(true);
     const params = { ...filters, page, page_size: 20 };
+    if (!READ_ONLY) params.include_pending = true;
     Object.keys(params).forEach(
       (k) => params[k] === undefined && delete params[k]
     );
@@ -41,7 +43,10 @@ export default function App() {
     fetchStats(30).then(setStats);
     fetch("/review/stats")
       .then((r) => r.json())
-      .then((d) => setReviewPending(d.pending || 0))
+      .then((d) => {
+        setReviewPending(d.pending || 0);
+        setPendingApproval(d.pending_approval || 0);
+      })
       .catch(() => {});
   }, []);
 
@@ -93,6 +98,23 @@ export default function App() {
               }}
             >
               {total} articles · {stats?.escalation_signals?.length || 0} signals
+            </span>
+          )}
+
+          {/* Pending approval count — admin only, desktop only */}
+          {!READ_ONLY && !isMobile && pendingApproval > 0 && (
+            <span
+              style={{
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                color: "#f59e0b",
+                background: "rgba(245,158,11,0.1)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                borderRadius: "4px",
+                padding: "4px 10px",
+              }}
+            >
+              {pendingApproval} pending
             </span>
           )}
 
@@ -155,7 +177,7 @@ export default function App() {
             { id: "feed", label: "Feed" },
             { id: "stats", label: "Stats" },
             { id: "social", label: "Social" },
-            ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
+            ...(!READ_ONLY ? [{ id: "review", label: (reviewPending + pendingApproval) > 0 ? `Review (${reviewPending + pendingApproval})` : "Review" }] : []),
           ].map((tab) => (
             <button
               key={tab.id}
@@ -304,12 +326,12 @@ export default function App() {
                       onTopicClick={(topic) => {
                         setFilters((f) => ({ ...f, topic }));
                         setPage(1);
-          
                       }}
                       onEntityClick={(entityName) => {
                         setFilters((f) => ({ ...f, entity: entityName, search: undefined }));
                         setPage(1);
                       }}
+                      onApprove={() => setPendingApproval((n) => Math.max(0, n - 1))}
                     />
                   ))}
 

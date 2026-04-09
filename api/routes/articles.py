@@ -1,8 +1,15 @@
 from fastapi import APIRouter, Query
 from typing import Optional
+from pydantic import BaseModel
 from api.database import get_db
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
+
+
+class TranslationUpdate(BaseModel):
+    title_en_override: Optional[str] = None
+    summary_en_override: Optional[str] = None
+    key_quote_override: Optional[str] = None
 
 
 @router.get("/")
@@ -14,9 +21,9 @@ def list_articles(
     urgency: Optional[str] = Query(None, description="flash, priority, routine"),
     escalation_only: bool = Query(False, description="Only show escalation signals"),
     search: Optional[str] = Query(None, description="Search in titles and content"),
+    include_pending: bool = Query(False, description="Admin: include unapproved articles"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100)
-    
 ):
     """List articles with their AI analysis. Supports filtering and search."""
     conn = get_db()
@@ -25,9 +32,12 @@ def list_articles(
     where_clauses = []
     params = []
 
-    # Always exclude hidden articles and articles pending review
+    # Always exclude hidden articles and articles pending AI review
     where_clauses.append("a.is_hidden = 0")
     where_clauses.append("(ai.needs_human_review = 0 OR ai.review_resolved = 1)")
+    # Public feed requires analyst approval; admin passes include_pending=true to see all
+    if not include_pending:
+        where_clauses.append("a.analyst_approved = 1")
 
     if entity:
         where_clauses.append("EXISTS (SELECT 1 FROM entities e WHERE e.article_id = a.id AND (e.entity_name_en LIKE ? OR e.entity_name LIKE ?))")
@@ -82,17 +92,21 @@ def list_articles(
             a.url,
             a.title_original,
             a.title_en,
+            a.title_en_override,
             a.language,
             a.published_at,
             a.content_original,
+            a.analyst_approved,
             ai.topic_primary,
             ai.topic_secondary,
             ai.sentiment,
             ai.sentiment_score,
             ai.urgency,
             ai.summary_en,
+            a.summary_en_override,
             ai.key_quote,
             ai.key_quote_en,
+            a.key_quote_override,
             ai.is_new_formulation,
             ai.is_escalation_signal,
             ai.escalation_note,
@@ -229,6 +243,38 @@ def hide_article(article_id: int):
     conn.commit()
     conn.close()
     return {"status": "hidden"}
+
+
+@router.post("/{article_id}/approve")
+def approve_article(article_id: int):
+    """Mark an article as analyst-approved, making it visible on the public feed."""
+    conn = get_db()
+    conn.execute("UPDATE articles SET analyst_approved = 1 WHERE id = ?", (article_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "approved", "article_id": article_id}
+
+
+@router.patch("/{article_id}/translation")
+def update_article_translation(article_id: int, body: TranslationUpdate):
+    """Override AI-generated headline, summary, and/or key quote translation."""
+    conn = get_db()
+    updates = {}
+    if body.title_en_override is not None:
+        updates["title_en_override"] = body.title_en_override
+    if body.summary_en_override is not None:
+        updates["summary_en_override"] = body.summary_en_override
+    if body.key_quote_override is not None:
+        updates["key_quote_override"] = body.key_quote_override
+    if updates:
+        set_clause = ", ".join(f"{col} = ?" for col in updates)
+        conn.execute(
+            f"UPDATE articles SET {set_clause} WHERE id = ?",
+            (*updates.values(), article_id)
+        )
+        conn.commit()
+    conn.close()
+    return {"status": "updated", "article_id": article_id, "fields": list(updates.keys())}
 
 
 @router.patch("/{article_id}/signal")

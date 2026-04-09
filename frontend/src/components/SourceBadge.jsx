@@ -29,7 +29,7 @@ const SOURCE_ABBREV = {
   "UDN Breaking":         "UDN",
   "UDN International":    "UDN",
   "UDN Business":         "UDN",
-  // TW — state_official
+  // TW — green_leaning (MND state media, under DPP executive)
   "YDN":               "YDN",
   // PRC — state_official
   "Xinhua Chinese":         "XH",

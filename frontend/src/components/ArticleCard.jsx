@@ -2,7 +2,7 @@ import { useState } from "react";
 import SourceBadge from "./SourceBadge";
 import TopicPill from "./TopicPill";
 import SentimentBadge from "./SentimentBadge";
-import { createNote, hideArticle, toggleSignal } from "../api";
+import { createNote, hideArticle, toggleSignal, approveArticle, updateArticleTranslation } from "../api";
 import { fetchArticleCluster } from "../api";
 import { READ_ONLY } from "../readOnly";
 
@@ -14,7 +14,109 @@ const TOPIC_OPTIONS = [
   "INFO_WARFARE", "LEGAL_GREY", "TRANSPORT", "INT_ORG", "HUMANITARIAN",
 ];
 
-export default function ArticleCard({ article, onTopicClick, onEntityClick, onSignalOff }) {
+// Inline field editor — pencil icon that expands to textarea + save/cancel
+function FieldEditor({ label, value, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!draft.trim()) return;
+    setSaving(true);
+    await onSave(draft.trim());
+    setSaving(false);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <span style={{ display: "block" }}>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={3}
+          style={{
+            width: "100%",
+            padding: "6px 8px",
+            background: "var(--bg-primary)",
+            color: "var(--text-primary)",
+            border: "1px solid #f59e0b",
+            borderRadius: "3px",
+            fontSize: "inherit",
+            fontFamily: "inherit",
+            lineHeight: "inherit",
+            resize: "vertical",
+            boxSizing: "border-box",
+          }}
+          autoFocus
+        />
+        <span style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: "3px 10px",
+              background: "#f59e0b",
+              color: "#fff",
+              border: "none",
+              borderRadius: "3px",
+              fontSize: "11px",
+              fontFamily: "var(--font-mono)",
+              cursor: "pointer",
+            }}
+          >
+            {saving ? "…" : "Save"}
+          </button>
+          <button
+            onClick={() => { setDraft(value || ""); setEditing(false); }}
+            style={{
+              padding: "3px 10px",
+              background: "transparent",
+              color: "var(--text-muted)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "3px",
+              fontSize: "11px",
+              fontFamily: "var(--font-mono)",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      style={{ display: "inline", cursor: "default" }}
+      title={label}
+    >
+      {value}
+      {!READ_ONLY && value && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setDraft(value); setEditing(true); }}
+          title={`Edit ${label}`}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--text-muted)",
+            fontSize: "11px",
+            padding: "0 4px",
+            lineHeight: 1,
+            verticalAlign: "middle",
+            opacity: 0.6,
+          }}
+        >
+          ✎
+        </button>
+      )}
+    </span>
+  );
+}
+
+export default function ArticleCard({ article, onTopicClick, onEntityClick, onSignalOff, onApprove }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [sentimentOverride, setSentimentOverride] = useState("");
@@ -25,6 +127,10 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
   const [hidden, setHidden] = useState(false);
   const [isSignal, setIsSignal] = useState(article.is_escalation_signal === 1);
   const [scoreOverride, setScoreOverride] = useState("");
+  const [approved, setApproved] = useState(!!article.analyst_approved);
+  const [titleOverride, setTitleOverride] = useState(article.title_en_override || null);
+  const [summaryOverride, setSummaryOverride] = useState(article.summary_en_override || null);
+  const [quoteOverride, setQuoteOverride] = useState(article.key_quote_override || null);
 
   const handleSaveNote = async () => {
     if (!noteText.trim() && !sentimentOverride && !topicOverride) return;
@@ -54,6 +160,20 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
     e.stopPropagation();
     await hideArticle(article.id);
     setHidden(true);
+  };
+
+  const handleApprove = async (e) => {
+    e.stopPropagation();
+    await approveArticle(article.id);
+    setApproved(true);
+    if (onApprove) onApprove();
+  };
+
+  const handleSaveTranslation = async (field, value) => {
+    await updateArticleTranslation(article.id, { [field]: value });
+    if (field === "title_en_override") setTitleOverride(value);
+    if (field === "summary_en_override") setSummaryOverride(value);
+    if (field === "key_quote_override") setQuoteOverride(value);
   };
 
   const handleToggleSignal = async (e) => {
@@ -86,17 +206,82 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
     marginBottom: "4px",
   };
 
+  const displayTitle = titleOverride || article.title_en || article.title_original;
+  const displaySummary = summaryOverride || article.summary_en;
+  const displayQuote = quoteOverride || article.key_quote_en || article.key_quote;
+  const isPending = !READ_ONLY && !approved;
+
   if (hidden) return null;
 
   return (
     <article
       style={{
         borderBottom: "1px solid var(--border-color)",
+        borderLeft: isPending ? "3px solid #f59e0b" : "none",
         padding: "18px 0",
+        paddingLeft: isPending ? "14px" : "0",
         cursor: "pointer",
       }}
       onClick={handleExpand}
     >
+      {/* Pending approval banner */}
+      {isPending && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "10px",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span
+            style={{
+              fontSize: "10px",
+              fontFamily: "var(--font-mono)",
+              color: "#f59e0b",
+              textTransform: "uppercase",
+              letterSpacing: "1.5px",
+              fontWeight: 600,
+            }}
+          >
+            ⚠ Pending Approval
+          </span>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button
+              onClick={handleApprove}
+              style={{
+                padding: "3px 10px",
+                background: "#16a34a",
+                color: "#fff",
+                border: "none",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              ✓ Approve
+            </button>
+            <button
+              onClick={handleHide}
+              style={{
+                padding: "3px 10px",
+                background: "transparent",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                cursor: "pointer",
+              }}
+            >
+              ✕ Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       {/* Metadata row */}
       <div
         style={{
@@ -207,10 +392,15 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
           fontWeight: 400,
           lineHeight: 1.4,
           marginBottom: "4px",
-          color: "var(--text-primary)",
+          color: titleOverride ? "#f59e0b" : "var(--text-primary)",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {article.title_en || article.title_original}
+        <FieldEditor
+          label="headline"
+          value={displayTitle}
+          onSave={(v) => handleSaveTranslation("title_en_override", v)}
+        />
       </h3>
 
       {/* Original language title */}
@@ -232,11 +422,16 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
         style={{
           fontSize: "14px",
           fontFamily: "var(--font-body)",
-          color: "var(--text-secondary)",
+          color: summaryOverride ? "#f59e0b" : "var(--text-secondary)",
           lineHeight: 1.65,
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {article.summary_en}
+        <FieldEditor
+          label="summary"
+          value={displaySummary}
+          onSave={(v) => handleSaveTranslation("summary_en_override", v)}
+        />
       </p>
 
       {/* Expanded detail */}
@@ -290,7 +485,7 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
           )}
 
           {/* Key quote */}
-          {article.key_quote && (
+          {(article.key_quote || quoteOverride) && (
             <div style={{ marginBottom: "16px" }}>
               <h4
                 style={{
@@ -316,18 +511,21 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
                 }}
               >
                 {article.key_quote}
-                {article.key_quote_en && (
-                  <p
-                    style={{
-                      color: "var(--text-muted)",
-                      marginTop: "4px",
-                      fontStyle: "normal",
-                      fontSize: "13px",
-                    }}
-                  >
-                    {"\u2014 "}{article.key_quote_en}
-                  </p>
-                )}
+                <p
+                  style={{
+                    color: quoteOverride ? "#f59e0b" : "var(--text-muted)",
+                    marginTop: "4px",
+                    fontStyle: "normal",
+                    fontSize: "13px",
+                  }}
+                >
+                  {"\u2014 "}
+                  <FieldEditor
+                    label="key quote translation"
+                    value={displayQuote}
+                    onSave={(v) => handleSaveTranslation("key_quote_override", v)}
+                  />
+                </p>
               </blockquote>
             </div>
           )}
