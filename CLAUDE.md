@@ -130,7 +130,7 @@ SQLite with FTS5 full-text search. Key tables:
 - **social_pulse**: Weibo and PTT items — `platform`, `item_key` (dedup key), `title` (Chinese), `title_en` (AI translation), `title_en_override` (analyst correction), engagement fields (`rank_position`, `heat_index` for Weibo; `push_count`, `boo_count`, `board`, `url` for PTT)
 
 ### API Layer (`api/routes/`)
-- `articles.py`: GET `/api/articles` (9 filter params including `include_pending`), cluster, hide, signal, approve, translation endpoints. `include_pending=true` skips the `analyst_approved=1` filter — admin frontend always sends this; public build never does. `POST /api/articles/{id}/approve` sets `analyst_approved=1`. `PATCH /api/articles/{id}/translation` updates `title_en_override`, `summary_en_override`, `key_quote_override`. `source_country=intl` maps to `s.country NOT IN ('PRC', 'TW')` — do not hardcode individual country codes for international sources.
+- `articles.py`: GET `/api/articles` (9 filter params including `include_pending`), cluster, hide, signal, approve, translation endpoints. `include_pending=true` skips the `analyst_approved=1` filter — admin frontend always sends this; public build never does. `POST /api/articles/{id}/approve` sets `analyst_approved=1`. `PATCH /api/articles/{id}/translation` updates `title_en_override`, `summary_en_override`, `key_quote_override`. `source_place` filter: `PRC`/`TW` map to exact `s.place` match; `hk` maps to `s.place IN ('HK', 'MO')`; `intl` maps to `s.place NOT IN ('PRC', 'TW', 'HK', 'MO')`.
 - `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`. **All aggregation queries must include the `VISIBLE` constant** defined at the top of `dashboard_stats()`: `a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)`.
 - `notes.py`: CRUD for analyst notes with AI override support
 - `review.py`: review queue — confirm / override / dismiss. Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
@@ -138,15 +138,16 @@ SQLite with FTS5 full-text search. Key tables:
 
 ### Frontend (`frontend/src/`)
 React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key components:
-- `FilterBar.jsx`: topic, sentiment, source_country, urgency, escalation, search filters. Source country options are PRC / Taiwan / International (`intl`) — never add hardcoded country codes here.
+- `FilterBar.jsx`: topic, sentiment, source_place, urgency, escalation, search filters. Source place options: PRC / Taiwan / HK/Macao (`hk`) / International (`intl`). Never hardcode place values beyond these four — new places go in the API filter block.
 - `ArticleCard.jsx`: article display with inline sentiment/topic override and analyst notes; `onSignalOff` prop for FlashTraffic removal; `onApprove` callback for pending count updates. Unapproved articles (`analyst_approved=0`) show an amber left border and "⚠ Pending Approval" banner with Approve/Dismiss buttons (admin only). `FieldEditor` component handles inline editing of `title_en_override`, `summary_en_override`, `key_quote_override` — pencil icon reveals textarea; overridden fields render in amber.
 - `ReviewQueue.js`: human review UI with translation editing fields (headline, summary, key quote) always visible — changed fields saved via `updateArticleTranslation` before resolving. Confirm/override auto-approves the article.
-- `SignalCharts.jsx`: sentiment trend (Y-axis clamped to `[-1, 1]`, single YAxis) + topic breakdown charts. Sentiment colour convention: negative = hostile = red, positive = cooperative = green.
-- `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
+- `SignalCharts.jsx`: sentiment trend (Y-axis clamped to `[-1, 1]`, single YAxis) + topic breakdown charts.
+- `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → HK/Macao → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`). Sources section groups feeds by publication via `PUBLICATION_NAMES` map — when adding new multi-feed sources, add entries there too.
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
 - `SocialPulse.jsx`: accepts `column` prop — in column mode (right-hand aside in App.js) always expanded, vertical stack layout; in default inline mode, collapsible with two-column Weibo/PTT panel. Weibo shows only cross-strait relevant items. Inline translation correction via pencil icon (hidden in read-only build). Override colour highlight is also hidden in read-only build.
 - `KeyFigures.jsx`: horizontal scrollable row of cards above SocialPulse; each card shows portrait (images in `frontend/public/figures/`, initials fallback with party colour), name, role, latest approved statement; pencil icon (amber when candidates pending) opens per-card curation modal; hidden in read-only build via `READ_ONLY` constant
-- `SourceBadge.jsx`: colour-coded by `bias` prop, not country — `SOURCE_ABBREV` map covers all active sources
+- `AboutModal.jsx`: triggered from header (desktop) and mobile header "i" button; explains methodology, sentiment axis, source bias taxonomy, AI pipeline, author bio. Follows CSS variable conventions.
+- `SourceBadge.jsx`: colour-coded by `bias` prop — `SOURCE_ABBREV` map covers all active sources; multi-feed publications collapse to a shared abbreviation (e.g. all CT sections → `CT`)
 - `hooks/useWindowWidth.js`: returns `window.innerWidth`, updates on resize. Used in `App.js` to derive `isMobile = windowWidth < 768`.
 
 **Mobile layout** (`App.js`): below 768px the 3-column grid collapses to a single column with a sticky top tab bar (Feed / Stats / Social / Review). Each tab shows/hides the corresponding panel via `display: none`. When adding new panels or layout elements, check `isMobile` for any fixed widths or multi-column structures that would break on mobile.
@@ -166,7 +167,7 @@ Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`
 
 After deploying changes to `seed_sources.py`, always run `python scripts/seed_sources.py` on the server to apply source additions/deactivations.
 
-**RSSHub**: Four PRC/SG sources (People's Daily, Global Times, The Paper, Zaobao) use a self-hosted RSSHub instance on the server (`http://localhost:1200`). It runs as a Docker container:
+**RSSHub**: Several sources use a self-hosted RSSHub instance on the server (`http://localhost:1200`) — People's Daily, Global Times, The Paper, Zaobao, RTHK Greater China, and all CT sections. It runs as a Docker container:
 ```bash
 docker run -d --name rsshub --restart always -p 1200:1200 diygod/rsshub
 ```
@@ -193,7 +194,7 @@ GEMINI_API_KEY=your_key_here
 
 **US_TAIWAN**: US-Taiwan relations — political support, economic ties, congressional legislation, US officials visiting/meeting Taiwanese counterparts, US statements on Taiwan's status.
 
-**HK_MAC**: Hong Kong and Macau with cross-strait relevance — "one country, two systems" credibility, Beijing governance, HK/Macau as bellwether or warning for Taiwan.
+**HK_MAC**: Hong Kong and Macao with cross-strait relevance — "one country, two systems" credibility, Beijing governance, HK/Macao as bellwether or warning for Taiwan. (Code is `HK_MAC`; display label is "HK/Macao" — do not rename the code as it exists in the DB.)
 
 **CULTURE**: Cross-strait cultural exchange and soft power — Taiwanese artists/films popular on the mainland or vice versa, tourism with cultural dimensions, people-to-people ties where cultural exchange (not sovereignty framing) is the primary subject. Use `POL_TONGDU` when cultural framing is explicitly about sovereignty or national identity.
 
@@ -215,6 +216,8 @@ GEMINI_API_KEY=your_key_here
 
 **Active PRC sources**: Xinhua, People's Daily, China News Service, Global Times, The Paper, MFA Spokesperson, Taiwan Affairs Office, Guancha, Haixia Daobao, PLA Daily
 
+**Active HK sources**: RTHK Greater China (state_official — post-NSL government-controlled)
+
 **Active SG sources**: Zaobao Cross-Strait (centrist)
 
 ## Important Behaviors
@@ -230,4 +233,4 @@ GEMINI_API_KEY=your_key_here
 - Sentiment axis measures how an article frames the **opposing side of the strait**, not geopolitical stability. Taiwan-US military cooperation does NOT score as cross-strait cooperative — it's neutral or hostile depending on PRC framing. KMT/opposition party visits to the mainland score cooperative regardless of political symbolism.
 - Romanisation: use Wade-Giles/Tongyong for all Taiwanese entities (people, places, organisations); Hanyu Pinyin for PRC entities. Never leave a Chinese name untranslated — apply the appropriate system if no established romanisation exists.
 - Key figure party colours: PRC → red (`#dc2626`), DPP → green (`#16a34a`), KMT → blue (`#1d4ed8`). Set via `party` field in `key_figures.json`; `figureAccent()` in `KeyFigures.jsx` resolves it.
-- Sentiment score colour convention: **negative = hostile = red**, **positive = cooperative = green**, neutral (±0.3) = amber. This applies to gauges (`StatsSidebar.jsx`), chart tooltips (`SignalCharts.jsx`), and any future sentiment indicators.
+- Sentiment score colour convention: **negative = hostile = purple** (`#7c3aed`), **positive = cooperative = amber** (`#f59e0b`), neutral (±0.3) = grey (`#6b7280`). Purple/amber was chosen to avoid conflict with source bias colours (PRC red, DPP green). Applies to gauges (`StatsSidebar.jsx`), `SentimentBadge.jsx`, chart tooltips (`SignalCharts.jsx`), and any future sentiment indicators.
