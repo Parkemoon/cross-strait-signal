@@ -40,9 +40,9 @@ function SentimentTooltip({ active, payload, label }) {
   const score = payload[0]?.value;
   const count = payload[0]?.payload?.count;
   const color = score > 0.3
-    ? "var(--accent-red)"
-    : score < -0.3
     ? "var(--accent-green)"
+    : score < -0.3
+    ? "var(--accent-red)"
     : "var(--accent-amber)";
   return (
     <div style={{
@@ -123,8 +123,8 @@ export function SentimentTrendChart({ data, days }) {
             />
             <Tooltip content={<SentimentTooltip />} />
             <ReferenceLine y={0} stroke="var(--border-color)" strokeDasharray="3 3" />
-            <ReferenceLine y={0.3} stroke="var(--accent-red)" strokeOpacity={0.2} strokeDasharray="2 4" />
-            <ReferenceLine y={-0.3} stroke="var(--accent-green)" strokeOpacity={0.2} strokeDasharray="2 4" />
+            <ReferenceLine y={0.3} stroke="var(--accent-green)" strokeOpacity={0.2} strokeDasharray="2 4" />
+            <ReferenceLine y={-0.3} stroke="var(--accent-red)" strokeOpacity={0.2} strokeDasharray="2 4" />
             <Line
               type="monotone"
               dataKey="score"
