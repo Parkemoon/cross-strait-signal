@@ -1,5 +1,65 @@
 import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
 
+const PUBLICATION_NAMES = {
+  // Liberty Times
+  "LTN Politics":      "Liberty Times",
+  "LTN World":         "Liberty Times",
+  "LTN Business":      "Liberty Times",
+  "LTN Defence":       "Liberty Times",
+  // CNA
+  "CNA Politics":      "CNA",
+  "CNA Mainland":      "CNA",
+  "CNA International": "CNA",
+  "CNA Finance":       "CNA",
+  // United Daily News
+  "UDN":               "United Daily News",
+  "UDN Breaking":      "United Daily News",
+  "UDN International": "United Daily News",
+  "UDN Business":      "United Daily News",
+  // China Times
+  "CT Cross-Strait":   "China Times",
+  "CT Politics":       "China Times",
+  "CT Military":       "China Times",
+  "CT Opinion":        "China Times",
+  // Single-feed sources — display names
+  "YDN":                     "Youth Daily News",
+  "Xinhua Chinese":          "Xinhua",
+  "People's Daily Politics": "People's Daily",
+  "China News Service":      "China News Service",
+  "Global Times":            "Global Times",
+  "The Paper":               "The Paper",
+  "PRC MFA Spokesperson":    "MFA Spokesperson",
+  "Taiwan Affairs Office":   "Taiwan Affairs Office",
+  "Guancha":                 "Guancha",
+  "Haixia Daobao":           "Haixia Daobao",
+  "PLA Daily":               "PLA Daily",
+  "Zaobao Cross-Strait":     "Zaobao",
+  "RTHK Greater China":      "RTHK",
+};
+
+const BIAS_COLORS = {
+  state_nationalist: "#b91c1c",
+  state_official:    "#dc2626",
+  green:             "#15803d",
+  green_leaning:     "#4ade80",
+  blue:              "#1d4ed8",
+  blue_leaning:      "#93c5fd",
+  centrist:          "#6b7280",
+};
+
+function groupSources(sources) {
+  const map = {};
+  for (const s of sources) {
+    const pub = PUBLICATION_NAMES[s.name] || s.name;
+    if (map[pub]) {
+      map[pub].count += s.count;
+    } else {
+      map[pub] = { name: pub, count: s.count, bias: s.bias };
+    }
+  }
+  return Object.values(map).sort((a, b) => b.count - a.count);
+}
+
 function StabilityGauge({ label, score, days, compact }) {
   const safeScore = score ?? 0;
   const color = safeScore > 0.3
@@ -184,15 +244,15 @@ export default function StatsSidebar({ stats, onTopicClick }) {
           borderRadius: "3px",
           padding: "12px 16px",
         }}>
-          {stats.sources?.map((s, i) => (
+          {groupSources(stats.sources ?? []).map((s, i, arr) => (
             <div
-              key={i}
+              key={s.name}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "5px 0",
-                borderBottom: i < stats.sources.length - 1
+                borderBottom: i < arr.length - 1
                   ? "1px solid var(--border-color)"
                   : "none",
               }}
@@ -209,15 +269,7 @@ export default function StatsSidebar({ stats, onTopicClick }) {
                   width: "8px",
                   height: "8px",
                   borderRadius: "50%",
-                  background: {
-                    state_nationalist: "#b91c1c",
-                    state_official:    "#dc2626",
-                    green:             "#15803d",
-                    green_leaning:     "#4ade80",
-                    blue:              "#1d4ed8",
-                    blue_leaning:      "#93c5fd",
-                    centrist:          "#6b7280",
-                  }[s.bias] || "#6b7280",
+                  background: BIAS_COLORS[s.bias] || "#6b7280",
                   display: "inline-block",
                 }} />
                 {s.name}
