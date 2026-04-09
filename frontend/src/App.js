@@ -288,6 +288,7 @@ export default function App() {
                 escalations={stats?.escalation_signals}
                 onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
                 onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
+                onApprove={() => setPendingApproval((n) => Math.max(0, n - 1))}
               />
 
               <KeyFigures />
