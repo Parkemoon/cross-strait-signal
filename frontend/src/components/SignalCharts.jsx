@@ -112,17 +112,20 @@ export function SentimentTrendChart({ data, days }) {
               tickLine={false}
             />
             <YAxis
+              yAxisId="score"
               domain={[-1, 1]}
               tick={{ fontSize: 9, fontFamily: "var(--font-mono)", fill: "var(--text-muted)" }}
               axisLine={false}
               tickLine={false}
               tickCount={5}
             />
+            <YAxis yAxisId="count" hide />
             <Tooltip content={<SentimentTooltip />} />
-            <ReferenceLine y={0} stroke="var(--border-color)" strokeDasharray="3 3" />
-            <ReferenceLine y={0.3} stroke="var(--accent-red)" strokeOpacity={0.2} strokeDasharray="2 4" />
-            <ReferenceLine y={-0.3} stroke="var(--accent-green)" strokeOpacity={0.2} strokeDasharray="2 4" />
+            <ReferenceLine yAxisId="score" y={0} stroke="var(--border-color)" strokeDasharray="3 3" />
+            <ReferenceLine yAxisId="score" y={0.3} stroke="var(--accent-red)" strokeOpacity={0.2} strokeDasharray="2 4" />
+            <ReferenceLine yAxisId="score" y={-0.3} stroke="var(--accent-green)" strokeOpacity={0.2} strokeDasharray="2 4" />
             <Line
+              yAxisId="score"
               type="monotone"
               dataKey="score"
               stroke="var(--accent-teal)"
@@ -131,6 +134,7 @@ export function SentimentTrendChart({ data, days }) {
               activeDot={{ r: 5, fill: "var(--accent-teal)" }}
             />
             <Line
+              yAxisId="count"
               dataKey="count"
               stroke="transparent"
               dot={false}
