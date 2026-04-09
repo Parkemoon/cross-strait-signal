@@ -23,6 +23,11 @@ const SOURCE_ABBREV = {
   "CNA Mainland":      "CNA",
   "CNA International": "CNA",
   "CNA Finance":       "CNA",
+  // TW — blue (all CT sections → CT)
+  "CT Cross-Strait":   "CT",
+  "CT Politics":       "CT",
+  "CT Military":       "CT",
+  "CT Opinion":        "CT",
   // TW — blue (all UDN sections → UDN)
   "UDN":                  "UDN",
   "UDN Cross-Strait":     "UDN",
