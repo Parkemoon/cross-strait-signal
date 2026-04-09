@@ -23,7 +23,7 @@ async def scrape_mfa_spokesperson():
     if not source:
         # Add the source if it doesn't exist yet
         conn.execute("""
-    INSERT INTO sources (name, name_zh, url, source_type, country, bias, language, tier, scrape_interval, scrape_method)
+    INSERT INTO sources (name, name_zh, url, source_type, place, bias, language, tier, scrape_interval, scrape_method)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """, (
     'PRC MFA Spokesperson',

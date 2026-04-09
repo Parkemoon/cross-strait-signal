@@ -29,7 +29,7 @@ def get_review_queue():
             a.url,
             a.published_at,
             s.name as source_name,
-            s.country as source_country,
+            s.place as source_place,
             s.bias,
             ai.id as analysis_id,
             ai.topic_primary,

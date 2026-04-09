@@ -177,7 +177,7 @@ def process_unanalysed_articles(limit=10):
     articles = conn.execute("""
         SELECT articles.id, articles.title_original, articles.content_original,
                articles.language, sources.name as source_name,
-               sources.country as source_country
+               sources.place as source_place
         FROM articles
         JOIN sources ON articles.source_id = sources.id
         WHERE articles.ai_processed = 0
@@ -201,7 +201,7 @@ def process_unanalysed_articles(limit=10):
             article['title_original'],
             article['content_original'],
             article['language'],
-            source_country=article['source_country']
+            source_place=article['source_place']
         )
 
         if is_relevant:

@@ -570,7 +570,7 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
                     <div style={{
                       fontSize: "10px",
                       fontFamily: "var(--font-mono)",
-                      color: c.country === "PRC" ? "var(--accent-red)" : "var(--accent-blue)",
+                      color: c.place === "PRC" ? "var(--accent-red)" : "var(--accent-blue)",
                       textTransform: "uppercase",
                       letterSpacing: "1px",
                       marginBottom: "4px",

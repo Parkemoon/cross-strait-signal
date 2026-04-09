@@ -54,7 +54,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
 
     # Articles by source
     sources = conn.execute(f"""
-        SELECT s.name, s.country, s.bias, COUNT(*) as count
+        SELECT s.name, s.place, s.bias, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
@@ -74,14 +74,14 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
     """, (f'-{days} days',)).fetchone()
 
     # Sentiment by source country
-    sentiment_by_country = conn.execute(f"""
-        SELECT s.country, AVG(ai.sentiment_score) as avg_score
+    sentiment_by_place = conn.execute(f"""
+        SELECT s.place, AVG(ai.sentiment_score) as avg_score
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE a.published_at >= datetime('now', ?)
           AND {VISIBLE}
-        GROUP BY s.country
+        GROUP BY s.place
     """, (f'-{days} days',)).fetchall()
 
     # Sentiment by political bias (Taiwan camps)
@@ -106,7 +106,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
                ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
                ai.confidence,
                s.name as source_name, s.name_zh as source_name_zh,
-               s.country as source_country, s.source_type, s.bias
+               s.place as source_place, s.source_type, s.bias
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
@@ -165,7 +165,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         "escalation_signals": escalations,
         "top_entities": [dict(e) for e in top_entities],
         "sentiment_trend": [dict(s) for s in sentiment_trend],
-        "sentiment_by_country": [dict(r) for r in sentiment_by_country],
+        "sentiment_by_place": [dict(r) for r in sentiment_by_place],
         "sentiment_by_bias": [dict(r) for r in sentiment_by_bias],
     }
 
