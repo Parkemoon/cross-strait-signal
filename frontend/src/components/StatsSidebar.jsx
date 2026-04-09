@@ -208,9 +208,15 @@ export default function StatsSidebar({ stats, onTopicClick }) {
                   width: "8px",
                   height: "8px",
                   borderRadius: "50%",
-                  background: s.country === "PRC"
-                    ? "var(--accent-red)"
-                    : "var(--accent-blue)",
+                  background: {
+                    state_nationalist: "#b91c1c",
+                    state_official:    "#dc2626",
+                    green:             "#15803d",
+                    green_leaning:     "#4ade80",
+                    blue:              "#1d4ed8",
+                    blue_leaning:      "#93c5fd",
+                    centrist:          "#6b7280",
+                  }[s.bias] || "#6b7280",
                   display: "inline-block",
                 }} />
                 {s.name}
