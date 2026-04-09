@@ -75,7 +75,7 @@ function TranslationField({ item, onSaved }) {
     <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
       <span style={{
         fontSize: "11px",
-        color: isOverridden ? "var(--accent-yellow, #d97706)" : "var(--text-muted)",
+        color: (!READ_ONLY && isOverridden) ? "var(--accent-yellow, #d97706)" : "var(--text-muted)",
         fontStyle: displayTranslation ? "normal" : "italic",
       }}>
         {displayTranslation || "translating…"}
