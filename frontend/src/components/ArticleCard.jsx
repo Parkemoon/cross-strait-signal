@@ -588,10 +588,10 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
                       fontSize: "11px",
                       fontFamily: "var(--font-mono)",
                       color: c.sentiment_score > 0.3
-                        ? "var(--accent-red)"
+                        ? "#f59e0b"
                         : c.sentiment_score < -0.3
-                        ? "var(--accent-green)"
-                        : "var(--accent-amber)",
+                        ? "#7c3aed"
+                        : "#6b7280",
                       fontWeight: 600,
                     }}>
                       {c.sentiment_score > 0 ? "+" : ""}{c.sentiment_score?.toFixed(2)}

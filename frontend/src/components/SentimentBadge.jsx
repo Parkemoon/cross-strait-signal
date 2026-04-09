@@ -1,8 +1,8 @@
 const SENTIMENT_STYLES = {
-  hostile: { color: "var(--accent-red)", label: "Hostile" },
-  cooperative: { color: "var(--accent-green)", label: "Cooperative" },
-  neutral: { color: "var(--text-muted)", label: "Neutral" },
-  mixed: { color: "var(--accent-amber)", label: "Mixed" },
+  hostile:     { color: "#7c3aed", label: "Hostile" },
+  cooperative: { color: "#f59e0b", label: "Cooperative" },
+  neutral:     { color: "#6b7280", label: "Neutral" },
+  mixed:       { color: "#94a3b8", label: "Mixed" },
 };
 
 export default function SentimentBadge({ sentiment, score }) {

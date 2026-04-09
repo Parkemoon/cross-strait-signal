@@ -40,10 +40,10 @@ function SentimentTooltip({ active, payload, label }) {
   const score = payload[0]?.value;
   const count = payload[0]?.payload?.count;
   const color = score > 0.3
-    ? "var(--accent-green)"
+    ? "#f59e0b"
     : score < -0.3
-    ? "var(--accent-red)"
-    : "var(--accent-amber)";
+    ? "#7c3aed"
+    : "#6b7280";
   return (
     <div style={{
       background: "var(--bg-card)",
@@ -123,8 +123,8 @@ export function SentimentTrendChart({ data, days }) {
             />
             <Tooltip content={<SentimentTooltip />} />
             <ReferenceLine y={0} stroke="var(--border-color)" strokeDasharray="3 3" />
-            <ReferenceLine y={0.3} stroke="var(--accent-green)" strokeOpacity={0.2} strokeDasharray="2 4" />
-            <ReferenceLine y={-0.3} stroke="var(--accent-red)" strokeOpacity={0.2} strokeDasharray="2 4" />
+            <ReferenceLine y={0.3} stroke="#f59e0b" strokeOpacity={0.3} strokeDasharray="2 4" />
+            <ReferenceLine y={-0.3} stroke="#7c3aed" strokeOpacity={0.3} strokeDasharray="2 4" />
             <Line
               type="monotone"
               dataKey="score"
@@ -143,8 +143,8 @@ export function SentimentTrendChart({ data, days }) {
           fontFamily: "var(--font-mono)",
           color: "var(--text-muted)",
         }}>
-          <span style={{ color: "var(--accent-red)" }}>Hostile</span>
-          <span style={{ color: "var(--accent-green)" }}>Cooperative</span>
+          <span style={{ color: "#7c3aed" }}>Hostile</span>
+          <span style={{ color: "#f59e0b" }}>Cooperative</span>
         </div>
       </div>
     </div>

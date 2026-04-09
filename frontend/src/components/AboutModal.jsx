@@ -120,9 +120,9 @@ export default function AboutModal({ onClose }) {
         </p>
         <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", alignItems: "baseline" }}>
           {[
-            { range: "−1.0 to −0.3", label: "Hostile", color: "#dc2626", desc: "Threatening, antagonistic, or confrontational framing of the other side" },
-            { range: "−0.3 to +0.3", label: "Neutral",  color: "#d97706", desc: "Factual reporting without strong positive or negative framing" },
-            { range: "+0.3 to +1.0", label: "Cooperative", color: "#16a34a", desc: "Warm, engaging framing — dialogue, shared identity, trade, people-to-people ties" },
+            { range: "−1.0 to −0.3", label: "Hostile",      color: "#7c3aed", desc: "Threatening, antagonistic, or confrontational framing of the other side" },
+            { range: "−0.3 to +0.3", label: "Neutral",      color: "#6b7280", desc: "Factual reporting without strong positive or negative framing" },
+            { range: "+0.3 to +1.0", label: "Cooperative",  color: "#f59e0b", desc: "Warm, engaging framing — dialogue, shared identity, trade, people-to-people ties" },
           ].map(({ range, label, color, desc }) => (
             <>
               <div key={range + "l"} style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color, fontWeight: 600, whiteSpace: "nowrap" }}>
