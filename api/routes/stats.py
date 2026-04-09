@@ -99,13 +99,14 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
     # Escalation signals — full article data for interactive cards
     escalation_rows = conn.execute(f"""
         SELECT a.id, a.url, a.title_original, a.title_en, a.language,
-               a.published_at, a.content_original,
+               a.published_at, a.content_original, a.analyst_approved,
+               a.title_en_override, a.summary_en_override, a.key_quote_override,
                ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
                ai.urgency, ai.summary_en, ai.key_quote, ai.key_quote_en,
                ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
                ai.confidence,
                s.name as source_name, s.name_zh as source_name_zh,
-               s.country as source_country, s.source_type
+               s.country as source_country, s.source_type, s.bias
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import ArticleCard from "./ArticleCard";
 
-export default function FlashTraffic({ escalations: initialEscalations, onTopicClick, onEntityClick }) {
+export default function FlashTraffic({ escalations: initialEscalations, onTopicClick, onEntityClick, onApprove }) {
   const [escalations, setEscalations] = useState(initialEscalations || []);
 
   useEffect(() => {
@@ -62,6 +62,7 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
             onTopicClick={onTopicClick}
             onEntityClick={onEntityClick}
             onSignalOff={handleSignalOff}
+            onApprove={onApprove}
           />
         ))}
       </div>
