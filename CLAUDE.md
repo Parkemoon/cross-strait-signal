@@ -72,6 +72,7 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 - **Tier 1**: Gemini 2.5 Flash Lite — classifies all pre-filtered articles (batch limit: 500); `temperature=0.1`
 - **Tier 2**: Gemini 2.5 Flash — re-reviews only escalation-flagged articles; same temperature
 - **Tier 3**: Human review queue — for articles where Tier 1 and Tier 2 disagree; articles stay hidden from dashboard until resolved
+- **Age filter**: `process_unanalysed_articles` only processes articles with `published_at >= datetime('now', '-180 days')` — old DB backlog never reaches the AI pipeline
 
 **Dynamic glossary injection** (`scraper/processors/glossary.json`): loaded once at module level; before each API call, article text is scanned and matching terms (politicians, military assets, institutions in both Simplified and Traditional Chinese) are injected as a `CRITICAL TERMINOLOGY MAPPING` block to prevent romanisation hallucinations. Add new terms to `glossary.json` without touching Python.
 
@@ -106,6 +107,8 @@ Two types:
 
 When adding a new HTML scraper: follow the pattern in any existing one. Register the source in `seed_sources.py` and add the import + call to `run_pipeline.py`.
 
+**Age guard**: both `rss_scraper.py` and HTML scrapers skip articles older than 180 days at insert time (`MAX_ARTICLE_AGE = timedelta(days=180)`). PLA Daily date extraction reads the Chinese date format from the article title (`(\d{4})年(\d{1,2})月(\d{1,2})日`) — do not re-introduce content-based date scraping on 81.cn (the page template contains a static date that overrides real dates).
+
 ### Social Pulse (`scraper/processors/social_translator.py`)
 Separate lightweight pipeline for social data — does NOT go through the article AI pipeline. Batch-translates `social_pulse` rows where `title_en IS NULL` using Gemini 2.5 Flash Lite. Runs as Step 2b in `run_pipeline.py` after the social scrapers.
 
@@ -126,23 +129,26 @@ SQLite with FTS5 full-text search. Key tables:
 - **social_pulse**: Weibo and PTT items — `platform`, `item_key` (dedup key), `title` (Chinese), `title_en` (AI translation), `title_en_override` (analyst correction), engagement fields (`rank_position`, `heat_index` for Weibo; `push_count`, `boo_count`, `board`, `url` for PTT)
 
 ### API Layer (`api/routes/`)
-- `articles.py`: GET `/api/articles` (8 filter params), cluster, hide, signal endpoints; `/signal` is a toggle
-- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`
+- `articles.py`: GET `/api/articles` (8 filter params), cluster, hide, signal endpoints; `/signal` is a toggle. `source_country=intl` is a special value that maps to `s.country NOT IN ('PRC', 'TW')` — do not hardcode individual country codes for international sources.
+- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`. **All aggregation queries must include `AND a.is_hidden = 0 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)`** to match feed visibility — use the `VISIBLE` constant defined at the top of `dashboard_stats()`.
 - `notes.py`: CRUD for analyst notes with AI override support
 - `review.py`: review queue — confirm / override / dismiss
 - `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
 
 ### Frontend (`frontend/src/`)
 React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key components:
-- `FilterBar.jsx`: topic, sentiment, source_country, urgency, escalation, search filters
+- `FilterBar.jsx`: topic, sentiment, source_country, urgency, escalation, search filters. Source country options are PRC / Taiwan / International (`intl`) — never add hardcoded country codes here.
 - `ArticleCard.jsx`: article display with inline sentiment/topic override and analyst notes; `onSignalOff` prop for FlashTraffic removal
 - `ReviewQueue.js`: human review UI
-- `SignalCharts.jsx`: sentiment trend + topic breakdown charts
-- `StatsSidebar.jsx`: dashboard gauges by country and bias label; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
+- `SignalCharts.jsx`: sentiment trend (Y-axis clamped to `[-1, 1]`, single YAxis) + topic breakdown charts. Sentiment colour convention: negative = hostile = red, positive = cooperative = green.
+- `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`)
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
-- `SocialPulse.jsx`: accepts `column` prop — in column mode (right-hand aside in App.js) always expanded, vertical stack layout; in default inline mode, collapsible with two-column Weibo/PTT panel. Weibo shows only cross-strait relevant items. Inline translation correction via pencil icon (hidden in read-only build).
+- `SocialPulse.jsx`: accepts `column` prop — in column mode (right-hand aside in App.js) always expanded, vertical stack layout; in default inline mode, collapsible with two-column Weibo/PTT panel. Weibo shows only cross-strait relevant items. Inline translation correction via pencil icon (hidden in read-only build). Override colour highlight is also hidden in read-only build.
 - `KeyFigures.jsx`: horizontal scrollable row of cards above SocialPulse; each card shows portrait (images in `frontend/public/figures/`, initials fallback with party colour), name, role, latest approved statement; pencil icon (amber when candidates pending) opens per-card curation modal; hidden in read-only build via `READ_ONLY` constant
 - `SourceBadge.jsx`: colour-coded by `bias` prop, not country — `SOURCE_ABBREV` map covers all active sources
+- `hooks/useWindowWidth.js`: returns `window.innerWidth`, updates on resize. Used in `App.js` to derive `isMobile = windowWidth < 768`.
+
+**Mobile layout** (`App.js`): below 768px the 3-column grid collapses to a single column with a sticky top tab bar (Feed / Stats / Social / Review). Each tab shows/hides the corresponding panel via `display: none`. When adding new panels or layout elements, check `isMobile` for any fixed widths or multi-column structures that would break on mobile.
 
 All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localhost:8000` via `"proxy"` in `package.json`.
 
@@ -206,3 +212,4 @@ GEMINI_API_KEY=your_key_here
 - Sentiment axis measures how an article frames the **opposing side of the strait**, not geopolitical stability. Taiwan-US military cooperation does NOT score as cross-strait cooperative — it's neutral or hostile depending on PRC framing. KMT/opposition party visits to the mainland score cooperative regardless of political symbolism.
 - Romanisation: use Wade-Giles/Tongyong for all Taiwanese entities (people, places, organisations); Hanyu Pinyin for PRC entities. Never leave a Chinese name untranslated — apply the appropriate system if no established romanisation exists.
 - Key figure party colours: PRC → red (`#dc2626`), DPP → green (`#16a34a`), KMT → blue (`#1d4ed8`). Set via `party` field in `key_figures.json`; `figureAccent()` in `KeyFigures.jsx` resolves it.
+- Sentiment score colour convention: **negative = hostile = red**, **positive = cooperative = green**, neutral (±0.3) = amber. This applies to gauges (`StatsSidebar.jsx`), chart tooltips (`SignalCharts.jsx`), and any future sentiment indicators.
