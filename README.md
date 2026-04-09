@@ -370,7 +370,7 @@ server {
 ```bash
 # Local — commit, push, then SSH to server
 git push
-ssh root@217.174.245.116
+ssh root@<your-server>
 cd /var/www/cross-strait-signal && ./server_deploy.sh
 ```
 
