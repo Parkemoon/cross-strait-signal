@@ -54,7 +54,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
 
     # Articles by source
     sources = conn.execute(f"""
-        SELECT s.name, s.country, COUNT(*) as count
+        SELECT s.name, s.country, s.bias, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
