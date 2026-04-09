@@ -104,7 +104,7 @@ export function SentimentTrendChart({ data, days }) {
         padding: "16px 8px 8px",
       }}>
         <ResponsiveContainer width="100%" height={120}>
-          <LineChart data={formatted} margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
+          <LineChart data={formatted} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
             <XAxis
               dataKey="date"
               tick={{ fontSize: 9, fontFamily: "var(--font-mono)", fill: "var(--text-muted)" }}
