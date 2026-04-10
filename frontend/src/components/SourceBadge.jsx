@@ -67,6 +67,7 @@ export default function SourceBadge({ sourceName, bias }) {
 
   return (
     <span
+      title={sourceName}
       style={{
         background: colors.bg,
         color: colors.text,
@@ -77,6 +78,7 @@ export default function SourceBadge({ sourceName, bias }) {
         fontFamily: "var(--font-mono)",
         letterSpacing: "0.5px",
         whiteSpace: "nowrap",
+        cursor: "default",
       }}
     >
       {abbrev}

@@ -101,7 +101,7 @@ export default function AboutModal({ onClose }) {
         <p style={body}>
           Cross-Strait Signal is an open-source intelligence dashboard monitoring PRC–Taiwan cross-strait
           dynamics through automated bilingual media analysis. It scrapes dozens of active sources across
-          the People's Republic of China, Taiwan, and Singapore — Chinese-language outlets are treated as
+          the People's Republic of China, Taiwan, Hong Kong, and international Chinese-language outlets — Chinese-language outlets are treated as
           primary, since they break stories earlier and with greater analytical depth than English media on
           either side of the strait, while mainstream international media does great work and often has
           exclusives, access to that information is easy for English speakers, while access to what the
@@ -185,12 +185,40 @@ export default function AboutModal({ onClose }) {
           fields are marked as human-verified.
         </p>
 
+        {/* Key Terms */}
+        <h3 style={sectionHead}>Key Terms</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {[
+            { term: "PRC", def: "People's Republic of China — the government in Beijing, which has governed mainland China since 1949." },
+            { term: "ROC", def: "Republic of China — the government in Taipei. The ROC was founded in 1912, lost the civil war to the CCP in 1949, and retreated to Taiwan. It continues to govern Taiwan, Kinmen, and Matsu." },
+            { term: "Green / Blue", def: "Taiwan's two political camps. Green refers to the DPP and its allies, who broadly favour preserving or advancing Taiwan's separate identity. Blue refers to the KMT and its allies, who favour closer cross-strait engagement. Neither camp formally advocates immediate independence or unification." },
+            { term: "DPP", def: "Democratic Progressive Party (民主進步黨) — Taiwan's centre-left ruling party, associated with the green camp. Founded in 1986 during Taiwan's democratisation." },
+            { term: "KMT", def: "Kuomintang (中國國民黨), or Chinese Nationalist Party — Taiwan's main opposition, associated with the blue camp. Governed Taiwan from 1949 until losing power to the DPP in 2000." },
+            { term: "TPP", def: "Taiwan People's Party (台灣民眾黨) — Taiwan's third-largest party, founded in 2019 by former Taipei mayor Ko Wen-je. Positions itself between green and blue on cross-strait issues." },
+            { term: "統獨 (Tǒng-Dú)", def: "The unification–independence spectrum. 統 (tǒng) refers to unification with the mainland; 獨 (dú) refers to formal independence. Most Taiwanese public opinion sits in the middle, favouring maintaining the status quo." },
+            { term: "TAO", def: "Taiwan Affairs Office (國台辦) — the PRC government body responsible for Taiwan policy. Its statements are closely watched as signals of Beijing's current posture." },
+            { term: "MAC", def: "Mainland Affairs Council (陸委會) — Taiwan's counterpart to the TAO, overseeing cross-strait policy from Taipei." },
+            { term: "ADIZ", def: "Air Defence Identification Zone — airspace where a country requires aircraft to identify themselves. PLA incursions into Taiwan's ADIZ are a routine but significant signal of military pressure." },
+            { term: "Weibo (微博)", def: "The dominant microblogging platform in the PRC — roughly analogous to X/Twitter. The hot search list reflects what is trending, though it is subject to censorship and algorithmic shaping." },
+            { term: "PTT", def: "A long-running Taiwanese BBS (bulletin board) forum, particularly influential among younger and politically engaged Taiwanese. The Military, Gossiping, and HatePolitics boards are monitored here." },
+          ].map(({ term, def }) => (
+            <div key={term} style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "8px", alignItems: "baseline" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", paddingTop: "1px" }}>
+                {term}
+              </span>
+              <span style={{ fontSize: "13px", fontFamily: "var(--font-body)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                {def}
+              </span>
+            </div>
+          ))}
+        </div>
+
         {/* Author */}
         <h3 style={sectionHead}>Author</h3>
         <p style={body}>
           Ed Moon — bilingual English–Mandarin analyst, former Supervising Editor at TaiwanPlus.{" "}
           <a
-            href="https://substack.com/@edmooon"
+            href="https://theeastandback.substack.com"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "var(--accent-teal)", textDecoration: "none" }}
