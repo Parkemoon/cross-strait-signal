@@ -13,10 +13,10 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 
 ## What it does
 
-- Scrapes ~25 active sources across PRC, Taiwan, and Singapore — including RSS feeds and bespoke HTML scrapers for sites without usable feeds (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN, LTN Defence, UDN sections)
-- Directional relevance filtering — PRC/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
+- Scrapes ~30 active sources across PRC, Taiwan, Hong Kong, Singapore, and the UK — including RSS feeds and bespoke HTML scrapers for sites without usable feeds (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN, LTN Defence, UDN sections)
+- Directional relevance filtering — PRC/HK/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
 - Three-tier AI analysis: Google Gemini 2.5 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
-- Structured analytical output per article: topic classification (18 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
+- Structured analytical output per article: topic classification (27 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
 - Full editorial approval gate — every article is held from the public feed until the analyst explicitly approves it, ensuring no AI translation errors or misclassifications reach readers
 - Inline translation editing on headline, summary, and key quote — corrected fields highlighted amber to distinguish human-verified text from raw AI output
 - Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — translation editing available within the queue, auto-approves on resolution
@@ -26,7 +26,7 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 - Key Figures panel — curated roster of 10 senior PRC and Taiwan officials; AI extracts attributed quotes and actions per figure as pending candidates, requiring analyst approval before display to prevent misattribution
 - React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Key Figures panel, Social Pulse column, and review queue UI — fully responsive with mobile tab navigation
 - Two-build deployment: public read-only build (`strait-signal.net`) hides all write controls at build time; admin build (`admin.strait-signal.net`) exposes the full editorial interface
-- REST API with filtering by topic, sentiment, source country, urgency, escalation status, and bilingual full-text search
+- REST API with filtering by topic, sentiment, source place (PRC / Taiwan / HK/Macao / International), urgency, escalation status, and bilingual full-text search
 
 ---
 
@@ -41,15 +41,16 @@ This tool processes Chinese government and military media in minutes, extracts s
 ## Architecture
 
 ```
-Sources (PRC + Taiwan + Singapore, Chinese-language priority)
+Sources (PRC + Taiwan + HK + Singapore + UK, Chinese-language priority)
 ├── RSS scraper (Xinhua, People's Daily, China News Service, Global Times, The Paper,
-│               Guangming Daily, CNA sections, LTN sections, Zaobao)
+│               CNA sections, LTN sections, CT sections via RSSHub,
+│               RTHK Greater China, Ming Pao sections, Zaobao, BBC Chinese)
 ├── HTML scrapers (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN,
 │                 LTN Defence, UDN sections)
 ├── Social scrapers (Weibo hot search JSON API, PTT BBS boards)
 │
 Keyword Pre-filter (directional — no API calls on irrelevant articles)
-├── PRC/SG sources: must mention Taiwan/ROC territory to proceed
+├── PRC/HK/SG sources: must mention Taiwan/ROC territory to proceed
 ├── TW sources: must mention PRC/mainland/HK/Macau to proceed
 │
 Three-Tier AI Analysis Pipeline (articles only)
@@ -88,9 +89,9 @@ FastAPI Backend
 React Dashboard
 ├── Priority Signals (flash/priority urgency articles)
 ├── Key Figures panel (10 curated officials, portraits, latest approved statement, curation modal)
-├── Signal Feed (filterable article list with event clustering; filter by PRC / Taiwan / International)
+├── Signal Feed (filterable article list with event clustering; filter by PRC / Taiwan / HK/Macao / International)
 ├── Social Pulse column (Weibo cross-strait items + PTT trending, persistent right-hand column)
-├── Strait Watch gauges (overall + PRC / TW / International + by political camp)
+├── Strait Watch gauges (overall + PRC / TW / HK/Macao / International + by political camp)
 ├── Sentiment trend chart and topic breakdown chart (Recharts)
 ├── Inline editorial overrides (sentiment, topic, score on any article card)
 ├── Inline translation editing (headline, summary, key quote — amber highlight on override)
@@ -111,6 +112,7 @@ React Dashboard
 | AI Pipeline | Google Gemini 2.5 Flash Lite + Flash |
 | Scraping | feedparser, BeautifulSoup, httpx |
 | Frontend | React 19, Recharts |
+| RSS proxy | RSSHub (self-hosted Docker) |
 | Web Server | Nginx (reverse proxy + static serving) |
 | Process Manager | systemd |
 | Hosting | Ionos VPS S+, Ubuntu 24.04 |
@@ -144,10 +146,14 @@ React Dashboard
 | CNA Mainland (中央社兩岸) | green_leaning | RSS |
 | CNA International (中央社國際) | green_leaning | RSS |
 | CNA Finance (中央社財經) | green_leaning | RSS |
+| CT Cross-Strait (中時兩岸) | blue | RSS (RSSHub) |
+| CT Politics (中時政治) | blue | RSS (RSSHub) |
+| CT Military (中時軍事) | blue | RSS (RSSHub) |
+| CT Opinion (中時言論) | blue | RSS (RSSHub) |
 | UDN Cross-Strait (聯合報兩岸) | blue | HTML scraper |
-| UDN Breaking (聯合報即時) | blue | HTML scraper |
-| UDN International (聯合報國際) | blue | HTML scraper |
-| UDN Business (聯合報財經) | blue | HTML scraper |
+| UDN Breaking (聯合報要聞) | blue | HTML scraper |
+| UDN International (聯合報全球) | blue | HTML scraper |
+| UDN Business (聯合報産経) | blue | HTML scraper |
 | YDN (青年日報) | green_leaning | HTML scraper |
 
 **PRC**
@@ -155,22 +161,31 @@ React Dashboard
 | Source | Bias | Method |
 |--------|------|--------|
 | Xinhua Chinese (新华社) | state_official | RSS |
-| People's Daily Politics (人民日报时政) | state_official | RSS |
+| People's Daily Politics (人民日报台湾) | state_official | RSS (RSSHub) |
 | China News Service (中国新闻网) | state_official | RSS |
-| Global Times (环球时报) | state_nationalist | RSS |
-| The Paper (澎湃新聞) | state_official | RSS |
-| Guangming Daily (光明日報) | state_official | RSS |
+| Global Times (环球时报台海) | state_nationalist | RSS (RSSHub) |
+| The Paper (澎湃新聞) | state_official | RSS (RSSHub) |
 | PRC MFA Spokesperson (外交部发言人) | state_official | HTML scraper |
 | Taiwan Affairs Office (国台办) | state_official | HTML scraper |
 | Guancha (观察者网) | state_nationalist | HTML scraper |
 | Haixia Daobao (海峽導報) | state_official | HTML scraper |
 | PLA Daily (解放軍報) | state_official | HTML scraper |
 
+**Hong Kong**
+
+| Source | Bias | Method |
+|--------|------|--------|
+| RTHK Greater China (香港電台大灣區) | state_official | RSS |
+| Ming Pao Cross-Strait (明報兩岸) | centrist | RSS |
+| Ming Pao Editorial (明報社評) | centrist | RSS |
+| Ming Pao Opinion (明報觀點) | centrist | RSS |
+
 **International**
 
 | Source | Bias | Method |
 |--------|------|--------|
-| Zaobao Cross-Strait (联合早报中港台) | centrist | RSS |
+| Zaobao Cross-Strait (联合早报中港台) | centrist | RSS (RSSHub) |
+| BBC Chinese (BBC中文) | centrist | RSS |
 
 **Social (not in article pipeline)**
 
@@ -181,9 +196,7 @@ React Dashboard
 
 ### Deactivated
 
-- **China Times (中國時報)** — 403 errors
-- **Taipei Times** — English, dropped in favour of Chinese-language primacy
-- **CGTN World** — English, dropped
+- **Guangming Daily (光明日報)** — anyfeeder proxy dead, rarely cross-strait relevant
 
 ---
 
@@ -194,23 +207,30 @@ React Dashboard
 | `MIL_EXERCISE` | PLA drills, live-fire exercises, joint exercises near Taiwan |
 | `MIL_MOVEMENT` | Troop deployments, naval transits, ADIZ incursions |
 | `MIL_HARDWARE` | Weapons systems, procurement, specific platform news |
-| `MIL_POLICY` | Defence budgets, doctrine, white papers, conscription, arms sales decisions, MND statements |
+| `MIL_POLICY` | Defence budgets, doctrine, white papers, conscription, MND statements |
 | `DIP_STATEMENT` | MFA remarks, TAO statements, official warnings |
-| `DIP_VISIT` | Leader travel, delegation visits, ally engagement |
-| `DIP_SANCTIONS` | Trade restrictions, entity listings, diplomatic downgrades |
-| `ECON_TRADE` | Cross-strait trade, supply chain, ECFA |
-| `ECON_INVEST` | FDI flows, business restrictions, tech sector |
+| `DIP_VISIT` | Leader travel, delegation visits, ally engagement (state-level) |
 | `DIP_SANCTIONS` | Trade restrictions, entity listings, diplomatic downgrades |
 | `PARTY_VISIT` | KMT/opposition visits to PRC (distinct from state-level DIP_VISIT) |
+| `ARMS_SALES` | US or third-party arms transfers, export licence decisions, delivery milestones |
+| `ECON_TRADE` | Cross-strait trade, supply chain, ECFA |
 | `ECON_INVEST` | FDI flows, business restrictions, tech sector |
+| `ENERGY` | Energy security — LNG, nuclear policy, shipping lane economics, infrastructure vulnerability |
 | `POL_DOMESTIC_TW` | Taiwan elections, party dynamics, domestic politics (subject = Taiwan) |
 | `POL_DOMESTIC_PRC` | PRC internal politics, leadership, domestic governance |
 | `POL_TONGDU` | 統獨 spectrum — unification/independence dynamics (bidirectional) |
-| `INFO_WARFARE` | Disinformation, cognitive warfare, media manipulation |
+| `INFO_WARFARE` | Disinformation, cognitive warfare, narrative manipulation |
+| `CYBER` | Cyber operations, hacking, digital espionage, infrastructure intrusions |
 | `LEGAL_GREY` | Coast guard activity, sand dredging, cable incidents |
-| `HUMANITARIAN` | People-to-people exchange, cultural events, humanitarian issues |
+| `HUMANITARIAN` | People-to-people exchange, humanitarian issues |
 | `TRANSPORT` | Cross-strait transport links, aviation, shipping |
 | `INT_ORG` | Taiwan's participation in international organisations |
+| `US_PRC` | US-China relations as primary subject — Washington-Beijing diplomacy, tech/trade sanctions |
+| `US_TAIWAN` | US-Taiwan relations — political support, congressional legislation, US officials |
+| `HK_MAC` | Hong Kong and Macao with cross-strait relevance — "one country, two systems" credibility |
+| `CULTURE` | Cross-strait cultural exchange and soft power |
+| `SPORT` | Sporting events with cross-strait political dimensions |
+| `NOT_RELEVANT` | Article does not meet cross-strait relevance threshold |
 
 `POL_TONGDU` (統獨) rather than `POL_UNIFICATION` — the bidirectional framing reflects that both independence moves and unification rhetoric shift the status quo.
 
@@ -281,6 +301,14 @@ Dashboard available at `http://localhost:3000`
 ---
 
 ## Deployment
+
+### RSSHub
+
+Several sources (People's Daily, Global Times, The Paper, Zaobao, RTHK, China Times sections) are fetched via a self-hosted RSSHub instance. Run it as a Docker container with Chromium bundled (required for China Times):
+
+```bash
+docker run -d --name rsshub --restart always -p 1200:1200 diygod/rsshub:chromium-bundled
+```
 
 ### Server Setup
 
@@ -426,6 +454,9 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 - [x] Mobile-responsive layout with tab navigation
 - [x] Editorial approval gate — all articles held from public feed until analyst sign-off
 - [x] Inline translation editing (headline, summary, key quote) with amber override indicator
+- [x] China Times sections via self-hosted RSSHub (chromium-bundled)
+- [x] HK sources — RTHK Greater China, Ming Pao (Cross-Strait, Editorial, Opinion)
+- [x] International Chinese-language sources — BBC Chinese, Zaobao
 - [ ] Map layer (geocoded entity plotting)
 - [ ] ADS-B / AIS data integration (Phase 3)
 
