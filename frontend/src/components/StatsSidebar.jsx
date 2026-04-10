@@ -35,6 +35,10 @@ const PUBLICATION_NAMES = {
   "PLA Daily":               "PLA Daily",
   "Zaobao Cross-Strait":     "Zaobao",
   "RTHK Greater China":      "RTHK",
+  // Ming Pao
+  "Ming Pao Cross-Strait":   "Ming Pao",
+  "Ming Pao Editorial":      "Ming Pao",
+  "Ming Pao Opinion":        "Ming Pao",
 };
 
 const BIAS_COLORS = {
