@@ -113,6 +113,8 @@ def list_articles(
             ai.is_escalation_signal,
             ai.escalation_note,
             ai.confidence,
+            a.event_cluster_id,
+            a.cluster_size,
             s.name as source_name,
             s.name_zh as source_name_zh,
             s.place as source_place,
