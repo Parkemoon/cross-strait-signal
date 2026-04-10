@@ -51,6 +51,10 @@ const SOURCE_ABBREV = {
   "Guancha":       "GC",
   // HK — state_official (post-NSL)
   "RTHK Greater China": "RTHK",
+  // HK — centrist
+  "Ming Pao Cross-Strait": "MP",
+  "Ming Pao Editorial":    "MP",
+  "Ming Pao Opinion":      "MP",
   // SG — centrist
   "Zaobao Cross-Strait": "ZB",
 };
