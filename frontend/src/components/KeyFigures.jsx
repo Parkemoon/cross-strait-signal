@@ -8,7 +8,7 @@ import {
 import SourceBadge from "./SourceBadge";
 import { READ_ONLY } from "../readOnly";
 
-const PARTY_ACCENT = { PRC: "#dc2626", DPP: "#16a34a", KMT: "#1d4ed8" };
+const PARTY_ACCENT = { PRC: "#dc2626", DPP: "#16a34a", KMT: "#1d4ed8", TPP: "#14B8A6" };
 
 function figureAccent(figure) {
   return PARTY_ACCENT[figure.party] || PARTY_ACCENT[figure.side] || "#6b7280";

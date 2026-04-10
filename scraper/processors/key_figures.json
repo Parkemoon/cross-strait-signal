@@ -10,14 +10,36 @@
     "aliases": ["習近平", "习近平", "Xi Jinping", "Xi"]
   },
   {
-    "id": "wang_huning",
-    "name_en": "Wang Huning",
-    "name_zh": "王滬寧",
-    "role": "CPPCC Chairman",
-    "side": "PRC",
-    "portrait": "wang_huning.jpg",
-    "attribution": "Photo: 中国新闻社, CC BY 3.0",
-    "aliases": ["王滬寧", "王沪宁", "Wang Huning"]
+    "id": "lai_chingte",
+    "name_en": "Lai Ching-te",
+    "name_zh": "賴清德",
+    "role": "TW President",
+    "side": "TW",
+    "party": "DPP",
+    "portrait": "lai_chingte.jpg",
+    "attribution": "Photo: Office of the President of the Republic of China",
+    "aliases": ["賴清德", "赖清德", "Lai Ching-te", "William Lai"]
+  },
+  {
+    "id": "cheng_liwun",
+    "name_en": "Cheng Li-wun",
+    "name_zh": "鄭麗文",
+    "role": "KMT Chair",
+    "side": "TW",
+    "party": "KMT",
+    "portrait": "cheng_liwun.jpg",
+    "attribution": "Photo: KOKUYO - Own work, CC BY-SA 4.0",
+    "aliases": ["鄭麗文", "郑丽文", "Cheng Li-wun", "Cheng Li-wen"]
+  },
+  {
+    "id": "huang_kuochang",
+    "name_en": "Huang Kuo-chang",
+    "name_zh": "黃國昌",
+    "role": "TPP Chairman",
+    "side": "TW",
+    "party": "TPP",
+    "portrait": "huang_kuochang.jpg",
+    "aliases": ["黃國昌", "黄国昌", "Huang Kuo-chang"]
   },
   {
     "id": "song_tao",
@@ -38,17 +60,6 @@
     "portrait": "zhu_fenglian.png",
     "attribution": "Photo: 中国新闻网, CC BY 3.0",
     "aliases": ["朱鳳蓮", "朱凤莲", "Zhu Fenglian"]
-  },
-  {
-    "id": "lai_chingte",
-    "name_en": "Lai Ching-te",
-    "name_zh": "賴清德",
-    "role": "TW President",
-    "side": "TW",
-    "party": "DPP",
-    "portrait": "lai_chingte.jpg",
-    "attribution": "Photo: Office of the President of the Republic of China",
-    "aliases": ["賴清德", "赖清德", "Lai Ching-te", "William Lai"]
   },
   {
     "id": "cho_jungtai",
@@ -93,16 +104,5 @@
     "portrait": "liang_wenchieh.jpg",
     "attribution": "Photo: Mainland Affairs Council, ROC",
     "aliases": ["梁文傑", "梁文杰", "Liang Wen-chieh"]
-  },
-  {
-    "id": "cheng_liwun",
-    "name_en": "Cheng Li-wun",
-    "name_zh": "鄭麗文",
-    "role": "KMT Chair",
-    "side": "TW",
-    "party": "KMT",
-    "portrait": "cheng_liwun.jpg",
-    "attribution": "Photo: KOKUYO - Own work, CC BY-SA 4.0",
-    "aliases": ["鄭麗文", "郑丽文", "Cheng Li-wun", "Cheng Li-wen"]
   }
 ]
