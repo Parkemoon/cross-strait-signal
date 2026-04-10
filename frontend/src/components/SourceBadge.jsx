@@ -55,6 +55,8 @@ const SOURCE_ABBREV = {
   "Ming Pao Cross-Strait": "MP",
   "Ming Pao Editorial":    "MP",
   "Ming Pao Opinion":      "MP",
+  // UK — centrist
+  "BBC Chinese": "BBC",
   // SG — centrist
   "Zaobao Cross-Strait": "ZB",
 };
