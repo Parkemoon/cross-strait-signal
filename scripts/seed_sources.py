@@ -365,6 +365,18 @@ SOURCES = [
     },
     # International Chinese-language Sources
     {
+        'name': 'BBC Chinese',
+        'name_zh': 'BBC中文',
+        'url': 'https://feeds.bbci.co.uk/zhongwen/trad/rss.xml',
+        'source_type': 'independent_media',
+        'place': 'UK',
+        'bias': 'centrist',
+        'language': 'zh-tw',
+        'tier': 2,
+        'scrape_interval': 360,
+        'scrape_method': 'rss',
+    },
+    {
         'name': 'Zaobao Cross-Strait',
         'name_zh': '聯合早報中港台',
         'url': 'http://localhost:1200/zaobao/realtime/china',

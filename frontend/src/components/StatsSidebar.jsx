@@ -34,6 +34,7 @@ const PUBLICATION_NAMES = {
   "Haixia Daobao":           "Haixia Daobao",
   "PLA Daily":               "PLA Daily",
   "Zaobao Cross-Strait":     "Zaobao",
+  "BBC Chinese":             "BBC Chinese",
   "RTHK Greater China":      "RTHK",
   // Ming Pao
   "Ming Pao Cross-Strait":   "Ming Pao",
