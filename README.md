@@ -464,8 +464,8 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 
 ## Author
 
-Ed Moon — bilingual English-Mandarin analyst, former Supervising Editor/News Director at TaiwanPlus, MA Taiwan Studies (SOAS).  
-Substack: [The East and Back](https://substack.com/@edmooon)
+Ed Moon — bilingual English-Mandarin analyst, former Supervising Editor at TaiwanPlus.  
+Substack: [The East and Back](https://theeastandback.substack.com)
 
 ---
 
