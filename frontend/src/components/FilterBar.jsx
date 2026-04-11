@@ -1,7 +1,7 @@
 const TOPICS = [
   "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE", "MIL_POLICY",
   "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT", "ARMS_SALES",
-  "ECON_TRADE", "ECON_INVEST", "ENERGY",
+  "ECON_TRADE", "ECON_INVEST", "ENERGY", "SCI_TECH",
   "POL_DOMESTIC_TW", "POL_DOMESTIC_PRC", "POL_TONGDU",
   "US_PRC", "US_TAIWAN", "HK_MAC",
   "INFO_WARFARE", "CYBER", "LEGAL_GREY",
@@ -21,6 +21,7 @@ const TOPIC_LABELS = {
   ECON_TRADE:      "Trade",
   ECON_INVEST:     "Investment",
   ENERGY:          "Energy",
+  SCI_TECH:        "Science & Technology",
   POL_DOMESTIC_TW: "TW Politics",
   POL_DOMESTIC_PRC:"PRC Politics",
   POL_TONGDU:      "統獨 Spectrum",

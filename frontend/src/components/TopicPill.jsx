@@ -25,6 +25,7 @@ const TOPIC_LABELS = {
   ARMS_SALES:      "Arms Sales",
   SPORT:           "Sport",
   ENERGY:          "Energy",
+  SCI_TECH:        "Sci/Tech",
 };
 
 const TOPIC_COLORS = {
@@ -40,6 +41,7 @@ const TOPIC_COLORS = {
   ECON_TRADE:      "var(--accent-green)",
   ECON_INVEST:     "var(--accent-green)",
   ENERGY:          "var(--accent-green)",
+  SCI_TECH:        "var(--accent-green)",
   POL_DOMESTIC_TW: "var(--accent-purple)",
   POL_DOMESTIC_PRC:"var(--accent-purple)",
   POL_TONGDU:      "var(--accent-red)",

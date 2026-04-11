@@ -53,7 +53,7 @@ Analyse the following article and return a JSON object with this exact structure
   "is_cross_strait_primary": true,
   "title_en": "English translation of the title (or original if already English)",
   "summary_en": "2-3 sentence English summary of the article's key content and significance",
-  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, MIL_POLICY, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC_TW, POL_DOMESTIC_PRC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, TRANSPORT, INT_ORG, HUMANITARIAN, US_PRC, US_TAIWAN, HK_MAC, CULTURE, CYBER, ARMS_SALES, SPORT, ENERGY, NOT_RELEVANT",
+  "topic_primary": "one of: MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, MIL_POLICY, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC_TW, POL_DOMESTIC_PRC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, TRANSPORT, INT_ORG, HUMANITARIAN, US_PRC, US_TAIWAN, HK_MAC, CULTURE, CYBER, ARMS_SALES, SPORT, ENERGY, SCI_TECH, NOT_RELEVANT",
   "topic_secondary": null,
   "sentiment": "one of: hostile, cooperative, neutral, mixed",
   "sentiment_score": 0.0,
@@ -113,6 +113,7 @@ CLASSIFICATION RULES:
 - CYBER covers cyber operations, hacking, digital espionage, and infrastructure attacks with a cross-strait dimension: PRC-attributed cyberattacks on Taiwan, Taiwanese or allied cyber operations, cyber espionage cases, critical infrastructure intrusions. Distinct from INFO_WARFARE (narrative/propaganda operations) — CYBER is about technical intrusion and sabotage.
 - ARMS_SALES covers arms transfer events and export control decisions: US government approval of arms packages to Taiwan, specific weapons system sales, third-party arms deals relevant to the strait, export control measures on defence technology. Use MIL_POLICY for the broader defence posture context; ARMS_SALES for the specific transfer or approval event.
 - SPORT covers sporting events and disputes with cross-strait political dimensions: Olympic naming disputes ("Chinese Taipei"), cross-strait athletic competitions, sports boycotts, use of sport as soft power or political signal.
+- SCI_TECH covers science, technology, and innovation with cross-strait relevance: semiconductor industry (TSMC, chip supply chains, foundry capacity), chip and tech export controls as technology policy, space programmes, AI competition and development, scientific exchanges across the strait, tech talent flows, cross-strait tech industry dynamics. Use ECON_TRADE for broad trade sanctions; use SCI_TECH when the primary subject is a specific technology, research programme, or innovation development. Use CYBER for digital intrusion operations; use SCI_TECH for civilian or dual-use technology industry and research topics. Use ARMS_SALES for defence hardware transfers; use SCI_TECH for dual-use or civilian tech.
 - ENERGY covers energy security with cross-strait relevance: Taiwan's energy imports and supply chains, nuclear power policy, LNG procurement, energy infrastructure vulnerability, PRC energy leverage over Taiwan, shipping lane economics as they relate to energy supply.
 - Only flag is_escalation_signal for genuinely significant developments, not routine rhetoric
 - urgency: flash = breaking/status quo change, priority = notable, routine = standard coverage
