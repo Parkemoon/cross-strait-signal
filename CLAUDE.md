@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Cross-Strait Signal** is an open-source intelligence dashboard monitoring PRC-Taiwan cross-strait dynamics through automated bilingual (Chinese-English) media analysis. It scrapes ~20 active news sources, processes articles through a multi-tier AI pipeline, and serves results via a React dashboard backed by FastAPI.
+**Cross-Strait Signal** is an open-source intelligence dashboard monitoring PRC-Taiwan cross-strait dynamics through automated bilingual (Chinese-English) media analysis. It scrapes ~30 active news sources, processes articles through a multi-tier AI pipeline, and serves results via a React dashboard backed by FastAPI.
 
 **Critical design intent**: The sentiment axis is bidirectional — destabilising signals from BOTH sides (PLA exercises AND DPP sovereignty moves) register equally. This is not a "China bad, Taiwan good" instrument.
 
@@ -83,7 +83,7 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 
 ### Keyword Pre-Filter (`scraper/processors/keyword_filter.py`)
 Directional logic:
-- PRC/Singapore sources: must mention Taiwan, ROC, or relevant territories
+- PRC/HK/SG sources: must mention Taiwan, ROC, or relevant territories
 - Taiwan sources: must mention PRC, mainland, Hong Kong, or Macau
 
 Only `title + content[:2000]` is checked — full content is not used, to prevent page navigation/sidebar cruft from passing irrelevant articles. Irrelevant articles are marked `ai_processed=1` and skipped — they never reach the AI API.
@@ -169,9 +169,9 @@ After deploying changes to `seed_sources.py`, always run `python scripts/seed_so
 
 **RSSHub**: Several sources use a self-hosted RSSHub instance on the server (`http://localhost:1200`) — People's Daily, Global Times, The Paper, Zaobao, RTHK Greater China, and all CT sections. It runs as a Docker container:
 ```bash
-docker run -d --name rsshub --restart always -p 1200:1200 diygod/rsshub
+docker run -d --name rsshub --restart always -p 1200:1200 diygod/rsshub:chromium-bundled
 ```
-If these feeds return 0 entries, check `docker ps` to confirm the container is running. rsshub.app (the public instance) blocks automated clients — always use localhost.
+The `chromium-bundled` tag is required — CT sections use Puppeteer to render chinatimes.com and will return 503 without it. If these feeds return 0 entries, check `docker ps` to confirm the container is running. rsshub.app (the public instance) blocks automated clients — always use localhost.
 
 ## Environment
 
@@ -216,9 +216,9 @@ GEMINI_API_KEY=your_key_here
 
 **Active PRC sources**: Xinhua, People's Daily, China News Service, Global Times, The Paper, MFA Spokesperson, Taiwan Affairs Office, Guancha, Haixia Daobao, PLA Daily
 
-**Active HK sources**: RTHK Greater China (state_official — post-NSL government-controlled)
+**Active HK sources**: RTHK Greater China (state_official — post-NSL government-controlled), Ming Pao Cross-Strait/Editorial/Opinion (centrist)
 
-**Active SG sources**: Zaobao Cross-Strait (centrist)
+**Active international sources**: Zaobao Cross-Strait (SG, centrist), BBC Chinese (UK, centrist)
 
 ## Important Behaviors
 
@@ -232,5 +232,5 @@ GEMINI_API_KEY=your_key_here
 - When updating `glossary.json` romanisations, the old romanisation must also be added to the relevant figure's `aliases` array in `key_figures.json` — historical entity rows in the DB will still have the old name and must still resolve.
 - Sentiment axis measures how an article frames the **opposing side of the strait**, not geopolitical stability. Taiwan-US military cooperation does NOT score as cross-strait cooperative — it's neutral or hostile depending on PRC framing. KMT/opposition party visits to the mainland score cooperative regardless of political symbolism.
 - Romanisation: use Wade-Giles/Tongyong for all Taiwanese entities (people, places, organisations); Hanyu Pinyin for PRC entities. Never leave a Chinese name untranslated — apply the appropriate system if no established romanisation exists.
-- Key figure party colours: PRC → red (`#dc2626`), DPP → green (`#16a34a`), KMT → blue (`#1d4ed8`). Set via `party` field in `key_figures.json`; `figureAccent()` in `KeyFigures.jsx` resolves it.
+- Key figure party colours: PRC → red (`#dc2626`), DPP → green (`#16a34a`), KMT → blue (`#1d4ed8`), TPP → teal (`#14B8A6`). Set via `party` field in `key_figures.json`; `figureAccent()` in `KeyFigures.jsx` resolves it.
 - Sentiment score colour convention: **negative = hostile = purple** (`#7c3aed`), **positive = cooperative = amber** (`#f59e0b`), neutral (±0.3) = grey (`#6b7280`). Purple/amber was chosen to avoid conflict with source bias colours (PRC red, DPP green). Applies to gauges (`StatsSidebar.jsx`), `SentimentBadge.jsx`, chart tooltips (`SignalCharts.jsx`), and any future sentiment indicators.
