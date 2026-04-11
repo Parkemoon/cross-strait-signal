@@ -2,7 +2,7 @@ import { useState } from "react";
 import SourceBadge from "./SourceBadge";
 import TopicPill from "./TopicPill";
 import SentimentBadge from "./SentimentBadge";
-import { createNote, hideArticle, toggleSignal, approveArticle, updateArticleTranslation } from "../api";
+import { createNote, hideArticle, toggleSignal, approveArticle, updateArticleTranslation, updateEntityName } from "../api";
 import { fetchArticleCluster } from "../api";
 import { READ_ONLY } from "../readOnly";
 
@@ -110,6 +110,88 @@ function FieldEditor({ label, value, onSave }) {
             lineHeight: 1,
             verticalAlign: "middle",
             opacity: 0.6,
+          }}
+        >
+          ✎
+        </button>
+      )}
+    </span>
+  );
+}
+
+// Inline editor for a single entity's English name
+function EntityTag({ articleId, entity, onEntityClick }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(entity.entity_name_en || entity.entity_name);
+  const [displayName, setDisplayName] = useState(entity.entity_name_en || entity.entity_name);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === displayName) { setEditing(false); return; }
+    setSaving(true);
+    await updateEntityName(articleId, entity.id, trimmed);
+    setDisplayName(trimmed);
+    setSaving(false);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--tag-bg)", padding: "3px 8px", borderRadius: "2px" }}>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") { setDraft(displayName); setEditing(false); } }}
+          style={{
+            width: "140px", padding: "1px 4px", fontSize: "12px",
+            fontFamily: "var(--font-body)", background: "var(--bg-primary)",
+            color: "var(--text-primary)", border: "1px solid #f59e0b",
+            borderRadius: "2px", outline: "none",
+          }}
+          autoFocus
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: "2px", padding: "1px 6px", fontSize: "11px", cursor: "pointer" }}
+        >
+          {saving ? "…" : "✓"}
+        </button>
+        <button
+          onClick={() => { setDraft(displayName); setEditing(false); }}
+          style={{ background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border-color)", borderRadius: "2px", padding: "1px 6px", fontSize: "11px", cursor: "pointer" }}
+        >
+          ✕
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      style={{
+        display: "inline-flex", alignItems: "center", gap: "2px",
+        background: "var(--tag-bg)", color: "var(--tag-text)",
+        padding: "3px 10px", borderRadius: "2px", fontSize: "12px",
+        fontFamily: "var(--font-body)",
+      }}
+    >
+      <span
+        onClick={onEntityClick ? (evt) => { evt.stopPropagation(); onEntityClick(displayName); } : undefined}
+        style={{ cursor: onEntityClick ? "pointer" : "default" }}
+      >
+        {displayName}
+      </span>
+      <span style={{ opacity: 0.5, marginLeft: "2px" }}>{entity.entity_type}</span>
+      {!READ_ONLY && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+          title="Correct entity name"
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "var(--text-muted)", fontSize: "11px", padding: "0 2px",
+            lineHeight: 1, opacity: 0.6,
           }}
         >
           ✎
@@ -464,24 +546,12 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
               </h4>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 {article.entities.map((e, i) => (
-                  <span
-                    key={i}
-                    onClick={onEntityClick ? (evt) => { evt.stopPropagation(); onEntityClick(e.entity_name_en || e.entity_name); } : undefined}
-                    style={{
-                      background: "var(--tag-bg)",
-                      color: "var(--tag-text)",
-                      padding: "3px 10px",
-                      borderRadius: "2px",
-                      fontSize: "12px",
-                      fontFamily: "var(--font-body)",
-                      cursor: onEntityClick ? "pointer" : "default",
-                    }}
-                  >
-                    {e.entity_name_en || e.entity_name}
-                    <span style={{ opacity: 0.5, marginLeft: "4px" }}>
-                      {e.entity_type}
-                    </span>
-                  </span>
+                  <EntityTag
+                    key={e.id ?? i}
+                    articleId={article.id}
+                    entity={e}
+                    onEntityClick={onEntityClick}
+                  />
                 ))}
               </div>
             </div>
