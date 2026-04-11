@@ -12,6 +12,10 @@ class TranslationUpdate(BaseModel):
     key_quote_override: Optional[str] = None
 
 
+class EntityNameUpdate(BaseModel):
+    entity_name_en: str
+
+
 @router.get("/")
 def list_articles(
     entity: Optional[str] = Query(None, description="Filter by entity name"),
@@ -137,7 +141,7 @@ def list_articles(
 
         # Get entities for this article
         entities = conn.execute("""
-            SELECT entity_name, entity_name_en, entity_type, entity_role, location_name
+            SELECT id, entity_name, entity_name_en, entity_type, entity_role, location_name
             FROM entities WHERE article_id = ?
         """, (article['id'],)).fetchall()
         article['entities'] = [dict(e) for e in entities]
@@ -279,6 +283,19 @@ def update_article_translation(article_id: int, body: TranslationUpdate):
         conn.commit()
     conn.close()
     return {"status": "updated", "article_id": article_id, "fields": list(updates.keys())}
+
+
+@router.patch("/{article_id}/entities/{entity_id}")
+def update_entity_name(article_id: int, entity_id: int, body: EntityNameUpdate):
+    """Correct the English name of an extracted entity."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE entities SET entity_name_en = ? WHERE id = ? AND article_id = ?",
+        (body.entity_name_en.strip(), entity_id, article_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "updated", "entity_id": entity_id, "entity_name_en": body.entity_name_en.strip()}
 
 
 @router.patch("/{article_id}/signal")

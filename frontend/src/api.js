@@ -113,6 +113,15 @@ export async function updateArticleTranslation(articleId, overrides) {
   return res.json();
 }
 
+export async function updateEntityName(articleId, entityId, entityNameEn) {
+  const res = await fetch(`${API_BASE}/api/articles/${articleId}/entities/${entityId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ entity_name_en: entityNameEn }),
+  });
+  return res.json();
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   const res = await fetch(`${API_BASE}/api/social/${id}/translation`, {
     method: "PATCH",
