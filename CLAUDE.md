@@ -182,7 +182,7 @@ GEMINI_API_KEY=your_key_here
 
 ## Key Domain Concepts
 
-**Topic taxonomy (27 categories)**: `MIL_EXERCISE`, `MIL_MOVEMENT`, `MIL_HARDWARE`, `MIL_POLICY`, `DIP_STATEMENT`, `DIP_VISIT`, `DIP_SANCTIONS`, `PARTY_VISIT`, `ARMS_SALES`, `ECON_TRADE`, `ECON_INVEST`, `ENERGY`, `POL_DOMESTIC_TW`, `POL_DOMESTIC_PRC`, `POL_TONGDU`, `INFO_WARFARE`, `CYBER`, `LEGAL_GREY`, `HUMANITARIAN`, `TRANSPORT`, `INT_ORG`, `US_PRC`, `US_TAIWAN`, `HK_MAC`, `CULTURE`, `SPORT`
+**Topic taxonomy (28 categories)**: `MIL_EXERCISE`, `MIL_MOVEMENT`, `MIL_HARDWARE`, `MIL_POLICY`, `DIP_STATEMENT`, `DIP_VISIT`, `DIP_SANCTIONS`, `PARTY_VISIT`, `ARMS_SALES`, `ECON_TRADE`, `ECON_INVEST`, `ENERGY`, `SCI_TECH`, `POL_DOMESTIC_TW`, `POL_DOMESTIC_PRC`, `POL_TONGDU`, `INFO_WARFARE`, `CYBER`, `LEGAL_GREY`, `HUMANITARIAN`, `TRANSPORT`, `INT_ORG`, `US_PRC`, `US_TAIWAN`, `HK_MAC`, `CULTURE`, `SPORT`
 
 **POL_TONGDU** (統獨): Captures both unification rhetoric AND independence moves — bidirectional by design.
 
@@ -201,6 +201,8 @@ GEMINI_API_KEY=your_key_here
 **CYBER**: Cyber operations, hacking, digital espionage, infrastructure intrusions — distinct from `INFO_WARFARE` (narrative/propaganda). PRC-attributed attacks on Taiwan, cross-strait cyber espionage cases, critical infrastructure intrusions.
 
 **SPORT**: Sporting events and disputes with cross-strait political dimensions — Olympic naming ("Chinese Taipei"), cross-strait athletic competitions, sports boycotts, sport as soft power.
+
+**SCI_TECH**: Science, technology, and innovation — semiconductor industry (TSMC, chip supply chains), chip/tech export controls as technology policy, space programmes, AI competition, scientific exchanges, tech talent flows. Use `ECON_TRADE` for broad trade sanctions; `CYBER` for intrusion operations; `ARMS_SALES` for defence hardware. `SCI_TECH` is for civilian/dual-use technology, research, and innovation as the primary subject.
 
 **ENERGY**: Energy security with cross-strait relevance — Taiwan LNG imports, nuclear policy, shipping lane economics, energy infrastructure vulnerability, PRC energy leverage.
 
