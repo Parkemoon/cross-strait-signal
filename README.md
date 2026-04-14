@@ -6,7 +6,7 @@ An open-source intelligence dashboard monitoring PRC-Taiwan cross-strait dynamic
 
 Cross-Strait Signal scrapes Chinese-language news sources from both sides of the Taiwan Strait, processes them through a multi-tier AI pipeline, and serves results through a React dashboard backed by a FastAPI API. The system is designed to surface destabilising signals from **both** sides — including Taiwanese actions (independence-by-stealth, constitutional norm erosion) — not as a "China bad, Taiwan good" instrument.
 
-**Live instance:** `https://strait-signal.net` (public read-only) · `https://admin.strait-signal.net` (password protected)  
+**Live instance:** `https://strait-signal.net`  
 **GitHub:** `https://github.com/Parkemoon/cross-strait-signal`
 
 ---
@@ -216,6 +216,7 @@ React Dashboard
 | `ECON_TRADE` | Cross-strait trade, supply chain, ECFA |
 | `ECON_INVEST` | FDI flows, business restrictions, tech sector |
 | `ENERGY` | Energy security — LNG, nuclear policy, shipping lane economics, infrastructure vulnerability |
+| `SCI_TECH` | Science and technology — semiconductors, chip supply chains, export controls as tech policy, AI competition, scientific exchanges |
 | `POL_DOMESTIC_TW` | Taiwan elections, party dynamics, domestic politics (subject = Taiwan) |
 | `POL_DOMESTIC_PRC` | PRC internal politics, leadership, domestic governance |
 | `POL_TONGDU` | 統獨 spectrum — unification/independence dynamics (bidirectional) |
