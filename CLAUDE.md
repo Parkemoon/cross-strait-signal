@@ -79,7 +79,9 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 
 **Key figure statement extraction**: Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `scraper/processors/key_figures.json` — 10 figures with Chinese/English names, roles, party field (DPP/KMT/PRC), portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — this is intentional to prevent misattribution.
 
-**Relevance gate**: the prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.
+**Relevance gate**: the prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. `NOT_RELEVANT` is a special pseudo-topic that exists in the DB but is not part of the 28 visible categories — it marks filtered articles and is never shown in the UI. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.
+
+**`scraper/processors/test_ai.py`** is a legacy prototype script — do not use it as a reference. It uses a stale prompt with old topic codes (`POL_UNIFICATION`, `POL_DOMESTIC`) and old sentiment values (`escalatory`/`conciliatory`) that no longer match the DB schema or the real pipeline in `ai_pipeline.py`.
 
 ### Keyword Pre-Filter (`scraper/processors/keyword_filter.py`)
 Directional logic:
@@ -116,6 +118,9 @@ Separate lightweight pipeline for social data — does NOT go through the articl
 ### Event Clustering (`scripts/cluster_events.py`)
 Groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
 
+### Database connections
+`api/database.py` exports `get_db()` — returns a `sqlite3.Connection` with `row_factory = sqlite3.Row`. All API routes follow the same pattern: call `get_db()`, run queries, call `conn.close()` manually (no context manager). `scraper/utils/db.py` provides the same for the pipeline side.
+
 ### Database (`db/cross_strait_signal.db`)
 **Canonical DB file**: `db/cross_strait_signal.db` — used by both the API (`api/database.py`) and the scraper pipeline (`scraper/utils/db.py`). `db/signal.db` also exists but is not the live DB. Always apply schema changes to `cross_strait_signal.db`. `db/schema.sql` is the reference; `scripts/init_db.py` executes it (idempotent for `IF NOT EXISTS` tables only — existing tables are not migrated, apply changes with direct SQL).
 
@@ -151,6 +156,10 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `hooks/useWindowWidth.js`: returns `window.innerWidth`, updates on resize. Used in `App.js` to derive `isMobile = windowWidth < 768`.
 
 **Mobile layout** (`App.js`): below 768px the 3-column grid collapses to a single column with a sticky top tab bar (Feed / Stats / Social / Review). Each tab shows/hides the corresponding panel via `display: none`. When adding new panels or layout elements, check `isMobile` for any fixed widths or multi-column structures that would break on mobile.
+
+**`frontend/src/api.js`** is the central API client — every fetch call in the frontend goes through a named function here. When adding a new API endpoint, add the corresponding function to `api.js` first; components import from it directly (not from `fetch` inline).
+
+**Other components**: `ThemeToggle.jsx` — light/dark theme switcher in the header. `TopicPill.jsx` — inline topic category label used in `ArticleCard`.
 
 All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localhost:8000` via `"proxy"` in `package.json`.
 
