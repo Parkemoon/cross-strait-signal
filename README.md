@@ -4,7 +4,7 @@ An open-source intelligence dashboard monitoring PRC-Taiwan cross-strait dynamic
 
 ---
 
-Cross-Strait Signal scrapes Chinese-language news sources from both sides of the Taiwan Strait, processes them through a multi-tier AI pipeline, and serves results through a React dashboard backed by a FastAPI API. The system is designed to surface destabilising signals from **both** sides — including Taiwanese actions (independence-by-stealth, constitutional norm erosion) — not as a "China bad, Taiwan good" instrument.
+Cross-Strait Signal scrapes Chinese-language news sources from both sides of the Taiwan Strait, processes them through a multi-tier AI pipeline, and serves results through a React dashboard backed by a FastAPI API. The system is designed to surface hostile and cooperative signals from both sides — rather than framing cross-strait interactions as uni-directional.
 
 **Live instance:** `https://strait-signal.net`  
 **GitHub:** `https://github.com/Parkemoon/cross-strait-signal`
