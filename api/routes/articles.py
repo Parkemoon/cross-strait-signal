@@ -1,7 +1,16 @@
+import math
 from fastapi import APIRouter, Query
 from typing import Optional
 from pydantic import BaseModel
 from api.database import get_db
+
+
+def _sanitize_floats(d: dict) -> dict:
+    """Replace inf/nan float values with None so they serialise as JSON null."""
+    for key, val in d.items():
+        if isinstance(val, float) and not math.isfinite(val):
+            d[key] = None
+    return d
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
 
@@ -137,7 +146,7 @@ def list_articles(
     # Convert to list of dicts
     articles = []
     for row in rows:
-        article = dict(row)
+        article = _sanitize_floats(dict(row))
 
         # Get entities for this article
         entities = conn.execute("""
@@ -216,7 +225,7 @@ def get_article(article_id: int):
         conn.close()
         return {"error": "Article not found"}
 
-    article = dict(row)
+    article = _sanitize_floats(dict(row))
 
     # Get entities
     entities = conn.execute("""
