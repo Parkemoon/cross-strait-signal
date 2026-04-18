@@ -42,7 +42,12 @@ export default function App() {
   }, [filters, page]);
 
   useEffect(() => {
-    fetchStats(30).then(setStats);
+    fetchStats(30, {
+      topic: filters.topic,
+      source_place: filters.source_place,
+      urgency: filters.urgency,
+      escalation_only: filters.escalation_only,
+    }).then(setStats);
     fetch("/review/stats")
       .then((r) => r.json())
       .then((d) => {
@@ -50,7 +55,8 @@ export default function App() {
         setPendingApproval(d.pending_approval || 0);
       })
       .catch(() => {});
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.topic, filters.source_place, filters.urgency, filters.escalation_only]);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
@@ -269,7 +275,22 @@ export default function App() {
             display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
           }}
         >
-          <StatsSidebar stats={stats} />
+          <StatsSidebar
+            stats={stats}
+            filters={filters}
+            onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
+            onClearScopingFilters={() => {
+              setFilters((f) => {
+                const next = { ...f };
+                delete next.topic;
+                delete next.source_place;
+                delete next.urgency;
+                delete next.escalation_only;
+                return next;
+              });
+              setPage(1);
+            }}
+          />
         </aside>
 
         {/* Main content */}

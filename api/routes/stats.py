@@ -14,23 +14,68 @@ except Exception:
     _KEY_FIGURES = []
 
 
+def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation_only=False):
+    """Return (extra_sql, params) to scope WHERE clauses.
+    Assumes articles aliased 'a', ai_analysis 'ai', sources 's'."""
+    clauses = []
+    params = []
+    if topic:
+        clauses.append("ai.topic_primary = ?")
+        params.append(topic)
+    if source_place:
+        sp = source_place.upper()
+        if sp in ("PRC", "TW"):
+            clauses.append("s.place = ?")
+            params.append(sp)
+        elif source_place.lower() == "hk":
+            clauses.append("s.place IN ('HK', 'MO')")
+        elif source_place.lower() == "intl":
+            clauses.append("s.place NOT IN ('PRC', 'TW', 'HK', 'MO')")
+    if urgency:
+        clauses.append("ai.urgency = ?")
+        params.append(urgency)
+    if escalation_only:
+        clauses.append("ai.is_escalation_signal = 1")
+    extra_sql = (" AND " + " AND ".join(clauses)) if clauses else ""
+    return extra_sql, params
+
+
 @router.get("/")
-def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
-    """Dashboard summary statistics."""
+def dashboard_stats(
+    days: int = Query(7, description="Rolling window in days"),
+    topic: str = Query(None),
+    source_place: str = Query(None),
+    urgency: str = Query(None),
+    escalation_only: bool = Query(False),
+):
+    """Dashboard summary statistics. Sentiment gauges scope to active filters."""
     conn = get_db()
 
-    # Visibility filter — matches what the articles feed uses
     VISIBLE = "a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
+    filter_extra, filter_params = _build_filter_clause(topic, source_place, urgency, escalation_only)
+    has_filter = bool(filter_extra)
 
-    # Total articles
-    total = conn.execute(f"""
-        SELECT COUNT(*) FROM articles a
+    # ── Global (unfiltered) aggregations — always computed ────────────────
+
+    global_avg = conn.execute(f"""
+        SELECT AVG(ai.sentiment_score)
+        FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= datetime('now', ?)
           AND {VISIBLE}
-    """, (f'-{days} days',)).fetchone()[0]
+    """, (f'-{days} days',)).fetchone()
 
-    # Articles by topic
+    global_sentiment_by_place = conn.execute(f"""
+        SELECT s.place, AVG(ai.sentiment_score) as avg_score
+        FROM articles a
+        JOIN ai_analysis ai ON a.id = ai.article_id
+        JOIN sources s ON a.source_id = s.id
+        WHERE a.published_at >= datetime('now', ?)
+          AND {VISIBLE}
+        GROUP BY s.place
+    """, (f'-{days} days',)).fetchall()
+
+    # Articles by topic — always global (navigation/context, not scoped)
     topics = conn.execute(f"""
         SELECT ai.topic_primary, COUNT(*) as count
         FROM articles a
@@ -41,7 +86,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         ORDER BY count DESC
     """, (f'-{days} days',)).fetchall()
 
-    # Articles by sentiment
+    # Articles by sentiment — always global
     sentiments = conn.execute(f"""
         SELECT ai.sentiment, COUNT(*) as count
         FROM articles a
@@ -52,7 +97,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         ORDER BY count DESC
     """, (f'-{days} days',)).fetchall()
 
-    # Articles by source
+    # Articles by source — always global
     sources = conn.execute(f"""
         SELECT s.name, s.place, s.bias, COUNT(*) as count
         FROM articles a
@@ -64,39 +109,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         ORDER BY count DESC
     """, (f'-{days} days',)).fetchall()
 
-    # Average sentiment score (the "temperature gauge")
-    avg_sentiment = conn.execute(f"""
-        SELECT AVG(ai.sentiment_score) as avg_score
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        WHERE a.published_at >= datetime('now', ?)
-          AND {VISIBLE}
-    """, (f'-{days} days',)).fetchone()
-
-    # Sentiment by source country
-    sentiment_by_place = conn.execute(f"""
-        SELECT s.place, AVG(ai.sentiment_score) as avg_score
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        JOIN sources s ON a.source_id = s.id
-        WHERE a.published_at >= datetime('now', ?)
-          AND {VISIBLE}
-        GROUP BY s.place
-    """, (f'-{days} days',)).fetchall()
-
-    # Sentiment by political bias (Taiwan camps)
-    sentiment_by_bias = conn.execute(f"""
-        SELECT s.bias, AVG(ai.sentiment_score) as avg_score, COUNT(*) as count
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        JOIN sources s ON a.source_id = s.id
-        WHERE a.published_at >= datetime('now', ?)
-          AND {VISIBLE}
-          AND s.bias IN ('green', 'green_leaning', 'blue')
-        GROUP BY s.bias
-    """, (f'-{days} days',)).fetchall()
-
-    # Escalation signals — full article data for interactive cards
+    # Escalation signals — always global, 24h window
     escalation_rows = conn.execute(f"""
         SELECT a.id, a.url, a.title_original, a.title_en, a.language,
                a.published_at, a.content_original, a.analyst_approved,
@@ -126,7 +139,7 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         article['entities'] = [dict(e) for e in entities]
         escalations.append(article)
 
-    # Top entities
+    # Top entities — always global
     top_entities = conn.execute(f"""
         SELECT e.entity_name_en, e.entity_type, COUNT(*) as mentions
         FROM entities e
@@ -139,26 +152,115 @@ def dashboard_stats(days: int = Query(7, description="Rolling window in days")):
         LIMIT 15
     """, (f'-{days} days',)).fetchall()
 
-    # Daily sentiment trend
-    sentiment_trend = conn.execute(f"""
-        SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
-               COUNT(*) as article_count
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        WHERE a.published_at >= datetime('now', ?)
-          AND {VISIBLE}
-        GROUP BY date(a.published_at)
-        ORDER BY date
-    """, (f'-{days} days',)).fetchall()
+    # ── Scoped aggregations (equal global when no filter active) ──────────
 
-    
+    if has_filter:
+        # All scoped queries join sources so source_place filter works everywhere
+        total = conn.execute(f"""
+            SELECT COUNT(*) FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+              {filter_extra}
+        """, (f'-{days} days', *filter_params)).fetchone()[0]
+
+        scoped_avg = conn.execute(f"""
+            SELECT AVG(ai.sentiment_score)
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+              {filter_extra}
+        """, (f'-{days} days', *filter_params)).fetchone()
+
+        sentiment_by_place = conn.execute(f"""
+            SELECT s.place, AVG(ai.sentiment_score) as avg_score
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+              {filter_extra}
+            GROUP BY s.place
+        """, (f'-{days} days', *filter_params)).fetchall()
+
+        sentiment_by_bias = conn.execute(f"""
+            SELECT s.bias, AVG(ai.sentiment_score) as avg_score, COUNT(*) as count
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+              AND s.bias IN ('green', 'green_leaning', 'blue')
+              {filter_extra}
+            GROUP BY s.bias
+        """, (f'-{days} days', *filter_params)).fetchall()
+
+        sentiment_trend = conn.execute(f"""
+            SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
+                   COUNT(*) as article_count
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+              {filter_extra}
+            GROUP BY date(a.published_at)
+            ORDER BY date
+        """, (f'-{days} days', *filter_params)).fetchall()
+
+        avg_sentiment_score = scoped_avg[0] if scoped_avg[0] else 0
+    else:
+        # No filter — scoped equals global, avoid duplicate queries
+        total = conn.execute(f"""
+            SELECT COUNT(*) FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+        """, (f'-{days} days',)).fetchone()[0]
+
+        sentiment_by_place = global_sentiment_by_place
+
+        sentiment_by_bias = conn.execute(f"""
+            SELECT s.bias, AVG(ai.sentiment_score) as avg_score, COUNT(*) as count
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+              AND s.bias IN ('green', 'green_leaning', 'blue')
+            GROUP BY s.bias
+        """, (f'-{days} days',)).fetchall()
+
+        sentiment_trend = conn.execute(f"""
+            SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
+                   COUNT(*) as article_count
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            WHERE a.published_at >= datetime('now', ?)
+              AND {VISIBLE}
+            GROUP BY date(a.published_at)
+            ORDER BY date
+        """, (f'-{days} days',)).fetchall()
+
+        avg_sentiment_score = global_avg[0] if global_avg[0] else 0
 
     conn.close()
 
     return {
         "period_days": days,
         "total_articles": total,
-        "avg_sentiment_score": avg_sentiment[0] if avg_sentiment[0] else 0,
+        "avg_sentiment_score": avg_sentiment_score,
+        "global_avg_sentiment_score": global_avg[0] if global_avg[0] else 0,
+        "global_sentiment_by_place": [dict(r) for r in global_sentiment_by_place],
+        "filter_applied": {
+            "topic": topic,
+            "source_place": source_place,
+            "urgency": urgency,
+            "escalation_only": escalation_only,
+        } if has_filter else None,
         "topics": [dict(t) for t in topics],
         "sentiments": [dict(s) for s in sentiments],
         "sources": [dict(s) for s in sources],
