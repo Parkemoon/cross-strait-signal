@@ -11,8 +11,15 @@ export async function fetchArticle(id) {
   return res.json();
 }
 
-export async function fetchStats(days = 7) {
-  const res = await fetch(`${API_BASE}/api/stats?days=${days}`);
+export async function fetchStats(days = 7, filters = {}) {
+  const params = new URLSearchParams({ days });
+  const SCOPING_KEYS = ["topic", "source_place", "urgency", "escalation_only"];
+  SCOPING_KEYS.forEach((k) => {
+    if (filters[k] !== undefined && filters[k] !== "" && filters[k] !== false) {
+      params.append(k, filters[k]);
+    }
+  });
+  const res = await fetch(`${API_BASE}/api/stats?${params}`);
   return res.json();
 }
 

@@ -52,6 +52,68 @@ const BIAS_COLORS = {
   centrist:          "#6b7280",
 };
 
+// Short labels for scope chip — matches FilterBar display values
+const TOPIC_SHORT = {
+  MIL_EXERCISE:    "Mil Exercise",
+  MIL_MOVEMENT:    "Force Movement",
+  MIL_HARDWARE:    "Hardware",
+  MIL_POLICY:      "Mil. Policy",
+  DIP_STATEMENT:   "Diplomacy",
+  DIP_VISIT:       "State Visit",
+  DIP_SANCTIONS:   "Sanctions",
+  PARTY_VISIT:     "Party Visit",
+  ARMS_SALES:      "Arms Sales",
+  ECON_TRADE:      "Trade",
+  ECON_INVEST:     "Investment",
+  ENERGY:          "Energy",
+  SCI_TECH:        "Sci/Tech",
+  POL_DOMESTIC_TW: "TW Politics",
+  POL_DOMESTIC_PRC:"PRC Politics",
+  POL_TONGDU:      "統獨",
+  US_PRC:          "US-PRC",
+  US_TAIWAN:       "US-Taiwan",
+  HK_MAC:          "HK/Macao",
+  INFO_WARFARE:    "Info Warfare",
+  CYBER:           "Cyber",
+  LEGAL_GREY:      "Grey Zone",
+  CULTURE:         "Culture",
+  SPORT:           "Sport",
+  TRANSPORT:       "Transport",
+  INT_ORG:         "Intl Orgs",
+  HUMANITARIAN:    "Humanitarian",
+};
+
+const PLACE_SHORT = {
+  prc:  "PRC",
+  tw:   "Taiwan",
+  hk:   "HK/Macao",
+  intl: "International",
+};
+
+const URGENCY_SHORT = {
+  flash:    "Flash",
+  priority: "Priority",
+  routine:  "Routine",
+};
+
+function buildScopeLabel(filters) {
+  const parts = [];
+  if (filters.topic)        parts.push(TOPIC_SHORT[filters.topic]   || filters.topic);
+  if (filters.source_place) parts.push(PLACE_SHORT[filters.source_place.toLowerCase()] || filters.source_place);
+  if (filters.urgency)      parts.push(URGENCY_SHORT[filters.urgency] || filters.urgency);
+  if (filters.escalation_only) parts.push("Escalation");
+  return parts.join(" · ");
+}
+
+function hasScopingFilter(filters) {
+  return !!(
+    filters.topic ||
+    filters.source_place ||
+    filters.urgency ||
+    filters.escalation_only
+  );
+}
+
 function groupSources(sources) {
   const map = {};
   for (const s of sources) {
@@ -65,13 +127,18 @@ function groupSources(sources) {
   return Object.values(map).sort((a, b) => b.count - a.count);
 }
 
-function StabilityGauge({ label, score, days, compact }) {
-  const safeScore = score ?? 0;
+function StabilityGauge({ label, score, days, compact, globalScore }) {
+  const safeScore  = score ?? 0;
   const color = safeScore > 0.3
     ? "#f59e0b"
     : safeScore < -0.3
     ? "#7c3aed"
     : "#6b7280";
+
+  // Show ghost only when global differs meaningfully from scoped
+  const showGhost = globalScore !== undefined &&
+                    globalScore !== null &&
+                    Math.abs(globalScore - safeScore) > 0.01;
 
   return (
     <div style={{
@@ -122,6 +189,7 @@ function StabilityGauge({ label, score, days, compact }) {
         borderRadius: "3px",
         position: "relative",
       }}>
+        {/* Gradient track */}
         <div style={{
           position: "absolute",
           inset: 0,
@@ -129,6 +197,22 @@ function StabilityGauge({ label, score, days, compact }) {
           background: "linear-gradient(to right, #7c3aed, #6b7280, #f59e0b)",
           opacity: 0.25,
         }} />
+        {/* Ghost dot — global baseline position */}
+        {showGhost && (
+          <div style={{
+            position: "absolute",
+            left: `${((globalScore + 1) / 2) * 100}%`,
+            top: "50%",
+            width: compact ? "8px" : "10px",
+            height: compact ? "8px" : "10px",
+            borderRadius: "50%",
+            background: "#6b7280",
+            transform: "translate(-50%, -50%)",
+            border: "2px solid var(--bg-card)",
+            opacity: 0.45,
+          }} />
+        )}
+        {/* Main dot — scoped position */}
         <div style={{
           position: "absolute",
           left: `${((safeScore + 1) / 2) * 100}%`,
@@ -143,7 +227,20 @@ function StabilityGauge({ label, score, days, compact }) {
           transition: "left 0.5s ease",
         }} />
       </div>
-      {days && (
+      {/* Global comparison — non-compact only, only when ghost is visible */}
+      {showGhost && !compact && (
+        <p style={{
+          textAlign: "right",
+          fontSize: "9px",
+          fontFamily: "var(--font-mono)",
+          color: "#6b7280",
+          marginTop: "4px",
+          opacity: 0.7,
+        }}>
+          global {globalScore > 0 ? "+" : ""}{globalScore.toFixed(2)}
+        </p>
+      )}
+      {days && !showGhost && (
         <p style={{
           textAlign: "center",
           fontSize: "10px",
@@ -158,8 +255,17 @@ function StabilityGauge({ label, score, days, compact }) {
   );
 }
 
-export default function StatsSidebar({ stats, onTopicClick }) {
+export default function StatsSidebar({ stats, filters = {}, onTopicClick, onClearScopingFilters }) {
   if (!stats) return null;
+
+  const isFiltered    = hasScopingFilter(filters);
+  const scopeLabel    = isFiltered ? buildScopeLabel(filters) : "";
+
+  // Build global-by-place lookup for ghost dots
+  const globalByPlace = {};
+  (stats.global_sentiment_by_place ?? []).forEach((r) => {
+    globalByPlace[r.place] = r.avg_score;
+  });
 
   const sectionTitle = () => ({
     fontSize: "10px",
@@ -171,59 +277,144 @@ export default function StatsSidebar({ stats, onTopicClick }) {
     fontWeight: 500,
   });
 
+  const MIN_CAMP_N = 5; // minimum articles to show Taiwan-by-camp gauges
+
   return (
     <div>
       {/* Strait Watch */}
       <div style={{ marginBottom: "28px" }}>
-        <h3 style={sectionTitle()}>Strait Watch</h3>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "14px",
+        }}>
+          <h3 style={{ ...sectionTitle(), marginBottom: 0 }}>Strait Watch</h3>
 
-        <StabilityGauge
-          label="Overall"
-          score={stats.avg_sentiment_score}
-          days={stats.period_days}
-        />
-
-        {[...(stats.sentiment_by_place ?? [])].sort((a, b) => {
-            const order = { PRC: 0, TW: 1 };
-            return (order[a.place] ?? 2) - (order[b.place] ?? 2);
-          }).map((c) => (
-          <StabilityGauge
-            key={c.place}
-            label={
-              c.place === "PRC" ? "PRC Sources" :
-              c.place === "TW" ? "Taiwan Sources" :
-              c.place === "HK" || c.place === "MO" ? "HK/Macao Sources" :
-              "International Sources"
-            }
-            score={c.avg_score}
-          />
-        ))}
-
-        {stats.sentiment_by_bias?.length > 0 && (
-          <>
+          {/* Scope chip — visible only when a scoping filter is active */}
+          {isFiltered && (
             <div style={{
-              fontSize: "10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "rgba(26,122,109,0.1)",
+              border: "1px solid rgba(26,122,109,0.35)",
+              borderRadius: "3px",
+              padding: "3px 8px",
+              fontSize: "9px",
               fontFamily: "var(--font-mono)",
-              color: "var(--text-muted)",
+              color: "var(--accent-teal)",
               textTransform: "uppercase",
-              letterSpacing: "1.5px",
-              marginTop: "12px",
-              marginBottom: "8px",
+              letterSpacing: "0.5px",
+              maxWidth: "160px",
             }}>
-              Taiwan by camp
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {scopeLabel}
+              </span>
+              <button
+                onClick={onClearScopingFilters}
+                title="Clear scope filters"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--accent-teal)",
+                  padding: 0,
+                  fontSize: "11px",
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  opacity: 0.8,
+                }}
+              >
+                ×
+              </button>
             </div>
-            {stats.sentiment_by_bias.map((b) => (
+          )}
+        </div>
+
+        {/* Overall gauge */}
+        {isFiltered && stats.total_articles === 0 ? (
+          <div style={{
+            background: "var(--bg-card)",
+            border: "1px solid var(--border-color)",
+            borderRadius: "3px",
+            padding: "20px 16px",
+            marginBottom: "8px",
+            textAlign: "center",
+            fontSize: "11px",
+            fontFamily: "var(--font-mono)",
+            color: "var(--text-muted)",
+          }}>
+            No articles match this scope
+          </div>
+        ) : (
+          <>
+            <StabilityGauge
+              label="Overall"
+              score={stats.avg_sentiment_score}
+              days={isFiltered ? null : stats.period_days}
+              globalScore={isFiltered ? stats.global_avg_sentiment_score : undefined}
+            />
+
+            {[...(stats.sentiment_by_place ?? [])].sort((a, b) => {
+                const order = { PRC: 0, TW: 1 };
+                return (order[a.place] ?? 2) - (order[b.place] ?? 2);
+              }).map((c) => (
               <StabilityGauge
-                key={b.bias}
+                key={c.place}
                 label={
-                  b.bias === "green" ? "Green" :
-                  b.bias === "green_leaning" ? "Green-leaning" :
-                  b.bias === "blue" ? "Blue" : b.bias
+                  c.place === "PRC" ? "PRC Sources" :
+                  c.place === "TW"  ? "Taiwan Sources" :
+                  c.place === "HK" || c.place === "MO" ? "HK/Macao Sources" :
+                  "International Sources"
                 }
-                score={b.avg_score}
-                compact
+                score={c.avg_score}
+                globalScore={isFiltered ? (globalByPlace[c.place] ?? undefined) : undefined}
               />
             ))}
+
+            {/* Taiwan by camp — hidden under low N */}
+            {stats.sentiment_by_bias?.length > 0 && (
+              <>
+                <div style={{
+                  fontSize: "10px",
+                  fontFamily: "var(--font-mono)",
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "1.5px",
+                  marginTop: "12px",
+                  marginBottom: "8px",
+                }}>
+                  Taiwan by camp
+                </div>
+                {stats.sentiment_by_bias.every((b) => (b.count ?? 0) < MIN_CAMP_N) ? (
+                  <div style={{
+                    fontSize: "10px",
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-muted)",
+                    padding: "8px 0",
+                  }}>
+                    Insufficient sample
+                    {" (n=" + stats.sentiment_by_bias.reduce((s, b) => s + (b.count ?? 0), 0) + ")"}
+                  </div>
+                ) : (
+                  stats.sentiment_by_bias.map((b) => (
+                    (b.count ?? 0) >= MIN_CAMP_N && (
+                      <StabilityGauge
+                        key={b.bias}
+                        label={
+                          b.bias === "green"         ? "Green" :
+                          b.bias === "green_leaning" ? "Green-leaning" :
+                          b.bias === "blue"          ? "Blue" : b.bias
+                        }
+                        score={b.avg_score}
+                        compact
+                      />
+                    )
+                  ))
+                )}
+              </>
+            )}
           </>
         )}
       </div>
@@ -234,11 +425,13 @@ export default function StatsSidebar({ stats, onTopicClick }) {
         days={stats.period_days}
       />
 
-      {/* Topic Breakdown Chart */}
-      <TopicBreakdownChart
-        data={stats.topics}
-        onTopicClick={onTopicClick}
-      />
+      {/* Topic Breakdown Chart — hidden when a topic filter is active (one bar = useless) */}
+      {!filters.topic && (
+        <TopicBreakdownChart
+          data={stats.topics}
+          onTopicClick={onTopicClick}
+        />
+      )}
 
       {/* Source Health */}
       <div style={{ marginBottom: "28px" }}>

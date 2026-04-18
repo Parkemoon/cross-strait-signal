@@ -126,9 +126,9 @@ CLASSIFICATION RULES:
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
 
 
-def generate_dynamic_glossary(content: str) -> str:
-    """Scan article text against master glossary, return only matched terms."""
-    found = {zh: en for zh, en in _MASTER_GLOSSARY.items() if zh in content}
+def generate_dynamic_glossary(content: str, title: str = "") -> str:
+    """Scan article text and title against master glossary, return only matched terms."""
+    found = {zh: en for zh, en in _MASTER_GLOSSARY.items() if zh in content or zh in title}
     if not found:
         return ""
     lines = [f"- {zh} MUST be translated as: {en}" for zh, en in found.items()]
@@ -142,7 +142,7 @@ def generate_dynamic_glossary(content: str) -> str:
 
 def analyse_article(title, content, language, source_name):
     """Send one article to Gemini and return structured analysis."""
-    glossary_block = generate_dynamic_glossary(content)
+    glossary_block = generate_dynamic_glossary(content, title)
     prompt = f"""{ANALYSIS_SYSTEM_PROMPT}{glossary_block}
 
 SOURCE: {source_name}
@@ -366,7 +366,7 @@ def process_unanalysed_articles(limit=10):
                     lite_topic = analysis.get('topic_primary')
                     lite_confidence = analysis.get('confidence', 1.0)
 
-                    escalation_glossary = generate_dynamic_glossary(article['content_original'])
+                    escalation_glossary = generate_dynamic_glossary(article['content_original'], title)
                     review = client.models.generate_content(
                         model="gemini-2.5-flash",
                         contents=f"""{ANALYSIS_SYSTEM_PROMPT}{escalation_glossary}
