@@ -47,6 +47,7 @@ export default function App() {
       source_place: filters.source_place,
       urgency: filters.urgency,
       escalation_only: filters.escalation_only,
+      entity: filters.entity,
     }).then(setStats);
     fetch("/review/stats")
       .then((r) => r.json())
@@ -56,7 +57,7 @@ export default function App() {
       })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.topic, filters.source_place, filters.urgency, filters.escalation_only]);
+  }, [filters.topic, filters.source_place, filters.urgency, filters.escalation_only, filters.entity]);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
@@ -286,6 +287,7 @@ export default function App() {
                 delete next.source_place;
                 delete next.urgency;
                 delete next.escalation_only;
+                delete next.entity;
                 return next;
               });
               setPage(1);
