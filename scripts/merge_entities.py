@@ -115,19 +115,34 @@ def print_cluster(etype, cluster, indent="  "):
 
 
 def prompt_canonical(cluster):
-    """Return index (0-based) of canonical choice, or 'skip' / 'quit'."""
+    """Return (canonical_name, variants) tuple, or the strings 'skip' / 'quit'.
+
+    Accepts:
+      - A number (1-N): pick that cluster member as canonical
+      - Free text:      use as a custom canonical name (merges all cluster members into it)
+      - s / skip:       skip this cluster
+      - q / quit:       commit progress and exit
+    """
     n = len(cluster)
     while True:
-        choice = input(f"Canonical? [1-{n}, s=skip, q=quit]: ").strip().lower()
-        if choice in ('s', 'skip'):
+        raw = input(f"Canonical? [1-{n}, free text, s=skip, q=quit]: ").strip()
+        low = raw.lower()
+        if low in ('s', 'skip'):
             return 'skip'
-        if choice in ('q', 'quit'):
+        if low in ('q', 'quit'):
             return 'quit'
-        if choice.isdigit():
-            idx = int(choice) - 1
+        if raw.isdigit():
+            idx = int(raw) - 1
             if 0 <= idx < n:
-                return idx
-        print(f"  Enter 1-{n}, s, or q.")
+                canonical = cluster[idx][0]
+                variants  = [name for i, (name, _) in enumerate(cluster) if i != idx]
+                return canonical, variants
+            print(f"  Enter 1-{n}, free text, s, or q.")
+        elif raw:
+            # Free-text canonical — merge all cluster members into it
+            canonical = raw
+            variants  = [name for name, _ in cluster]
+            return canonical, variants
 
 
 def confirm(prompt: str) -> bool:
@@ -192,20 +207,20 @@ def main():
     for etype, cluster in clusters:
         print()
         print_cluster(etype, cluster)
-        choice = prompt_canonical(cluster)
-        if choice == 'quit':
+        result = prompt_canonical(cluster)
+        if result == 'quit':
             print("Quitting — committing work done so far.")
             break
-        if choice == 'skip':
+        if result == 'skip':
             continue
 
-        canonical_name, canonical_cnt = cluster[choice]
-        variants = [name for i, (name, _) in enumerate(cluster) if i != choice]
+        canonical_name, variants = result
 
         print(f"\n  Will update:")
         for variant in variants:
-            variant_cnt = next(c for n, c in cluster if n == variant)
-            print(f"    '{variant}' → '{canonical_name}'  ({variant_cnt} row{'s' if variant_cnt != 1 else ''})")
+            mention_lookup = {name: cnt for name, cnt in cluster}
+            cnt = mention_lookup.get(variant, '?')
+            print(f"    '{variant}' → '{canonical_name}'  ({cnt} row{'s' if cnt != 1 else ''})")
 
         if not confirm("  Proceed?"):
             print("  Skipped.")
