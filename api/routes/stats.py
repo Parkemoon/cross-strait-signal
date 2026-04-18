@@ -14,9 +14,10 @@ except Exception:
     _KEY_FIGURES = []
 
 
-def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation_only=False):
+def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation_only=False, entity=None):
     """Return (extra_sql, params) to scope WHERE clauses.
-    Assumes articles aliased 'a', ai_analysis 'ai', sources 's'."""
+    Assumes articles aliased 'a', ai_analysis 'ai', sources 's'.
+    Entity uses an EXISTS subquery on entities — no JOIN required on outer query."""
     clauses = []
     params = []
     if topic:
@@ -36,6 +37,13 @@ def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation
         params.append(urgency)
     if escalation_only:
         clauses.append("ai.is_escalation_signal = 1")
+    if entity:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM entities e "
+            "WHERE e.article_id = a.id "
+            "AND (e.entity_name_en LIKE ? OR e.entity_name LIKE ?))"
+        )
+        params.extend([f"%{entity}%", f"%{entity}%"])
     extra_sql = (" AND " + " AND ".join(clauses)) if clauses else ""
     return extra_sql, params
 
@@ -47,12 +55,13 @@ def dashboard_stats(
     source_place: str = Query(None),
     urgency: str = Query(None),
     escalation_only: bool = Query(False),
+    entity: str = Query(None),
 ):
     """Dashboard summary statistics. Sentiment gauges scope to active filters."""
     conn = get_db()
 
     VISIBLE = "a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
-    filter_extra, filter_params = _build_filter_clause(topic, source_place, urgency, escalation_only)
+    filter_extra, filter_params = _build_filter_clause(topic, source_place, urgency, escalation_only, entity)
     has_filter = bool(filter_extra)
 
     # ── Global (unfiltered) aggregations — always computed ────────────────
@@ -260,6 +269,7 @@ def dashboard_stats(
             "source_place": source_place,
             "urgency": urgency,
             "escalation_only": escalation_only,
+            "entity": entity,
         } if has_filter else None,
         "topics": [dict(t) for t in topics],
         "sentiments": [dict(s) for s in sentiments],

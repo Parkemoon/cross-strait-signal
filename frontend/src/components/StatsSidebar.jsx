@@ -102,6 +102,7 @@ function buildScopeLabel(filters) {
   if (filters.source_place) parts.push(PLACE_SHORT[filters.source_place.toLowerCase()] || filters.source_place);
   if (filters.urgency)      parts.push(URGENCY_SHORT[filters.urgency] || filters.urgency);
   if (filters.escalation_only) parts.push("Escalation");
+  if (filters.entity)       parts.push(filters.entity);
   return parts.join(" · ");
 }
 
@@ -110,7 +111,8 @@ function hasScopingFilter(filters) {
     filters.topic ||
     filters.source_place ||
     filters.urgency ||
-    filters.escalation_only
+    filters.escalation_only ||
+    filters.entity
   );
 }
 
