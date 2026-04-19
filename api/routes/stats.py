@@ -167,13 +167,13 @@ def dashboard_stats(
 
     # Top entities — always global
     top_entities = conn.execute(f"""
-        SELECT e.entity_name_en, e.entity_type, COUNT(*) as mentions
+        SELECT MIN(e.entity_name_en) as entity_name_en, e.entity_type, COUNT(*) as mentions
         FROM entities e
         JOIN articles a ON e.article_id = a.id
         JOIN ai_analysis ai ON ai.article_id = a.id
         WHERE a.published_at >= datetime('now', ?)
           AND {VISIBLE}
-        GROUP BY e.entity_name_en
+        GROUP BY LOWER(e.entity_name_en), e.entity_type
         ORDER BY mentions DESC
         LIMIT 15
     """, (f'-{days} days',)).fetchall()

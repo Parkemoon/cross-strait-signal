@@ -10,6 +10,37 @@ _GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
 with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
     _MASTER_GLOSSARY = json.load(_f)
 
+_CANONICAL_PATH = os.path.join(os.path.dirname(__file__), 'entity_canonical.json')
+with open(_CANONICAL_PATH, encoding='utf-8') as _f:
+    _CANONICAL_ENTITIES = json.load(_f)
+
+
+def _normalise_entity_name(entity):
+    """Override entity name_en with the canonical English form if the Chinese
+    name matches an entry in entity_canonical.json. Substring matching handles
+    cases where the AI returns a longer form (e.g. 中國人民解放軍 matching 解放軍).
+    Only keys with 2+ characters are used for substring matching to avoid
+    false positives from single-character suffixes.
+    Also normalises whitespace and fixes all-lowercase names (AI slip)."""
+    zh_name = entity.get('name', '')
+    if not zh_name:
+        return entity
+
+    # Canonical map lookup
+    for zh, en in _CANONICAL_ENTITIES.items():
+        if len(zh) < 2:
+            continue
+        if zh == zh_name or (zh in zh_name or zh_name in zh):
+            entity['name_en'] = en
+            return entity
+
+    # Normalise whitespace and fix all-lowercase names
+    name_en = ' '.join(entity.get('name_en', '').split())
+    if name_en and name_en == name_en.lower():
+        name_en = name_en.title()
+    entity['name_en'] = name_en
+    return entity
+
 _KEY_FIGURES_PATH = os.path.join(os.path.dirname(__file__), 'key_figures.json')
 try:
     with open(_KEY_FIGURES_PATH, encoding='utf-8') as _kf:
@@ -295,6 +326,7 @@ def process_unanalysed_articles(limit=10):
 
             # Insert entities
             for entity in analysis.get('entities', []):
+                entity = _normalise_entity_name(entity)
                 conn.execute("""
                     INSERT INTO entities
                     (article_id, entity_name, entity_name_en, entity_type,
