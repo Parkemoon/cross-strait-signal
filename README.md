@@ -24,6 +24,7 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 - Source bias tracking — each source tagged with editorial alignment (green / green_leaning / blue / centrist / state_official / state_nationalist)
 - Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction; lives in a persistent right-hand column
 - Key Figures panel — curated roster of 10 senior PRC and Taiwan officials; AI extracts attributed quotes and actions per figure as pending candidates, requiring analyst approval before display to prevent misattribution
+- Filter-scoped Strait Watch gauges — selecting a topic, source place, urgency, or entity scopes the sidebar sentiment gauges to that filter, with a ghost dot showing the global baseline for comparison
 - React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Key Figures panel, Social Pulse column, and review queue UI — fully responsive with mobile tab navigation
 - Two-build deployment: public read-only build (`strait-signal.net`) hides all write controls at build time; admin build (`admin.strait-signal.net`) exposes the full editorial interface
 - REST API with filtering by topic, sentiment, source place (PRC / Taiwan / HK/Macao / International), urgency, escalation status, and bilingual full-text search
@@ -72,7 +73,7 @@ FastAPI Backend
 ├── GET /api/articles/{id} — single article with full details
 ├── POST /api/articles/{id}/approve — mark article as analyst-approved for public feed
 ├── PATCH /api/articles/{id}/translation — override headline, summary, or key quote translation
-├── GET /api/stats — dashboard summary (topic breakdown, sentiment trend, entities)
+├── GET /api/stats — dashboard summary (topic breakdown, sentiment trend, entities); accepts topic/source_place/urgency/escalation_only/entity scoping params — returns scoped aggregations alongside global baselines for gauge ghost-dot comparison
 ├── GET /api/stats/entities — entity leaderboard by mention count
 ├── POST /api/notes — analyst commentary with sentiment/topic/score override
 ├── GET /api/social/ — latest Weibo top 50 + PTT trending posts
@@ -458,6 +459,8 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 - [x] China Times sections via self-hosted RSSHub (chromium-bundled)
 - [x] HK sources — RTHK Greater China, Ming Pao (Cross-Strait, Editorial, Opinion)
 - [x] International Chinese-language sources — BBC Chinese, Zaobao
+- [x] Filter-scoped Strait Watch sentiment gauges (scope chip, ghost baseline dots, entity/topic/place/urgency filtering)
+- [x] Entity name merge CLI (`scripts/merge_entities.py` — fuzzy clustering, interactive merge, free-text canonical)
 - [ ] Map layer (geocoded entity plotting)
 - [ ] ADS-B / AIS data integration (Phase 3)
 
