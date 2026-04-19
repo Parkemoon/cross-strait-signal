@@ -74,14 +74,23 @@ def dashboard_stats(
           AND {VISIBLE}
     """, (f'-{days} days',)).fetchone()
 
+    # Normalise raw s.place values into four display buckets so that
+    # UK, SG, etc. all collapse into a single 'INTL' row and HK/MO merge.
+    PLACE_BUCKET = (
+        "CASE WHEN s.place = 'PRC' THEN 'PRC' "
+        "     WHEN s.place = 'TW'  THEN 'TW' "
+        "     WHEN s.place IN ('HK','MO') THEN 'HK' "
+        "     ELSE 'INTL' END"
+    )
+
     global_sentiment_by_place = conn.execute(f"""
-        SELECT s.place, AVG(ai.sentiment_score) as avg_score
+        SELECT {PLACE_BUCKET} as place, AVG(ai.sentiment_score) as avg_score
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
         WHERE a.published_at >= datetime('now', ?)
           AND {VISIBLE}
-        GROUP BY s.place
+        GROUP BY 1
     """, (f'-{days} days',)).fetchall()
 
     # Articles by topic — always global (navigation/context, not scoped)
@@ -185,14 +194,14 @@ def dashboard_stats(
         """, (f'-{days} days', *filter_params)).fetchone()
 
         sentiment_by_place = conn.execute(f"""
-            SELECT s.place, AVG(ai.sentiment_score) as avg_score
+            SELECT {PLACE_BUCKET} as place, AVG(ai.sentiment_score) as avg_score
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= datetime('now', ?)
               AND {VISIBLE}
               {filter_extra}
-            GROUP BY s.place
+            GROUP BY 1
         """, (f'-{days} days', *filter_params)).fetchall()
 
         sentiment_by_bias = conn.execute(f"""
