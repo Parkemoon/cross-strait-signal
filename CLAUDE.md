@@ -40,6 +40,13 @@ python scripts/run_pipeline.py
 python scripts/backfill_key_figure_statements.py --days 30 --limit 200
 ```
 
+### Entity name merge (run on server to fix near-duplicate extractions)
+```bash
+python scripts/merge_entities.py --dry-run                    # survey clusters first
+python scripts/merge_entities.py --type person --threshold 0.9 # interactive merge
+```
+Flags: `--type` (person/military_unit/location/organisation/…), `--days` (default 90), `--threshold` (default 0.85), `--min-mentions` (default 2), `--dry-run`. At the canonical prompt, enter a number to pick a cluster member, free text to supply a custom name (merges all cluster members into it), `s` to skip, `q` to quit. Start with `--dry-run` and a tight threshold (`0.9`) on the server — false positives to watch for: historically distinct place variants (Beiping ≠ Beijing), different people sharing a surname initial.
+
 ### Frontend
 ```bash
 cd frontend
@@ -75,7 +82,7 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 - **Tier 3**: Human review queue — for articles where Tier 1 and Tier 2 disagree; articles stay hidden from dashboard until resolved
 - **Age filter**: `process_unanalysed_articles` only processes articles with `published_at >= datetime('now', '-180 days')` — old DB backlog never reaches the AI pipeline
 
-**Dynamic glossary injection** (`scraper/processors/glossary.json`): loaded once at module level; before each API call, article text is scanned and matching terms (politicians, military assets, institutions in both Simplified and Traditional Chinese) are injected as a `CRITICAL TERMINOLOGY MAPPING` block to prevent romanisation hallucinations. Add new terms to `glossary.json` without touching Python.
+**Dynamic glossary injection** (`scraper/processors/glossary.json`): loaded once at module level; before each API call, both the article title and body text are scanned (`generate_dynamic_glossary(content, title)`) and matching terms (politicians, military assets, institutions in both Simplified and Traditional Chinese) are injected as a `CRITICAL TERMINOLOGY MAPPING` block to prevent romanisation hallucinations. Add new terms to `glossary.json` without touching Python. Always add both Traditional and Simplified Chinese forms for the same term.
 
 **Key figure statement extraction**: Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `scraper/processors/key_figures.json` — 10 figures with Chinese/English names, roles, party field (DPP/KMT/PRC), portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — this is intentional to prevent misattribution.
 
@@ -136,7 +143,7 @@ SQLite with FTS5 full-text search. Key tables:
 
 ### API Layer (`api/routes/`)
 - `articles.py`: GET `/api/articles` (9 filter params including `include_pending`), cluster, hide, signal, approve, translation endpoints. `include_pending=true` skips the `analyst_approved=1` filter — admin frontend always sends this; public build never does. `POST /api/articles/{id}/approve` sets `analyst_approved=1`. `PATCH /api/articles/{id}/translation` updates `title_en_override`, `summary_en_override`, `key_quote_override`. `source_place` filter: `PRC`/`TW` map to exact `s.place` match; `hk` maps to `s.place IN ('HK', 'MO')`; `intl` maps to `s.place NOT IN ('PRC', 'TW', 'HK', 'MO')`.
-- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`. **All aggregation queries must include the `VISIBLE` constant** defined at the top of `dashboard_stats()`: `a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)`.
+- `stats.py`: dashboard aggregations, entity leaderboard; escalation signals use a 24h window; Key Figures endpoints — `GET /api/stats/key-figures` (approved statements only), `GET /api/stats/key-figures/candidates` (pending grouped by figure), `POST /api/stats/key-figures/statements/{id}/approve`, `POST /api/stats/key-figures/statements/{id}/dismiss`. **All aggregation queries must include the `VISIBLE` constant** defined at the top of `dashboard_stats()`: `a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)`. `dashboard_stats()` accepts optional scoping params (`topic`, `source_place`, `urgency`, `escalation_only`, `entity`) built via `_build_filter_clause()` — when active, sentiment aggregations scope to those filters while topics/sources/entities/escalation signals stay global. The response always includes `global_avg_sentiment_score` and `global_sentiment_by_place` for ghost-dot comparison in the sidebar. `sentiment_by_place` normalises raw `s.place` values into four display buckets (PRC/TW/HK/INTL) via a `PLACE_BUCKET` SQL CASE expression — never group by raw `s.place` in this query or you'll get duplicate rows for UK, SG, etc.
 - `notes.py`: CRUD for analyst notes with AI override support
 - `review.py`: review queue — confirm / override / dismiss. Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
 - `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
@@ -147,7 +154,7 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `ArticleCard.jsx`: article display with inline sentiment/topic override and analyst notes; `onSignalOff` prop for FlashTraffic removal; `onApprove` callback for pending count updates. Unapproved articles (`analyst_approved=0`) show an amber left border and "⚠ Pending Approval" banner with Approve/Dismiss buttons (admin only). `FieldEditor` component handles inline editing of `title_en_override`, `summary_en_override`, `key_quote_override` — pencil icon reveals textarea; overridden fields render in amber.
 - `ReviewQueue.js`: human review UI with translation editing fields (headline, summary, key quote) always visible — changed fields saved via `updateArticleTranslation` before resolving. Confirm/override auto-approves the article.
 - `SignalCharts.jsx`: sentiment trend (Y-axis clamped to `[-1, 1]`, single YAxis) + topic breakdown charts.
-- `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → HK/Macao → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`). Sources section groups feeds by publication via `PUBLICATION_NAMES` map — when adding new multi-feed sources, add entries there too.
+- `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → HK/Macao → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`); camp gauges hidden below n=5 articles to avoid noise. Accepts `filters`, `onTopicClick`, and `onClearScopingFilters` props from `App.js`. When a scoping filter is active, a teal chip appears above "Strait Watch" with a dismissable `×`; each gauge shows a grey ghost dot at the global baseline position (only when scoped score differs by >0.01). `TopicBreakdownChart` hides when `filters.topic` is set (one bar is useless) but stays visible under entity-only filters. `fetchStats` in `api.js` accepts a `filters` object; the stats `useEffect` in `App.js` re-fires only on scoping key changes (`topic`, `source_place`, `urgency`, `escalation_only`, `entity`) — not on `search` or `sentiment`. Sources section groups feeds by publication via `PUBLICATION_NAMES` map — when adding new multi-feed sources, add entries there too.
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
 - `SocialPulse.jsx`: accepts `column` prop — in column mode (right-hand aside in App.js) always expanded, vertical stack layout; in default inline mode, collapsible with two-column Weibo/PTT panel. Weibo shows only cross-strait relevant items. Inline translation correction via pencil icon (hidden in read-only build). Override colour highlight is also hidden in read-only build.
 - `KeyFigures.jsx`: horizontal scrollable row of cards above SocialPulse; each card shows portrait (images in `frontend/public/figures/`, initials fallback with party colour), name, role, latest approved statement; pencil icon (amber when candidates pending) opens per-card curation modal; hidden in read-only build via `READ_ONLY` constant
@@ -229,7 +236,7 @@ GEMINI_API_KEY=your_key_here
 
 **Active HK sources**: RTHK Greater China (state_official — post-NSL government-controlled), Ming Pao Cross-Strait/Editorial/Opinion (centrist)
 
-**Active international sources**: Zaobao Cross-Strait (SG, centrist), BBC Chinese (UK, centrist)
+**Active international sources**: Zaobao Cross-Strait (SG, centrist), BBC Chinese (UK, centrist). BBC Chinese articles are stored with only the RSS `<description>` summary — the full article page is Next.js client-side rendered and yields no extractable text via BeautifulSoup. This is sufficient for keyword filtering and AI analysis.
 
 ## Important Behaviors
 
