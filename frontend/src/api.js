@@ -13,7 +13,7 @@ export async function fetchArticle(id) {
 
 export async function fetchStats(days = 7, filters = {}) {
   const params = new URLSearchParams({ days });
-  const SCOPING_KEYS = ["topic", "source_place", "urgency", "escalation_only", "entity"];
+  const SCOPING_KEYS = ["topic", "source_place", "source_name", "bias", "urgency", "escalation_only", "entity"];
   SCOPING_KEYS.forEach((k) => {
     if (filters[k] !== undefined && filters[k] !== "" && filters[k] !== false) {
       params.append(k, filters[k]);

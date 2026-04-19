@@ -52,6 +52,29 @@ const BIAS_COLORS = {
   centrist:          "#6b7280",
 };
 
+// Maps publication display name → DB source name prefix for API filtering
+const SOURCE_FILTER = {
+  "Liberty Times":      "LTN",
+  "CNA":                "CNA",
+  "United Daily News":  "UDN",
+  "China Times":        "CT",
+  "Youth Daily News":   "YDN",
+  "Xinhua":             "Xinhua",
+  "People's Daily":     "People's Daily",
+  "China News Service": "China News Service",
+  "Global Times":       "Global Times",
+  "The Paper":          "The Paper",
+  "MFA Spokesperson":   "PRC MFA",
+  "Taiwan Affairs Office": "Taiwan Affairs Office",
+  "Guancha":            "Guancha",
+  "Haixia Daobao":      "Haixia Daobao",
+  "PLA Daily":          "PLA Daily",
+  "Zaobao":             "Zaobao",
+  "BBC Chinese":        "BBC Chinese",
+  "RTHK":               "RTHK",
+  "Ming Pao":           "Ming Pao",
+};
+
 // Short labels for scope chip — matches FilterBar display values
 const TOPIC_SHORT = {
   MIL_EXERCISE:    "Mil Exercise",
@@ -96,10 +119,21 @@ const URGENCY_SHORT = {
   routine:  "Routine",
 };
 
+const BIAS_SHORT = {
+  green:         "Green camp",
+  green_leaning: "Green-leaning",
+  blue:          "Blue camp",
+};
+
 function buildScopeLabel(filters) {
   const parts = [];
   if (filters.topic)        parts.push(TOPIC_SHORT[filters.topic]   || filters.topic);
   if (filters.source_place) parts.push(PLACE_SHORT[filters.source_place.toLowerCase()] || filters.source_place);
+  if (filters.source_name) {
+    const displayName = Object.entries(SOURCE_FILTER).find(([, v]) => v === filters.source_name)?.[0] ?? filters.source_name;
+    parts.push(displayName);
+  }
+  if (filters.bias)         parts.push(BIAS_SHORT[filters.bias] || filters.bias);
   if (filters.urgency)      parts.push(URGENCY_SHORT[filters.urgency] || filters.urgency);
   if (filters.escalation_only) parts.push("Escalation");
   if (filters.entity)       parts.push(filters.entity);
@@ -110,6 +144,8 @@ function hasScopingFilter(filters) {
   return !!(
     filters.topic ||
     filters.source_place ||
+    filters.source_name ||
+    filters.bias ||
     filters.urgency ||
     filters.escalation_only ||
     filters.entity
@@ -129,7 +165,7 @@ function groupSources(sources) {
   return Object.values(map).sort((a, b) => b.count - a.count);
 }
 
-function StabilityGauge({ label, score, days, compact, globalScore }) {
+function StabilityGauge({ label, score, days, compact, globalScore, onClick, isActive }) {
   const safeScore  = score ?? 0;
   const color = safeScore > 0.3
     ? "#f59e0b"
@@ -143,13 +179,19 @@ function StabilityGauge({ label, score, days, compact, globalScore }) {
                     Math.abs(globalScore - safeScore) > 0.01;
 
   return (
-    <div style={{
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-color)",
-      borderRadius: "3px",
-      padding: compact ? "10px 12px" : "14px 16px",
-      marginBottom: "8px",
-    }}>
+    <div
+      onClick={onClick}
+      title={onClick ? `Filter by ${label}` : undefined}
+      style={{
+        background: "var(--bg-card)",
+        border: isActive ? `1px solid ${color}` : "1px solid var(--border-color)",
+        borderRadius: "3px",
+        padding: compact ? "10px 12px" : "14px 16px",
+        marginBottom: "8px",
+        cursor: onClick ? "pointer" : "default",
+        transition: "border-color 0.15s",
+      }}
+    >
       <div style={{
         display: "flex",
         justifyContent: "space-between",
@@ -257,7 +299,7 @@ function StabilityGauge({ label, score, days, compact, globalScore }) {
   );
 }
 
-export default function StatsSidebar({ stats, filters = {}, onTopicClick, onClearScopingFilters }) {
+export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters }) {
   if (!stats) return null;
 
   const isFiltered    = hasScopingFilter(filters);
@@ -356,24 +398,35 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onClea
               score={stats.avg_sentiment_score}
               days={isFiltered ? null : stats.period_days}
               globalScore={isFiltered ? stats.global_avg_sentiment_score : undefined}
+              onClick={filters.source_place && onPlaceClick ? () => onPlaceClick(null) : undefined}
+              isActive={false}
             />
 
             {[...(stats.sentiment_by_place ?? [])].sort((a, b) => {
                 const order = { PRC: 0, TW: 1, HK: 2, INTL: 3 };
                 return (order[a.place] ?? 4) - (order[b.place] ?? 4);
-              }).map((c) => (
-              <StabilityGauge
-                key={c.place}
-                label={
+              }).map((c) => {
+                const placeKey =
+                  c.place === "PRC"  ? "PRC" :
+                  c.place === "TW"   ? "TW" :
+                  c.place === "HK"   ? "hk" :
+                  "intl";
+                const placeLabel =
                   c.place === "PRC"  ? "PRC Sources" :
                   c.place === "TW"   ? "Taiwan Sources" :
                   c.place === "HK"   ? "HK/Macao Sources" :
-                  "International Sources"
-                }
-                score={c.avg_score}
-                globalScore={isFiltered ? (globalByPlace[c.place] ?? undefined) : undefined}
-              />
-            ))}
+                  "International Sources";
+                return (
+                  <StabilityGauge
+                    key={c.place}
+                    label={placeLabel}
+                    score={c.avg_score}
+                    globalScore={isFiltered ? (globalByPlace[c.place] ?? undefined) : undefined}
+                    onClick={onPlaceClick ? () => onPlaceClick(placeKey) : undefined}
+                    isActive={filters.source_place === placeKey}
+                  />
+                );
+              })}
 
             {/* Taiwan by camp — hidden under low N */}
             {stats.sentiment_by_bias?.length > 0 && (
@@ -411,6 +464,8 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onClea
                         }
                         score={b.avg_score}
                         compact
+                        onClick={onBiasClick ? () => onBiasClick(b.bias) : undefined}
+                        isActive={filters.bias === b.bias}
                       />
                     )
                   ))
@@ -444,45 +499,55 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onClea
           borderRadius: "3px",
           padding: "12px 16px",
         }}>
-          {groupSources(stats.sources ?? []).map((s, i, arr) => (
-            <div
-              key={s.name}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "5px 0",
-                borderBottom: i < arr.length - 1
-                  ? "1px solid var(--border-color)"
-                  : "none",
-              }}
-            >
-              <span style={{
-                fontSize: "13px",
-                fontFamily: "var(--font-body)",
-                color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}>
+          {groupSources(stats.sources ?? []).map((s, i, arr) => {
+            const dbPrefix = SOURCE_FILTER[s.name];
+            const isActive = dbPrefix && filters.source_name === dbPrefix;
+            return (
+              <div
+                key={s.name}
+                onClick={onSourceClick && dbPrefix ? () => onSourceClick(dbPrefix, s.name) : undefined}
+                title={onSourceClick && dbPrefix ? `Filter by ${s.name}` : undefined}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: isActive ? "5px 16px" : "5px 0",
+                  borderBottom: i < arr.length - 1
+                    ? "1px solid var(--border-color)"
+                    : "none",
+                  cursor: onSourceClick && dbPrefix ? "pointer" : "default",
+                  background: isActive ? "var(--bg-secondary)" : "transparent",
+                  margin: isActive ? "0 -16px" : undefined,
+                  borderRadius: isActive ? "2px" : undefined,
+                }}
+              >
                 <span style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: BIAS_COLORS[s.bias] || "#6b7280",
-                  display: "inline-block",
-                }} />
-                {s.name}
-              </span>
-              <span style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "12px",
-                color: "var(--text-muted)",
-              }}>
-                {s.count}
-              </span>
-            </div>
-          ))}
+                  fontSize: "13px",
+                  fontFamily: "var(--font-body)",
+                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}>
+                  <span style={{
+                    width: "8px",
+                    height: "8px",
+                    borderRadius: "50%",
+                    background: BIAS_COLORS[s.bias] || "#6b7280",
+                    display: "inline-block",
+                  }} />
+                  {s.name}
+                </span>
+                <span style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "12px",
+                  color: "var(--text-muted)",
+                }}>
+                  {s.count}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -495,43 +560,53 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onClea
           borderRadius: "3px",
           padding: "12px 16px",
         }}>
-          {stats.top_entities?.slice(0, 10).map((e, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "4px 0",
-                borderBottom: i < Math.min(stats.top_entities.length, 10) - 1
-                  ? "1px solid var(--border-color)"
-                  : "none",
-              }}
-            >
-              <span style={{
-                fontSize: "13px",
-                fontFamily: "var(--font-body)",
-                color: "var(--text-secondary)",
-              }}>
-                {e.entity_name_en}
+          {stats.top_entities?.slice(0, 10).map((e, i) => {
+            const isActive = filters.entity && e.entity_name_en &&
+              e.entity_name_en.toLowerCase().includes(filters.entity.toLowerCase());
+            return (
+              <div
+                key={i}
+                onClick={onEntityClick ? () => onEntityClick(e.entity_name_en) : undefined}
+                title={onEntityClick ? `Filter by ${e.entity_name_en}` : undefined}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: isActive ? "4px 16px" : "4px 0",
+                  borderBottom: i < Math.min(stats.top_entities.length, 10) - 1
+                    ? "1px solid var(--border-color)"
+                    : "none",
+                  cursor: onEntityClick ? "pointer" : "default",
+                  background: isActive ? "var(--bg-secondary)" : "transparent",
+                  margin: isActive ? "0 -16px" : undefined,
+                  borderRadius: isActive ? "2px" : undefined,
+                }}
+              >
                 <span style={{
-                  fontSize: "10px",
-                  color: "var(--text-muted)",
-                  fontFamily: "var(--font-mono)",
-                  marginLeft: "6px",
+                  fontSize: "13px",
+                  fontFamily: "var(--font-body)",
+                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
                 }}>
-                  {e.entity_type}
+                  {e.entity_name_en}
+                  <span style={{
+                    fontSize: "10px",
+                    color: "var(--text-muted)",
+                    fontFamily: "var(--font-mono)",
+                    marginLeft: "6px",
+                  }}>
+                    {e.entity_type}
+                  </span>
                 </span>
-              </span>
-              <span style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "12px",
-                color: "var(--text-muted)",
-              }}>
-                {e.mentions}
-              </span>
-            </div>
-          ))}
+                <span style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "12px",
+                  color: "var(--text-muted)",
+                }}>
+                  {e.mentions}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -31,6 +31,8 @@ def list_articles(
     topic: Optional[str] = Query(None, description="Filter by topic code, e.g. MIL_EXERCISE"),
     sentiment: Optional[str] = Query(None, description="hostile, cooperative, neutral, mixed"),
     source_place: Optional[str] = Query(None, description="PRC or TW"),
+    source_name: Optional[str] = Query(None, description="Filter by source name prefix, e.g. LTN"),
+    bias: Optional[str] = Query(None, description="Filter by source bias, e.g. green, blue"),
     urgency: Optional[str] = Query(None, description="flash, priority, routine"),
     escalation_only: bool = Query(False, description="Only show escalation signals"),
     search: Optional[str] = Query(None, description="Search in titles and content"),
@@ -72,6 +74,14 @@ def list_articles(
         else:
             where_clauses.append("s.place = ?")
             params.append(source_place)
+
+    if source_name:
+        where_clauses.append("s.name LIKE ?")
+        params.append(f"{source_name}%")
+
+    if bias:
+        where_clauses.append("s.bias = ?")
+        params.append(bias)
 
     if urgency:
         where_clauses.append("ai.urgency = ?")

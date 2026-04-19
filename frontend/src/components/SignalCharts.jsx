@@ -225,12 +225,6 @@ export function TopicBreakdownChart({ data, onTopicClick }) {
             data={formatted}
             layout="vertical"
             margin={{ top: 0, right: 40, bottom: 0, left: 4 }}
-            onClick={(data) => {
-              if (data?.activePayload?.[0] && onTopicClick) {
-                onTopicClick(data.activePayload[0].payload.topic);
-              }
-            }}
-            style={{ cursor: onTopicClick ? "pointer" : "default" }}
           >
             <XAxis
               type="number"
@@ -270,7 +264,12 @@ export function TopicBreakdownChart({ data, onTopicClick }) {
                 );
               }}
             />
-            <Bar dataKey="count" radius={[0, 2, 2, 0]}>
+            <Bar
+              dataKey="count"
+              radius={[0, 2, 2, 0]}
+              onClick={(data) => onTopicClick && onTopicClick(data.topic)}
+              style={{ cursor: onTopicClick ? "pointer" : "default" }}
+            >
               {formatted.map((entry, i) => (
                 <Cell key={i} fill={entry.color} fillOpacity={0.8} />
               ))}
