@@ -359,15 +359,15 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onClea
             />
 
             {[...(stats.sentiment_by_place ?? [])].sort((a, b) => {
-                const order = { PRC: 0, TW: 1 };
-                return (order[a.place] ?? 2) - (order[b.place] ?? 2);
+                const order = { PRC: 0, TW: 1, HK: 2, INTL: 3 };
+                return (order[a.place] ?? 4) - (order[b.place] ?? 4);
               }).map((c) => (
               <StabilityGauge
                 key={c.place}
                 label={
-                  c.place === "PRC" ? "PRC Sources" :
-                  c.place === "TW"  ? "Taiwan Sources" :
-                  c.place === "HK" || c.place === "MO" ? "HK/Macao Sources" :
+                  c.place === "PRC"  ? "PRC Sources" :
+                  c.place === "TW"   ? "Taiwan Sources" :
+                  c.place === "HK"   ? "HK/Macao Sources" :
                   "International Sources"
                 }
                 score={c.avg_score}
