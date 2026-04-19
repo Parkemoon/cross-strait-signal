@@ -102,6 +102,20 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
         <option value="intl">International Sources</option>
       </select>
 
+      <select
+        value={filters.bias || ""}
+        onChange={(e) => update("bias", e.target.value)}
+        style={selectStyle}
+      >
+        <option value="">All Bias</option>
+        <option value="green">Green</option>
+        <option value="green_leaning">Green-leaning</option>
+        <option value="blue">Blue</option>
+        <option value="centrist">Centrist</option>
+        <option value="state_official">State (official)</option>
+        <option value="state_nationalist">State (nationalist)</option>
+      </select>
+
       {topEntities && topEntities.length > 0 && (
         <select
           value={filters.entity || ""}

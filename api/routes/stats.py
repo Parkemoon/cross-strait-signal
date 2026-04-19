@@ -14,7 +14,7 @@ except Exception:
     _KEY_FIGURES = []
 
 
-def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation_only=False, entity=None):
+def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation_only=False, entity=None, source_name=None, bias=None):
     """Return (extra_sql, params) to scope WHERE clauses.
     Assumes articles aliased 'a', ai_analysis 'ai', sources 's'.
     Entity uses an EXISTS subquery on entities — no JOIN required on outer query."""
@@ -32,6 +32,12 @@ def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation
             clauses.append("s.place IN ('HK', 'MO')")
         elif source_place.lower() == "intl":
             clauses.append("s.place NOT IN ('PRC', 'TW', 'HK', 'MO')")
+    if source_name:
+        clauses.append("s.name LIKE ?")
+        params.append(f"{source_name}%")
+    if bias:
+        clauses.append("s.bias = ?")
+        params.append(bias)
     if urgency:
         clauses.append("ai.urgency = ?")
         params.append(urgency)
@@ -56,12 +62,14 @@ def dashboard_stats(
     urgency: str = Query(None),
     escalation_only: bool = Query(False),
     entity: str = Query(None),
+    source_name: str = Query(None),
+    bias: str = Query(None),
 ):
     """Dashboard summary statistics. Sentiment gauges scope to active filters."""
     conn = get_db()
 
     VISIBLE = "a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
-    filter_extra, filter_params = _build_filter_clause(topic, source_place, urgency, escalation_only, entity)
+    filter_extra, filter_params = _build_filter_clause(topic, source_place, urgency, escalation_only, entity, source_name, bias)
     has_filter = bool(filter_extra)
 
     # ── Global (unfiltered) aggregations — always computed ────────────────

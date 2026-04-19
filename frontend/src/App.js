@@ -280,11 +280,24 @@ export default function App() {
             stats={stats}
             filters={filters}
             onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
+            onPlaceClick={(place) => {
+              setFilters((f) => {
+                const next = { ...f };
+                if (place) { next.source_place = place; } else { delete next.source_place; }
+                return next;
+              });
+              setPage(1);
+            }}
+            onSourceClick={(dbPrefix) => { setFilters((f) => ({ ...f, source_name: dbPrefix })); setPage(1); }}
+            onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
+            onBiasClick={(bias) => { setFilters((f) => ({ ...f, bias })); setPage(1); }}
             onClearScopingFilters={() => {
               setFilters((f) => {
                 const next = { ...f };
                 delete next.topic;
                 delete next.source_place;
+                delete next.source_name;
+                delete next.bias;
                 delete next.urgency;
                 delete next.escalation_only;
                 delete next.entity;
