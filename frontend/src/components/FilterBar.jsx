@@ -14,7 +14,7 @@ const TOPIC_LABELS = {
   MIL_HARDWARE:    "Hardware",
   MIL_POLICY:      "Mil. Policy",
   DIP_STATEMENT:   "Diplomacy",
-  DIP_VISIT:       "Official Visit",
+  DIP_VISIT:       "Diplomatic Visit",
   PARTY_VISIT:     "Party Visit",
   DIP_SANCTIONS:   "Sanctions",
   ARMS_SALES:      "Arms Sales",
