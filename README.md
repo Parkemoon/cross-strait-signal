@@ -60,6 +60,9 @@ Three-Tier AI Analysis Pipeline (articles only)
 ├── Tier 3: Human review queue — model disagreement resolution
 │            (translation editing + auto-approve on resolution)
 │
+Glossary injection (pre-analysis): glossary.json terms injected as CRITICAL TERMINOLOGY MAPPING
+Entity canonical normalisation (post-analysis): entity_canonical.json normalises extracted name_en fields
+│
 Editorial Approval Gate
 └── All articles held from public feed until analyst explicitly approves
 │

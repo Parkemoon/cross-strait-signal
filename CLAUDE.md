@@ -84,6 +84,8 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 
 **Dynamic glossary injection** (`scraper/processors/glossary.json`): loaded once at module level; before each API call, both the article title and body text are scanned (`generate_dynamic_glossary(content, title)`) and matching terms (politicians, military assets, institutions in both Simplified and Traditional Chinese) are injected as a `CRITICAL TERMINOLOGY MAPPING` block to prevent romanisation hallucinations. Add new terms to `glossary.json` without touching Python. Always add both Traditional and Simplified Chinese forms for the same term.
 
+**Entity canonical normalisation** (`scraper/processors/entity_canonical.json`): applied *after* AI extraction to normalise `name_en` on entity rows already written to the DB. Distinct from `glossary.json` (which is injected into the prompt *before* analysis). Covers parties, PLA branches, theater commands, and institutions in addition to named individuals. Keys ≥ 2 characters use substring matching, so `解放軍` catches the longer form `中國人民解放軍海軍`. When adding a person to `glossary.json`, add the same entry to `entity_canonical.json` too — otherwise the AI may translate their name correctly but store it under a non-canonical romanisation in the entities table.
+
 **Key figure statement extraction**: Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `scraper/processors/key_figures.json` — 10 figures with Chinese/English names, roles, party field (DPP/KMT/PRC), portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — this is intentional to prevent misattribution.
 
 **Relevance gate**: the prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. `NOT_RELEVANT` is a special pseudo-topic that exists in the DB but is not part of the 28 visible categories — it marks filtered articles and is never shown in the UI. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.
@@ -179,6 +181,8 @@ Two-script deploy pattern:
 **Live URLs**: `strait-signal.net` (public read-only) · `admin.strait-signal.net` (password protected, admin build)
 Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`.
 
+**Cron schedule**: Pipeline runs twice daily at 6am and 6pm UTC (`0 6,18 * * *`), logging to `/var/log/cross-strait-pipeline.log`.
+
 **Read-only build**: `src/readOnly.js` exports `READ_ONLY = process.env.REACT_APP_READ_ONLY === 'true'`. Import it in any component that has write controls to hide them in the public build. Build with `npm run build:public` (sets `BUILD_PATH=build-public`). Nginx blocks POST/PATCH on the public server at the nginx level.
 
 After deploying changes to `seed_sources.py`, always run `python scripts/seed_sources.py` on the server to apply source additions/deactivations.
@@ -216,6 +220,8 @@ GEMINI_API_KEY=your_key_here
 
 **CYBER**: Cyber operations, hacking, digital espionage, infrastructure intrusions — distinct from `INFO_WARFARE` (narrative/propaganda). PRC-attributed attacks on Taiwan, cross-strait cyber espionage cases, critical infrastructure intrusions.
 
+**LEGAL_GREY**: Grey-zone legal coercion below the threshold of armed conflict — coast guard confrontations, sand dredging around Taiwan's outlying islands, undersea cable incidents, quasi-military harassment using civilian or law-enforcement vessels.
+
 **SPORT**: Sporting events and disputes with cross-strait political dimensions — Olympic naming ("Chinese Taipei"), cross-strait athletic competitions, sports boycotts, sport as soft power.
 
 **SCI_TECH**: Science, technology, and innovation — semiconductor industry (TSMC, chip supply chains), chip/tech export controls as technology policy, space programmes, AI competition, scientific exchanges, tech talent flows. Use `ECON_TRADE` for broad trade sanctions; `CYBER` for intrusion operations; `ARMS_SALES` for defence hardware. `SCI_TECH` is for civilian/dual-use technology, research, and innovation as the primary subject.
@@ -247,7 +253,7 @@ GEMINI_API_KEY=your_key_here
 - The human review queue and inline analyst overrides exist because political classification requires editorial judgment — AI output is a starting point, not final word
 - Deactivating a source (`is_active=0`) preserves all its historical articles; use this instead of deleting
 - Key figure statements require **manual approval** before display — misattributing a quote to a senior political figure is a credibility-ender. Never auto-approve or bypass the `approval_status='pending'` gate.
-- When updating `glossary.json` romanisations, the old romanisation must also be added to the relevant figure's `aliases` array in `key_figures.json` — historical entity rows in the DB will still have the old name and must still resolve.
+- When updating `glossary.json` romanisations, the old romanisation must also be added to the relevant figure's `aliases` array in `key_figures.json`, and the entry must be updated in `entity_canonical.json` — historical entity rows in the DB will still have the old name and must still resolve.
 - Sentiment axis measures how an article frames the **opposing side of the strait**, not geopolitical stability. Taiwan-US military cooperation does NOT score as cross-strait cooperative — it's neutral or hostile depending on PRC framing. KMT/opposition party visits to the mainland score cooperative regardless of political symbolism.
 - Romanisation: use Wade-Giles/Tongyong for all Taiwanese entities (people, places, organisations); Hanyu Pinyin for PRC entities. Never leave a Chinese name untranslated — apply the appropriate system if no established romanisation exists.
 - Key figure party colours: PRC → red (`#dc2626`), DPP → green (`#16a34a`), KMT → blue (`#1d4ed8`), TPP → teal (`#14B8A6`). Set via `party` field in `key_figures.json`; `figureAccent()` in `KeyFigures.jsx` resolves it.
