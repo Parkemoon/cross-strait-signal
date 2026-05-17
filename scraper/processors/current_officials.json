@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-17T22:36:06Z",
+  "generated_at": "2026-05-17T23:18:28Z",
   "current": [
     {
       "role": "President of Taiwan (ROC)",
@@ -226,6 +226,14 @@
       "party": "DPP",
       "since": "2024-05-20",
       "_note": "Wikidata still shows Chiu Kuo-cheng as of 2026-05 refresh. Remove when Wikidata is updated."
+    },
+    {
+      "role": "Vice President of the Legislative Yuan (Deputy Speaker)",
+      "country": "TW",
+      "name_en": "Johnny Chiang",
+      "name_zh": "江啟臣",
+      "party": "KMT",
+      "since": "2024-02-01"
     }
   ],
   "former": [
@@ -298,7 +306,7 @@
       "country": "TW",
       "name_en": "Simon Chang",
       "name_zh": "張善政",
-      "party": "independent politician",
+      "party": "Kuomintang",
       "term": "2016-02-01 to 2016-05-20"
     },
     {
@@ -906,7 +914,7 @@
       "country": "JP",
       "name_en": "Toshimitsu Motegi",
       "name_zh": "茂木敏充",
-      "party": "Japan New Party",
+      "party": "Liberal Democratic Party",
       "term": "2019-09-11 to 2021-11-04"
     },
     {
