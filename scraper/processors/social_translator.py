@@ -84,8 +84,9 @@ def translate_social_pulse(batch_size=20):
 
         try:
             response = client.models.generate_content(
-                model='gemini-2.5-flash-lite',
+                model='gemini-3.1-flash-lite',
                 contents=prompt,
+                config={"thinking_config": {"thinking_level": "low"}},
             )
             raw = response.text.strip()
 

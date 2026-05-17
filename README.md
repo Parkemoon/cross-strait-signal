@@ -15,7 +15,7 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 
 - Scrapes ~30 active sources across PRC, Taiwan, Hong Kong, Singapore, and the UK — including RSS feeds and bespoke HTML scrapers for sites without usable feeds (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN, LTN Defence, UDN sections)
 - Directional relevance filtering — PRC/HK/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
-- Three-tier AI analysis: Google Gemini 2.5 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
+- Three-tier AI analysis: Google Gemini 3.1 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
 - Structured analytical output per article: topic classification (27 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
 - Full editorial approval gate — every article is held from the public feed until the analyst explicitly approves it, ensuring no AI translation errors or misclassifications reach readers
 - Inline translation editing on headline, summary, and key quote — corrected fields highlighted amber to distinguish human-verified text from raw AI output
@@ -55,7 +55,7 @@ Keyword Pre-filter (directional — no API calls on irrelevant articles)
 ├── TW sources: must mention PRC/mainland/HK/Macau to proceed
 │
 Three-Tier AI Analysis Pipeline (articles only)
-├── Tier 1: Gemini 2.5 Flash Lite — topic, sentiment, entities, urgency
+├── Tier 1: Gemini 3.1 Flash Lite — topic, sentiment, entities, urgency
 ├── Tier 2: Gemini 2.5 Flash — escalation review for flagged articles
 ├── Tier 3: Human review queue — model disagreement resolution
 │            (translation editing + auto-approve on resolution)
@@ -67,7 +67,7 @@ Editorial Approval Gate
 └── All articles held from public feed until analyst explicitly approves
 │
 Social Translation (separate lightweight pipeline)
-└── Gemini 2.5 Flash Lite — batch-translates Weibo/PTT titles only
+└── Gemini 3.1 Flash Lite — batch-translates Weibo/PTT titles only
 │
 Storage: SQLite with full-text search (FTS5)
 │
@@ -113,7 +113,7 @@ React Dashboard
 |-------|-----------|
 | Backend API | FastAPI (Python) |
 | Database | SQLite |
-| AI Pipeline | Google Gemini 2.5 Flash Lite + Flash |
+| AI Pipeline | Google Gemini 3.1 Flash Lite + 2.5 Flash |
 | Scraping | feedparser, BeautifulSoup, httpx |
 | Frontend | React 19, Recharts |
 | RSS proxy | RSSHub (self-hosted Docker) |
@@ -255,7 +255,7 @@ Sentiment measures **how the source frames the opposing side of the strait**, no
 
 ## Model Strategy
 
-The pipeline uses Google Gemini 2.5 Flash Lite as the default processing engine (cost-effective, strong Chinese-language performance) with Gemini 2.5 Flash for escalation review on flagged articles. DeepSeek was evaluated and rejected due to documented political censorship on cross-strait topics — it consistently refused to analyse or misclassified content involving Taiwan independence, PLA exercises, and cross-strait political dynamics.
+The pipeline uses Google Gemini 3.1 Flash Lite as the default processing engine (cost-effective, strong Chinese-language performance) with Gemini 2.5 Flash for escalation review on flagged articles. DeepSeek was evaluated and rejected due to documented political censorship on cross-strait topics — it consistently refused to analyse or misclassified content involving Taiwan independence, PLA exercises, and cross-strait political dynamics.
 
 ---
 

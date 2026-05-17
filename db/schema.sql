@@ -66,7 +66,7 @@ CREATE TABLE ai_analysis (
     review_resolved    BOOLEAN DEFAULT 0,        -- review completed
     is_hidden          BOOLEAN DEFAULT 0,        -- hidden from public feed pending review
     -- Metadata
-    model_used      TEXT NOT NULL DEFAULT 'gemini-2.5-flash-lite',
+    model_used      TEXT NOT NULL DEFAULT 'gemini-3.1-flash-lite',
     confidence      REAL,                        -- AI self-assessed confidence 0-1
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -177,7 +177,7 @@ export default function AboutModal({ onClose }) {
         {/* AI pipeline */}
         <h3 style={sectionHead}>AI pipeline & human oversight</h3>
         <p style={body}>
-          Articles pass through a three-tier pipeline: Gemini 2.5 Flash Lite handles initial
+          Articles pass through a three-tier pipeline: Gemini 3.1 Flash Lite handles initial
           classification (topic, sentiment, urgency, named entities, key quotes); Gemini 2.5 Flash
           re-reviews escalation-flagged articles; a human review queue catches cases where the two
           models disagree. Every article requires explicit analyst approval before appearing on this

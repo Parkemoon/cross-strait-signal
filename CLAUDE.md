@@ -67,7 +67,7 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 ```
 ~20 RSS/HTML sources
     → Keyword pre-filter (directional: saves ~80% API cost)
-    → Tier 1 AI: Gemini 2.5 Flash Lite (topic, sentiment, entities, urgency)
+    → Tier 1 AI: Gemini 3.1 Flash Lite (topic, sentiment, entities, urgency)
     → Tier 2 AI: Gemini 2.5 Flash (escalation review, conditional)
     → Tier 3: Human review queue (model disagreements — translation editing + auto-approve on resolve)
     → Editorial approval gate (analyst_approved=0 until sign-off; hidden from public feed)
@@ -77,7 +77,7 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 ```
 
 ### Three-Tier AI Pipeline (`scraper/processors/ai_pipeline.py`)
-- **Tier 1**: Gemini 2.5 Flash Lite — classifies all pre-filtered articles (batch limit: 500); `temperature=0.1`
+- **Tier 1**: Gemini 3.1 Flash Lite — classifies all pre-filtered articles (batch limit: 500); `temperature=0.1`, `thinking_level=medium`
 - **Tier 2**: Gemini 2.5 Flash — re-reviews only escalation-flagged articles; same temperature
 - **Tier 3**: Human review queue — for articles where Tier 1 and Tier 2 disagree; articles stay hidden from dashboard until resolved
 - **Age filter**: `process_unanalysed_articles` only processes articles with `published_at >= datetime('now', '-180 days')` — old DB backlog never reaches the AI pipeline
@@ -122,7 +122,7 @@ When adding a new HTML scraper: follow the pattern in any existing one. Register
 **Age guard**: both `rss_scraper.py` and HTML scrapers skip articles older than 180 days at insert time (`MAX_ARTICLE_AGE = timedelta(days=180)`). PLA Daily date extraction reads the Chinese date format from the article title (`(\d{4})年(\d{1,2})月(\d{1,2})日`) — do not re-introduce content-based date scraping on 81.cn (the page template contains a static date that overrides real dates).
 
 ### Social Pulse (`scraper/processors/social_translator.py`)
-Separate lightweight pipeline for social data — does NOT go through the article AI pipeline. Batch-translates `social_pulse` rows where `title_en IS NULL` using Gemini 2.5 Flash Lite. Runs as Step 2b in `run_pipeline.py` after the social scrapers.
+Separate lightweight pipeline for social data — does NOT go through the article AI pipeline. Batch-translates `social_pulse` rows where `title_en IS NULL` using Gemini 3.1 Flash Lite (`thinking_level=low`). Runs as Step 2b in `run_pipeline.py` after the social scrapers.
 
 ### Event Clustering (`scripts/cluster_events.py`)
 Groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).

@@ -186,12 +186,13 @@ FULL TEXT:
 {content[:5000]}"""
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3.1-flash-lite",
         contents=prompt,
         config={
             "response_mime_type": "application/json",
             "max_output_tokens": 8000,
-            "temperature": 0.1
+            "temperature": 0.1,
+            "thinking_config": {"thinking_level": "medium"},
         }
     )
 
@@ -322,7 +323,7 @@ def process_unanalysed_articles(limit=10):
                 analysis.get('is_new_formulation', False),
                 analysis.get('is_escalation_signal', False),
                 analysis.get('escalation_note'),
-                analysis.get('_model_used', 'gemini-2.5-flash-lite'),
+                analysis.get('_model_used', 'gemini-3.1-flash-lite'),
                 analysis.get('confidence', 0.0)
             ))
 
