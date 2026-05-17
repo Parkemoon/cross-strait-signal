@@ -208,3 +208,6 @@ __marimo__/
 
 # Databases
 db/*.db
+
+# Frontend build outputs
+frontend/build-public/
