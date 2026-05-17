@@ -49,8 +49,9 @@ CREATE TABLE ai_analysis (
     -- Classification
     topic_primary   TEXT NOT NULL,               -- see Topic Taxonomy below
     topic_secondary TEXT,                        -- optional second topic
-    sentiment       TEXT NOT NULL,               -- 'escalatory', 'conciliatory', 'neutral', 'ambiguous'
-    sentiment_score REAL,                        -- -1.0 (strongly conciliatory) to +1.0 (strongly escalatory)
+    sentiment       TEXT NOT NULL,               -- 'hostile', 'cooperative', 'neutral', 'mixed'
+    sentiment_score REAL,                        -- -1.0 (strongly hostile) to +1.0 (strongly cooperative)
+    sentiment_reasoning TEXT,                    -- one-sentence audit trail: who is framed how, toward whom, with quoted phrase
     urgency         TEXT NOT NULL DEFAULT 'routine', -- 'flash', 'priority', 'routine'
     -- AI-generated summary
     summary_en      TEXT NOT NULL,               -- 2-3 sentence English summary

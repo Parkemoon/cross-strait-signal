@@ -126,6 +126,7 @@ def list_articles(
             ai.topic_secondary,
             ai.sentiment,
             ai.sentiment_score,
+            ai.sentiment_reasoning,
             ai.urgency,
             ai.summary_en,
             a.summary_en_override,
@@ -220,7 +221,7 @@ def get_article(article_id: int):
         SELECT
             a.*,
             ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
-            ai.urgency, ai.summary_en, ai.summary_zh, ai.key_quote, ai.key_quote_en,
+            ai.sentiment_reasoning, ai.urgency, ai.summary_en, ai.summary_zh, ai.key_quote, ai.key_quote_en,
             ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
             ai.confidence, ai.model_used,
             s.name as source_name, s.name_zh as source_name_zh,

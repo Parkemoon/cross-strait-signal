@@ -1,0 +1,1041 @@
+{
+  "generated_at": "2026-05-17T22:36:06Z",
+  "current": [
+    {
+      "role": "President of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Lai Ching-te",
+      "name_zh": "賴清德",
+      "party": "Democratic Progressive Party",
+      "since": "2024-05-20"
+    },
+    {
+      "role": "Vice President of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Hsiao Bi-khim",
+      "name_zh": "蕭美琴",
+      "party": "Democratic Progressive Party",
+      "since": "2024-05-20"
+    },
+    {
+      "role": "Premier of Taiwan (Executive Yuan)",
+      "country": "TW",
+      "name_en": "Cho Jung-tai",
+      "name_zh": "卓榮泰",
+      "party": "Democratic Progressive Party",
+      "since": "2024-05-20"
+    },
+    {
+      "role": "Minister of Foreign Affairs of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Lin Chia-lung",
+      "name_zh": "林佳龍",
+      "party": "Democratic Progressive Party",
+      "since": "2024-05-20"
+    },
+    {
+      "role": "President of the Legislative Yuan (Speaker)",
+      "country": "TW",
+      "name_en": "Han Kuo-yu",
+      "name_zh": "韓國瑜",
+      "party": "Kuomintang",
+      "since": "2024-02-01"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Cheng Li-wun",
+      "name_zh": "鄭麗文",
+      "party": "Democratic Progressive Party",
+      "since": "2025-11-01"
+    },
+    {
+      "role": "Chairperson of the Democratic Progressive Party (DPP)",
+      "country": "TW",
+      "name_en": "Lai Ching-te",
+      "name_zh": "賴清德",
+      "party": "Democratic Progressive Party",
+      "since": "2023-01-18"
+    },
+    {
+      "role": "Chairman of the Taiwan People's Party (TPP)",
+      "country": "TW",
+      "name_en": "Huang Kuo-chang",
+      "name_zh": "黃國昌",
+      "party": "Taiwan People's Party",
+      "since": "2025-01-01"
+    },
+    {
+      "role": "President of the United States",
+      "country": "US",
+      "name_en": "Donald Trump",
+      "name_zh": "唐納·川普",
+      "party": "Republican Party",
+      "since": "2025-01-20"
+    },
+    {
+      "role": "Vice President of the United States",
+      "country": "US",
+      "name_en": "JD Vance",
+      "name_zh": "詹姆斯·大衛·万斯",
+      "party": "Republican Party",
+      "since": "2025-01-20"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "Marco Rubio",
+      "name_zh": "马尔科·鲁比奥",
+      "party": "Republican Party",
+      "since": "2025-01-20"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "Pete Hegseth",
+      "name_zh": "皮特·赫格塞思",
+      "party": "Republican Party",
+      "since": "2025-09-05"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "Marco Rubio",
+      "name_zh": "马尔科·鲁比奥",
+      "party": "Republican Party",
+      "since": "2025-05-01"
+    },
+    {
+      "role": "Speaker of the United States House of Representatives",
+      "country": "US",
+      "name_en": "Mike Johnson",
+      "name_zh": "邁克·約翰遜",
+      "party": "Republican Party",
+      "since": "2023-10-25"
+    },
+    {
+      "role": "Majority Leader of the United States Senate",
+      "country": "US",
+      "name_en": "John Thune",
+      "name_zh": "約翰·圖恩",
+      "party": "Republican Party",
+      "since": "2025-01-03"
+    },
+    {
+      "role": "General Secretary of the Chinese Communist Party",
+      "country": "PRC",
+      "name_en": "Xi Jinping",
+      "name_zh": "习近平",
+      "party": "Chinese Communist Party",
+      "since": "2012-11-15"
+    },
+    {
+      "role": "President of the People's Republic of China",
+      "country": "PRC",
+      "name_en": "Xi Jinping",
+      "name_zh": "习近平",
+      "party": "Chinese Communist Party",
+      "since": "2013-03-14"
+    },
+    {
+      "role": "Premier of the State Council of China",
+      "country": "PRC",
+      "name_en": "Li Qiang",
+      "name_zh": "李强",
+      "party": "Chinese Communist Party",
+      "since": "2023-03-11"
+    },
+    {
+      "role": "Chairman of the NPC Standing Committee",
+      "country": "PRC",
+      "name_en": "Zhao Leji",
+      "name_zh": "赵乐际",
+      "party": "Chinese Communist Party",
+      "since": "2023-03-10"
+    },
+    {
+      "role": "Minister of Foreign Affairs of China",
+      "country": "PRC",
+      "name_en": "Wang Yi",
+      "name_zh": "王毅",
+      "party": "Chinese Communist Party",
+      "since": "2023-07-25"
+    },
+    {
+      "role": "Minister of National Defense of China",
+      "country": "PRC",
+      "name_en": "Dong Jun",
+      "name_zh": "董军",
+      "party": "Chinese Communist Party",
+      "since": "2023-12-29"
+    },
+    {
+      "role": "Prime Minister of Japan",
+      "country": "JP",
+      "name_en": "Sanae Takaichi",
+      "name_zh": "高市早苗",
+      "party": "Liberal Democratic Party",
+      "since": "2025-10-21"
+    },
+    {
+      "role": "Minister for Foreign Affairs of Japan",
+      "country": "JP",
+      "name_en": "Takeshi Iwaya",
+      "name_zh": "岩屋毅",
+      "party": "Liberal Democratic Party",
+      "since": "2024-11-11"
+    },
+    {
+      "role": "Minister of Defense of Japan",
+      "country": "JP",
+      "name_en": "Shinjirō Koizumi",
+      "name_zh": "小泉進次郎",
+      "party": "Liberal Democratic Party",
+      "since": "2025-10-21"
+    },
+    {
+      "role": "Chief Cabinet Secretary of Japan",
+      "country": "JP",
+      "name_en": "Yoshimasa Hayashi",
+      "name_zh": "林芳正",
+      "party": "Liberal Democratic Party",
+      "since": "2023-12-14"
+    },
+    {
+      "role": "Speaker of the House of Representatives of Japan",
+      "country": "JP",
+      "name_en": "Fukushiro Nukaga",
+      "name_zh": "額賀福志郎",
+      "party": "Liberal Democratic Party",
+      "since": "2023-10-20"
+    },
+    {
+      "role": "President of the House of Councillors of Japan",
+      "country": "JP",
+      "name_en": "Masakazu Sekiguchi",
+      "name_zh": "關口昌一",
+      "party": "Liberal Democratic Party",
+      "since": "2024-11-11"
+    },
+    {
+      "role": "Minister of National Defense of Taiwan (ROC)",
+      "role_zh": "中華民國國防部長",
+      "country": "TW",
+      "name_en": "Wellington Koo",
+      "name_zh": "顧立雄",
+      "party": "DPP",
+      "since": "2024-05-20",
+      "_note": "Wikidata still shows Chiu Kuo-cheng as of 2026-05 refresh. Remove when Wikidata is updated."
+    }
+  ],
+  "former": [
+    {
+      "role": "President of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Tsai Ing-wen",
+      "name_zh": "蔡英文",
+      "party": "Democratic Progressive Party",
+      "term": "2016-05-20 to 2024-05-19"
+    },
+    {
+      "role": "President of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Ma Ying-jeou",
+      "name_zh": "馬英九",
+      "party": "Kuomintang",
+      "term": "2008-05-20 to 2016-05-20"
+    },
+    {
+      "role": "Vice President of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Lai Ching-te",
+      "name_zh": "賴清德",
+      "party": "Democratic Progressive Party",
+      "term": "2020-05-20 to 2024-05-19"
+    },
+    {
+      "role": "Vice President of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Chen Chien-jen",
+      "name_zh": "陳建仁",
+      "party": "Democratic Progressive Party",
+      "term": "2016-05-20 to 2020-05-19"
+    },
+    {
+      "role": "Vice President of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Wu Den-yih",
+      "name_zh": "吳敦義",
+      "party": "Kuomintang",
+      "term": "2012-05-20 to 2016-05-19"
+    },
+    {
+      "role": "Premier of Taiwan (Executive Yuan)",
+      "country": "TW",
+      "name_en": "Su Tseng-chang",
+      "name_zh": "蘇貞昌",
+      "party": "Democratic Progressive Party",
+      "term": "2019-01-14 to 2023-01-31"
+    },
+    {
+      "role": "Premier of Taiwan (Executive Yuan)",
+      "country": "TW",
+      "name_en": "Lai Ching-te",
+      "name_zh": "賴清德",
+      "party": "Democratic Progressive Party",
+      "term": "2017-09-08 to 2019-01-14"
+    },
+    {
+      "role": "Premier of Taiwan (Executive Yuan)",
+      "country": "TW",
+      "name_en": "Lin Chuan",
+      "name_zh": "林全",
+      "party": "independent politician",
+      "term": "2016-05-20 to 2017-09-08"
+    },
+    {
+      "role": "Premier of Taiwan (Executive Yuan)",
+      "country": "TW",
+      "name_en": "Simon Chang",
+      "name_zh": "張善政",
+      "party": "independent politician",
+      "term": "2016-02-01 to 2016-05-20"
+    },
+    {
+      "role": "Premier of Taiwan (Executive Yuan)",
+      "country": "TW",
+      "name_en": "Mao Chi-kuo",
+      "name_zh": "毛治國",
+      "party": "Kuomintang",
+      "term": "2014-12-08 to 2016-02-01"
+    },
+    {
+      "role": "Minister of Foreign Affairs of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Joseph Wu",
+      "name_zh": "吳釗燮",
+      "party": "Democratic Progressive Party",
+      "term": "2018-02-26 to 2024-05-20"
+    },
+    {
+      "role": "Minister of Foreign Affairs of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "David Lee",
+      "name_zh": "李大維",
+      "party": "Kuomintang",
+      "term": "2016-05-20 to 2018-02-25"
+    },
+    {
+      "role": "Minister of Foreign Affairs of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "David Lin",
+      "name_zh": "林永樂",
+      "party": "",
+      "term": "2012-09-27 to 2016-05-20"
+    },
+    {
+      "role": "Minister of National Defense of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Yen Teh-fa",
+      "name_zh": "嚴德發",
+      "party": "",
+      "term": "2018-02-26 to 2021-02-23"
+    },
+    {
+      "role": "Minister of National Defense of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Feng Shih-kuan",
+      "name_zh": "馮世寬",
+      "party": "",
+      "term": "2016-05-20 to 2018-02-25"
+    },
+    {
+      "role": "Minister of National Defense of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Kao Kuang-chi",
+      "name_zh": "高廣圻",
+      "party": "",
+      "term": "2015-01-31 to 2016-05-19"
+    },
+    {
+      "role": "President of the Legislative Yuan (Speaker)",
+      "country": "TW",
+      "name_en": "Yu Shyi-kun",
+      "name_zh": "游錫堃",
+      "party": "independent politician",
+      "term": "2020-02-01 to 2024-01-31"
+    },
+    {
+      "role": "President of the Legislative Yuan (Speaker)",
+      "country": "TW",
+      "name_en": "Su Jia-chyuan",
+      "name_zh": "蘇嘉全",
+      "party": "Democratic Progressive Party",
+      "term": "2016-02-01 to 2020-01-31"
+    },
+    {
+      "role": "President of the Legislative Yuan (Speaker)",
+      "country": "TW",
+      "name_en": "Wang Jin-pyng",
+      "name_zh": "王金平",
+      "party": "Kuomintang",
+      "term": "1999-02-01 to 2016-01-31"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Chiang Chi-chen",
+      "name_zh": "江啟臣",
+      "party": "Kuomintang",
+      "term": "2020-03-09 to 2021-10-05"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Lin Rong-te",
+      "name_zh": "林榮德",
+      "party": "Kuomintang",
+      "term": "2020-01-15 to 2020-03-09"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Wu Den-yih",
+      "name_zh": "吳敦義",
+      "party": "Kuomintang",
+      "term": "2017-08-20 to 2020-01-15"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Lin Junq-tzer",
+      "name_zh": "林政則",
+      "party": "Kuomintang",
+      "term": "2017-07-01 to 2017-08-19"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Hung Hsiu-chu",
+      "name_zh": "洪秀柱",
+      "party": "Kuomintang",
+      "term": "2016-03-30 to 2017-07-01"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Huang Ming-hui",
+      "name_zh": "黃敏惠",
+      "party": "Kuomintang",
+      "term": "2016-01-18 to 2016-03-30"
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Chu Li-lun",
+      "name_zh": "朱立倫",
+      "party": "Kuomintang",
+      "term": "2015-01-19 to 2016-01-01"
+    },
+    {
+      "role": "Chairperson of the Democratic Progressive Party (DPP)",
+      "country": "TW",
+      "name_en": "Chen Chi-mai",
+      "name_zh": "陳其邁",
+      "party": "Democratic Progressive Party",
+      "term": "2022-11-30 to 2023-01-18"
+    },
+    {
+      "role": "Chairperson of the Democratic Progressive Party (DPP)",
+      "country": "TW",
+      "name_en": "Tsai Ing-wen",
+      "name_zh": "蔡英文",
+      "party": "Democratic Progressive Party",
+      "term": "2020-05-20 to 2022-11-26"
+    },
+    {
+      "role": "Chairperson of the Democratic Progressive Party (DPP)",
+      "country": "TW",
+      "name_en": "Cho Jung-tai",
+      "name_zh": "卓榮泰",
+      "party": "Democratic Progressive Party",
+      "term": "2019-01-09 to 2020-05-20"
+    },
+    {
+      "role": "Chairperson of the Democratic Progressive Party (DPP)",
+      "country": "TW",
+      "name_en": "Lin Yu-chang",
+      "name_zh": "林右昌",
+      "party": "Democratic Progressive Party",
+      "term": "2018-11-28 to 2019-01-08"
+    },
+    {
+      "role": "Chairman of the Taiwan People's Party (TPP)",
+      "country": "TW",
+      "name_en": "Ko Wen-je",
+      "name_zh": "柯文哲",
+      "party": "independent politician",
+      "term": "2019-08-06 to 2025-01-01"
+    },
+    {
+      "role": "President of the United States",
+      "country": "US",
+      "name_en": "Joe Biden",
+      "name_zh": "乔·拜登",
+      "party": "Democratic Party",
+      "term": "2021-01-20 to 2025-01-20"
+    },
+    {
+      "role": "President of the United States",
+      "country": "US",
+      "name_en": "Donald Trump",
+      "name_zh": "唐納·川普",
+      "party": "Republican Party",
+      "term": "2017-01-20 to 2021-01-20"
+    },
+    {
+      "role": "President of the United States",
+      "country": "US",
+      "name_en": "Barack Obama",
+      "name_zh": "贝拉克·奥巴马",
+      "party": "Democratic Party",
+      "term": "2009-01-20 to 2017-01-20"
+    },
+    {
+      "role": "Vice President of the United States",
+      "country": "US",
+      "name_en": "Kamala Harris",
+      "name_zh": "賀錦麗",
+      "party": "Democratic Party",
+      "term": "2021-01-20 to 2025-01-20"
+    },
+    {
+      "role": "Vice President of the United States",
+      "country": "US",
+      "name_en": "Mike Pence",
+      "name_zh": "迈克·彭斯",
+      "party": "Republican Party",
+      "term": "2017-01-20 to 2021-01-20"
+    },
+    {
+      "role": "Vice President of the United States",
+      "country": "US",
+      "name_en": "Claire Underwood",
+      "name_zh": "克萊兒·安德伍德",
+      "party": "Democratic Party",
+      "term": "2017-01-20 to 2017-03-15"
+    },
+    {
+      "role": "Vice President of the United States",
+      "country": "US",
+      "name_en": "Joe Biden",
+      "name_zh": "乔·拜登",
+      "party": "Democratic Party",
+      "term": "2009-01-20 to 2017-01-20"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "Antony Blinken",
+      "name_zh": "安東尼‧布林肯",
+      "party": "Democratic Party",
+      "term": "2021-01-26 to 2025-01-20"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "Dan Smith",
+      "name_zh": "丹尼爾·班尼特·史密斯",
+      "party": "",
+      "term": "2021-01-20 to 2021-01-26"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "Mike Pompeo",
+      "name_zh": "迈克·蓬佩奧",
+      "party": "Republican Party",
+      "term": "2018-04-26 to 2021-01-20"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "John J. Sullivan",
+      "name_zh": "約翰·約瑟夫·沙利文",
+      "party": "Republican Party",
+      "term": "2018-04-01 to 2018-04-26"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "Rex Tillerson",
+      "name_zh": "雷克斯·蒂勒森",
+      "party": "Republican Party",
+      "term": "2017-02-01 to 2018-03-31"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "Thomas A. Shannon, Jr.",
+      "name_zh": "托馬斯·香農",
+      "party": "Democratic Party",
+      "term": "2017-01-20 to 2017-02-01"
+    },
+    {
+      "role": "United States Secretary of State",
+      "country": "US",
+      "name_en": "John Kerry",
+      "name_zh": "约翰·克里",
+      "party": "Democratic Party",
+      "term": "2013-02-01 to 2017-01-20"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "Robert Salesses",
+      "name_zh": "",
+      "party": "",
+      "term": "2025-01-20 to 2025-01-25"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "Lloyd J. Austin III",
+      "name_zh": "劳埃德·奥斯汀三世",
+      "party": "independent politician",
+      "term": "2021-01-22 to 2025-01-20"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "David L. Norquist",
+      "name_zh": "大衛·諾奎斯特",
+      "party": "Republican Party",
+      "term": "2021-01-20 to 2021-01-22"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "Christopher C. Miller",
+      "name_zh": "克里斯托弗·米勒",
+      "party": "",
+      "term": "2020-11-09 to 2021-01-20"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "Mark T. Esper",
+      "name_zh": "馬克·埃斯柏",
+      "party": "Republican Party",
+      "term": "2019-07-22 to 2020-11-09"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "Jim Mattis",
+      "name_zh": "詹姆斯·马蒂斯",
+      "party": "",
+      "term": "2017-01-20 to 2019-01-01"
+    },
+    {
+      "role": "United States Secretary of Defense",
+      "country": "US",
+      "name_en": "Ash Carter",
+      "name_zh": "阿什顿·卡特",
+      "party": "Democratic Party",
+      "term": "2015-02-17 to 2017-01-19"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "Mike Waltz",
+      "name_zh": "邁克·沃爾茨",
+      "party": "Republican Party",
+      "term": "2025-01-20 to 2025-05-01"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "Jake Sullivan",
+      "name_zh": "杰克·沙利文",
+      "party": "Democratic Party",
+      "term": "2021-01-20 to 2025-01-20"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "Robert C. O'Brien",
+      "name_zh": "羅伯特·C·奧布萊恩",
+      "party": "Republican Party",
+      "term": "2019-09-18 to 2021-01-20"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "John Bolton",
+      "name_zh": "约翰·博尔顿",
+      "party": "Republican Party",
+      "term": "2018-04-09 to 2019-09-10"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "H. R. McMaster",
+      "name_zh": "H·R·麥克馬斯特",
+      "party": "independent politician",
+      "term": "2017-02-20 to 2018-04-09"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "Michael Flynn",
+      "name_zh": "邁克·湯瑪斯·弗林",
+      "party": "Democratic Party",
+      "term": "2017-01-20 to 2017-02-13"
+    },
+    {
+      "role": "United States National Security Advisor",
+      "country": "US",
+      "name_en": "Susan Rice",
+      "name_zh": "苏珊·赖斯",
+      "party": "Democratic Party",
+      "term": "2013-07-01 to 2017-01-20"
+    },
+    {
+      "role": "Speaker of the United States House of Representatives",
+      "country": "US",
+      "name_en": "Kevin McCarthy",
+      "name_zh": "凯文·麦卡锡",
+      "party": "Republican Party",
+      "term": "2023-01-07 to 2023-10-03"
+    },
+    {
+      "role": "Speaker of the United States House of Representatives",
+      "country": "US",
+      "name_en": "Nancy Pelosi",
+      "name_zh": "南希·佩洛西",
+      "party": "Democratic Party",
+      "term": "2019-01-03 to 2023-01-03"
+    },
+    {
+      "role": "Speaker of the United States House of Representatives",
+      "country": "US",
+      "name_en": "Paul Ryan",
+      "name_zh": "保羅·萊恩",
+      "party": "Republican Party",
+      "term": "2015-10-29 to 2019-01-03"
+    },
+    {
+      "role": "Majority Leader of the United States Senate",
+      "country": "US",
+      "name_en": "Chuck Schumer",
+      "name_zh": "查克·舒默",
+      "party": "Democratic Party",
+      "term": "2021-01-20 to 2025-01-03"
+    },
+    {
+      "role": "General Secretary of the Chinese Communist Party",
+      "country": "PRC",
+      "name_en": "Hu Jintao",
+      "name_zh": "胡锦涛",
+      "party": "Chinese Communist Party",
+      "term": "2002-11-15 to 2012-11-15"
+    },
+    {
+      "role": "President of the People's Republic of China",
+      "country": "PRC",
+      "name_en": "Hu Jintao",
+      "name_zh": "胡锦涛",
+      "party": "Chinese Communist Party",
+      "term": "2003-03-15 to 2013-03-14"
+    },
+    {
+      "role": "Premier of the State Council of China",
+      "country": "PRC",
+      "name_en": "Li Keqiang",
+      "name_zh": "李克强",
+      "party": "Chinese Communist Party",
+      "term": "2013-03-15 to 2023-03-11"
+    },
+    {
+      "role": "Premier of the State Council of China",
+      "country": "PRC",
+      "name_en": "Wen Jiabao",
+      "name_zh": "溫家寶",
+      "party": "Chinese Communist Party",
+      "term": "2003-03-16 to 2013-03-15"
+    },
+    {
+      "role": "Chairman of the NPC Standing Committee",
+      "country": "PRC",
+      "name_en": "Li Zhanshu",
+      "name_zh": "栗戰書",
+      "party": "Chinese Communist Party",
+      "term": "2018-03-17 to 2023-03-10"
+    },
+    {
+      "role": "Chairman of the NPC Standing Committee",
+      "country": "PRC",
+      "name_en": "Zhang Dejiang",
+      "name_zh": "张德江",
+      "party": "Chinese Communist Party",
+      "term": "2013-03-14 to 2018-03-17"
+    },
+    {
+      "role": "Chairman of the NPC Standing Committee",
+      "country": "PRC",
+      "name_en": "Wu Bangguo",
+      "name_zh": "吴邦国",
+      "party": "Chinese Communist Party",
+      "term": "2003-03-15 to 2013-03-14"
+    },
+    {
+      "role": "Minister of Foreign Affairs of China",
+      "country": "PRC",
+      "name_en": "Qin Gang",
+      "name_zh": "秦剛",
+      "party": "Chinese Communist Party",
+      "term": "2022-12-30 to 2023-07-25"
+    },
+    {
+      "role": "Minister of Foreign Affairs of China",
+      "country": "PRC",
+      "name_en": "Wang Yi",
+      "name_zh": "王毅",
+      "party": "Chinese Communist Party",
+      "term": "2013-03-16 to 2022-12-30"
+    },
+    {
+      "role": "Minister of Foreign Affairs of China",
+      "country": "PRC",
+      "name_en": "Yang Jiechi",
+      "name_zh": "杨洁篪",
+      "party": "Chinese Communist Party",
+      "term": "2007-04-27 to 2013-03-16"
+    },
+    {
+      "role": "Minister of National Defense of China",
+      "country": "PRC",
+      "name_en": "Li Shangfu",
+      "name_zh": "李尚福",
+      "party": "Chinese Communist Party",
+      "term": "2023-03-12 to 2023-10-24"
+    },
+    {
+      "role": "Minister of National Defense of China",
+      "country": "PRC",
+      "name_en": "Wei Fenghe",
+      "name_zh": "魏凤和",
+      "party": "Chinese Communist Party",
+      "term": "2018-03-19 to 2023-03-12"
+    },
+    {
+      "role": "Minister of National Defense of China",
+      "country": "PRC",
+      "name_en": "Chang Wanquan",
+      "name_zh": "常万全",
+      "party": "Chinese Communist Party",
+      "term": "2013-03-16 to 2018-03-19"
+    },
+    {
+      "role": "Minister of National Defense of China",
+      "country": "PRC",
+      "name_en": "Liang Guanglie",
+      "name_zh": "梁光烈",
+      "party": "Chinese Communist Party",
+      "term": "2008-03-17 to 2013-03-16"
+    },
+    {
+      "role": "Prime Minister of Japan",
+      "country": "JP",
+      "name_en": "Shigeru Ishiba",
+      "name_zh": "石破茂",
+      "party": "New Frontier Party",
+      "term": "2024-11-11 to 2025-10-21"
+    },
+    {
+      "role": "Prime Minister of Japan",
+      "country": "JP",
+      "name_en": "Fumio Kishida",
+      "name_zh": "岸田文雄",
+      "party": "Liberal Democratic Party",
+      "term": "2023-09-13 to 2024-10-01"
+    },
+    {
+      "role": "Prime Minister of Japan",
+      "country": "JP",
+      "name_en": "Yoshihide Suga",
+      "name_zh": "菅義偉",
+      "party": "Liberal Democratic Party",
+      "term": "2020-09-16 to 2021-10-04"
+    },
+    {
+      "role": "Prime Minister of Japan",
+      "country": "JP",
+      "name_en": "Shinzō Abe",
+      "name_zh": "安倍晉三",
+      "party": "Liberal Democratic Party",
+      "term": "2017-11-01 to 2020-09-16"
+    },
+    {
+      "role": "Minister for Foreign Affairs of Japan",
+      "country": "JP",
+      "name_en": "Takeshi Iwaya",
+      "name_zh": "岩屋毅",
+      "party": "Liberal Democratic Party",
+      "term": "2024-10-01 to 2024-11-11"
+    },
+    {
+      "role": "Minister for Foreign Affairs of Japan",
+      "country": "JP",
+      "name_en": "Yoshimasa Hayashi",
+      "name_zh": "林芳正",
+      "party": "Liberal Democratic Party",
+      "term": "2021-11-10 to 2023-09-13"
+    },
+    {
+      "role": "Minister for Foreign Affairs of Japan",
+      "country": "JP",
+      "name_en": "Fumio Kishida",
+      "name_zh": "岸田文雄",
+      "party": "Liberal Democratic Party",
+      "term": "2021-11-04 to 2021-11-10"
+    },
+    {
+      "role": "Minister for Foreign Affairs of Japan",
+      "country": "JP",
+      "name_en": "Toshimitsu Motegi",
+      "name_zh": "茂木敏充",
+      "party": "Japan New Party",
+      "term": "2019-09-11 to 2021-11-04"
+    },
+    {
+      "role": "Minister for Foreign Affairs of Japan",
+      "country": "JP",
+      "name_en": "Taro Kono",
+      "name_zh": "河野太郎",
+      "party": "Liberal Democratic Party",
+      "term": "2017-08-03 to 2019-09-11"
+    },
+    {
+      "role": "Minister of Defense of Japan",
+      "country": "JP",
+      "name_en": "Gen Nakatani",
+      "name_zh": "中谷元",
+      "party": "Liberal Democratic Party",
+      "term": "2024-10-01 to 2024-11-11"
+    },
+    {
+      "role": "Minister of Defense of Japan",
+      "country": "JP",
+      "name_en": "Minoru Kihara",
+      "name_zh": "木原稔",
+      "party": "Liberal Democratic Party",
+      "term": "2023-09-13 to 2024-10-01"
+    },
+    {
+      "role": "Minister of Defense of Japan",
+      "country": "JP",
+      "name_en": "Yasukazu Hamada",
+      "name_zh": "濱田靖一",
+      "party": "Liberal Democratic Party",
+      "term": "2022-08-10 to 2023-09-13"
+    },
+    {
+      "role": "Minister of Defense of Japan",
+      "country": "JP",
+      "name_en": "Nobuo Kishi",
+      "name_zh": "岸信夫",
+      "party": "Liberal Democratic Party",
+      "term": "2020-09-16 to 2022-08-10"
+    },
+    {
+      "role": "Minister of Defense of Japan",
+      "country": "JP",
+      "name_en": "Taro Kono",
+      "name_zh": "河野太郎",
+      "party": "Liberal Democratic Party",
+      "term": "2019-09-11 to 2020-09-16"
+    },
+    {
+      "role": "Minister of Defense of Japan",
+      "country": "JP",
+      "name_en": "Takeshi Iwaya",
+      "name_zh": "岩屋毅",
+      "party": "Liberal Democratic Party",
+      "term": "2018-10-02 to 2019-09-11"
+    },
+    {
+      "role": "Chief Cabinet Secretary of Japan",
+      "country": "JP",
+      "name_en": "Hirokazu Matsuno",
+      "name_zh": "松野博一",
+      "party": "Liberal Democratic Party",
+      "term": "2021-10-04 to 2023-12-14"
+    },
+    {
+      "role": "Chief Cabinet Secretary of Japan",
+      "country": "JP",
+      "name_en": "Katsunobu Kato",
+      "name_zh": "加藤勝信",
+      "party": "Liberal Democratic Party",
+      "term": "2020-09-16 to 2021-10-04"
+    },
+    {
+      "role": "Chief Cabinet Secretary of Japan",
+      "country": "JP",
+      "name_en": "Yoshihide Suga",
+      "name_zh": "菅義偉",
+      "party": "Liberal Democratic Party",
+      "term": "2012-12-26 to 2020-09-16"
+    },
+    {
+      "role": "Speaker of the House of Representatives of Japan",
+      "country": "JP",
+      "name_en": "Hiroyuki Hosoda",
+      "name_zh": "细田博之",
+      "party": "Liberal Democratic Party",
+      "term": "2021-11-10 to 2023-10-20"
+    },
+    {
+      "role": "Speaker of the House of Representatives of Japan",
+      "country": "JP",
+      "name_en": "Tadamori Ōshima",
+      "name_zh": "大島理森",
+      "party": "Liberal Democratic Party",
+      "term": "2015-04-21 to 2021-10-14"
+    },
+    {
+      "role": "President of the House of Councillors of Japan",
+      "country": "JP",
+      "name_en": "Hidehisa Otsuji",
+      "name_zh": "尾辻秀久",
+      "party": "Liberal Democratic Party",
+      "term": "2022-08-03 to 2024-11-11"
+    },
+    {
+      "role": "President of the House of Councillors of Japan",
+      "country": "JP",
+      "name_en": "Akiko Santō",
+      "name_zh": "山東昭子",
+      "party": "Liberal Democratic Party",
+      "term": "2019-08-01 to 2022-08-03"
+    },
+    {
+      "role": "President of the House of Councillors of Japan",
+      "country": "JP",
+      "name_en": "Chuichi Date",
+      "name_zh": "伊達忠一",
+      "party": "Liberal Democratic Party",
+      "term": "2016-08-01 to 2019-07-28"
+    },
+    {
+      "role": "Minister of National Defense of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Chiu Kuo-cheng",
+      "name_zh": "邱國正",
+      "party": "KMT",
+      "term": "2021-02-23 to 2024-05-20"
+    }
+  ]
+}

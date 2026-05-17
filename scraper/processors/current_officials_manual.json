@@ -1,0 +1,25 @@
+{
+  "_comment": "Manual gap-fill for roles Wikidata doesn't track promptly. Entries here win over Wikidata output on (role, country) conflict. Update when refresh_officials.py starts returning correct results for a role — then remove that role from here.",
+  "current": [
+    {
+      "role": "Minister of National Defense of Taiwan (ROC)",
+      "role_zh": "中華民國國防部長",
+      "country": "TW",
+      "name_en": "Wellington Koo",
+      "name_zh": "顧立雄",
+      "party": "DPP",
+      "since": "2024-05-20",
+      "_note": "Wikidata still shows Chiu Kuo-cheng as of 2026-05 refresh. Remove when Wikidata is updated."
+    }
+  ],
+  "former": [
+    {
+      "role": "Minister of National Defense of Taiwan (ROC)",
+      "country": "TW",
+      "name_en": "Chiu Kuo-cheng",
+      "name_zh": "邱國正",
+      "party": "KMT",
+      "term": "2021-02-23 to 2024-05-20"
+    }
+  ]
+}
