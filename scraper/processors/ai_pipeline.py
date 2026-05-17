@@ -41,12 +41,47 @@ def _normalise_entity_name(entity):
     entity['name_en'] = name_en
     return entity
 
+
+def _validate_sentiment(sentiment, score, reasoning):
+    """Check that sentiment label, numeric score, and reasoning are mutually consistent.
+    Returns a list of problem strings (empty = consistent)."""
+    problems = []
+    if sentiment == 'hostile' and score > -0.3:
+        problems.append(f"label=hostile but score={score:.2f} (expected ≤ -0.3)")
+    elif sentiment == 'cooperative' and score < 0.3:
+        problems.append(f"label=cooperative but score={score:.2f} (expected ≥ +0.3)")
+    elif sentiment == 'neutral' and abs(score) > 0.3:
+        problems.append(f"label=neutral but score={score:.2f} (expected within ±0.3)")
+    if sentiment in ('hostile', 'cooperative') and not (reasoning or '').strip():
+        problems.append(f"label={sentiment} but sentiment_reasoning is empty")
+    return problems
+
 _KEY_FIGURES_PATH = os.path.join(os.path.dirname(__file__), 'key_figures.json')
 try:
     with open(_KEY_FIGURES_PATH, encoding='utf-8') as _kf:
         _KEY_FIGURES_LIST = json.load(_kf)
 except Exception:
     _KEY_FIGURES_LIST = []
+
+_OFFICIALS_PATH = os.path.join(os.path.dirname(__file__), 'current_officials.json')
+try:
+    with open(_OFFICIALS_PATH, encoding='utf-8') as _of:
+        _OFFICIALS = json.load(_of)
+except Exception:
+    _OFFICIALS = {'current': [], 'former': []}
+
+def _format_officials_block():
+    lines = ['CURRENT OFFICIAL ROSTER (authoritative — override any conflicting training-data knowledge):']
+    for o in _OFFICIALS.get('current', []):
+        party = f", {o['party']}" if o.get('party') else ''
+        lines.append(f"- {o['role']}: {o['name_en']} ({o.get('name_zh', '')}{party}, since {o.get('since', '')})")
+    lines.append('\nFORMER OFFICIALS (NO LONGER in role — never describe these people as currently holding the listed role):')
+    for o in _OFFICIALS.get('former', []):
+        party = f", {o['party']}" if o.get('party') else ''
+        lines.append(f"- {o['role']}: {o['name_en']} ({o.get('name_zh', '')}{party}, served {o.get('term', '')})")
+    return '\n'.join(lines)
+
+_OFFICIALS_BLOCK = _format_officials_block()
 
 # alias (lowercased) → figure_id lookup
 _ALIAS_TO_FIGURE_ID = {}
@@ -88,6 +123,7 @@ Analyse the following article and return a JSON object with this exact structure
   "topic_secondary": null,
   "sentiment": "one of: hostile, cooperative, neutral, mixed",
   "sentiment_score": 0.0,
+  "sentiment_reasoning": "ONE sentence: who is characterised how, toward whom across the strait, and quote the specific phrase that triggered the score. Empty string if sentiment is neutral with no explicit cross-strait framing.",
   "urgency": "one of: flash, priority, routine",
   "key_quote": "most significant direct quote from the article in original language",
   "key_quote_en": "English translation of the key quote",
@@ -128,6 +164,8 @@ CLASSIFICATION RULES:
 - For international/SG sources: what is the overall tone toward cross-strait dynamics?
 - CRITICAL — third-party interactions are NOT cross-strait signals (both directions): Taiwan's interactions with any third party (US, Japan, EU, Australia, Czech Republic, UK, allies, etc.) — whether cooperative (visits, arms sales, joint exercises, parliamentary resolutions of support, official meetings) or hostile (third-party criticism of Taiwan) — are not cross-strait sentiment signals. Likewise, PRC interactions with third parties are not cross-strait sentiment signals unless Taiwan is directly framed in the article. Score sentiment ONLY by how the article frames the opposing side of the strait, never by how either side relates to a third country. An Australian MP visiting Taipei is neutral on the cross-strait axis unless the article explicitly characterises the PRC's reaction or framing.
 - CRITICAL — intra-society political conflict is NOT cross-strait hostility: Inter-party criticism within Taiwan (DPP vs KMT vs TPP) or factional/political conflict within the PRC belongs to POL_DOMESTIC_TW or POL_DOMESTIC_PRC and scores NEUTRAL on the cross-strait sentiment axis. A KMT politician attacking the DPP, or DPP figures criticising the KMT, is not cross-strait hostile — the dispute is internal. Only score hostile if the article shows one party explicitly characterising the OPPOSING SIDE OF THE STRAIT (not a domestic rival) in confrontational terms.
+- CRITICAL — anti-formal-independence ≠ anti-Taiwan / pro-PRC: A Taiwanese politician (KMT, TPP, or other) opposing formal Taiwan independence is expressing a mainstream within-Taiwan position — by itself this is NEUTRAL on the cross-strait axis. Score based solely on how the politician characterises the PRC in the article: silent or factual about PRC → neutral; positive about mainland engagement → cooperative; criticising the PRC → hostile. The asymmetry is deliberate: when the PRC (officials, state media, MFA, TAO) uses anti-independence language (e.g. "Taiwan independence is a dead end", "separatist forces"), this IS hostile — the PRC is asserting sovereignty framing over Taiwan's right to choose. Anti-independence rhetoric from a Taiwanese voice is a domestic position; the same rhetoric from a PRC voice is a cross-strait assertion.
+- DECISION CHECKLIST — before assigning a non-neutral sentiment, answer in order: (1) Who specifically in the article is being characterised hostilely or cooperatively? Name them. (2) Is that target the opposing side of the strait — a PRC actor in a Taiwan-source article, or a Taiwan actor in a PRC-source article? If no, score neutral. (3) Can you quote the specific sentence that frames the opposing side? If no, score neutral. (4) If the article is about a Taiwanese politician's stance on independence or unification, is there any explicit characterisation OF THE PRC in the article? If no, score neutral regardless of how strongly the politician favours or opposes independence.
 - DEFAULT TO NEUTRAL when the cross-strait framing is not explicit: If you cannot point to a specific sentence in the article that explicitly frames the opposing side of the strait (PRC framing Taiwan, or Taiwan framing PRC) in positive or negative terms, default to `neutral` with a `sentiment_score` between -0.2 and +0.2. Reserve hostile or cooperative scores for articles where one side is clearly characterising or acting toward the other across the strait. When in doubt, choose neutral — false neutrals are preferred over false directional scores.
 - hostile (-1.0 to -0.3): threatening, antagonistic, confrontational, emphasising division, military pressure, sovereignty assertions against the other side
 - neutral (-0.3 to +0.3): factual reporting without strong positive or negative framing
@@ -156,6 +194,13 @@ CLASSIFICATION RULES:
 - For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
 - KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
 - Use British English spelling in all English-language output fields (e.g. "analyse" not "analyze", "behaviour" not "behavior", "colour" not "color", "centre" not "center", "organisation" not "organization").
+- CURRENT OFFICIALS: When an article references officials by role title alone (e.g. "the president", "總統", "the premier", "院長", "the foreign minister"), use the CURRENT OFFICIAL ROSTER provided below to identify who currently holds that role. If a name appears that is listed under FORMER OFFICIALS, describe them as "former [role]" — never as currently holding the role. Do not rely on training-data knowledge for current role-holders; the roster below is authoritative.
+- SENTIMENT WORKED EXAMPLES (apply the same logic to all similar cases):
+  - "Han Kuo-yu opposes Taiwan independence in legislative speech, calls for ROC constitutional framework" → POL_DOMESTIC_TW, sentiment=neutral, score=0.0, reasoning="" — TW politician's domestic position on independence with no characterisation of PRC.
+  - "Ma Ying-jeou says 1992 Consensus is foundation for cross-strait peace, urges dialogue with Beijing" → POL_TONGDU, sentiment=cooperative, score=+0.5, reasoning="Ma Ying-jeou explicitly frames PRC engagement positively: '1992 Consensus is foundation for cross-strait peace'."
+  - "MFA spokesperson: Taiwan independence is a dead end, separatist forces will face consequences" → DIP_STATEMENT, sentiment=hostile, score=-0.7, reasoning="PRC MFA characterises Taiwan's political direction in sovereignty-denying terms: 'Taiwan independence is a dead end'."
+  - "DPP legislator accuses KMT chair of selling out Taiwan during mainland visit" → POL_DOMESTIC_TW, sentiment=neutral, score=0.0, reasoning="" — intra-Taiwan party conflict with no direct characterisation of PRC.
+  - "Global Times editorial calls Lai Ching-te a 'troublemaker' threatening regional peace" → INFO_WARFARE, sentiment=hostile, score=-0.8, reasoning="PRC state media characterises Taiwan's president hostilely: 'troublemaker threatening regional peace'."
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
 
 
@@ -176,7 +221,9 @@ def generate_dynamic_glossary(content: str, title: str = "") -> str:
 def analyse_article(title, content, language, source_name):
     """Send one article to Gemini and return structured analysis."""
     glossary_block = generate_dynamic_glossary(content, title)
-    prompt = f"""{ANALYSIS_SYSTEM_PROMPT}{glossary_block}
+    prompt = f"""{ANALYSIS_SYSTEM_PROMPT}
+
+{_OFFICIALS_BLOCK}{glossary_block}
 
 SOURCE: {source_name}
 LANGUAGE: {language}
@@ -302,20 +349,23 @@ def process_unanalysed_articles(limit=10):
                 article['id']
             ))
 
+            sentiment_reasoning = analysis.get('sentiment_reasoning', '')
+
             # Insert analysis results
             conn.execute("""
                 INSERT INTO ai_analysis
                 (article_id, topic_primary, topic_secondary, sentiment, sentiment_score,
-                 urgency, summary_en, key_quote, key_quote_en,
+                 sentiment_reasoning, urgency, summary_en, key_quote, key_quote_en,
                  is_new_formulation, is_escalation_signal, escalation_note,
                  model_used, confidence)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 article['id'],
                 analysis.get('topic_primary', 'HUMANITARIAN'),
                 analysis.get('topic_secondary'),
                 analysis.get('sentiment', 'neutral'),
                 analysis.get('sentiment_score', 0.0),
+                sentiment_reasoning,
                 analysis.get('urgency', 'routine'),
                 analysis.get('summary_en', ''),
                 analysis.get('key_quote'),
@@ -384,12 +434,21 @@ def process_unanalysed_articles(limit=10):
 
             conn.commit()
 
-             # Flag low confidence articles for human review
+            # Flag low confidence or inconsistent sentiment for human review
+            tier1_review_reasons = []
             if analysis.get('confidence', 1.0) < 0.7:
+                tier1_review_reasons.append(f"Low confidence: {analysis.get('confidence', 0):.2f}")
+            sentiment_problems = _validate_sentiment(
+                analysis.get('sentiment', 'neutral'),
+                analysis.get('sentiment_score', 0.0),
+                sentiment_reasoning,
+            )
+            tier1_review_reasons.extend(sentiment_problems)
+            if tier1_review_reasons:
                 conn.execute("""
                     UPDATE ai_analysis SET needs_human_review = 1, review_reason = ?
                     WHERE article_id = ?
-                """, (f"Low confidence: {analysis.get('confidence', 0):.2f}", article['id']))
+                """, (' | '.join(tier1_review_reasons), article['id']))
                 conn.commit()
 
             # Escalation review: re-analyse with Flash for flagged articles
@@ -404,7 +463,9 @@ def process_unanalysed_articles(limit=10):
                     escalation_glossary = generate_dynamic_glossary(article['content_original'], title)
                     review = client.models.generate_content(
                         model="gemini-2.5-flash",
-                        contents=f"""{ANALYSIS_SYSTEM_PROMPT}{escalation_glossary}
+                        contents=f"""{ANALYSIS_SYSTEM_PROMPT}
+
+{_OFFICIALS_BLOCK}{escalation_glossary}
 
 SOURCE: {article['source_name']}
 LANGUAGE: {article['language']}
@@ -423,17 +484,27 @@ FULL TEXT:
                     # Update analysis dict with Flash's assessment
                     analysis['sentiment'] = review_analysis.get('sentiment', analysis['sentiment'])
                     analysis['sentiment_score'] = review_analysis.get('sentiment_score', analysis['sentiment_score'])
+                    analysis['sentiment_reasoning'] = review_analysis.get('sentiment_reasoning', analysis.get('sentiment_reasoning', ''))
                     analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis['is_escalation_signal'])
                     analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
                     analysis['entities'] = review_analysis.get('entities', analysis.get('entities', []))
 
+                    # Re-validate sentiment after Flash may have changed it
+                    tier2_sentiment_problems = _validate_sentiment(
+                        analysis['sentiment'],
+                        analysis['sentiment_score'],
+                        analysis['sentiment_reasoning'],
+                    )
+
                     # Update the database with Flash's assessment
                     conn.execute("""
                         UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
-                        is_escalation_signal = ?, escalation_note = ?, model_used = ?
+                        sentiment_reasoning = ?, is_escalation_signal = ?,
+                        escalation_note = ?, model_used = ?
                         WHERE article_id = ?
                     """, (
                         analysis['sentiment'], analysis['sentiment_score'],
+                        analysis['sentiment_reasoning'],
                         analysis['is_escalation_signal'], analysis.get('escalation_note'),
                         'gemini-2.5-flash (review)', article['id']
                     ))
@@ -463,6 +534,8 @@ FULL TEXT:
                         review_reasons.append(
                             f"Topic disagreement: Flash Lite={lite_topic} / Flash={review_analysis.get('topic_primary')}"
                         )
+
+                    review_reasons.extend(tier2_sentiment_problems)
 
                     if review_reasons:
                         conn.execute("""

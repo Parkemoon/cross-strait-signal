@@ -1,0 +1,229 @@
+{
+  "_comment": "Wikidata position QIDs for the officials roster. Run scripts/refresh_officials.py to regenerate current_officials.json after elections or reshuffles. Add roles with thin Wikidata coverage to scraper/processors/current_officials_manual.json instead.",
+  "positions": [
+    {
+      "country": "TW",
+      "branch": "executive",
+      "role_en": "President of Taiwan (ROC)",
+      "role_zh": "中華民國總統",
+      "wikidata_qid": "Q887003",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "executive",
+      "role_en": "Vice President of Taiwan (ROC)",
+      "role_zh": "中華民國副總統",
+      "wikidata_qid": "Q707830",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "executive",
+      "role_en": "Premier of Taiwan (Executive Yuan)",
+      "role_zh": "中華民國行政院院長",
+      "wikidata_qid": "Q702650",
+      "include_former_since": "2016-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "executive",
+      "role_en": "Minister of Foreign Affairs of Taiwan (ROC)",
+      "role_zh": "中華民國外交部長",
+      "wikidata_qid": "Q2482650",
+      "include_former_since": "2016-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "executive",
+      "role_en": "Minister of National Defense of Taiwan (ROC)",
+      "role_zh": "中華民國國防部長",
+      "wikidata_qid": "Q21449248",
+      "include_former_since": "2016-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "legislative",
+      "role_en": "President of the Legislative Yuan (Speaker)",
+      "role_zh": "立法院院長",
+      "wikidata_qid": "Q7241342",
+      "include_former_since": "2016-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "party",
+      "role_en": "Chairperson of the Kuomintang (KMT)",
+      "role_zh": "中國國民黨主席",
+      "wikidata_qid": "Q16056439",
+      "include_former_since": "2016-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "party",
+      "role_en": "Chairperson of the Democratic Progressive Party (DPP)",
+      "role_zh": "民主進步黨主席",
+      "wikidata_qid": "Q6310828",
+      "include_former_since": "2016-01-01"
+    },
+    {
+      "country": "TW",
+      "branch": "party",
+      "role_en": "Chairman of the Taiwan People's Party (TPP)",
+      "role_zh": "台灣民眾黨主席",
+      "wikidata_qid": "Q115669874",
+      "include_former_since": "2019-01-01"
+    },
+    {
+      "country": "US",
+      "branch": "executive",
+      "role_en": "President of the United States",
+      "role_zh": "美國總統",
+      "wikidata_qid": "Q11696",
+      "include_former_since": "2017-01-01"
+    },
+    {
+      "country": "US",
+      "branch": "executive",
+      "role_en": "Vice President of the United States",
+      "role_zh": "美國副總統",
+      "wikidata_qid": "Q11699",
+      "include_former_since": "2017-01-01"
+    },
+    {
+      "country": "US",
+      "branch": "executive",
+      "role_en": "United States Secretary of State",
+      "role_zh": "美國國務卿",
+      "wikidata_qid": "Q14213",
+      "include_former_since": "2017-01-01"
+    },
+    {
+      "country": "US",
+      "branch": "executive",
+      "role_en": "United States Secretary of Defense",
+      "role_zh": "美國國防部長",
+      "wikidata_qid": "Q735015",
+      "include_former_since": "2017-01-01"
+    },
+    {
+      "country": "US",
+      "branch": "executive",
+      "role_en": "United States National Security Advisor",
+      "role_zh": "美國國家安全顧問",
+      "wikidata_qid": "Q1414246",
+      "include_former_since": "2017-01-01"
+    },
+    {
+      "country": "US",
+      "branch": "legislative",
+      "role_en": "Speaker of the United States House of Representatives",
+      "role_zh": "美國眾議院議長",
+      "wikidata_qid": "Q912994",
+      "include_former_since": "2017-01-01"
+    },
+    {
+      "country": "US",
+      "branch": "legislative",
+      "role_en": "Majority Leader of the United States Senate",
+      "role_zh": "美國參議院多數黨領袖",
+      "wikidata_qid": "Q28530268",
+      "include_former_since": "2017-01-01"
+    },
+    {
+      "country": "PRC",
+      "branch": "party",
+      "role_en": "General Secretary of the Chinese Communist Party",
+      "role_zh": "中國共產黨中央委員會總書記",
+      "wikidata_qid": "Q849418",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "PRC",
+      "branch": "executive",
+      "role_en": "President of the People's Republic of China",
+      "role_zh": "中華人民共和國國家主席",
+      "wikidata_qid": "Q655407",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "PRC",
+      "branch": "executive",
+      "role_en": "Premier of the State Council of China",
+      "role_zh": "中華人民共和國國務院總理",
+      "wikidata_qid": "Q4122271",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "PRC",
+      "branch": "legislative",
+      "role_en": "Chairman of the NPC Standing Committee",
+      "role_zh": "全國人民代表大會常務委員會委員長",
+      "wikidata_qid": "Q3408540",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "PRC",
+      "branch": "executive",
+      "role_en": "Minister of Foreign Affairs of China",
+      "role_zh": "中華人民共和國外交部長",
+      "wikidata_qid": "Q2664362",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "PRC",
+      "branch": "executive",
+      "role_en": "Minister of National Defense of China",
+      "role_zh": "中華人民共和國國防部長",
+      "wikidata_qid": "Q10297096",
+      "include_former_since": "2012-01-01"
+    },
+    {
+      "country": "JP",
+      "branch": "executive",
+      "role_en": "Prime Minister of Japan",
+      "role_zh": "日本內閣總理大臣",
+      "wikidata_qid": "Q274948",
+      "include_former_since": "2019-01-01"
+    },
+    {
+      "country": "JP",
+      "branch": "executive",
+      "role_en": "Minister for Foreign Affairs of Japan",
+      "role_zh": "日本外務大臣",
+      "wikidata_qid": "Q1355043",
+      "include_former_since": "2019-01-01"
+    },
+    {
+      "country": "JP",
+      "branch": "executive",
+      "role_en": "Minister of Defense of Japan",
+      "role_zh": "日本防衛大臣",
+      "wikidata_qid": "Q6500838",
+      "include_former_since": "2019-01-01"
+    },
+    {
+      "country": "JP",
+      "branch": "executive",
+      "role_en": "Chief Cabinet Secretary of Japan",
+      "role_zh": "日本內閣官房長官",
+      "wikidata_qid": "Q1078482",
+      "include_former_since": "2019-01-01"
+    },
+    {
+      "country": "JP",
+      "branch": "legislative",
+      "role_en": "Speaker of the House of Representatives of Japan",
+      "role_zh": "日本衆議院議長",
+      "wikidata_qid": "Q22960931",
+      "include_former_since": "2019-01-01"
+    },
+    {
+      "country": "JP",
+      "branch": "legislative",
+      "role_en": "President of the House of Councillors of Japan",
+      "role_zh": "日本參議院議長",
+      "wikidata_qid": "Q28869611",
+      "include_former_since": "2019-01-01"
+    }
+  ]
+}

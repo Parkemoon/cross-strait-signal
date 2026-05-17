@@ -40,6 +40,12 @@ python scripts/run_pipeline.py
 python scripts/backfill_key_figure_statements.py --days 30 --limit 200
 ```
 
+### Officials roster refresh (run after elections, cabinet reshuffles, or when officeholder hallucinations are spotted)
+```bash
+python scripts/refresh_officials.py
+```
+Queries Wikidata SPARQL for current + recent former holders of ~28 positions across TW/US/PRC/JP. Output is `scraper/processors/current_officials.json` — review the diff, then commit and deploy so the server picks it up. Runtime ~80s. Positions config: `scripts/officials_positions.json` (hand-curated Wikidata QIDs). Gap-fill for roles Wikidata tracks poorly (PLA commanders, MFA spokespersons): add to `scraper/processors/current_officials_manual.json` — manual entries win on conflict. Romanisation overrides for Taiwanese officials come from `glossary.json` + `key_figures.json` automatically. Note: `current_officials.json` is a generated file committed to git; do not hand-edit it (edit the manual file or the positions config instead).
+
 ### Entity name merge (run on server to fix near-duplicate extractions)
 ```bash
 python scripts/merge_entities.py --dry-run                    # survey clusters first

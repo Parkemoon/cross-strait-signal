@@ -386,6 +386,11 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
           sentiment={article.sentiment}
           score={article.sentiment_score}
         />
+        {!READ_ONLY && article.sentiment_reasoning && (
+          <span style={{ color: "var(--text-muted)", fontSize: "11px", fontStyle: "italic" }}>
+            {article.sentiment_reasoning}
+          </span>
+        )}
         <span
           style={{
             color: "var(--text-muted)",
