@@ -16,7 +16,8 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 - Scrapes ~30 active sources across PRC, Taiwan, Hong Kong, Singapore, and the UK — including RSS feeds and bespoke HTML scrapers for sites without usable feeds (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN, LTN Defence, UDN sections)
 - Directional relevance filtering — PRC/HK/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
 - Three-tier AI analysis: Google Gemini 3.1 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
-- Structured analytical output per article: topic classification (27 categories), sentiment scoring (−1.0 to +1.0), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
+- Structured analytical output per article: topic classification (28 categories), sentiment scoring (−1.0 to +1.0), sentiment reasoning (one-sentence audit trail quoting the specific phrase that drove the score), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
+- Current-officials roster injected into every prompt — Wikidata-sourced, covering ~28 positions across Taiwan, US, PRC, and Japan — prevents the model from attributing roles to former officeholders based on stale training data
 - Full editorial approval gate — every article is held from the public feed until the analyst explicitly approves it, ensuring no AI translation errors or misclassifications reach readers
 - Inline translation editing on headline, summary, and key quote — corrected fields highlighted amber to distinguish human-verified text from raw AI output
 - Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — translation editing available within the queue, auto-approves on resolution
@@ -61,7 +62,9 @@ Three-Tier AI Analysis Pipeline (articles only)
 │            (translation editing + auto-approve on resolution)
 │
 Glossary injection (pre-analysis): glossary.json terms injected as CRITICAL TERMINOLOGY MAPPING
+Officials roster injection (pre-analysis): current_officials.json (~28 roles, TW/US/PRC/JP) injected as authoritative reference; prevents officeholder hallucinations from stale training data
 Entity canonical normalisation (post-analysis): entity_canonical.json normalises extracted name_en fields
+Sentiment consistency check (post-extraction): flags label/score band mismatches and directional claims with no quoted evidence to the human review queue
 │
 Editorial Approval Gate
 └── All articles held from public feed until analyst explicitly approves
@@ -250,6 +253,8 @@ React Dashboard
 | +0.3 to +1.0 | Cooperative | Warm, engaging framing — shared identity, dialogue, trade, people-to-people ties |
 
 Sentiment measures **how the source frames the opposing side of the strait**, not geopolitical stability. For PRC sources: how does the article portray Taiwan? For Taiwan sources: how does it portray the PRC? The axis is **bidirectional** — a PRC outlet publishing a hostile piece about Lai Ching-te and a Taiwan outlet publishing a hostile piece about PLA exercises both score negative. Taiwan-US military cooperation does not score as cross-strait cooperative.
+
+A Taiwanese politician opposing formal Taiwan independence scores **neutral** — this is a mainstream within-Taiwan position with no consensus against it, not a cross-strait stance. By contrast, a PRC official invoking anti-independence language to deny ROC sovereignty scores **hostile** — it asserts framing over Taiwan's right to choose. Every non-neutral score is accompanied by a one-sentence `sentiment_reasoning` field quoting the specific phrase that drove the classification, visible in the admin interface.
 
 ---
 
@@ -464,6 +469,9 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 - [x] International Chinese-language sources — BBC Chinese, Zaobao
 - [x] Filter-scoped Strait Watch sentiment gauges (scope chip, ghost baseline dots, entity/topic/place/urgency filtering)
 - [x] Entity name merge CLI (`scripts/merge_entities.py` — fuzzy clustering, interactive merge, free-text canonical)
+- [x] Wikidata-driven officials roster with auto-refresh script (`scripts/refresh_officials.py`) — ~28 positions across TW/US/PRC/JP, injected into every prompt to prevent officeholder hallucinations
+- [x] Sentiment audit trail (`sentiment_reasoning`) — one-sentence quoted evidence per non-neutral score, displayed in admin interface
+- [x] Sentiment consistency validation — label/score band mismatches and unsupported directional claims auto-flagged to human review queue
 - [ ] Map layer (geocoded entity plotting)
 - [ ] ADS-B / AIS data integration (Phase 3)
 
