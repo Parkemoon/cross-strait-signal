@@ -71,7 +71,7 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 
 ### Data Flow
 ```
-~20 RSS/HTML sources
+~30 RSS/HTML news sources
     → Keyword pre-filter (directional: saves ~80% API cost)
     → Tier 1 AI: Gemini 3.1 Flash Lite (topic, sentiment, entities, urgency)
     → Tier 2 AI: Gemini 2.5 Flash (escalation review, conditional)
@@ -80,6 +80,11 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
     → SQLite + FTS5
     → FastAPI routes
     → React dashboard
+
+Parallel pipelines (no AI processing):
+    Weibo / PTT → social_pulse table → Gemini batch translation
+    MAC monthly CSVs (data.gov.tw 7887) ──┐
+    UN Comtrade (PRC reporter, partner 490) ┴→ economic_indicators table → /api/economy/*
 ```
 
 ### Three-Tier AI Pipeline (`scraper/processors/ai_pipeline.py`)
@@ -124,6 +129,8 @@ Two types:
 | `pla_daily_scraper.py` | PLA Daily 解放軍報 (81.cn — HTTP only, not HTTPS) |
 | `weibo_hot_scraper.py` | Weibo Hot Search — fetches top 50 from `weibo.com/ajax/side/hotSearch` JSON API; stores all items in `social_pulse` table |
 | `ptt_scraper.py` | PTT BBS — scrapes Military (5 pages), Gossiping (15 pages), HatePolitics (12 pages); requires `over18=1` cookie; page depth in `BOARD_PAGES` dict |
+| `mac_economic_scraper.py` | MAC monthly cross-strait economic indicators — see Economic Indicators section below |
+| `comtrade_scraper.py` | UN Comtrade — PRC-reported trade with Taiwan for independent verification — see Economic Indicators section below |
 
 When adding a new HTML scraper: follow the pattern in any existing one. Register the source in `seed_sources.py` and add the import + call to `run_pipeline.py`.
 
@@ -131,6 +138,20 @@ When adding a new HTML scraper: follow the pattern in any existing one. Register
 
 ### Social Pulse (`scraper/processors/social_translator.py`)
 Separate lightweight pipeline for social data — does NOT go through the article AI pipeline. Batch-translates `social_pulse` rows where `title_en IS NULL` using Gemini 3.1 Flash Lite (`thinking_level=low`). Runs as Step 2b in `run_pipeline.py` after the social scrapers.
+
+### Economic Indicators (`scraper/scrapers/mac_economic_scraper.py`, `comtrade_scraper.py`)
+Separate pipeline for cross-strait macro data — does NOT go through the article AI pipeline. Two sources feed the `economic_indicators` table:
+
+- **MAC (TW-side)**: dataset 7887 on `data.gov.tw` (兩岸經濟交流統計速報, monthly). Eight indicators × ~100 months: trade total, exports to PRC, imports from PRC, trade balance, TW investment in PRC (count + amount), PRC visitors to TW, TW visitors to PRC. Runs as Step 2c in `run_pipeline.py`.
+- **UN Comtrade (PRC-side)**: PRC General Administration of Customs as reported via Comtrade preview API. Reporter 156 (China), partner **490 ("Other Asia, nes")** — PRC files Taiwan trade here, not under 158. Rate-limited 1.2s/req; refreshes the last 6 months each run plus any missing periods. Runs as Step 2d.
+
+**Critical unit gotcha**: MAC publishes USD values in 億 (10^8 USD), not billions. The scraper applies a 0.1x scale factor (see `SERIES_SPECS` in `mac_economic_scraper.py`). All values in `economic_indicators` are stored in USD billions for consistency with Comtrade. If MAC's column headers change to `(百萬美元)` or `(億新臺幣)` in the future, the scale factor needs updating.
+
+**Encoding gotcha**: MAC CSVs are Big5-encoded. Older download URLs go through `ws.mac.gov.tw/Download.ashx?u=<base64>` which is Cloudflare-protected; the scraper decodes the `u=` param to reconstruct direct static URLs that bypass the challenge.
+
+**YoY parsing gotcha**: MAC's TW-visitors growth column uses decimal-fraction notation without `%` suffix (e.g. `0.103` = 10.3%) while every other column uses `30.6%` style. `parse_pct()` applies the ×100 conversion only when `|val| < 1` and no `%` sign — narrow enough that a real 100% reading isn't collapsed to 1%.
+
+**The verification story**: PRC's reported imports from Taiwan are ~80-125% higher than MAC's reported exports to PRC (gap widening from 80% in 2017 to 124% in 2024). Mostly Hong Kong transit trade booked differently. The `/api/economy/verification` endpoint pairs MAC and Comtrade by period for the dashboard's verification view.
 
 ### Event Clustering (`scripts/cluster_events.py`)
 Groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
@@ -150,6 +171,7 @@ SQLite with FTS5 full-text search. Key tables:
 - **articles_fts**: FTS5 virtual table for bilingual full-text search
 - **sources**: `is_active=0` deactivates a source without deleting its articles
 - **social_pulse**: Weibo and PTT items — `platform`, `item_key` (dedup key), `title` (Chinese), `title_en` (AI translation), `title_en_override` (analyst correction), engagement fields (`rank_position`, `heat_index` for Weibo; `push_count`, `boo_count`, `board`, `url` for PTT)
+- **economic_indicators**: cross-strait macro time-series from MAC + UN Comtrade — `series_id` (e.g. `trade_total_usd_b`, `comtrade_prc_imports_from_tw_usd_b`), `period` (`YYYY-MM`), `period_type` (`month`/`ytd`/`cumulative_alltime`, MVP uses `month` only), `value`, `unit` (`usd_billion`/`count`/`10k_persons`), `yoy_pct`, `source` (`MAC_7887`/`UN_COMTRADE_156`); unique on (series_id, period, period_type)
 
 ### API Layer (`api/routes/`)
 - `articles.py`: GET `/api/articles` — filter params: `topic`, `sentiment`, `source_place`, `source_name` (prefix-matched against `s.name`, e.g. `"LTN"` matches all LTN feeds), `bias` (exact match on `s.bias`), `urgency`, `escalation_only`, `entity`, `search`, `include_pending`. `include_pending=true` skips the `analyst_approved=1` filter — admin frontend always sends this; public build never does. `POST /api/articles/{id}/approve` sets `analyst_approved=1`. `PATCH /api/articles/{id}/translation` updates `title_en_override`, `summary_en_override`, `key_quote_override`. `source_place` filter: `PRC`/`TW` map to exact `s.place` match; `hk` maps to `s.place IN ('HK', 'MO')`; `intl` maps to `s.place NOT IN ('PRC', 'TW', 'HK', 'MO')`.
@@ -157,6 +179,7 @@ SQLite with FTS5 full-text search. Key tables:
 - `notes.py`: CRUD for analyst notes with AI override support
 - `review.py`: review queue — confirm / override / dismiss. Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
 - `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
+- `economy.py`: GET `/api/economy/series` (params: `ids`, `start`, `end`, `months`) returns time-series JSON for cross-strait economic indicators with metadata baked in. GET `/api/economy/series/meta` returns just the indicator catalog. GET `/api/economy/verification` pairs MAC vs Comtrade by period with computed `gap_pct` (= `(prc - tw) / tw * 100`). Indicator catalog and verification pairs are declared in `SERIES_META` and `VERIFICATION_PAIRS` constants — add new series/pairs there.
 
 ### Frontend (`frontend/src/`)
 React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key components:
@@ -164,7 +187,8 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `ArticleCard.jsx`: article display with inline sentiment/topic override and analyst notes; `onSignalOff` prop for FlashTraffic removal; `onApprove` callback for pending count updates. Unapproved articles (`analyst_approved=0`) show an amber left border and "⚠ Pending Approval" banner with Approve/Dismiss buttons (admin only). `FieldEditor` component handles inline editing of `title_en_override`, `summary_en_override`, `key_quote_override` — pencil icon reveals textarea; overridden fields render in amber. `sentiment_reasoning` renders as a small italic grey line below the sentiment badge (admin only, hidden when empty).
 - `ReviewQueue.js`: human review UI with translation editing fields (headline, summary, key quote) always visible — changed fields saved via `updateArticleTranslation` before resolving. Confirm/override auto-approves the article.
 - `SignalCharts.jsx`: sentiment trend (Y-axis clamped to `[-1, 1]`, single YAxis) + topic breakdown charts.
-- `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → HK/Macao → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`); camp gauges hidden below n=5 articles to avoid noise. When a scoping filter is active, a teal chip appears above "Strait Watch" with a dismissable `×`; each gauge shows a grey ghost dot at the global baseline position (only when scoped score differs by >0.01). `TopicBreakdownChart` hides when `filters.topic` is set (one bar is useless). All sidebar elements are clickable to set filters: gauges → `onPlaceClick(placeKey|null)`, camp gauges → `onBiasClick(bias)`, source rows → `onSourceClick(dbPrefix)` using `SOURCE_FILTER` map (publication display name → DB name prefix), entity rows → `onEntityClick(entityNameEn)`. `hasScopingFilter`/`buildScopeLabel` drive the scope chip — add any new scoping filter keys to both. Sources section groups feeds by publication via `PUBLICATION_NAMES` map — when adding new multi-feed sources, add entries there too.
+- `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → HK/Macao → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`); camp gauges hidden below n=5 articles to avoid noise. When a scoping filter is active, a teal chip appears above "Strait Watch" with a dismissable `×`; each gauge shows a grey ghost dot at the global baseline position (only when scoped score differs by >0.01). `TopicBreakdownChart` hides when `filters.topic` is set (one bar is useless). All sidebar elements are clickable to set filters: gauges → `onPlaceClick(placeKey|null)`, camp gauges → `onBiasClick(bias)`, source rows → `onSourceClick(dbPrefix)` using `SOURCE_FILTER` map (publication display name → DB name prefix), entity rows → `onEntityClick(entityNameEn)`. `hasScopingFilter`/`buildScopeLabel` drive the scope chip — add any new scoping filter keys to both. Sources section groups feeds by publication via `PUBLICATION_NAMES` map — when adding new multi-feed sources, add entries there too. Renders `EconomyMini` between the topic breakdown and Sources sections — receives `onOpenEconomy` callback to switch to the Economy tab.
+- `EconomyTab.jsx`: Phase 2a feature tab. KPI strip (4 cards), main trade chart with 1Y/3Y/5Y/All range toggle, indicator picker for the other 7 series, and a `VerificationSection` pairing MAC vs Comtrade (always shows last 60 months regardless of main-chart range, since PRC data lags ~6 months). Display formatters: `formatValue` (KPI/tooltip — expands 10k_persons to actual count), `formatYAxisTick` (compact K/M for visitor axes, `US$X B` for trade), `displayUnit` (caption label). Also exports `EconomyMini` — sidebar widget showing TW–PRC trade balance + total trade headline. When adding a new indicator: add it to `SERIES_META` in `api/routes/economy.py`, and only the new series_id needs to be added to `KPI_SERIES` (optional) — the picker chart auto-discovers via `data.series`.
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
 - `SocialPulse.jsx`: accepts `column` prop — in column mode (right-hand aside in App.js) always expanded, vertical stack layout; in default inline mode, collapsible with two-column Weibo/PTT panel. Weibo shows only cross-strait relevant items. Inline translation correction via pencil icon (hidden in read-only build). Override colour highlight is also hidden in read-only build.
 - `KeyFigures.jsx`: horizontal scrollable row of cards above SocialPulse; each card shows portrait (images in `frontend/public/figures/`, initials fallback with party colour), name, role, latest approved statement; pencil icon (amber when candidates pending) opens per-card curation modal; hidden in read-only build via `READ_ONLY` constant
@@ -172,7 +196,9 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `SourceBadge.jsx`: colour-coded by `bias` prop — `SOURCE_ABBREV` map covers all active sources; multi-feed publications collapse to a shared abbreviation (e.g. all CT sections → `CT`)
 - `hooks/useWindowWidth.js`: returns `window.innerWidth`, updates on resize. Used in `App.js` to derive `isMobile = windowWidth < 768`.
 
-**Mobile layout** (`App.js`): below 768px the 3-column grid collapses to a single column with a sticky top tab bar (Feed / Stats / Social / Review). Each tab shows/hides the corresponding panel via `display: none`. When adding new panels or layout elements, check `isMobile` for any fixed widths or multi-column structures that would break on mobile.
+**Mobile layout** (`App.js`): below 768px the 3-column grid collapses to a single column with a sticky top tab bar (Feed / Stats / Economy / Social / Review). Each tab shows/hides the corresponding panel via `display: none`. When adding new panels or layout elements, check `isMobile` for any fixed widths or multi-column structures that would break on mobile.
+
+**View state** (`App.js`): the `view` state (`"feed"` | `"review"` | `"economy"`) controls what renders in the center column on desktop. The desktop grid template collapses from 3 columns to 2 when `view === "economy"` (hides the Social Pulse right aside) so the trade charts get the full width. Mobile uses the separate `mobileTab` state for the same purpose. When `view === "review"`, the entire center column renders `<ReviewQueue />` instead of the Feed; `view === "economy"` renders `<EconomyTab />`.
 
 **`frontend/src/api.js`** is the central API client — every fetch call in the frontend goes through a named function here. When adding a new API endpoint, add the corresponding function to `api.js` first; components import from it directly (not from `fetch` inline). `fetchStats` only forwards keys in `SCOPING_KEYS` to the stats endpoint — `sentiment` and `search` are intentionally excluded (article-list only). When adding a new scoping filter, add it to both `SCOPING_KEYS` here and `_build_filter_clause` in `stats.py`.
 
@@ -184,7 +210,9 @@ All API calls use relative URLs (`API_BASE = ""`). Dev server proxies to `localh
 
 Two-script deploy pattern:
 - `deploy.sh` (local): builds frontend, git push, SSHs to server to run `server_deploy.sh`
-- `server_deploy.sh` (server only): `git pull`, `npm run build` (admin), `npm run build:public` (public read-only), `systemctl restart cross-strait-signal`
+- `server_deploy.sh` (server only): `git pull`, applies idempotent schema additions inline via `sqlite3` (see comment in the script), `npm run build` (admin), `npm run build:public` (public read-only), `systemctl restart cross-strait-signal`
+
+**Schema migrations**: `init_db.py` runs the full `schema.sql` and would fail on an existing DB because original tables don't use `IF NOT EXISTS`. When adding new tables or indexes, append a `CREATE … IF NOT EXISTS` block to the inline migration in `server_deploy.sh` AND add the same statement to `db/schema.sql` (with `IF NOT EXISTS`) so fresh init still works.
 
 **Live URLs**: `strait-signal.net` (public read-only) · `admin.strait-signal.net` (password protected, admin build)
 Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`.
