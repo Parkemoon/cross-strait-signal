@@ -15,6 +15,8 @@ from scraper.scrapers.ydn_scraper import scrape_ydn
 from scraper.scrapers.ltn_defence_scraper import scrape_ltn_defence
 from scraper.scrapers.weibo_hot_scraper import scrape_weibo_hot
 from scraper.scrapers.ptt_scraper import scrape_ptt
+from scraper.scrapers.mac_economic_scraper import scrape_mac_economic
+from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 from scraper.processors.social_translator import translate_social_pulse
 
@@ -48,6 +50,14 @@ async def main():
     # Step 2b: Translate social pulse items
     print("\n--- STEP 2b: Social Pulse Translation ---")
     translate_social_pulse()
+
+    # Step 2c: MAC cross-strait economic indicators (monthly publication, idempotent)
+    print("\n--- STEP 2c: MAC Economic Indicators ---")
+    scrape_mac_economic()
+
+    # Step 2d: UN Comtrade — PRC-reported trade with Taiwan (independent verification source)
+    print("\n--- STEP 2d: UN Comtrade ---")
+    scrape_comtrade()
 
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence
