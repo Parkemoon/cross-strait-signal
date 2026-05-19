@@ -115,21 +115,22 @@ export function SentimentTrendChart({ data, days }) {
 
   return (
     <div style={{ marginBottom: "28px" }}>
-      <div style={{
-        fontSize: "10px",
-        fontFamily: "var(--font-mono)",
-        color: "var(--text-muted)",
-        textTransform: "uppercase",
-        letterSpacing: "2px",
-        marginBottom: "14px",
-        fontWeight: 500,
-      }}>
-        Stability Trend — {days}d
+      <div style={{ marginBottom: "12px" }}>
+        <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "8px" }} />
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          fontWeight: 600,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--text-primary)",
+        }}>
+          Stability Trend — {days}d
+        </span>
       </div>
       <div style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-color)",
-        borderRadius: "3px",
         padding: "16px 8px 8px",
       }}>
         <ResponsiveContainer width="100%" height={120}>
@@ -203,21 +204,22 @@ export function TopicBreakdownChart({ data, onTopicClick }) {
 
   return (
     <div style={{ marginBottom: "28px" }}>
-      <div style={{
-        fontSize: "10px",
-        fontFamily: "var(--font-mono)",
-        color: "var(--text-muted)",
-        textTransform: "uppercase",
-        letterSpacing: "2px",
-        marginBottom: "14px",
-        fontWeight: 500,
-      }}>
-        Topic Breakdown
+      <div style={{ marginBottom: "12px" }}>
+        <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "8px" }} />
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          fontWeight: 600,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--text-primary)",
+        }}>
+          Topic Breakdown
+        </span>
       </div>
       <div style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-color)",
-        borderRadius: "3px",
         padding: "16px 8px 8px",
       }}>
         <ResponsiveContainer width="100%" height={220}>

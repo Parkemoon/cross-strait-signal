@@ -61,40 +61,119 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
-      {/* Header */}
+      {/* Header — masthead layout */}
       <header
         style={{
           background: "var(--header-bg)",
           color: "var(--header-text)",
-          padding: isMobile ? "10px 16px" : "14px 28px",
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "stretch",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "baseline", gap: "16px" }}>
-          <h1
-            style={{
-              fontSize: "22px",
-              fontFamily: "var(--font-headline)",
-              fontWeight: 400,
-              letterSpacing: "0.5px",
-            }}
-          >
+        {/* Masthead block */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: isMobile ? "12px 16px" : "12px 28px",
+          borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <h1 style={{
+            fontFamily: "var(--font-headline)",
+            fontSize: isMobile ? "18px" : "20px",
+            fontWeight: 400,
+            letterSpacing: "0.01em",
+            lineHeight: 1,
+          }}>
             Cross-Strait Signal
           </h1>
           {!isMobile && (
-            <span
-              style={{
-                fontSize: "11px",
+            <span style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "9px",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              opacity: 0.35,
+              marginTop: "5px",
+            }}>
+              PRC · Taiwan · Open-Source Intelligence
+            </span>
+          )}
+        </div>
+
+        {/* Centre strip — stats + pending */}
+        {!isMobile && (
+          <div style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            padding: "0 24px",
+            gap: "20px",
+          }}>
+            <span style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "10px",
+              opacity: 0.38,
+              letterSpacing: "0.06em",
+            }}>
+              {total} articles · {stats?.escalation_signals?.length || 0} signals
+            </span>
+            {!READ_ONLY && pendingApproval > 0 && (
+              <span style={{
+                fontSize: "10px",
                 fontFamily: "var(--font-mono)",
-                opacity: 0.5,
+                color: "#f59e0b",
+                background: "rgba(245,158,11,0.1)",
+                border: "1px solid rgba(245,158,11,0.25)",
+                padding: "3px 8px",
+                letterSpacing: "0.06em",
+              }}>
+                {pendingApproval} pending
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: isMobile ? "0 16px" : "0 20px" }}>
+          {!isMobile && !READ_ONLY && (
+            <button
+              onClick={() => setView(view === "review" ? "feed" : "review")}
+              style={{
+                padding: "5px 12px",
+                background: view === "review" ? "rgba(255,255,255,0.12)" : "transparent",
+                color: view === "review" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                cursor: "pointer",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                letterSpacing: "2px",
+                position: "relative",
               }}
             >
-              Open-Source Intelligence
-            </span>
+              Review
+              {reviewPending > 0 && (
+                <span style={{
+                  position: "absolute",
+                  top: "-5px",
+                  right: "-5px",
+                  background: "#e67e22",
+                  color: "#fff",
+                  borderRadius: "50%",
+                  width: "14px",
+                  height: "14px",
+                  fontSize: "9px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: "var(--font-mono)",
+                }}>
+                  {reviewPending}
+                </span>
+              )}
+            </button>
           )}
           {!isMobile && (
             <button
@@ -103,90 +182,17 @@ export default function App() {
                 background: "none",
                 border: "none",
                 cursor: "pointer",
-                fontSize: "11px",
+                fontSize: "10px",
                 fontFamily: "var(--font-mono)",
-                color: "var(--text-muted)",
-                opacity: 0.6,
-                padding: 0,
+                color: "rgba(255,255,255,0.35)",
                 textTransform: "uppercase",
-                letterSpacing: "1px",
+                letterSpacing: "0.1em",
+                padding: "5px 8px",
               }}
             >
               About
             </button>
           )}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {!isMobile && (
-            <span
-              style={{
-                fontSize: "11px",
-                fontFamily: "var(--font-mono)",
-                opacity: 0.5,
-              }}
-            >
-              {total} articles · {stats?.escalation_signals?.length || 0} signals
-            </span>
-          )}
-
-          {/* Pending approval count — admin only, desktop only */}
-          {!READ_ONLY && !isMobile && pendingApproval > 0 && (
-            <span
-              style={{
-                fontSize: "11px",
-                fontFamily: "var(--font-mono)",
-                color: "#f59e0b",
-                background: "rgba(245,158,11,0.1)",
-                border: "1px solid rgba(245,158,11,0.3)",
-                borderRadius: "4px",
-                padding: "4px 10px",
-              }}
-            >
-              {pendingApproval} pending
-            </span>
-          )}
-
-          {/* Review Queue button with pending badge — admin only, desktop only */}
-          {!READ_ONLY && !isMobile && (
-            <button
-              onClick={() => setView(view === "review" ? "feed" : "review")}
-              style={{
-                padding: "6px 14px",
-                background: view === "review" ? "var(--accent)" : "var(--bg-card)",
-                color: view === "review" ? "#fff" : "var(--text-secondary)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "12px",
-                fontFamily: "var(--font-mono)",
-                position: "relative",
-              }}
-            >
-              Review
-              {reviewPending > 0 && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: "-6px",
-                    right: "-6px",
-                    background: "#e67e22",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    width: "16px",
-                    height: "16px",
-                    fontSize: "10px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  {reviewPending}
-                </span>
-              )}
-            </button>
-          )}
-
           {isMobile && (
             <button
               onClick={() => setShowAbout(true)}
@@ -215,64 +221,66 @@ export default function App() {
         </div>
       </header>
 
-      {/* Mobile tab bar — sticky top, below header */}
-      {isMobile && (
-        <nav style={{
-          position: "sticky",
-          top: 0,
-          background: "var(--header-bg)",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
-          display: "flex",
-          zIndex: 100,
-        }}>
-          {[
-            { id: "feed", label: "Feed" },
-            { id: "stats", label: "Stats" },
-            { id: "social", label: "Social" },
-            ...(!READ_ONLY ? [{ id: "review", label: (reviewPending + pendingApproval) > 0 ? `Review (${reviewPending + pendingApproval})` : "Review" }] : []),
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setMobileTab(tab.id);
-                if (tab.id === "review") setView("review");
-                if (tab.id === "feed") setView("feed");
-              }}
-              style={{
-                flex: 1,
-                padding: "14px 4px",
-                background: "transparent",
-                color: mobileTab === tab.id ? "var(--header-text)" : "rgba(255,255,255,0.4)",
-                border: "none",
-                borderBottom: mobileTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
-                fontSize: "12px",
-                fontFamily: "var(--font-mono)",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-                cursor: "pointer",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      )}
+      {/* Tab bar — mobile only */}
+      {isMobile && <nav style={{
+        position: "sticky",
+        top: 0,
+        background: "var(--header-bg)",
+        borderBottom: "1px solid rgba(255,255,255,0.1)",
+        display: "flex",
+        zIndex: 100,
+      }}>
+        {[
+          { id: "feed", label: "Feed" },
+          { id: "stats", label: "Stats" },
+          ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => {
+              setMobileTab(tab.id);
+              if (tab.id === "review") setView("review");
+              else setView("feed");
+            }}
+            style={{
+              flex: 1,
+              padding: "14px 4px",
+              background: "transparent",
+              color: mobileTab === tab.id ? "var(--header-text)" : "rgba(255,255,255,0.4)",
+              border: "none",
+              borderBottom: mobileTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
+              fontSize: "12px",
+              fontFamily: "var(--font-mono)",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              cursor: "pointer",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>}
 
       {/* Main layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "280px 1fr 300px",
-          minHeight: "calc(100vh - 52px)",
-        }}
-      >
-        {/* Sidebar */}
+      <div style={{
+        display: isMobile ? "block" : "grid",
+        gridTemplateColumns: "clamp(300px, 20vw, 420px) 1fr 300px",
+        minHeight: "calc(100vh - 52px)",
+        alignItems: "start",
+        overflow: "hidden",
+      }}>
+        {/* Stats sidebar — always visible on desktop, tab-controlled on mobile */}
         <aside
+          className={isMobile ? "" : "hide-scrollbar"}
           style={{
             background: "var(--sidebar-bg)",
             borderRight: isMobile ? "none" : "1px solid var(--border-color)",
             padding: "24px 20px",
             overflowY: "auto",
+            position: isMobile ? "static" : "sticky",
+            top: 0,
+            height: isMobile ? "auto" : "100vh",
+            minWidth: 0,
             display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
           }}
         >
@@ -308,182 +316,181 @@ export default function App() {
           />
         </aside>
 
-        {/* Main content */}
-        <main style={{
-          padding: isMobile ? "16px" : ((!READ_ONLY && view === "review") ? "0" : "28px 32px"),
-          minWidth: 0,
-          overflow: "hidden",
-          display: isMobile ? (mobileTab === "feed" || mobileTab === "review" ? "block" : "none") : "block",
-        }}>
+        {/* Feed / Review — center column */}
+        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review") ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : (
-            <>
-              {/* Priority Signals */}
-              <FlashTraffic
-                escalations={stats?.escalation_signals}
-                onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
-                onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
-                onApprove={() => setPendingApproval((n) => Math.max(0, n - 1))}
-              />
+            <main style={{
+              padding: isMobile ? "16px" : "28px 32px",
+              minWidth: 0,
+              overflow: "hidden",
+            }}>
+                {/* Priority Signals */}
+                <FlashTraffic
+                  escalations={stats?.escalation_signals}
+                  onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
+                  onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
+                  onApprove={() => setPendingApproval((n) => Math.max(0, n - 1))}
+                />
 
-              <KeyFigures />
+                <KeyFigures />
 
-              {/* Section header */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  marginBottom: "6px",
-                }}
-              >
-                <h2
-                  style={{
-                    fontFamily: "var(--font-headline)",
-                    fontSize: "24px",
-                    fontWeight: 400,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Signal Feed
-                </h2>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {total} results
-                </span>
-              </div>
+                {/* Section header */}
+                <div style={{ marginBottom: "20px" }}>
+                  <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: "var(--text-primary)",
+                    }}>
+                      Signal Feed
+                    </span>
+                    <span style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "10px",
+                      color: "var(--text-muted)",
+                    }}>
+                      {total} results
+                    </span>
+                  </div>
+                  <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+                </div>
 
-              {/* Divider */}
-              <div
-                style={{
-                  height: "2px",
-                  background: "var(--text-primary)",
-                  marginBottom: "16px",
-                  opacity: 0.15,
-                }}
-              />
+                {/* Filters */}
+                <FilterBar
+                  filters={filters}
+                  setFilters={setFilters}
+                  topEntities={stats?.top_entities}
+                />
 
-              {/* Filters */}
-              <FilterBar
-                filters={filters}
-                setFilters={setFilters}
-                topEntities={stats?.top_entities}
-              />
-
-              {/* Article feed */}
-              {loading ? (
-                <p
-                  style={{
-                    color: "var(--text-muted)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "13px",
-                    padding: "40px 0",
-                  }}
-                >
-                  Loading...
-                </p>
-              ) : articles.length === 0 ? (
-                <p
-                  style={{
-                    color: "var(--text-muted)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "13px",
-                    padding: "40px 0",
-                  }}
-                >
-                  No articles match these filters.
-                </p>
-              ) : (
-                <>
-                  {articles.map((article) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      onTopicClick={(topic) => {
-                        setFilters((f) => ({ ...f, topic }));
-                        setPage(1);
-                      }}
-                      onEntityClick={(entityName) => {
-                        setFilters((f) => ({ ...f, entity: entityName, search: undefined }));
-                        setPage(1);
-                      }}
-                      onApprove={() => setPendingApproval((n) => Math.max(0, n - 1))}
-                    />
-                  ))}
-
-                  {/* Pagination */}
-                  <div
+                {/* Article feed */}
+                {loading ? (
+                  <p
                     style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      gap: "12px",
-                      marginTop: "24px",
-                      paddingBottom: "40px",
+                      color: "var(--text-muted)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "13px",
+                      padding: "40px 0",
                     }}
                   >
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                      style={{
-                        padding: "8px 20px",
-                        background: "var(--bg-card)",
-                        color: page <= 1 ? "var(--text-muted)" : "var(--text-secondary)",
-                        border: "1px solid var(--border-color)",
-                        borderRadius: "4px",
-                        cursor: page <= 1 ? "not-allowed" : "pointer",
-                        fontSize: "13px",
-                        fontFamily: "var(--font-body)",
-                      }}
-                    >
-                      ← Previous
-                    </button>
-                    <span
-                      style={{
-                        padding: "8px 0",
-                        fontSize: "12px",
-                        color: "var(--text-muted)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      Page {page}
-                    </span>
-                    <button
-                      onClick={() => setPage((p) => p + 1)}
-                      disabled={articles.length < 20}
-                      style={{
-                        padding: "8px 20px",
-                        background: "var(--bg-card)",
-                        color: articles.length < 20 ? "var(--text-muted)" : "var(--text-secondary)",
-                        border: "1px solid var(--border-color)",
-                        borderRadius: "4px",
-                        cursor: articles.length < 20 ? "not-allowed" : "pointer",
-                        fontSize: "13px",
-                        fontFamily: "var(--font-body)",
-                      }}
-                    >
-                      Next →
-                    </button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </main>
+                    Loading...
+                  </p>
+                ) : articles.length === 0 ? (
+                  <p
+                    style={{
+                      color: "var(--text-muted)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "13px",
+                      padding: "40px 0",
+                    }}
+                  >
+                    No articles match these filters.
+                  </p>
+                ) : (
+                  <>
+                    {articles.map((article) => (
+                      <ArticleCard
+                        key={article.id}
+                        article={article}
+                        onTopicClick={(topic) => {
+                          setFilters((f) => ({ ...f, topic }));
+                          setPage(1);
+                        }}
+                        onEntityClick={(entityName) => {
+                          setFilters((f) => ({ ...f, entity: entityName, search: undefined }));
+                          setPage(1);
+                        }}
+                        onApprove={() => setPendingApproval((n) => Math.max(0, n - 1))}
+                      />
+                    ))}
 
-        {/* Right column — Social Pulse */}
+                    {/* Pagination */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "12px",
+                        marginTop: "24px",
+                        paddingBottom: isMobile ? "24px" : "40px",
+                      }}
+                    >
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page <= 1}
+                        style={{
+                          padding: "8px 20px",
+                          background: "var(--bg-card)",
+                          color: page <= 1 ? "var(--text-muted)" : "var(--text-secondary)",
+                          border: "1px solid var(--border-color)",
+                          cursor: page <= 1 ? "not-allowed" : "pointer",
+                          fontSize: "13px",
+                          fontFamily: "var(--font-body)",
+                        }}
+                      >
+                        ← Previous
+                      </button>
+                      <span
+                        style={{
+                          padding: "8px 0",
+                          fontSize: "12px",
+                          color: "var(--text-muted)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        Page {page}
+                      </span>
+                      <button
+                        onClick={() => setPage((p) => p + 1)}
+                        disabled={articles.length < 20}
+                        style={{
+                          padding: "8px 20px",
+                          background: "var(--bg-card)",
+                          color: articles.length < 20 ? "var(--text-muted)" : "var(--text-secondary)",
+                          border: "1px solid var(--border-color)",
+                          cursor: articles.length < 20 ? "not-allowed" : "pointer",
+                          fontSize: "13px",
+                          fontFamily: "var(--font-body)",
+                        }}
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Social Pulse — mobile only, below articles */}
+                {isMobile && (
+                  <div style={{
+                    borderTop: "1px solid var(--border-color)",
+                    paddingTop: "16px",
+                    marginTop: "8px",
+                    paddingBottom: "40px",
+                  }}>
+                    <SocialPulse />
+                  </div>
+                )}
+              </main>
+          )}
+        </div>
+
+        {/* Social Pulse — right column, desktop only, sticky full-height */}
         <aside
+          className={isMobile ? "" : "hide-scrollbar"}
           style={{
             background: "var(--sidebar-bg)",
-            borderLeft: isMobile ? "none" : "1px solid var(--border-color)",
+            borderLeft: "1px solid var(--border-color)",
             padding: "24px 20px",
+            position: "sticky",
+            top: 0,
+            height: "100vh",
             overflowY: "auto",
-            display: isMobile ? (mobileTab === "social" ? "block" : "none") : "block",
+            minWidth: 0,
+            display: isMobile ? "none" : "block",
           }}
         >
           <SocialPulse column />

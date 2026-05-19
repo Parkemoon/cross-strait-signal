@@ -3,78 +3,80 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #fafaf8;
-  --bg-secondary: #f0efeb;
-  --bg-card: #ffffff;
-  --text-primary: #1c1c1c;
-  --text-secondary: #4a4a4a;
-  --text-muted: #8a8a8a;
-  --border-color: #e0ddd5;
+  --bg-primary: #f0e9db;
+  --bg-secondary: #e6ddd0;
+  --bg-card: #f5f0e6;
+  --text-primary: #1a150e;
+  --text-secondary: #3c3628;
+  --text-muted: #7a7060;
+  --border-color: #c8bca8;
   --accent-red: #c0392b;
   --accent-amber: #b8860b;
   --accent-green: #1e7a46;
   --accent-blue: #2663a9;
   --accent-teal: #1a7a6d;
   --accent-purple: #6b4c9a;
-  --tag-bg: #f0efeb;
-  --tag-text: #5a5a5a;
-  --escalation-bg: #fdf2f0;
+  --accent: #1a7a6d;
+  --tag-bg: #ddd4c2;
+  --tag-text: #5a5040;
+  --escalation-bg: #f8ece8;
   --escalation-border: #c0392b;
-  --sidebar-bg: #f5f4f0;
-  --header-bg: #1c1c1c;
-  --header-text: #fafaf8;
+  --sidebar-bg: #e8e0d2;
+  --header-bg: #2e2010;
+  --header-text: #f0e9db;
   --font-headline: 'DM Serif Display', Georgia, 'Times New Roman', serif;
   --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', 'Consolas', 'Courier New', monospace;
 }
 
 .dark {
-  --bg-primary: #121212;
-  --bg-secondary: #1a1a1a;
-  --bg-card: #222222;
-  --text-primary: #e8e6e1;
-  --text-secondary: #b0ada5;
-  --text-muted: #6e6b63;
-  --border-color: #333330;
+  --bg-primary: #0c0f16;
+  --bg-secondary: #131720;
+  --bg-card: #181d28;
+  --text-primary: #dde3f0;
+  --text-secondary: #7a8499;
+  --text-muted: #4a5268;
+  --border-color: #232838;
   --accent-red: #e07060;
   --accent-amber: #d4a94a;
   --accent-green: #5cb87a;
   --accent-blue: #5a9fd4;
   --accent-teal: #4db8a8;
   --accent-purple: #9b84c4;
-  --tag-bg: #2a2a28;
-  --tag-text: #9a9890;
-  --escalation-bg: #2a1a18;
+  --accent: #4a8fd4;
+  --tag-bg: #1c2134;
+  --tag-text: #6a7898;
+  --escalation-bg: #1a1018;
   --escalation-border: #c0392b;
-  --sidebar-bg: #181818;
-  --header-bg: #0a0a0a;
-  --header-text: #e8e6e1;
+  --sidebar-bg: #090c13;
+  --header-bg: #060810;
+  --header-text: #dde3f0;
 }
 
 /* Inverted token set — used for Priority Signals section */
 /* In light mode this looks like dark mode, in dark mode like light mode */
 .signal-inverted {
-  --bg-primary: #1c1c1c;
-  --bg-secondary: #252525;
-  --bg-card: #2c2c2c;
-  --text-primary: #fafaf8;
-  --text-secondary: #c8c5c0;
-  --text-muted: #888580;
-  --border-color: #3a3835;
-  --tag-bg: #333330;
-  --tag-text: #b8b5b0;
+  --bg-primary: #2e2010;
+  --bg-secondary: #382816;
+  --bg-card: #402e18;
+  --text-primary: #f0e9db;
+  --text-secondary: #c8bca8;
+  --text-muted: #857870;
+  --border-color: #3c3228;
+  --tag-bg: #342c20;
+  --tag-text: #b0a090;
 }
 
 .dark .signal-inverted {
-  --bg-primary: #f0efeb;
-  --bg-secondary: #e2dfd9;
-  --bg-card: #fafaf8;
-  --text-primary: #1c1c1c;
-  --text-secondary: #4a4a4a;
-  --text-muted: #7a7870;
-  --border-color: #d0ccc5;
-  --tag-bg: #e8e5e0;
-  --tag-text: #5a5a58;
+  --bg-primary: #e8e0d2;
+  --bg-secondary: #ddd4c2;
+  --bg-card: #f0e9db;
+  --text-primary: #1a150e;
+  --text-secondary: #3c3628;
+  --text-muted: #7a7060;
+  --border-color: #c0b4a0;
+  --tag-bg: #ddd4c2;
+  --tag-text: #5a5040;
 }
 
 * {
@@ -94,4 +96,24 @@ body {
 ::selection {
   background: var(--accent-teal);
   color: #fff;
+}
+
+/* Hide scrollbars while preserving scroll */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Key Figures horizontal scroll arrows — appear on wrapper hover */
+.key-figures-scroll-wrapper .scroll-arrow {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.key-figures-scroll-wrapper:hover .scroll-arrow:not(.hidden) {
+  opacity: 1;
+  pointer-events: auto;
 }

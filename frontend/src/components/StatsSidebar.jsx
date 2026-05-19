@@ -185,7 +185,6 @@ function StabilityGauge({ label, score, days, compact, globalScore, onClick, isA
       style={{
         background: "var(--bg-card)",
         border: isActive ? `1px solid ${color}` : "1px solid var(--border-color)",
-        borderRadius: "3px",
         padding: compact ? "10px 12px" : "14px 16px",
         marginBottom: "8px",
         cursor: onClick ? "pointer" : "default",
@@ -311,15 +310,22 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
     globalByPlace[r.place] = r.avg_score;
   });
 
-  const sectionTitle = () => ({
-    fontSize: "10px",
-    fontFamily: "var(--font-mono)",
-    color: "var(--text-muted)",
-    textTransform: "uppercase",
-    letterSpacing: "2px",
-    marginBottom: "14px",
-    fontWeight: 500,
-  });
+  const SectionHeader = ({ title, right }) => (
+    <div style={{ marginBottom: "16px" }}>
+      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "8px" }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          fontWeight: 600,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--text-primary)",
+        }}>{title}</span>
+        {right}
+      </div>
+    </div>
+  );
 
   const MIN_CAMP_N = 5; // minimum articles to show Taiwan-by-camp gauges
 
@@ -327,23 +333,15 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
     <div>
       {/* Strait Watch */}
       <div style={{ marginBottom: "28px" }}>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "14px",
-        }}>
-          <h3 style={{ ...sectionTitle(), marginBottom: 0 }}>Strait Watch</h3>
-
-          {/* Scope chip — visible only when a scoping filter is active */}
-          {isFiltered && (
+        <SectionHeader
+          title="Strait Watch"
+          right={isFiltered && (
             <div style={{
               display: "flex",
               alignItems: "center",
               gap: "6px",
               background: "rgba(26,122,109,0.1)",
               border: "1px solid rgba(26,122,109,0.35)",
-              borderRadius: "3px",
               padding: "3px 8px",
               fontSize: "9px",
               fontFamily: "var(--font-mono)",
@@ -374,16 +372,12 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
               </button>
             </div>
           )}
-        </div>
+        />
 
         {/* Overall gauge */}
         {isFiltered && stats.total_articles === 0 ? (
           <div style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "3px",
-            padding: "20px 16px",
-            marginBottom: "8px",
+            padding: "20px 0",
             textAlign: "center",
             fontSize: "11px",
             fontFamily: "var(--font-mono)",
@@ -492,11 +486,10 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
 
       {/* Source Health */}
       <div style={{ marginBottom: "28px" }}>
-        <h3 style={sectionTitle()}>Sources</h3>
+        <SectionHeader title="Sources" />
         <div style={{
           background: "var(--bg-card)",
           border: "1px solid var(--border-color)",
-          borderRadius: "3px",
           padding: "12px 16px",
         }}>
           {groupSources(stats.sources ?? []).map((s, i, arr) => {
@@ -518,7 +511,6 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
                   cursor: onSourceClick && dbPrefix ? "pointer" : "default",
                   background: isActive ? "var(--bg-secondary)" : "transparent",
                   margin: isActive ? "0 -16px" : undefined,
-                  borderRadius: isActive ? "2px" : undefined,
                 }}
               >
                 <span style={{
@@ -553,11 +545,10 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
 
       {/* Key Entities */}
       <div>
-        <h3 style={sectionTitle()}>Key Entities</h3>
+        <SectionHeader title="Key Entities" />
         <div style={{
           background: "var(--bg-card)",
           border: "1px solid var(--border-color)",
-          borderRadius: "3px",
           padding: "12px 16px",
         }}>
           {stats.top_entities?.slice(0, 10).map((e, i) => {
@@ -579,7 +570,6 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
                   cursor: onEntityClick ? "pointer" : "default",
                   background: isActive ? "var(--bg-secondary)" : "transparent",
                   margin: isActive ? "0 -16px" : undefined,
-                  borderRadius: isActive ? "2px" : undefined,
                 }}
               >
                 <span style={{
