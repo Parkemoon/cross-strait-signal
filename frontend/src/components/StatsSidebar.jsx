@@ -1,4 +1,5 @@
 import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
+import { EconomyMini } from "./EconomyTab";
 
 const PUBLICATION_NAMES = {
   // Liberty Times
@@ -298,7 +299,7 @@ function StabilityGauge({ label, score, days, compact, globalScore, onClick, isA
   );
 }
 
-export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters }) {
+export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters, onOpenEconomy }) {
   if (!stats) return null;
 
   const isFiltered    = hasScopingFilter(filters);
@@ -483,6 +484,9 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
           onTopicClick={onTopicClick}
         />
       )}
+
+      {/* Economy mini — click-through to the full Economy tab */}
+      <EconomyMini onOpen={onOpenEconomy} />
 
       {/* Source Health */}
       <div style={{ marginBottom: "28px" }}>

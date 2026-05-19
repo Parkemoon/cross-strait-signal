@@ -11,6 +11,7 @@ import ArticleCard from "./components/ArticleCard";
 import StatsSidebar from "./components/StatsSidebar";
 import FilterBar from "./components/FilterBar";
 import ReviewQueue from "./components/ReviewQueue";
+import EconomyTab from "./components/EconomyTab";
 
 export default function App() {
   const [articles, setArticles] = useState([]);
@@ -19,11 +20,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [view, setView] = useState("feed"); // "feed" | "review"
+  const [view, setView] = useState("feed"); // "feed" | "review" | "economy"
   const [reviewPending, setReviewPending] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(0);
-  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | "review"
+  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "social" | "review"
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
 
@@ -137,6 +138,24 @@ export default function App() {
 
         {/* Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: isMobile ? "0 16px" : "0 20px" }}>
+          {!isMobile && (
+            <button
+              onClick={() => setView(view === "economy" ? "feed" : "economy")}
+              style={{
+                padding: "5px 12px",
+                background: view === "economy" ? "rgba(255,255,255,0.12)" : "transparent",
+                color: view === "economy" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                cursor: "pointer",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              Economy
+            </button>
+          )}
           {!isMobile && !READ_ONLY && (
             <button
               onClick={() => setView(view === "review" ? "feed" : "review")}
@@ -233,6 +252,8 @@ export default function App() {
         {[
           { id: "feed", label: "Feed" },
           { id: "stats", label: "Stats" },
+          { id: "economy", label: "Economy" },
+          { id: "social", label: "Social" },
           ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
         ].map((tab) => (
           <button
@@ -240,6 +261,7 @@ export default function App() {
             onClick={() => {
               setMobileTab(tab.id);
               if (tab.id === "review") setView("review");
+              else if (tab.id === "economy") setView("economy");
               else setView("feed");
             }}
             style={{
@@ -261,10 +283,13 @@ export default function App() {
         ))}
       </nav>}
 
-      {/* Main layout */}
+      {/* Main layout — collapses to 2 columns on the Economy tab so the
+          trade charts get the full width. */}
       <div style={{
         display: isMobile ? "block" : "grid",
-        gridTemplateColumns: "clamp(300px, 20vw, 420px) 1fr 300px",
+        gridTemplateColumns: view === "economy"
+          ? "clamp(300px, 20vw, 420px) 1fr"
+          : "clamp(300px, 20vw, 420px) 1fr 300px",
         minHeight: "calc(100vh - 52px)",
         alignItems: "start",
         overflow: "hidden",
@@ -299,6 +324,10 @@ export default function App() {
             onSourceClick={(dbPrefix) => { setFilters((f) => ({ ...f, source_name: dbPrefix })); setPage(1); }}
             onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
             onBiasClick={(bias) => { setFilters((f) => ({ ...f, bias })); setPage(1); }}
+            onOpenEconomy={() => {
+              setView("economy");
+              if (isMobile) setMobileTab("economy");
+            }}
             onClearScopingFilters={() => {
               setFilters((f) => {
                 const next = { ...f };
@@ -316,10 +345,12 @@ export default function App() {
           />
         </aside>
 
-        {/* Feed / Review — center column */}
-        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review") ? "block" : "none") : "block", minWidth: 0 }}>
+        {/* Feed / Review / Economy — center column */}
+        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy") ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
+          ) : view === "economy" ? (
+            <EconomyTab />
           ) : (
             <main style={{
               padding: isMobile ? "16px" : "28px 32px",
@@ -478,7 +509,8 @@ export default function App() {
           )}
         </div>
 
-        {/* Social Pulse — right column, desktop only, sticky full-height */}
+        {/* Social Pulse — right column, desktop only, sticky full-height.
+            Hidden on the Economy tab to give the trade panels room. */}
         <aside
           className={isMobile ? "" : "hide-scrollbar"}
           style={{
@@ -490,7 +522,9 @@ export default function App() {
             height: "100vh",
             overflowY: "auto",
             minWidth: 0,
-            display: isMobile ? "none" : "block",
+            display: view === "economy"
+              ? "none"
+              : (isMobile ? (mobileTab === "social" ? "block" : "none") : "block"),
           }}
         >
           <SocialPulse column />

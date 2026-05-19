@@ -181,3 +181,27 @@ CREATE TABLE IF NOT EXISTS key_figure_statements (
 
 CREATE INDEX IF NOT EXISTS idx_kfs_figure_status ON key_figure_statements(figure_id, approval_status);
 CREATE INDEX IF NOT EXISTS idx_kfs_article ON key_figure_statements(article_id);
+
+-- ============================================================
+-- ECONOMIC INDICATORS (Phase 2a — cross-strait trade, investment, people flows)
+-- ============================================================
+-- Sourced from data.gov.tw / MAC monthly speed reports.
+-- One row per (series_id, period, period_type). Re-running the scraper
+-- updates value/yoy_pct/scraped_at if MAC revises a historical figure.
+
+CREATE TABLE IF NOT EXISTS economic_indicators (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    series_id   TEXT NOT NULL,        -- e.g. 'trade_total_usd_b', 'exports_to_prc_usd_b'
+    period      TEXT NOT NULL,        -- 'YYYY-MM' for month, 'YYYY' for annual
+    period_type TEXT NOT NULL,        -- 'month' | 'ytd' | 'cumulative_alltime'
+    value       REAL,                 -- NULL if MAC reports '—' (data not yet released)
+    unit        TEXT NOT NULL,        -- 'usd_billion' | 'count' | '10k_persons'
+    yoy_pct     REAL,                 -- year-on-year growth %, NULL if not reported
+    source      TEXT NOT NULL,        -- 'MAC_7887', 'MAC_7888', etc.
+    source_url  TEXT,                 -- URL of the source CSV file
+    scraped_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(series_id, period, period_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_econ_series_period ON economic_indicators(series_id, period DESC);
+CREATE INDEX IF NOT EXISTS idx_econ_period_type ON economic_indicators(period_type, period DESC);

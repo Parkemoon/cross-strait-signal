@@ -129,6 +129,23 @@ export async function updateEntityName(articleId, entityId, entityNameEn) {
   return res.json();
 }
 
+export async function fetchEconomySeries(params = {}) {
+  const query = new URLSearchParams();
+  if (params.ids) query.append("ids", Array.isArray(params.ids) ? params.ids.join(",") : params.ids);
+  if (params.start) query.append("start", params.start);
+  if (params.end) query.append("end", params.end);
+  if (params.months) query.append("months", params.months);
+  const res = await fetch(`${API_BASE}/api/economy/series?${query}`);
+  return res.json();
+}
+
+export async function fetchEconomyVerification(params = {}) {
+  const query = new URLSearchParams();
+  if (params.months) query.append("months", params.months);
+  const res = await fetch(`${API_BASE}/api/economy/verification?${query}`);
+  return res.json();
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   const res = await fetch(`${API_BASE}/api/social/${id}/translation`, {
     method: "PATCH",

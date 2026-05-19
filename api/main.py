@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import articles, stats, notes, social
+from api.routes import articles, stats, notes, social, economy
 from api.routes.review import router as review_router
 
 app = FastAPI(
@@ -25,6 +25,7 @@ app.include_router(stats.router)
 app.include_router(notes.router)
 app.include_router(review_router)
 app.include_router(social.router)
+app.include_router(economy.router)
 
 @app.get("/")
 def root():
