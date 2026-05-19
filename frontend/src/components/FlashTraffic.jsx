@@ -16,42 +16,35 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
 
   return (
     <div style={{ marginBottom: "32px" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: "10px",
-          marginBottom: "14px",
-        }}
-      >
-        <h2
-          style={{
-            fontFamily: "var(--font-headline)",
-            fontSize: "20px",
-            fontWeight: 400,
-            color: "var(--accent-red)",
-          }}
-        >
-          Priority Signals
-        </h2>
-        <span
-          style={{
+      <div style={{ marginBottom: "14px" }}>
+        <div style={{ height: "3px", background: "var(--accent-red)", marginBottom: "8px" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{
             fontFamily: "var(--font-mono)",
             fontSize: "11px",
+            fontWeight: 600,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "var(--accent-red)",
+          }}>
+            Priority Signals
+          </span>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "10px",
             color: "var(--text-muted)",
-          }}
-        >
-          {escalations.length} active
-        </span>
+          }}>
+            {escalations.length} active
+          </span>
+        </div>
       </div>
 
       <div
         className="signal-inverted"
         style={{
           background: "var(--bg-primary)",
-          borderRadius: "4px",
-          borderTop: "3px solid var(--accent-red)",
-          padding: "4px 20px 4px",
+          borderLeft: "3px solid var(--accent-red)",
+          padding: "4px 20px 4px 20px",
           marginBottom: "24px",
         }}
       >

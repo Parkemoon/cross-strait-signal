@@ -276,16 +276,21 @@ export default function SocialPulse({ column = false }) {
   if (column) {
     return (
       <>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "12px" }}>
-          <h3 style={{
-            fontFamily: "var(--font-headline)", fontSize: "13px", fontWeight: 600,
-            letterSpacing: "0.08em", textTransform: "uppercase", color: "#d97706", margin: 0,
-          }}>
-            Social Pulse
-          </h3>
-          <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-            {`${crossStraitCount} · ${pttItems.length}`}
-          </span>
+        <div style={{ marginBottom: "16px" }}>
+          <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "8px" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "10px",
+              fontWeight: 600,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "var(--text-primary)",
+            }}>Social Pulse</span>
+            <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+              {`Weibo ${crossStraitCount} · PTT ${pttItems.length}`}
+            </span>
+          </div>
         </div>
         <div style={{ paddingBottom: "24px", borderBottom: "1px solid var(--border-color)", marginBottom: "20px" }}>
           {weiboSection}
@@ -302,24 +307,32 @@ export default function SocialPulse({ column = false }) {
     <div style={{ marginBottom: "32px" }}>
       <div
         onClick={() => setExpanded(e => !e)}
-        style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: expanded ? "8px" : "0", cursor: "pointer", userSelect: "none" }}
+        style={{ cursor: "pointer", userSelect: "none", marginBottom: expanded ? "8px" : "0" }}
       >
-        <h3 style={{
-          fontFamily: "var(--font-headline)", fontSize: "13px", fontWeight: 600,
-          letterSpacing: "0.08em", textTransform: "uppercase", color: "#d97706", margin: 0,
-          display: "flex", alignItems: "center", gap: "6px",
-        }}>
-          Social Pulse
-          <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-muted)", letterSpacing: 0, textTransform: "none" }}>
-            {`Weibo ${crossStraitCount} · PTT ${pttItems.length}`}
+        <div style={{ height: "2px", background: "var(--text-primary)", marginBottom: "8px" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            fontWeight: 600,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "var(--text-primary)",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}>
+            Social Pulse
+            <span style={{ fontSize: "9px", fontWeight: 400, color: "var(--text-muted)", letterSpacing: "0.06em" }}>
+              {`Weibo ${crossStraitCount} · PTT ${pttItems.length}`}
+            </span>
           </span>
-        </h3>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-            Weibo {formatTime(data.weibo?.last_updated)}
-            {data.ptt?.last_updated && ` · PTT ${formatTime(data.ptt?.last_updated)}`}
-          </span>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{expanded ? "▲" : "▼"}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+              {formatTime(data.weibo?.last_updated)}
+            </span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{expanded ? "▲" : "▼"}</span>
+          </div>
         </div>
       </div>
 
@@ -327,7 +340,7 @@ export default function SocialPulse({ column = false }) {
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0",
           background: "var(--bg-card)", border: "1px solid var(--border-color)",
-          borderTop: "3px solid #d97706", borderRadius: "4px", overflow: "hidden",
+          borderTop: "3px solid #d97706", overflow: "hidden",
         }}>
           <div style={{ padding: "12px 16px", borderRight: "1px solid var(--border-color)" }}>
             {weiboSection}

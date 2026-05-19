@@ -66,15 +66,16 @@ export default function TopicPill({ topic, onClick }) {
     <span
       onClick={onClick ? (e) => { e.stopPropagation(); onClick(topic); } : undefined}
       style={{
-        border: `1px solid ${color}`,
+        borderLeft: `2px solid ${color}`,
         color: color,
-        padding: "2px 10px",
-        borderRadius: "2px",
-        fontSize: "11px",
+        paddingLeft: "5px",
+        fontSize: "10px",
         fontFamily: "var(--font-mono)",
-        letterSpacing: "0.3px",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
         cursor: onClick ? "pointer" : "default",
-        transition: "opacity 0.15s",
+        lineHeight: 1.4,
+        whiteSpace: "nowrap",
       }}
       title={onClick ? `Filter by ${label}` : undefined}
     >

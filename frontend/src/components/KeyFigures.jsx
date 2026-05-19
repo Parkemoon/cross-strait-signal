@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   fetchKeyFigures,
   fetchKeyFigureCandidates,
@@ -313,6 +313,29 @@ export default function KeyFigures() {
   const [figures, setFigures] = useState([]);
   const [candidates, setCandidates] = useState({});
   const [openCurationFor, setOpenCurationFor] = useState(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const scrollRef = useRef(null);
+
+  const updateScrollState = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollState();
+    el.addEventListener("scroll", updateScrollState);
+    return () => el.removeEventListener("scroll", updateScrollState);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [figures]);
+
+  const scrollBy = (dir) => {
+    if (scrollRef.current) scrollRef.current.scrollBy({ left: dir * 240, behavior: "smooth" });
+  };
 
   const loadFigures = () => {
     fetchKeyFigures()
@@ -359,6 +382,22 @@ export default function KeyFigures() {
 
   const curationFigure = openCurationFor ? figures.find((f) => f.id === openCurationFor) : null;
 
+  const arrowStyle = {
+    position: "absolute", top: "50%", transform: "translateY(-50%)",
+    zIndex: 2,
+    background: "var(--bg-card)",
+    border: "1px solid var(--border-color)",
+    borderRadius: "50%",
+    width: "28px", height: "28px",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+    color: "var(--text-secondary)",
+    fontSize: "18px",
+    lineHeight: 1,
+    padding: 0,
+  };
+
   return (
     <div style={{ marginBottom: "32px" }}>
       <h3 style={{
@@ -369,16 +408,57 @@ export default function KeyFigures() {
         Key Figures
       </h3>
 
-      <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "4px" }}>
-        {figures.map((figure) => (
-          <FigureCard
-            key={figure.id}
-            figure={figure}
-            pendingCount={(candidates[figure.id] || []).length}
-            onOpenCuration={() => setOpenCurationFor(figure.id)}
-            onClearStatement={handleClear}
-          />
-        ))}
+      <div className="key-figures-scroll-wrapper" style={{ position: "relative" }}>
+        {/* Left scroll arrow */}
+        <button
+          className={`scroll-arrow${canScrollLeft ? "" : " hidden"}`}
+          onClick={() => scrollBy(-1)}
+          style={{ ...arrowStyle, left: 0 }}
+        >
+          ‹
+        </button>
+
+        {/* Cards strip */}
+        <div
+          ref={scrollRef}
+          className="hide-scrollbar"
+          style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "4px" }}
+        >
+          {figures.map((figure) => (
+            <FigureCard
+              key={figure.id}
+              figure={figure}
+              pendingCount={(candidates[figure.id] || []).length}
+              onOpenCuration={() => setOpenCurationFor(figure.id)}
+              onClearStatement={handleClear}
+            />
+          ))}
+        </div>
+
+        {/* Right scroll arrow */}
+        <button
+          className={`scroll-arrow${canScrollRight ? "" : " hidden"}`}
+          onClick={() => scrollBy(1)}
+          style={{ ...arrowStyle, right: 0 }}
+        >
+          ›
+        </button>
+
+        {/* Edge fade gradients — always visible when scrollable */}
+        {canScrollLeft && (
+          <div style={{
+            position: "absolute", left: 0, top: 0, bottom: 4,
+            width: "40px", pointerEvents: "none", zIndex: 1,
+            background: "linear-gradient(to right, var(--bg-primary), transparent)",
+          }} />
+        )}
+        {canScrollRight && (
+          <div style={{
+            position: "absolute", right: 0, top: 0, bottom: 4,
+            width: "40px", pointerEvents: "none", zIndex: 1,
+            background: "linear-gradient(to left, var(--bg-primary), transparent)",
+          }} />
+        )}
       </div>
 
       {!READ_ONLY && openCurationFor && curationFigure && (

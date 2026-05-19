@@ -302,9 +302,14 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
     <article
       style={{
         borderBottom: "1px solid var(--border-color)",
-        borderLeft: isPending ? "3px solid #f59e0b" : "none",
-        padding: "18px 0",
-        paddingLeft: isPending ? "14px" : "0",
+        borderLeft: article.urgency === "flash"
+          ? "3px solid var(--accent-red)"
+          : article.urgency === "priority"
+          ? "3px solid var(--accent-amber)"
+          : isPending
+          ? "3px solid #f59e0b"
+          : "3px solid transparent",
+        padding: "14px 0 14px 12px",
         cursor: "pointer",
       }}
       onClick={handleExpand}
@@ -340,7 +345,6 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
                 background: "#16a34a",
                 color: "#fff",
                 border: "none",
-                borderRadius: "3px",
                 fontSize: "11px",
                 fontFamily: "var(--font-mono)",
                 fontWeight: 600,
@@ -356,7 +360,6 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
                 background: "transparent",
                 color: "var(--text-muted)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "3px",
                 fontSize: "11px",
                 fontFamily: "var(--font-mono)",
                 cursor: "pointer",
@@ -480,8 +483,8 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
           fontFamily: "var(--font-headline)",
           fontSize: "18px",
           fontWeight: 400,
-          lineHeight: 1.4,
-          marginBottom: "4px",
+          lineHeight: 1.3,
+          marginBottom: "6px",
           color: (!READ_ONLY && titleOverride) ? "#f59e0b" : "var(--text-primary)",
         }}
         onClick={(e) => e.stopPropagation()}

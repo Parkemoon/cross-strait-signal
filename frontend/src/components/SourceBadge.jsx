@@ -71,8 +71,7 @@ export default function SourceBadge({ sourceName, bias }) {
       style={{
         background: colors.bg,
         color: colors.text,
-        padding: "2px 8px",
-        borderRadius: "2px",
+        padding: "2px 7px",
         fontSize: "10px",
         fontWeight: 600,
         fontFamily: "var(--font-mono)",
