@@ -211,3 +211,6 @@ db/*.db
 
 # Frontend build outputs
 frontend/build-public/
+
+# Claude Code per-developer config (hooks, settings, etc.)
+.claude/
