@@ -5,15 +5,22 @@ Production worktree: `/var/www/cross-strait-signal` (branch: `main`)
 
 ## Current state
 
-**Phase 1a + 1b committed** (`ce7b35e`). Desktop 3-column layout with sticky
-independently-scrolling columns is live in staging. Editorial design refresh
-(parchment palette, thick-rule section headers, TopicPill flags, urgency stripes,
-masthead header) is applied and looking good.
+**Phase 1a + 1b** (`ce7b35e`): desktop 3-column layout with sticky
+independently-scrolling columns; editorial design refresh (parchment palette,
+thick-rule section headers, TopicPill flags, urgency stripes, masthead).
 
-**Next up — Phase 2a**: Economic data tab. Sources: DGBAS API (`api.stat.gov.tw`)
-for trade/GDP + MAC cross-strait statistics page for investment/people flows.
-New DB table: `economic_indicators (series, period, value, source, scraped_at)`.
-New frontend panel in the Stats sidebar or a dedicated Economy tab.
+**Phase 2a**: Cross-strait economy tab with MAC + UN Comtrade verification.
+Sources turned out to be `data.gov.tw` dataset 7887 (the original DGBAS API
+plan was abandoned — geo-blocked + no public consumer API) plus UN Comtrade
+preview API for PRC-side trade data. `economic_indicators` table populated
+with ~9 years of monthly data; Economy tab includes KPI strip, main trade
+chart, indicator picker, and a verification section overlaying MAC (TW
+customs) vs PRC Customs figures — the gap is the analytical story.
+
+**Next up — Phase 2a.2 (optional)**: more MAC datasets — 7472 (TW surplus
+with PRC + HK, captures the HK transit story), 7478 (PRC investment in TW by
+industry), 7888 (GDP/CPI/FX side-by-side). Then **Phase 2b**: MND incursion
+tracker.
 
 ## Restarting staging (if the tmux session has died)
 
