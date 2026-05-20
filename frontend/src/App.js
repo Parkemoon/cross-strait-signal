@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { fetchArticles, fetchStats } from "./api";
+import { useState } from "react";
 import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
+import { useDashboardData } from "./hooks/useDashboardData";
 import ThemeToggle from "./components/ThemeToggle";
 import AboutModal from "./components/AboutModal";
 import FlashTraffic from "./components/FlashTraffic";
@@ -14,51 +14,18 @@ import ReviewQueue from "./components/ReviewQueue";
 import EconomyTab from "./components/EconomyTab";
 
 export default function App() {
-  const [articles, setArticles] = useState([]);
-  const [stats, setStats] = useState(null);
   const [filters, setFilters] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [view, setView] = useState("feed"); // "feed" | "review" | "economy"
-  const [reviewPending, setReviewPending] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
-  const [pendingApproval, setPendingApproval] = useState(0);
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "social" | "review"
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
 
-  useEffect(() => {
-    setLoading(true);
-    const params = { ...filters, page, page_size: 20 };
-    if (!READ_ONLY) params.include_pending = true;
-    Object.keys(params).forEach(
-      (k) => params[k] === undefined && delete params[k]
-    );
-    fetchArticles(params).then((data) => {
-      setArticles(data.articles || []);
-      setTotal(data.total || 0);
-      setLoading(false);
-    });
-  }, [filters, page]);
-
-  useEffect(() => {
-    fetchStats(30, {
-      topic: filters.topic,
-      source_place: filters.source_place,
-      urgency: filters.urgency,
-      escalation_only: filters.escalation_only,
-      entity: filters.entity,
-    }).then(setStats);
-    fetch("/review/stats")
-      .then((r) => r.json())
-      .then((d) => {
-        setReviewPending(d.pending || 0);
-        setPendingApproval(d.pending_approval || 0);
-      })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.topic, filters.source_place, filters.urgency, filters.escalation_only, filters.entity]);
+  const {
+    articles, total, loading, stats,
+    reviewPending, pendingApproval, setPendingApproval,
+  } = useDashboardData(filters, page);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>

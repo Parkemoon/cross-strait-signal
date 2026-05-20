@@ -1,10 +1,17 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
-from api.database import get_db
+from api.database import db_conn
+from api.auth import require_admin
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
+
+
+# Columns on analyst_notes that PUT /notes/{id} is allowed to update. Anything
+# outside this set is rejected by the API even if a future Pydantic field gets
+# accidentally exposed as a column name.
+_NOTE_UPDATE_COLUMNS = {"note_text", "sentiment_override", "topic_override"}
 
 
 class NoteCreate(BaseModel):
@@ -22,107 +29,99 @@ class NoteUpdate(BaseModel):
     score_override: Optional[float] = None
 
 
-@router.post("/")
+@router.post("/", dependencies=[Depends(require_admin)])
 def create_note(note: NoteCreate):
     """Add analyst commentary to an article."""
-    conn = get_db()
-    cursor = conn.execute("""
-        INSERT INTO analyst_notes (article_id, note_text, sentiment_override, topic_override)
-        VALUES (?, ?, ?, ?)
-    """, (note.article_id, note.note_text, note.sentiment_override, note.topic_override))
+    with db_conn() as conn:
+        cursor = conn.execute("""
+            INSERT INTO analyst_notes (article_id, note_text, sentiment_override, topic_override)
+            VALUES (?, ?, ?, ?)
+        """, (note.article_id, note.note_text, note.sentiment_override, note.topic_override))
 
-    # Apply overrides directly to ai_analysis if provided
-    if note.sentiment_override:
-        conn.execute(
-            "UPDATE ai_analysis SET sentiment = ? WHERE article_id = ?",
-            (note.sentiment_override, note.article_id)
-        )
-    if note.topic_override:
-        conn.execute(
-            "UPDATE ai_analysis SET topic_primary = ? WHERE article_id = ?",
-            (note.topic_override, note.article_id)
-        )
-    
-    if note.score_override is not None:
-        conn.execute(
-            "UPDATE ai_analysis SET sentiment_score = ? WHERE article_id = ?",
-            (note.score_override, note.article_id)
-        )
+        if note.sentiment_override:
+            conn.execute(
+                "UPDATE ai_analysis SET sentiment = ? WHERE article_id = ?",
+                (note.sentiment_override, note.article_id)
+            )
+        if note.topic_override:
+            conn.execute(
+                "UPDATE ai_analysis SET topic_primary = ? WHERE article_id = ?",
+                (note.topic_override, note.article_id)
+            )
+        if note.score_override is not None:
+            conn.execute(
+                "UPDATE ai_analysis SET sentiment_score = ? WHERE article_id = ?",
+                (note.score_override, note.article_id)
+            )
 
-    conn.commit()
-    note_id = cursor.lastrowid
-    conn.close()
-    return {"id": note_id, "status": "created"}
+        conn.commit()
+        return {"id": cursor.lastrowid, "status": "created"}
 
 
 @router.get("/article/{article_id}")
 def get_notes_for_article(article_id: int):
     """Get all analyst notes for an article."""
-    conn = get_db()
-    rows = conn.execute("""
-        SELECT * FROM analyst_notes WHERE article_id = ? ORDER BY created_at DESC
-    """, (article_id,)).fetchall()
-    conn.close()
-    return {"notes": [dict(r) for r in rows]}
+    with db_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM analyst_notes WHERE article_id = ? ORDER BY created_at DESC",
+            (article_id,)
+        ).fetchall()
+        return {"notes": [dict(r) for r in rows]}
 
 
-@router.put("/{note_id}")
+@router.put("/{note_id}", dependencies=[Depends(require_admin)])
 def update_note(note_id: int, note: NoteUpdate):
     """Update an existing note."""
-    conn = get_db()
-    
-    # Get article_id for this note
-    row = conn.execute(
-        "SELECT article_id FROM analyst_notes WHERE id = ?", (note_id,)
-    ).fetchone()
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT article_id FROM analyst_notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Note not found")
+        article_id = row["article_id"]
 
-    updates = []
-    params = []
-    if note.note_text is not None:
-        updates.append("note_text = ?")
-        params.append(note.note_text)
-    if note.sentiment_override is not None:
-        updates.append("sentiment_override = ?")
-        params.append(note.sentiment_override)
-    if note.topic_override is not None:
-        updates.append("topic_override = ?")
-        params.append(note.topic_override)
-    if note.score_override is not None:
-            conn.execute(
-                "UPDATE ai_analysis SET sentiment_score = ? WHERE article_id = ?",
-                (note.score_override, article_id)
-            )
+        # Build SET clause from whitelisted columns only.
+        candidate_updates = {
+            "note_text": note.note_text,
+            "sentiment_override": note.sentiment_override,
+            "topic_override": note.topic_override,
+        }
+        updates = {
+            col: val for col, val in candidate_updates.items()
+            if val is not None and col in _NOTE_UPDATE_COLUMNS
+        }
+        updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-    updates.append("updated_at = ?")
-    params.append(datetime.now(timezone.utc).isoformat())
-    params.append(note_id)
+        set_clause = ", ".join(f"{col} = ?" for col in updates)
+        conn.execute(
+            f"UPDATE analyst_notes SET {set_clause} WHERE id = ?",
+            (*updates.values(), note_id),
+        )
 
-    conn.execute(f"UPDATE analyst_notes SET {', '.join(updates)} WHERE id = ?", params)
-
-    # Apply overrides to ai_analysis if provided
-    if row:
-        article_id = row['article_id']
         if note.sentiment_override:
             conn.execute(
                 "UPDATE ai_analysis SET sentiment = ? WHERE article_id = ?",
-                (note.sentiment_override, article_id)
+                (note.sentiment_override, article_id),
             )
         if note.topic_override:
             conn.execute(
                 "UPDATE ai_analysis SET topic_primary = ? WHERE article_id = ?",
-                (note.topic_override, article_id)
+                (note.topic_override, article_id),
+            )
+        if note.score_override is not None:
+            conn.execute(
+                "UPDATE ai_analysis SET sentiment_score = ? WHERE article_id = ?",
+                (note.score_override, article_id),
             )
 
-    conn.commit()
-    conn.close()
-    return {"id": note_id, "status": "updated"}
+        conn.commit()
+        return {"id": note_id, "status": "updated"}
 
 
-@router.delete("/{note_id}")
+@router.delete("/{note_id}", dependencies=[Depends(require_admin)])
 def delete_note(note_id: int):
     """Delete a note."""
-    conn = get_db()
-    conn.execute("DELETE FROM analyst_notes WHERE id = ?", (note_id,))
-    conn.commit()
-    conn.close()
-    return {"id": note_id, "status": "deleted"}
+    with db_conn() as conn:
+        conn.execute("DELETE FROM analyst_notes WHERE id = ?", (note_id,))
+        conn.commit()
+        return {"id": note_id, "status": "deleted"}

@@ -17,20 +17,24 @@ with open(_CANONICAL_PATH, encoding='utf-8') as _f:
 
 def _normalise_entity_name(entity):
     """Override entity name_en with the canonical English form if the Chinese
-    name matches an entry in entity_canonical.json. Substring matching handles
-    cases where the AI returns a longer form (e.g. 中國人民解放軍 matching 解放軍).
-    Only keys with 2+ characters are used for substring matching to avoid
-    false positives from single-character suffixes.
-    Also normalises whitespace and fixes all-lowercase names (AI slip)."""
+    name matches an entry in entity_canonical.json. Falls through three tiers:
+      1. Exact match (always safe).
+      2. Canonical key is a prefix of the extracted name (e.g. 解放軍 → 解放軍海軍).
+      3. Canonical key is a prefix of the canonical key — i.e. the AI returned
+         the shorter form (e.g. extracted 解放軍 against canonical 中國人民解放軍).
+    Bidirectional substring matching is intentionally avoided: it produced
+    false positives where short keys like 臺灣 collided with unrelated longer
+    entity names that contained them. Only keys with 2+ characters
+    participate. Whitespace is normalised and all-lowercase AI output is
+    title-cased."""
     zh_name = entity.get('name', '')
     if not zh_name:
         return entity
 
-    # Canonical map lookup
     for zh, en in _CANONICAL_ENTITIES.items():
         if len(zh) < 2:
             continue
-        if zh == zh_name or (zh in zh_name or zh_name in zh):
+        if zh == zh_name or zh_name.startswith(zh) or zh.startswith(zh_name):
             entity['name_en'] = en
             return entity
 
@@ -97,7 +101,13 @@ load_dotenv()
 from google import genai
 from scraper.utils.db import get_connection
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not _GEMINI_API_KEY:
+    raise RuntimeError(
+        "GEMINI_API_KEY environment variable is not set. "
+        "Add it to .env in the project root (see CLAUDE.md > Environment)."
+    )
+client = genai.Client(api_key=_GEMINI_API_KEY)
 
 ANALYSIS_SYSTEM_PROMPT = """You are an intelligence analyst specialising in cross-strait
 relations between the People's Republic of China and Taiwan. You are processing a media
