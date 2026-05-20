@@ -16,6 +16,7 @@ from scraper.scrapers.ltn_defence_scraper import scrape_ltn_defence
 from scraper.scrapers.weibo_hot_scraper import scrape_weibo_hot
 from scraper.scrapers.ptt_scraper import scrape_ptt
 from scraper.scrapers.mac_economic_scraper import scrape_mac_economic
+from scraper.scrapers.mac_hk_trade_scraper import scrape_mac_hk_trade
 from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 from scraper.processors.social_translator import translate_social_pulse
@@ -58,6 +59,10 @@ async def main():
     # Step 2d: UN Comtrade — PRC-reported trade with Taiwan (independent verification source)
     print("\n--- STEP 2d: UN Comtrade ---")
     scrape_comtrade()
+
+    # Step 2e: MAC dataset 7459 — TW-HK trade with HK Customs cross-check
+    print("\n--- STEP 2e: TW-HK Trade (dual reporter) ---")
+    scrape_mac_hk_trade()
 
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence

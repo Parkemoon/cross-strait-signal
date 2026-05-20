@@ -1,7 +1,14 @@
-"""Cross-strait economic indicators endpoint (Phase 2a).
+"""Cross-strait economic indicators endpoint.
 
-Data sourced from MAC (Mainland Affairs Council) monthly publications via
-data.gov.tw dataset 7887. See scraper/scrapers/mac_economic_scraper.py.
+Data sources:
+  * MAC dataset 7887 — cross-strait monthly indicators (TW Customs)
+  * MAC dataset 7459 — TW-HK trade with TW + HK Customs both reporting
+  * UN Comtrade — PRC Customs reporting (reporter 156, partner 490)
+
+The verification endpoint pairs alternative reporters for the same trade
+flow. Two pair kinds today: TW MAC vs PRC Customs (the HK transit gap on
+the cross-strait leg), and TW MAC vs HK Customs (the same transit visible
+from the HK side).
 """
 from fastapi import APIRouter, Query
 from typing import Optional
@@ -70,6 +77,45 @@ SERIES_META = [
         "category": "verification",
         "reporter": "Comtrade",
         "compares_with": "imports_from_prc_usd_b",
+    },
+    # TW-HK trade (MAC dataset 7459, dual reporter)
+    {
+        "id": "exports_to_hk_usd_b",
+        "label_en": "Taiwan exports to HK",
+        "label_zh": "對香港出口",
+        "unit": "USD billions",
+        "axis_label": "USD bn",
+        "category": "trade",
+        "reporter": "MAC",
+    },
+    {
+        "id": "imports_from_hk_usd_b",
+        "label_en": "Taiwan imports from HK",
+        "label_zh": "自香港進口",
+        "unit": "USD billions",
+        "axis_label": "USD bn",
+        "category": "trade",
+        "reporter": "MAC",
+    },
+    {
+        "id": "hk_customs_tw_exports_usd_b",
+        "label_en": "TW→HK exports (HK customs)",
+        "label_zh": "臺輸港（港方海關）",
+        "unit": "USD billions",
+        "axis_label": "USD bn",
+        "category": "verification",
+        "reporter": "HK Customs",
+        "compares_with": "exports_to_hk_usd_b",
+    },
+    {
+        "id": "hk_customs_tw_imports_usd_b",
+        "label_en": "HK→TW exports (HK customs)",
+        "label_zh": "港輸臺（港方海關）",
+        "unit": "USD billions",
+        "axis_label": "USD bn",
+        "category": "verification",
+        "reporter": "HK Customs",
+        "compares_with": "imports_from_hk_usd_b",
     },
     {
         "id": "tw_investment_prc_amount_usd_b",
@@ -199,25 +245,53 @@ def get_series_meta():
     return {"series": SERIES_META}
 
 
-# Pairs of (MAC_series, Comtrade_series, flow_label)
+# Verification pairs: two reporters disclosing the same trade flow.
+# `series_a` is the TW-perspective baseline (always TW MAC); `series_b` is
+# the second reporter (PRC Customs via Comtrade, or HK Customs via MAC 7459).
+# `kind` groups pairs in the UI: a "prc_customs" section and a "hk_customs"
+# section, each with its own narrative.
 VERIFICATION_PAIRS = [
+    # ── TW vs PRC Customs (the original cross-strait verification) ──
     {
         "flow_id": "tw_exports_to_prc",
+        "kind": "prc_customs",
         "label_en": "Taiwan exports to PRC",
         "label_zh": "對中國大陸出口",
-        "tw_series": "exports_to_prc_usd_b",
-        "prc_series": "comtrade_prc_imports_from_tw_usd_b",
-        "tw_reporter_label": "TW MAC",
-        "prc_reporter_label": "PRC Customs (Comtrade)",
+        "series_a": "exports_to_prc_usd_b",
+        "series_b": "comtrade_prc_imports_from_tw_usd_b",
+        "reporter_a_label": "TW MAC",
+        "reporter_b_label": "PRC Customs (Comtrade)",
     },
     {
         "flow_id": "tw_imports_from_prc",
+        "kind": "prc_customs",
         "label_en": "Taiwan imports from PRC",
         "label_zh": "自中國大陸進口",
-        "tw_series": "imports_from_prc_usd_b",
-        "prc_series": "comtrade_prc_exports_to_tw_usd_b",
-        "tw_reporter_label": "TW MAC",
-        "prc_reporter_label": "PRC Customs (Comtrade)",
+        "series_a": "imports_from_prc_usd_b",
+        "series_b": "comtrade_prc_exports_to_tw_usd_b",
+        "reporter_a_label": "TW MAC",
+        "reporter_b_label": "PRC Customs (Comtrade)",
+    },
+    # ── TW vs HK Customs (HK transit gap from HK's side) ──
+    {
+        "flow_id": "tw_exports_to_hk",
+        "kind": "hk_customs",
+        "label_en": "Taiwan exports to HK",
+        "label_zh": "對香港出口",
+        "series_a": "exports_to_hk_usd_b",
+        "series_b": "hk_customs_tw_exports_usd_b",
+        "reporter_a_label": "TW MAC",
+        "reporter_b_label": "HK Customs",
+    },
+    {
+        "flow_id": "tw_imports_from_hk",
+        "kind": "hk_customs",
+        "label_en": "Taiwan imports from HK",
+        "label_zh": "自香港進口",
+        "series_a": "imports_from_hk_usd_b",
+        "series_b": "hk_customs_tw_imports_usd_b",
+        "reporter_a_label": "TW MAC",
+        "reporter_b_label": "HK Customs",
     },
 ]
 
@@ -226,41 +300,42 @@ VERIFICATION_PAIRS = [
 def get_verification(
     months: Optional[int] = Query(None, description="Limit to most recent N months"),
 ):
-    """Pair MAC's TW-reported trade with Comtrade's PRC-reported trade.
+    """Pair each TW-reported trade flow with an alternative reporter.
 
-    For each flow we return aligned monthly points {period, tw, prc, gap_usd_b,
-    gap_pct}. gap_pct = (prc - tw) / tw * 100; positive means PRC reports a
-    higher number than TW (commonly because PRC includes HK transit / re-export
-    flows that TW books separately).
+    Returns pairs grouped by `kind` (prc_customs / hk_customs). Each point
+    carries {period, value_a, value_b, gap_usd_b, gap_pct}; gap_pct =
+    (b - a) / a * 100 — positive means the second reporter records more
+    than TW, typically because HK transit / re-export flows are booked
+    differently.
     """
     pairs_out = []
     with db_conn() as conn:
         for pair in VERIFICATION_PAIRS:
             rows = conn.execute(
                 '''
-                SELECT tw.period AS period, tw.value AS tw_value, prc.value AS prc_value
-                FROM economic_indicators tw
-                LEFT JOIN economic_indicators prc
-                  ON prc.series_id = ?
-                 AND prc.period = tw.period
-                 AND prc.period_type = 'month'
-                WHERE tw.series_id = ?
-                  AND tw.period_type = 'month'
-                ORDER BY tw.period ASC
+                SELECT a.period AS period, a.value AS value_a, b.value AS value_b
+                FROM economic_indicators a
+                LEFT JOIN economic_indicators b
+                  ON b.series_id = ?
+                 AND b.period = a.period
+                 AND b.period_type = 'month'
+                WHERE a.series_id = ?
+                  AND a.period_type = 'month'
+                ORDER BY a.period ASC
                 ''',
-                (pair["prc_series"], pair["tw_series"]),
+                (pair["series_b"], pair["series_a"]),
             ).fetchall()
 
             points = []
             for r in rows:
-                tw = r["tw_value"]
-                prc = r["prc_value"]
-                gap = (prc - tw) if (tw is not None and prc is not None) else None
-                gap_pct = ((prc - tw) / tw * 100) if (tw and prc is not None) else None
+                va = r["value_a"]
+                vb = r["value_b"]
+                gap = (vb - va) if (va is not None and vb is not None) else None
+                gap_pct = ((vb - va) / va * 100) if (va and vb is not None) else None
                 points.append({
                     "period": r["period"],
-                    "tw": tw,
-                    "prc": prc,
+                    "value_a": va,
+                    "value_b": vb,
                     "gap_usd_b": gap,
                     "gap_pct": gap_pct,
                 })

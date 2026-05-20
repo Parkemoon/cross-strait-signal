@@ -459,10 +459,12 @@ export default function EconomyTab() {
         lineHeight: 1.5,
       }}>
         Sources: Mainland Affairs Council, R.O.C. (Taiwan) — 兩岸經濟交流統計速報 (dataset
-        7887 on <em>data.gov.tw</em>); UN Comtrade preview API (reporter 156 China,
-        partner 490 "Other Asia, nes"). PRC files Taiwan trade under the "Other Asia"
-        partner code. Investment figures count only TW-government-approved cases.
-        People-flow data interrupted Jan 2020 – early 2023 due to COVID border controls.
+        7887 on <em>data.gov.tw</em>) for cross-strait indicators and 臺灣對香港貿易統計表
+        (dataset 7459) for TW-HK trade with HK Census &amp; Statistics Department
+        cross-reporting. UN Comtrade preview API (reporter 156 China, partner 490
+        "Other Asia, nes") — PRC files Taiwan trade under the "Other Asia" partner code.
+        Investment figures count only TW-government-approved cases. People-flow data
+        interrupted Jan 2020 – early 2023 due to COVID border controls.
       </p>
     </main>
   );
@@ -470,7 +472,39 @@ export default function EconomyTab() {
 
 // ---- Verification section ----
 
-function VerificationTooltip({ active, payload, label }) {
+// Per-kind presentation: section header, intro paragraph, and the colour for
+// the "second reporter" line (TW MAC always uses accent-teal as reporter A).
+const VERIFICATION_KINDS = {
+  prc_customs: {
+    section_label: "Verification — MAC vs PRC Customs",
+    reporter_b_color: "var(--accent-red)",
+    intro: (
+      <>
+        Each cross-strait flow as reported by both governments. Solid line: Taiwan's MAC
+        (TW customs). Dashed line: PRC's General Administration of Customs (via UN
+        Comtrade). The gap typically reflects Hong Kong transit trade booked differently
+        by each side, plus methodological differences (e.g. CIF vs FOB valuation).
+      </>
+    ),
+    empty_message: "PRC-reported trade data not yet loaded. Run the Comtrade scraper.",
+  },
+  hk_customs: {
+    section_label: "Verification — MAC vs HK Customs",
+    reporter_b_color: "var(--accent-purple)",
+    intro: (
+      <>
+        TW-HK trade as recorded by both customs authorities. Solid line: Taiwan's MAC.
+        Dashed line: Hong Kong Census &amp; Statistics Department. The TW→HK leg
+        usually agrees within a few percent, but HK records far more outbound trade to
+        Taiwan than TW records as imports from HK — most of HK's exports to TW are
+        PRC-origin goods that TW books as imports from the mainland instead.
+      </>
+    ),
+    empty_message: "TW-HK trade data not yet loaded. Run scrape_mac_hk_trade.",
+  },
+};
+
+function VerificationTooltip({ active, payload, label, reporterALabel, reporterBLabel, reporterBColor }) {
   if (!active || !payload?.length) return null;
   const p = payload[0]?.payload || {};
   return (
@@ -485,12 +519,12 @@ function VerificationTooltip({ active, payload, label }) {
     }}>
       <div style={{ color: "var(--text-muted)", marginBottom: "6px" }}>{formatPeriodLabel(label)}</div>
       <div style={{ display: "flex", justifyContent: "space-between", color: "var(--accent-teal)" }}>
-        <span>TW MAC</span>
-        <span>{p.tw === null || p.tw === undefined ? "—" : `US$${p.tw.toFixed(2)}B`}</span>
+        <span>{reporterALabel}</span>
+        <span>{p.value_a === null || p.value_a === undefined ? "—" : `US$${p.value_a.toFixed(2)}B`}</span>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", color: "var(--accent-red)" }}>
-        <span>PRC Customs</span>
-        <span>{p.prc === null || p.prc === undefined ? "—" : `US$${p.prc.toFixed(2)}B`}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", color: reporterBColor }}>
+        <span>{reporterBLabel}</span>
+        <span>{p.value_b === null || p.value_b === undefined ? "—" : `US$${p.value_b.toFixed(2)}B`}</span>
       </div>
       {p.gap_pct !== null && p.gap_pct !== undefined && (
         <div style={{
@@ -500,16 +534,16 @@ function VerificationTooltip({ active, payload, label }) {
           color: "var(--text-muted)",
           fontSize: "10px",
         }}>
-          Δ {p.gap_pct > 0 ? "+" : ""}{p.gap_pct.toFixed(1)}% (PRC vs TW)
+          Δ {p.gap_pct > 0 ? "+" : ""}{p.gap_pct.toFixed(1)}% (B vs A)
         </div>
       )}
     </div>
   );
 }
 
-function VerificationFlowChart({ pair }) {
+function VerificationFlowChart({ pair, reporterBColor }) {
   const points = pair.points || [];
-  const latest = [...points].reverse().find((p) => p.tw !== null && p.prc !== null);
+  const latest = [...points].reverse().find((p) => p.value_a !== null && p.value_b !== null);
 
   return (
     <div style={{
@@ -539,8 +573,8 @@ function VerificationFlowChart({ pair }) {
             fontSize: "10px",
             color: "var(--text-muted)",
           }}>
-            {formatPeriodLabel(latest.period)}: TW <span style={{ color: "var(--accent-teal)" }}>US${latest.tw.toFixed(2)}B</span>
-            {" · "}PRC <span style={{ color: "var(--accent-red)" }}>US${latest.prc.toFixed(2)}B</span>
+            {formatPeriodLabel(latest.period)}: {pair.reporter_a_label} <span style={{ color: "var(--accent-teal)" }}>US${latest.value_a.toFixed(2)}B</span>
+            {" · "}{pair.reporter_b_label} <span style={{ color: reporterBColor }}>US${latest.value_b.toFixed(2)}B</span>
             {latest.gap_pct !== null && latest.gap_pct !== undefined && (
               <span style={{ color: latest.gap_pct >= 0 ? "var(--accent-amber)" : "var(--accent-purple)", marginLeft: "8px" }}>
                 Δ {latest.gap_pct > 0 ? "+" : ""}{latest.gap_pct.toFixed(1)}%
@@ -566,11 +600,19 @@ function VerificationFlowChart({ pair }) {
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip content={<VerificationTooltip />} />
+          <Tooltip
+            content={
+              <VerificationTooltip
+                reporterALabel={pair.reporter_a_label}
+                reporterBLabel={pair.reporter_b_label}
+                reporterBColor={reporterBColor}
+              />
+            }
+          />
           <Line
             type="monotone"
-            dataKey="tw"
-            name="TW MAC"
+            dataKey="value_a"
+            name={pair.reporter_a_label}
             stroke="var(--accent-teal)"
             strokeWidth={2}
             dot={false}
@@ -579,13 +621,13 @@ function VerificationFlowChart({ pair }) {
           />
           <Line
             type="monotone"
-            dataKey="prc"
-            name="PRC Customs"
-            stroke="var(--accent-red)"
+            dataKey="value_b"
+            name={pair.reporter_b_label}
+            stroke={reporterBColor}
             strokeWidth={2}
             strokeDasharray="4 3"
             dot={false}
-            activeDot={{ r: 4, fill: "var(--accent-red)" }}
+            activeDot={{ r: 4, fill: reporterBColor }}
             isAnimationActive={false}
           />
         </LineChart>
@@ -595,6 +637,42 @@ function VerificationFlowChart({ pair }) {
 }
 
 const VERIFICATION_DEFAULT_MONTHS = 60;
+
+function VerificationKindSubsection({ kind, pairs }) {
+  const cfg = VERIFICATION_KINDS[kind];
+  if (!cfg) return null;
+  const hasData = pairs.some((p) => p.points.some((pt) => pt.value_b !== null));
+  return (
+    <>
+      <SectionHeader>{cfg.section_label}</SectionHeader>
+      <p style={{
+        fontFamily: "var(--font-body)",
+        fontSize: "12px",
+        color: "var(--text-secondary)",
+        marginBottom: "14px",
+        lineHeight: 1.5,
+      }}>
+        {cfg.intro}
+      </p>
+      {hasData ? (
+        pairs.map((pair) => (
+          <VerificationFlowChart
+            key={pair.flow_id}
+            pair={pair}
+            reporterBColor={cfg.reporter_b_color}
+          />
+        ))
+      ) : (
+        <p style={{
+          fontFamily: "var(--font-mono)", fontSize: "11px",
+          color: "var(--text-muted)", padding: "12px 0 24px",
+        }}>
+          {cfg.empty_message}
+        </p>
+      )}
+    </>
+  );
+}
 
 function VerificationSection() {
   const [data, setData] = useState(null);
@@ -610,7 +688,7 @@ function VerificationSection() {
   if (loading) {
     return (
       <>
-        <SectionHeader>Verification — MAC vs PRC Customs</SectionHeader>
+        <SectionHeader>Verification — Cross-strait trade by reporter</SectionHeader>
         <p style={{
           fontFamily: "var(--font-mono)", fontSize: "11px",
           color: "var(--text-muted)", padding: "20px 0",
@@ -619,40 +697,25 @@ function VerificationSection() {
     );
   }
 
-  const hasData = data?.pairs?.some((p) => p.points.some((pt) => pt.prc !== null));
-  if (!hasData) {
-    return (
-      <>
-        <SectionHeader>Verification — MAC vs PRC Customs</SectionHeader>
-        <p style={{
-          fontFamily: "var(--font-mono)", fontSize: "11px",
-          color: "var(--text-muted)", padding: "12px 0",
-        }}>
-          PRC-reported trade data not yet loaded. Run the Comtrade scraper.
-        </p>
-      </>
-    );
+  if (!data?.pairs?.length) return null;
+
+  // Group pairs by kind, preserving the API's declared order
+  const groupedKinds = [];
+  const seen = new Set();
+  for (const pair of data.pairs) {
+    if (!seen.has(pair.kind)) {
+      seen.add(pair.kind);
+      groupedKinds.push(pair.kind);
+    }
   }
+  const byKind = Object.fromEntries(
+    groupedKinds.map((k) => [k, data.pairs.filter((p) => p.kind === k)])
+  );
 
   return (
     <>
-      <SectionHeader>
-        Verification — MAC vs PRC Customs
-      </SectionHeader>
-      <p style={{
-        fontFamily: "var(--font-body)",
-        fontSize: "12px",
-        color: "var(--text-secondary)",
-        marginBottom: "14px",
-        lineHeight: 1.5,
-      }}>
-        Each cross-strait flow as reported by both governments. Solid line: Taiwan's MAC
-        (TW customs). Dashed line: PRC's General Administration of Customs (via UN
-        Comtrade). The gap typically reflects Hong Kong transit trade booked differently
-        by each side, plus methodological differences (e.g. CIF vs FOB valuation).
-      </p>
-      {data.pairs.map((pair) => (
-        <VerificationFlowChart key={pair.flow_id} pair={pair} />
+      {groupedKinds.map((kind) => (
+        <VerificationKindSubsection key={kind} kind={kind} pairs={byKind[kind]} />
       ))}
     </>
   );
