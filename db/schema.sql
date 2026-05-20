@@ -139,6 +139,25 @@ CREATE VIRTUAL TABLE articles_fts USING fts5(
     content_rowid='id'
 );
 
+-- Sync triggers — keep articles_fts in lock-step with the articles table.
+-- Without these, the external-content FTS5 index drifts: rows added to
+-- articles never become searchable. If you ever drop and recreate the FTS
+-- table, you also need to re-run scripts/rebuild_fts.py to backfill history.
+CREATE TRIGGER IF NOT EXISTS articles_ai AFTER INSERT ON articles BEGIN
+    INSERT INTO articles_fts(rowid, title_original, title_en, content_original, content_en)
+    VALUES (new.id, new.title_original, new.title_en, new.content_original, new.content_en);
+END;
+CREATE TRIGGER IF NOT EXISTS articles_ad AFTER DELETE ON articles BEGIN
+    INSERT INTO articles_fts(articles_fts, rowid, title_original, title_en, content_original, content_en)
+    VALUES('delete', old.id, old.title_original, old.title_en, old.content_original, old.content_en);
+END;
+CREATE TRIGGER IF NOT EXISTS articles_au AFTER UPDATE ON articles BEGIN
+    INSERT INTO articles_fts(articles_fts, rowid, title_original, title_en, content_original, content_en)
+    VALUES('delete', old.id, old.title_original, old.title_en, old.content_original, old.content_en);
+    INSERT INTO articles_fts(rowid, title_original, title_en, content_original, content_en)
+    VALUES (new.id, new.title_original, new.title_en, new.content_original, new.content_en);
+END;
+
 -- ============================================================
 -- SOCIAL PULSE (Weibo Hot Search + PTT trending posts)
 -- ============================================================

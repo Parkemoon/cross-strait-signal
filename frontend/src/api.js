@@ -1,17 +1,43 @@
 const API_BASE = "";
 
+// When the admin build is configured with REACT_APP_ADMIN_TOKEN, every write
+// request includes it as X-Admin-Token. The public read-only build leaves it
+// undefined and never issues writes (nginx blocks those anyway).
+const ADMIN_TOKEN = process.env.REACT_APP_ADMIN_TOKEN || "";
+
+function authHeaders() {
+  return ADMIN_TOKEN ? { "X-Admin-Token": ADMIN_TOKEN } : {};
+}
+
+async function request(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, options);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = body?.detail || JSON.stringify(body);
+    } catch {
+      try { detail = await res.text(); } catch { /* ignore */ }
+    }
+    const err = new Error(`API ${res.status}: ${detail || res.statusText}`);
+    err.status = res.status;
+    throw err;
+  }
+  // Some endpoints return 204 / empty body.
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
 export async function fetchArticles(params = {}) {
   const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE}/api/articles?${query}`);
-  return res.json();
+  return request(`/api/articles?${query}`);
 }
 
 export async function fetchArticle(id) {
-  const res = await fetch(`${API_BASE}/api/articles/${id}`);
-  return res.json();
+  return request(`/api/articles/${id}`);
 }
 
-export async function fetchStats(days = 7, filters = {}) {
+export async function fetchStats(days = 30, filters = {}) {
   const params = new URLSearchParams({ days });
   const SCOPING_KEYS = ["topic", "source_place", "source_name", "bias", "urgency", "escalation_only", "entity"];
   SCOPING_KEYS.forEach((k) => {
@@ -19,114 +45,107 @@ export async function fetchStats(days = 7, filters = {}) {
       params.append(k, filters[k]);
     }
   });
-  const res = await fetch(`${API_BASE}/api/stats?${params}`);
-  return res.json();
+  return request(`/api/stats?${params}`);
 }
 
 export async function fetchEntities(params = {}) {
   const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE}/api/stats/entities?${query}`);
-  return res.json();
+  return request(`/api/stats/entities?${query}`);
 }
 
 export async function createNote(note) {
-  const res = await fetch(`${API_BASE}/api/notes/`, {
+  return request(`/api/notes/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(note),
   });
-  return res.json();
 }
 
 export async function fetchNotes(articleId) {
-  const res = await fetch(`${API_BASE}/api/notes/article/${articleId}`);
-  return res.json();
+  return request(`/api/notes/article/${articleId}`);
 }
 
 export async function fetchReviewQueue() {
-  const res = await fetch(`${API_BASE}/review/queue`);
-  return res.json();
+  return request(`/review/queue`);
 }
 
 export async function fetchReviewStats() {
-  const res = await fetch(`${API_BASE}/review/stats`);
-  return res.json();
+  return request(`/review/stats`);
 }
 
 export async function resolveReview(analysisId, decision) {
-  const res = await fetch(`${API_BASE}/review/${analysisId}/resolve`, {
+  return request(`/review/${analysisId}/resolve`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(decision),
   });
-  return res.json();
 }
 
 export async function fetchArticleCluster(articleId) {
-  const res = await fetch(`${API_BASE}/api/articles/${articleId}/cluster`);
-  return res.json();
+  return request(`/api/articles/${articleId}/cluster`);
 }
 
 export async function hideArticle(articleId) {
-  const res = await fetch(`${API_BASE}/api/articles/${articleId}/hide`, {
+  return request(`/api/articles/${articleId}/hide`, {
     method: "POST",
+    headers: authHeaders(),
   });
-  return res.json();
 }
 
 export async function toggleSignal(articleId) {
-  const res = await fetch(`${API_BASE}/api/articles/${articleId}/signal`, {
+  return request(`/api/articles/${articleId}/signal`, {
     method: "PATCH",
+    headers: authHeaders(),
   });
-  return res.json();
 }
 
 export async function fetchSocialPulse() {
-  const res = await fetch(`${API_BASE}/api/social`);
-  return res.json();
+  return request(`/api/social`);
 }
 
 export async function fetchKeyFigures() {
-  const res = await fetch(`${API_BASE}/api/stats/key-figures`);
-  return res.json();
+  return request(`/api/stats/key-figures`);
 }
 
 export async function fetchKeyFigureCandidates() {
-  const res = await fetch(`${API_BASE}/api/stats/key-figures/candidates`);
-  return res.json();
+  return request(`/api/stats/key-figures/candidates`);
 }
 
 export async function approveKeyFigureStatement(id) {
-  const res = await fetch(`${API_BASE}/api/stats/key-figures/statements/${id}/approve`, { method: "POST" });
-  return res.json();
+  return request(`/api/stats/key-figures/statements/${id}/approve`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
 }
 
 export async function dismissKeyFigureStatement(id) {
-  const res = await fetch(`${API_BASE}/api/stats/key-figures/statements/${id}/dismiss`, { method: "POST" });
-  return res.json();
+  return request(`/api/stats/key-figures/statements/${id}/dismiss`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
 }
 
 export async function approveArticle(articleId) {
-  const res = await fetch(`${API_BASE}/api/articles/${articleId}/approve`, { method: "POST" });
-  return res.json();
+  return request(`/api/articles/${articleId}/approve`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
 }
 
 export async function updateArticleTranslation(articleId, overrides) {
-  const res = await fetch(`${API_BASE}/api/articles/${articleId}/translation`, {
+  return request(`/api/articles/${articleId}/translation`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(overrides),
   });
-  return res.json();
 }
 
 export async function updateEntityName(articleId, entityId, entityNameEn) {
-  const res = await fetch(`${API_BASE}/api/articles/${articleId}/entities/${entityId}`, {
+  return request(`/api/articles/${articleId}/entities/${entityId}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ entity_name_en: entityNameEn }),
   });
-  return res.json();
 }
 
 export async function fetchEconomySeries(params = {}) {
@@ -135,22 +154,19 @@ export async function fetchEconomySeries(params = {}) {
   if (params.start) query.append("start", params.start);
   if (params.end) query.append("end", params.end);
   if (params.months) query.append("months", params.months);
-  const res = await fetch(`${API_BASE}/api/economy/series?${query}`);
-  return res.json();
+  return request(`/api/economy/series?${query}`);
 }
 
 export async function fetchEconomyVerification(params = {}) {
   const query = new URLSearchParams();
   if (params.months) query.append("months", params.months);
-  const res = await fetch(`${API_BASE}/api/economy/verification?${query}`);
-  return res.json();
+  return request(`/api/economy/verification?${query}`);
 }
 
 export async function correctSocialTranslation(id, titleEnOverride) {
-  const res = await fetch(`${API_BASE}/api/social/${id}/translation`, {
+  return request(`/api/social/${id}/translation`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ title_en_override: titleEnOverride }),
   });
-  return res.json();
 }

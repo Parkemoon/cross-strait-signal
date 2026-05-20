@@ -36,7 +36,13 @@ def _build_glossary_block(titles):
         + "\n".join(lines)
     )
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not _GEMINI_API_KEY:
+    raise RuntimeError(
+        "GEMINI_API_KEY environment variable is not set. "
+        "Add it to .env in the project root (see CLAUDE.md > Environment)."
+    )
+client = genai.Client(api_key=_GEMINI_API_KEY)
 
 TRANSLATION_PROMPT = """You are translating Chinese social media content into English for a cross-strait intelligence dashboard.
 

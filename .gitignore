@@ -214,3 +214,7 @@ frontend/build-public/
 
 # Claude Code per-developer config (hooks, settings, etc.)
 .claude/
+
+# Local scratch scripts — never commit
+fix.py
+scratch.py

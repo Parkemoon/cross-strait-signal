@@ -1,8 +1,10 @@
 import math
-from fastapi import APIRouter, Query
+from collections import defaultdict
+from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from pydantic import BaseModel
-from api.database import get_db
+from api.database import db_conn
+from api.auth import require_admin
 
 
 def _sanitize_floats(d: dict) -> dict:
@@ -25,6 +27,11 @@ class EntityNameUpdate(BaseModel):
     entity_name_en: str
 
 
+# Whitelist of columns mutable via PATCH /articles/{id}/translation. Kept
+# explicit so a future Pydantic refactor can't expand the SET clause silently.
+_TRANSLATION_COLUMNS = {"title_en_override", "summary_en_override", "key_quote_override"}
+
+
 @router.get("/")
 def list_articles(
     entity: Optional[str] = Query(None, description="Filter by entity name"),
@@ -41,296 +48,295 @@ def list_articles(
     page_size: int = Query(20, ge=1, le=100)
 ):
     """List articles with their AI analysis. Supports filtering and search."""
-    conn = get_db()
+    with db_conn() as conn:
+        # Build the query dynamically based on filters
+        where_clauses = []
+        params = []
 
-    # Build the query dynamically based on filters
-    where_clauses = []
-    params = []
+        # Always exclude hidden articles and articles pending AI review
+        where_clauses.append("a.is_hidden = 0")
+        where_clauses.append("(ai.needs_human_review = 0 OR ai.review_resolved = 1)")
+        # Public feed requires analyst approval; admin passes include_pending=true to see all
+        if not include_pending:
+            where_clauses.append("a.analyst_approved = 1")
 
-    # Always exclude hidden articles and articles pending AI review
-    where_clauses.append("a.is_hidden = 0")
-    where_clauses.append("(ai.needs_human_review = 0 OR ai.review_resolved = 1)")
-    # Public feed requires analyst approval; admin passes include_pending=true to see all
-    if not include_pending:
-        where_clauses.append("a.analyst_approved = 1")
+        if entity:
+            where_clauses.append("EXISTS (SELECT 1 FROM entities e WHERE e.article_id = a.id AND (e.entity_name_en LIKE ? OR e.entity_name LIKE ?))")
+            params.extend([f"%{entity}%", f"%{entity}%"])
 
-    if entity:
-        where_clauses.append("EXISTS (SELECT 1 FROM entities e WHERE e.article_id = a.id AND (e.entity_name_en LIKE ? OR e.entity_name LIKE ?))")
-        params.extend([f"%{entity}%", f"%{entity}%"])
+        if topic:
+            where_clauses.append("ai.topic_primary = ?")
+            params.append(topic)
 
-    if topic:
-        where_clauses.append("ai.topic_primary = ?")
-        params.append(topic)
+        if sentiment:
+            where_clauses.append("ai.sentiment = ?")
+            params.append(sentiment)
 
-    if sentiment:
-        where_clauses.append("ai.sentiment = ?")
-        params.append(sentiment)
+        if source_place:
+            if source_place == "intl":
+                where_clauses.append("s.place NOT IN ('PRC', 'TW', 'HK', 'MO')")
+            elif source_place == "hk":
+                where_clauses.append("s.place IN ('HK', 'MO')")
+            else:
+                where_clauses.append("s.place = ?")
+                params.append(source_place)
 
-    if source_place:
-        if source_place == "intl":
-            where_clauses.append("s.place NOT IN ('PRC', 'TW', 'HK', 'MO')")
-        elif source_place == "hk":
-            where_clauses.append("s.place IN ('HK', 'MO')")
-        else:
-            where_clauses.append("s.place = ?")
-            params.append(source_place)
+        if source_name:
+            where_clauses.append("s.name LIKE ?")
+            params.append(f"{source_name}%")
 
-    if source_name:
-        where_clauses.append("s.name LIKE ?")
-        params.append(f"{source_name}%")
+        if bias:
+            where_clauses.append("s.bias = ?")
+            params.append(bias)
 
-    if bias:
-        where_clauses.append("s.bias = ?")
-        params.append(bias)
+        if urgency:
+            where_clauses.append("ai.urgency = ?")
+            params.append(urgency)
 
-    if urgency:
-        where_clauses.append("ai.urgency = ?")
-        params.append(urgency)
+        if escalation_only:
+            where_clauses.append("ai.is_escalation_signal = 1")
 
-    if escalation_only:
-        where_clauses.append("ai.is_escalation_signal = 1")
+        if search:
+            # FTS5 MATCH against the articles_fts index (titles + content). The
+            # term is wrapped in double quotes to treat it as a phrase, which
+            # both escapes embedded quotes (FTS5 doubles them) and avoids the
+            # caller injecting operator syntax like OR / NEAR.
+            escaped = search.replace('"', '""')
+            where_clauses.append("a.id IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ?)")
+            params.append(f'"{escaped}"')
 
-    if search:
-        where_clauses.append("(a.title_original LIKE ? OR a.title_en LIKE ? OR ai.summary_en LIKE ?)")
-        search_term = f"%{search}%"
-        params.extend([search_term, search_term, search_term])
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
 
-    where_sql = ""
-    if where_clauses:
-        where_sql = "WHERE " + " AND ".join(where_clauses)
+        # Count total results
+        count_sql = f"""
+            SELECT COUNT(*)
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            {where_sql}
+        """
+        total = conn.execute(count_sql, params).fetchone()[0]
 
-    # Count total results
-    count_sql = f"""
-        SELECT COUNT(*)
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        JOIN sources s ON a.source_id = s.id
-        {where_sql}
-    """
-    total = conn.execute(count_sql, params).fetchone()[0]
+        # Fetch page of results
+        offset = (page - 1) * page_size
+        query_sql = f"""
+            SELECT
+                a.id,
+                a.url,
+                a.title_original,
+                a.title_en,
+                a.title_en_override,
+                a.language,
+                a.published_at,
+                a.content_original,
+                a.analyst_approved,
+                ai.topic_primary,
+                ai.topic_secondary,
+                ai.sentiment,
+                ai.sentiment_score,
+                ai.sentiment_reasoning,
+                ai.urgency,
+                ai.summary_en,
+                a.summary_en_override,
+                ai.key_quote,
+                ai.key_quote_en,
+                a.key_quote_override,
+                ai.is_new_formulation,
+                ai.is_escalation_signal,
+                ai.escalation_note,
+                ai.confidence,
+                a.event_cluster_id,
+                a.cluster_size,
+                s.name as source_name,
+                s.name_zh as source_name_zh,
+                s.place as source_place,
+                s.source_type,
+                s.bias
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            {where_sql}
+            ORDER BY {"a.analyst_approved ASC, " if include_pending else ""}a.published_at DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([page_size, offset])
+        rows = conn.execute(query_sql, params).fetchall()
 
-    # Fetch page of results
-    offset = (page - 1) * page_size
-    query_sql = f"""
-        SELECT
-            a.id,
-            a.url,
-            a.title_original,
-            a.title_en,
-            a.title_en_override,
-            a.language,
-            a.published_at,
-            a.content_original,
-            a.analyst_approved,
-            ai.topic_primary,
-            ai.topic_secondary,
-            ai.sentiment,
-            ai.sentiment_score,
-            ai.sentiment_reasoning,
-            ai.urgency,
-            ai.summary_en,
-            a.summary_en_override,
-            ai.key_quote,
-            ai.key_quote_en,
-            a.key_quote_override,
-            ai.is_new_formulation,
-            ai.is_escalation_signal,
-            ai.escalation_note,
-            ai.confidence,
-            a.event_cluster_id,
-            a.cluster_size,
-            s.name as source_name,
-            s.name_zh as source_name_zh,
-            s.place as source_place,
-            s.source_type,
-            s.bias
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        JOIN sources s ON a.source_id = s.id
-        {where_sql}
-        ORDER BY {"a.analyst_approved ASC, " if include_pending else ""}a.published_at DESC
-        LIMIT ? OFFSET ?
-    """
-    params.extend([page_size, offset])
-    rows = conn.execute(query_sql, params).fetchall()
+        articles = [_sanitize_floats(dict(row)) for row in rows]
 
-    # Convert to list of dicts
-    articles = []
-    for row in rows:
-        article = _sanitize_floats(dict(row))
+        # Fetch entities for the whole page in one query, then group by article_id.
+        if articles:
+            article_ids = [a["id"] for a in articles]
+            placeholders = ",".join("?" * len(article_ids))
+            entity_rows = conn.execute(
+                f"""SELECT article_id, id, entity_name, entity_name_en,
+                           entity_type, entity_role, location_name
+                    FROM entities WHERE article_id IN ({placeholders})""",
+                article_ids,
+            ).fetchall()
+            by_article = defaultdict(list)
+            for er in entity_rows:
+                e = dict(er)
+                article_id = e.pop("article_id")
+                by_article[article_id].append(e)
+            for article in articles:
+                article["entities"] = by_article.get(article["id"], [])
+        # else: empty page — skip the entity round trip entirely.
 
-        # Get entities for this article
-        entities = conn.execute("""
-            SELECT id, entity_name, entity_name_en, entity_type, entity_role, location_name
-            FROM entities WHERE article_id = ?
-        """, (article['id'],)).fetchall()
-        article['entities'] = [dict(e) for e in entities]
-
-        articles.append(article)
-
-    conn.close()
-
-    return {
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size,
-        "articles": articles
-    }
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+            "articles": articles
+        }
 
 @router.get("/{article_id}/cluster")
 def get_article_cluster(article_id: int):
     """Get all articles in the same event cluster as this article."""
-    conn = get_db()
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT event_cluster_id FROM articles WHERE id = ?",
+            (article_id,)
+        ).fetchone()
 
-    # Get the cluster ID for this article
-    row = conn.execute(
-        "SELECT event_cluster_id FROM articles WHERE id = ?",
-        (article_id,)
-    ).fetchone()
+        if not row or not row['event_cluster_id']:
+            return {"cluster": []}
 
-    if not row or not row['event_cluster_id']:
-        conn.close()
-        return {"cluster": []}
+        cluster_id = row['event_cluster_id']
 
-    cluster_id = row['event_cluster_id']
+        rows = conn.execute("""
+            SELECT
+                a.id, a.title_original, a.title_en, a.url, a.published_at,
+                ai.sentiment, ai.sentiment_score, ai.summary_en, ai.topic_primary,
+                s.name as source_name, s.place as source_place, s.bias
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.event_cluster_id = ?
+              AND a.id != ?
+            ORDER BY a.published_at ASC
+        """, (cluster_id, article_id)).fetchall()
 
-    # Get all articles in the same cluster
-    rows = conn.execute("""
-        SELECT
-            a.id, a.title_original, a.title_en, a.url, a.published_at,
-            ai.sentiment, ai.sentiment_score, ai.summary_en, ai.topic_primary,
-            s.name as source_name, s.place as source_place, s.bias
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        JOIN sources s ON a.source_id = s.id
-        WHERE a.event_cluster_id = ?
-          AND a.id != ?
-        ORDER BY a.published_at ASC
-    """, (cluster_id, article_id)).fetchall()
-
-    conn.close()
-    return {"cluster": [dict(r) for r in rows]}
+        return {"cluster": [dict(r) for r in rows]}
 
 @router.get("/{article_id}")
 def get_article(article_id: int):
     """Get a single article with full analysis details."""
-    conn = get_db()
+    with db_conn() as conn:
+        row = conn.execute("""
+            SELECT
+                a.*,
+                ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
+                ai.sentiment_reasoning, ai.urgency, ai.summary_en, ai.summary_zh, ai.key_quote, ai.key_quote_en,
+                ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
+                ai.confidence, ai.model_used,
+                s.name as source_name, s.name_zh as source_name_zh,
+                s.place as source_place, s.source_type
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.id = ?
+        """, (article_id,)).fetchone()
 
-    row = conn.execute("""
-        SELECT
-            a.*,
-            ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
-            ai.sentiment_reasoning, ai.urgency, ai.summary_en, ai.summary_zh, ai.key_quote, ai.key_quote_en,
-            ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
-            ai.confidence, ai.model_used,
-            s.name as source_name, s.name_zh as source_name_zh,
-            s.place as source_place, s.source_type
-        FROM articles a
-        JOIN ai_analysis ai ON a.id = ai.article_id
-        JOIN sources s ON a.source_id = s.id
-        WHERE a.id = ?
-    """, (article_id,)).fetchone()
+        if not row:
+            return {"error": "Article not found"}
 
-    if not row:
-        conn.close()
-        return {"error": "Article not found"}
+        article = _sanitize_floats(dict(row))
 
-    article = _sanitize_floats(dict(row))
+        entities = conn.execute("""
+            SELECT entity_name, entity_name_en, entity_type, entity_role, location_name
+            FROM entities WHERE article_id = ?
+        """, (article_id,)).fetchall()
+        article['entities'] = [dict(e) for e in entities]
 
-    # Get entities
-    entities = conn.execute("""
-        SELECT entity_name, entity_name_en, entity_type, entity_role, location_name
-        FROM entities WHERE article_id = ?
-    """, (article_id,)).fetchall()
-    article['entities'] = [dict(e) for e in entities]
+        keywords = conn.execute("""
+            SELECT keyword, keyword_category
+            FROM keywords_matched WHERE article_id = ?
+        """, (article_id,)).fetchall()
+        article['keywords'] = [dict(k) for k in keywords]
 
-    # Get matched keywords
-    keywords = conn.execute("""
-        SELECT keyword, keyword_category
-        FROM keywords_matched WHERE article_id = ?
-    """, (article_id,)).fetchall()
-    article['keywords'] = [dict(k) for k in keywords]
-
-    conn.close()
-    return article
+        return article
 
 
-@router.post("/{article_id}/hide")
+@router.post("/{article_id}/hide", dependencies=[Depends(require_admin)])
 def hide_article(article_id: int):
-    conn = get_db()
-    conn.execute(
-        "UPDATE articles SET is_hidden = 1 WHERE id = ?",
-        (article_id,)
-    )
-    # Also clear escalation signal so it's removed from Priority Signals
-    conn.execute(
-        "UPDATE ai_analysis SET is_escalation_signal = 0 WHERE article_id = ?",
-        (article_id,)
-    )
-    conn.commit()
-    conn.close()
-    return {"status": "hidden"}
+    with db_conn() as conn:
+        conn.execute(
+            "UPDATE articles SET is_hidden = 1 WHERE id = ?",
+            (article_id,)
+        )
+        conn.execute(
+            "UPDATE ai_analysis SET is_escalation_signal = 0 WHERE article_id = ?",
+            (article_id,)
+        )
+        conn.commit()
+        return {"status": "hidden"}
 
 
-@router.post("/{article_id}/approve")
+@router.post("/{article_id}/approve", dependencies=[Depends(require_admin)])
 def approve_article(article_id: int):
     """Mark an article as analyst-approved, making it visible on the public feed."""
-    conn = get_db()
-    conn.execute("UPDATE articles SET analyst_approved = 1 WHERE id = ?", (article_id,))
-    conn.commit()
-    conn.close()
-    return {"status": "approved", "article_id": article_id}
+    with db_conn() as conn:
+        conn.execute("UPDATE articles SET analyst_approved = 1 WHERE id = ?", (article_id,))
+        conn.commit()
+        return {"status": "approved", "article_id": article_id}
 
 
-@router.patch("/{article_id}/translation")
+@router.patch("/{article_id}/translation", dependencies=[Depends(require_admin)])
 def update_article_translation(article_id: int, body: TranslationUpdate):
     """Override AI-generated headline, summary, and/or key quote translation."""
-    conn = get_db()
-    updates = {}
-    if body.title_en_override is not None:
-        updates["title_en_override"] = body.title_en_override
-    if body.summary_en_override is not None:
-        updates["summary_en_override"] = body.summary_en_override
-    if body.key_quote_override is not None:
-        updates["key_quote_override"] = body.key_quote_override
-    if updates:
+    candidate = {
+        "title_en_override": body.title_en_override,
+        "summary_en_override": body.summary_en_override,
+        "key_quote_override": body.key_quote_override,
+    }
+    # Whitelist check is defence-in-depth — the dict keys are already literal,
+    # but a future refactor that switches to dict(body) shouldn't accidentally
+    # expand the SET clause.
+    updates = {
+        col: val for col, val in candidate.items()
+        if val is not None and col in _TRANSLATION_COLUMNS
+    }
+    if not updates:
+        return {"status": "noop", "article_id": article_id, "fields": []}
+
+    with db_conn() as conn:
         set_clause = ", ".join(f"{col} = ?" for col in updates)
         conn.execute(
             f"UPDATE articles SET {set_clause} WHERE id = ?",
-            (*updates.values(), article_id)
+            (*updates.values(), article_id),
         )
         conn.commit()
-    conn.close()
-    return {"status": "updated", "article_id": article_id, "fields": list(updates.keys())}
+        return {"status": "updated", "article_id": article_id, "fields": list(updates.keys())}
 
 
-@router.patch("/{article_id}/entities/{entity_id}")
+@router.patch("/{article_id}/entities/{entity_id}", dependencies=[Depends(require_admin)])
 def update_entity_name(article_id: int, entity_id: int, body: EntityNameUpdate):
     """Correct the English name of an extracted entity."""
-    conn = get_db()
-    conn.execute(
-        "UPDATE entities SET entity_name_en = ? WHERE id = ? AND article_id = ?",
-        (body.entity_name_en.strip(), entity_id, article_id)
-    )
-    conn.commit()
-    conn.close()
-    return {"status": "updated", "entity_id": entity_id, "entity_name_en": body.entity_name_en.strip()}
+    with db_conn() as conn:
+        conn.execute(
+            "UPDATE entities SET entity_name_en = ? WHERE id = ? AND article_id = ?",
+            (body.entity_name_en.strip(), entity_id, article_id)
+        )
+        conn.commit()
+        return {"status": "updated", "entity_id": entity_id, "entity_name_en": body.entity_name_en.strip()}
 
 
-@router.patch("/{article_id}/signal")
+@router.patch("/{article_id}/signal", dependencies=[Depends(require_admin)])
 def toggle_signal(article_id: int):
     """Toggle escalation signal flag on an article."""
-    conn = get_db()
-    row = conn.execute(
-        "SELECT is_escalation_signal FROM ai_analysis WHERE article_id = ?",
-        (article_id,)
-    ).fetchone()
-    new_value = 0 if (row and row["is_escalation_signal"]) else 1
-    conn.execute(
-        "UPDATE ai_analysis SET is_escalation_signal = ? WHERE article_id = ?",
-        (new_value, article_id)
-    )
-    conn.commit()
-    conn.close()
-    return {"is_escalation_signal": new_value, "article_id": article_id}
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT is_escalation_signal FROM ai_analysis WHERE article_id = ?",
+            (article_id,)
+        ).fetchone()
+        new_value = 0 if (row and row["is_escalation_signal"]) else 1
+        conn.execute(
+            "UPDATE ai_analysis SET is_escalation_signal = ? WHERE article_id = ?",
+            (new_value, article_id)
+        )
+        conn.commit()
+        return {"is_escalation_signal": new_value, "article_id": article_id}

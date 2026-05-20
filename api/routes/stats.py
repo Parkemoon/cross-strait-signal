@@ -1,8 +1,9 @@
 import json
 import os
 
-from fastapi import APIRouter, Query
-from api.database import get_db
+from fastapi import APIRouter, Depends, Query
+from api.database import db_conn
+from api.auth import require_admin
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -56,7 +57,7 @@ def _build_filter_clause(topic=None, source_place=None, urgency=None, escalation
 
 @router.get("/")
 def dashboard_stats(
-    days: int = Query(7, description="Rolling window in days"),
+    days: int = Query(7, ge=1, le=365, description="Rolling window in days"),
     topic: str = Query(None),
     source_place: str = Query(None),
     urgency: str = Query(None),
@@ -66,8 +67,13 @@ def dashboard_stats(
     bias: str = Query(None),
 ):
     """Dashboard summary statistics. Sentiment gauges scope to active filters."""
-    conn = get_db()
+    with db_conn() as conn:
+        return _dashboard_stats_body(
+            conn, days, topic, source_place, urgency, escalation_only, entity, source_name, bias,
+        )
 
+
+def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_only, entity, source_name, bias):
     VISIBLE = "a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
     filter_extra, filter_params = _build_filter_clause(topic, source_place, urgency, escalation_only, entity, source_name, bias)
     has_filter = bool(filter_extra)
@@ -273,8 +279,6 @@ def dashboard_stats(
 
         avg_sentiment_score = global_avg[0] if global_avg[0] else 0
 
-    conn.close()
-
     return {
         "period_days": days,
         "total_articles": total,
@@ -302,13 +306,15 @@ def dashboard_stats(
 @router.get("/entities")
 def entity_search(
     entity_type: str = Query(None, description="person, military_unit, location, organisation"),
-    days: int = Query(30)
+    days: int = Query(30, ge=1, le=365),
 ):
     """Search and rank entities by mention count."""
-    conn = get_db()
-
+    # NOTE: Must include analyst_approved=1 so the public entity leaderboard
+    # does not leak entities extracted from unapproved articles. Mirrors the
+    # VISIBLE constant in dashboard_stats().
     where_clause = """WHERE a.published_at >= datetime('now', ?)
         AND a.is_hidden = 0
+        AND a.analyst_approved = 1
         AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"""
     params = [f'-{days} days']
 
@@ -316,41 +322,37 @@ def entity_search(
         where_clause += " AND e.entity_type = ?"
         params.append(entity_type)
 
-    rows = conn.execute(f"""
-        SELECT e.entity_name, e.entity_name_en, e.entity_type, COUNT(*) as mentions
-        FROM entities e
-        JOIN articles a ON e.article_id = a.id
-        JOIN ai_analysis ai ON ai.article_id = a.id
-        {where_clause}
-        GROUP BY e.entity_name_en
-        ORDER BY mentions DESC
-        LIMIT 30
-    """, params).fetchall()
-
-    conn.close()
-    return {"entities": [dict(r) for r in rows]}
+    with db_conn() as conn:
+        rows = conn.execute(f"""
+            SELECT MIN(e.entity_name_en) as entity_name_en, e.entity_type, COUNT(*) as mentions
+            FROM entities e
+            JOIN articles a ON e.article_id = a.id
+            JOIN ai_analysis ai ON ai.article_id = a.id
+            {where_clause}
+            GROUP BY LOWER(e.entity_name_en), e.entity_type
+            ORDER BY mentions DESC
+            LIMIT 30
+        """, params).fetchall()
+        return {"entities": [dict(r) for r in rows]}
 
 
 @router.get("/key-figures")
 def key_figures():
     """Latest analyst-approved statement per curated key figure."""
-    conn = get_db()
-
-    rows = conn.execute("""
-        SELECT kfs.figure_id, kfs.id AS statement_id,
-               kfs.statement_text, kfs.statement_kind,
-               a.id AS article_id, a.url AS article_url, a.published_at,
-               s.name AS source_name, s.bias AS source_bias,
-               ai.topic_primary
-        FROM key_figure_statements kfs
-        JOIN articles a ON kfs.article_id = a.id
-        JOIN sources s ON s.id = a.source_id
-        JOIN ai_analysis ai ON ai.article_id = a.id
-        WHERE kfs.approval_status = 'approved'
-        ORDER BY a.published_at DESC
-    """).fetchall()
-
-    conn.close()
+    with db_conn() as conn:
+        rows = conn.execute("""
+            SELECT kfs.figure_id, kfs.id AS statement_id,
+                   kfs.statement_text, kfs.statement_kind,
+                   a.id AS article_id, a.url AS article_url, a.published_at,
+                   s.name AS source_name, s.bias AS source_bias,
+                   ai.topic_primary
+            FROM key_figure_statements kfs
+            JOIN articles a ON kfs.article_id = a.id
+            JOIN sources s ON s.id = a.source_id
+            JOIN ai_analysis ai ON ai.article_id = a.id
+            WHERE kfs.approval_status = 'approved'
+            ORDER BY a.published_at DESC
+        """).fetchall()
 
     # Latest per figure (rows already ordered by published_at DESC)
     latest_by_figure = {}
@@ -392,22 +394,19 @@ def key_figures():
 @router.get("/key-figures/candidates")
 def key_figure_candidates():
     """Pending statements awaiting analyst approval, grouped by figure_id."""
-    conn = get_db()
-
-    rows = conn.execute("""
-        SELECT kfs.id, kfs.figure_id, kfs.speaker_raw,
-               kfs.statement_text, kfs.statement_zh,
-               kfs.statement_kind, kfs.confidence, kfs.created_at,
-               a.id AS article_id, a.url AS article_url, a.published_at,
-               s.name AS source_name, s.bias AS source_bias
-        FROM key_figure_statements kfs
-        JOIN articles a ON kfs.article_id = a.id
-        JOIN sources s ON s.id = a.source_id
-        WHERE kfs.approval_status = 'pending'
-        ORDER BY a.published_at DESC
-    """).fetchall()
-
-    conn.close()
+    with db_conn() as conn:
+        rows = conn.execute("""
+            SELECT kfs.id, kfs.figure_id, kfs.speaker_raw,
+                   kfs.statement_text, kfs.statement_zh,
+                   kfs.statement_kind, kfs.confidence, kfs.created_at,
+                   a.id AS article_id, a.url AS article_url, a.published_at,
+                   s.name AS source_name, s.bias AS source_bias
+            FROM key_figure_statements kfs
+            JOIN articles a ON kfs.article_id = a.id
+            JOIN sources s ON s.id = a.source_id
+            WHERE kfs.approval_status = 'pending'
+            ORDER BY a.published_at DESC
+        """).fetchall()
 
     by_figure = {}
     for row in rows:
@@ -419,29 +418,27 @@ def key_figure_candidates():
     return {"candidates": by_figure}
 
 
-@router.post("/key-figures/statements/{statement_id}/approve")
+@router.post("/key-figures/statements/{statement_id}/approve", dependencies=[Depends(require_admin)])
 def approve_statement(statement_id: int):
     """Mark a key figure statement as approved for display."""
-    conn = get_db()
-    conn.execute("""
-        UPDATE key_figure_statements
-        SET approval_status = 'approved', reviewed_at = datetime('now')
-        WHERE id = ?
-    """, (statement_id,))
-    conn.commit()
-    conn.close()
-    return {"status": "approved", "id": statement_id}
+    with db_conn() as conn:
+        conn.execute("""
+            UPDATE key_figure_statements
+            SET approval_status = 'approved', reviewed_at = datetime('now')
+            WHERE id = ?
+        """, (statement_id,))
+        conn.commit()
+        return {"status": "approved", "id": statement_id}
 
 
-@router.post("/key-figures/statements/{statement_id}/dismiss")
+@router.post("/key-figures/statements/{statement_id}/dismiss", dependencies=[Depends(require_admin)])
 def dismiss_statement(statement_id: int):
     """Mark a key figure statement as dismissed."""
-    conn = get_db()
-    conn.execute("""
-        UPDATE key_figure_statements
-        SET approval_status = 'dismissed', reviewed_at = datetime('now')
-        WHERE id = ?
-    """, (statement_id,))
-    conn.commit()
-    conn.close()
-    return {"status": "dismissed", "id": statement_id}
+    with db_conn() as conn:
+        conn.execute("""
+            UPDATE key_figure_statements
+            SET approval_status = 'dismissed', reviewed_at = datetime('now')
+            WHERE id = ?
+        """, (statement_id,))
+        conn.commit()
+        return {"status": "dismissed", "id": statement_id}

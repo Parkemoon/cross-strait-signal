@@ -6,7 +6,7 @@ data.gov.tw dataset 7887. See scraper/scrapers/mac_economic_scraper.py.
 from fastapi import APIRouter, Query
 from typing import Optional
 
-from api.database import get_db
+from api.database import db_conn
 
 router = APIRouter(prefix="/api/economy", tags=["economy"])
 
@@ -129,17 +129,13 @@ def get_series(
         "last_updated": "2026-03"
       }
     """
-    conn = get_db()
-
     if ids:
         requested_ids = [s.strip() for s in ids.split(",") if s.strip()]
-        # Preserve declared order, but only include known series
         ordered_ids = [sid for sid in (s["id"] for s in SERIES_META) if sid in requested_ids]
     else:
         ordered_ids = [s["id"] for s in SERIES_META]
 
     if not ordered_ids:
-        conn.close()
         return {"series": [], "last_updated": None}
 
     placeholders = ",".join("?" * len(ordered_ids))
@@ -157,17 +153,20 @@ def get_series(
         params.append(end)
 
     where_sql = " AND ".join(where_clauses)
-    rows = conn.execute(
-        f"""
-        SELECT series_id, period, value, yoy_pct
-        FROM economic_indicators
-        WHERE {where_sql}
-        ORDER BY series_id, period ASC
-        """,
-        params,
-    ).fetchall()
+    with db_conn() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT series_id, period, value, yoy_pct
+            FROM economic_indicators
+            WHERE {where_sql}
+            ORDER BY series_id, period ASC
+            """,
+            params,
+        ).fetchall()
+        last_updated_row = conn.execute(
+            "SELECT MAX(period) AS latest FROM economic_indicators WHERE period_type = 'month'"
+        ).fetchone()
 
-    # Group rows by series_id
     grouped: dict[str, list[dict]] = {sid: [] for sid in ordered_ids}
     for r in rows:
         grouped[r["series_id"]].append({
@@ -176,7 +175,6 @@ def get_series(
             "yoy_pct": r["yoy_pct"],
         })
 
-    # Apply per-series tail trim if `months` is set
     if months and months > 0:
         for sid in grouped:
             grouped[sid] = grouped[sid][-months:]
@@ -188,11 +186,6 @@ def get_series(
             **meta,
             "points": grouped[sid],
         })
-
-    last_updated_row = conn.execute(
-        "SELECT MAX(period) AS latest FROM economic_indicators WHERE period_type = 'month'"
-    ).fetchone()
-    conn.close()
 
     return {
         "series": series_payload,
@@ -240,47 +233,47 @@ def get_verification(
     higher number than TW (commonly because PRC includes HK transit / re-export
     flows that TW books separately).
     """
-    conn = get_db()
     pairs_out = []
-    for pair in VERIFICATION_PAIRS:
-        rows = conn.execute(
-            '''
-            SELECT tw.period AS period, tw.value AS tw_value, prc.value AS prc_value
-            FROM economic_indicators tw
-            LEFT JOIN economic_indicators prc
-              ON prc.series_id = ?
-             AND prc.period = tw.period
-             AND prc.period_type = 'month'
-            WHERE tw.series_id = ?
-              AND tw.period_type = 'month'
-            ORDER BY tw.period ASC
-            ''',
-            (pair["prc_series"], pair["tw_series"]),
-        ).fetchall()
+    with db_conn() as conn:
+        for pair in VERIFICATION_PAIRS:
+            rows = conn.execute(
+                '''
+                SELECT tw.period AS period, tw.value AS tw_value, prc.value AS prc_value
+                FROM economic_indicators tw
+                LEFT JOIN economic_indicators prc
+                  ON prc.series_id = ?
+                 AND prc.period = tw.period
+                 AND prc.period_type = 'month'
+                WHERE tw.series_id = ?
+                  AND tw.period_type = 'month'
+                ORDER BY tw.period ASC
+                ''',
+                (pair["prc_series"], pair["tw_series"]),
+            ).fetchall()
 
-        points = []
-        for r in rows:
-            tw = r["tw_value"]
-            prc = r["prc_value"]
-            gap = (prc - tw) if (tw is not None and prc is not None) else None
-            gap_pct = ((prc - tw) / tw * 100) if (tw and prc is not None) else None
-            points.append({
-                "period": r["period"],
-                "tw": tw,
-                "prc": prc,
-                "gap_usd_b": gap,
-                "gap_pct": gap_pct,
-            })
+            points = []
+            for r in rows:
+                tw = r["tw_value"]
+                prc = r["prc_value"]
+                gap = (prc - tw) if (tw is not None and prc is not None) else None
+                gap_pct = ((prc - tw) / tw * 100) if (tw and prc is not None) else None
+                points.append({
+                    "period": r["period"],
+                    "tw": tw,
+                    "prc": prc,
+                    "gap_usd_b": gap,
+                    "gap_pct": gap_pct,
+                })
 
-        if months and months > 0:
-            points = points[-months:]
+            if months and months > 0:
+                points = points[-months:]
 
-        pairs_out.append({**pair, "points": points})
+            pairs_out.append({**pair, "points": points})
 
-    last_updated_row = conn.execute(
-        "SELECT MAX(period) AS latest FROM economic_indicators WHERE period_type = 'month'"
-    ).fetchone()
-    conn.close()
+        last_updated_row = conn.execute(
+            "SELECT MAX(period) AS latest FROM economic_indicators WHERE period_type = 'month'"
+        ).fetchone()
+
     return {
         "pairs": pairs_out,
         "last_updated": last_updated_row["latest"] if last_updated_row else None,
