@@ -83,7 +83,8 @@ The project venv at `venv/` may be near-empty on Windows. Use the user-level ven
 
 Parallel pipelines (no AI processing):
     Weibo / PTT → social_pulse table → Gemini batch translation
-    MAC monthly CSVs (data.gov.tw 7887) ──┐
+    MAC monthly CSVs (data.gov.tw 7887) ─┐
+    MAC 7459 TW-HK trade (dual reporter) ┤
     UN Comtrade (PRC reporter, partner 490) ┴→ economic_indicators table → /api/economy/*
 ```
 
@@ -130,6 +131,7 @@ Two types:
 | `weibo_hot_scraper.py` | Weibo Hot Search — fetches top 50 from `weibo.com/ajax/side/hotSearch` JSON API; stores all items in `social_pulse` table |
 | `ptt_scraper.py` | PTT BBS — scrapes Military (5 pages), Gossiping (15 pages), HatePolitics (12 pages); requires `over18=1` cookie; page depth in `BOARD_PAGES` dict |
 | `mac_economic_scraper.py` | MAC monthly cross-strait economic indicators — see Economic Indicators section below |
+| `mac_hk_trade_scraper.py` | MAC dataset 7459 — TW-HK trade with TW Customs + HK Customs both reporting (the HK transit gap from the HK side) |
 | `comtrade_scraper.py` | UN Comtrade — PRC-reported trade with Taiwan for independent verification — see Economic Indicators section below |
 
 When adding a new HTML scraper: follow the pattern in any existing one. Register the source in `seed_sources.py` and add the import + call to `run_pipeline.py`.
@@ -139,11 +141,14 @@ When adding a new HTML scraper: follow the pattern in any existing one. Register
 ### Social Pulse (`scraper/processors/social_translator.py`)
 Separate lightweight pipeline for social data — does NOT go through the article AI pipeline. Batch-translates `social_pulse` rows where `title_en IS NULL` using Gemini 3.1 Flash Lite (`thinking_level=low`). Runs as Step 2b in `run_pipeline.py` after the social scrapers.
 
-### Economic Indicators (`scraper/scrapers/mac_economic_scraper.py`, `comtrade_scraper.py`)
-Separate pipeline for cross-strait macro data — does NOT go through the article AI pipeline. Two sources feed the `economic_indicators` table:
+### Economic Indicators (`scraper/scrapers/mac_economic_scraper.py`, `mac_hk_trade_scraper.py`, `comtrade_scraper.py`)
+Separate pipeline for cross-strait macro data — does NOT go through the article AI pipeline. Three sources feed the `economic_indicators` table:
 
 - **MAC (TW-side)**: dataset 7887 on `data.gov.tw` (兩岸經濟交流統計速報, monthly). Eight indicators × ~100 months: trade total, exports to PRC, imports from PRC, trade balance, TW investment in PRC (count + amount), PRC visitors to TW, TW visitors to PRC. Runs as Step 2c in `run_pipeline.py`.
 - **UN Comtrade (PRC-side)**: PRC General Administration of Customs as reported via Comtrade preview API. Reporter 156 (China), partner **490 ("Other Asia, nes")** — PRC files Taiwan trade here, not under 158. Rate-limited 1.2s/req; refreshes the last 6 months each run plus any missing periods. Runs as Step 2d.
+- **MAC 7459 (TW-HK trade, dual reporter)**: dataset 7459 on `data.gov.tw` (臺灣對香港貿易統計表). Single CSV with **both TW Customs AND HK Customs** reporting the same TW-HK trade flow. Monthly data from 2022-01 onwards (annual rows pre-2022 are skipped). Series: `exports_to_hk_usd_b`, `imports_from_hk_usd_b` (TW Customs view); `hk_customs_tw_exports_usd_b`, `hk_customs_tw_imports_usd_b` (HK Customs view of same flows). Runs as Step 2e.
+
+**Cloudflare gotcha**: the `www.mac.gov.tw/big5/data/CSESM/*.zip` family (datasets 7472, 7469, 21823 etc.) is Cloudflare-protected and blocks server-side automation — including cloudscraper, browser-UA-faking, and cookie warming. Only `ws.mac.gov.tw/001/Upload/.../ckfile/<uuid>.csv` paths (which 7887 uses via Download.ashx decoding) and plain `/big5/data/<filename>.csv` paths (which 7459 uses) bypass it. If you need data from a `/CSESM/*.zip` dataset, look for an equivalent plain-CSV dataset first.
 
 **Critical unit gotcha**: MAC publishes USD values in 億 (10^8 USD), not billions. The scraper applies a 0.1x scale factor (see `SERIES_SPECS` in `mac_economic_scraper.py`). All values in `economic_indicators` are stored in USD billions for consistency with Comtrade. If MAC's column headers change to `(百萬美元)` or `(億新臺幣)` in the future, the scale factor needs updating.
 
@@ -151,7 +156,7 @@ Separate pipeline for cross-strait macro data — does NOT go through the articl
 
 **YoY parsing gotcha**: MAC's TW-visitors growth column uses decimal-fraction notation without `%` suffix (e.g. `0.103` = 10.3%) while every other column uses `30.6%` style. `parse_pct()` applies the ×100 conversion only when `|val| < 1` and no `%` sign — narrow enough that a real 100% reading isn't collapsed to 1%.
 
-**The verification story**: PRC's reported imports from Taiwan are ~80-125% higher than MAC's reported exports to PRC (gap widening from 80% in 2017 to 124% in 2024). Mostly Hong Kong transit trade booked differently. The `/api/economy/verification` endpoint pairs MAC and Comtrade by period for the dashboard's verification view.
+**The verification story**: PRC's reported imports from Taiwan are ~80-125% higher than MAC's reported exports to PRC (gap widening from 80% in 2017 to 124% in 2024). Mostly Hong Kong transit trade booked differently. The same gap is visible from the HK side: HK Customs records ~20× more outbound trade to TW than TW records as imports from HK — because TW books PRC-origin goods (which dominate HK→TW shipments) as imports from the mainland, not from HK. The `/api/economy/verification` endpoint pairs reporters by period and emits both kinds (`prc_customs` and `hk_customs`) under a single response — each pair carries `series_a`/`series_b`/`reporter_a_label`/`reporter_b_label`/`kind` and aligned monthly points `{period, value_a, value_b, gap_usd_b, gap_pct}`. The frontend `VerificationSection` groups them into a section per kind.
 
 ### Event Clustering (`scripts/cluster_events.py`)
 Groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
@@ -179,7 +184,7 @@ SQLite with FTS5 full-text search. Key tables:
 - `notes.py`: CRUD for analyst notes with AI override support
 - `review.py`: review queue — confirm / override / dismiss. Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
 - `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
-- `economy.py`: GET `/api/economy/series` (params: `ids`, `start`, `end`, `months`) returns time-series JSON for cross-strait economic indicators with metadata baked in. GET `/api/economy/series/meta` returns just the indicator catalog. GET `/api/economy/verification` pairs MAC vs Comtrade by period with computed `gap_pct` (= `(prc - tw) / tw * 100`). Indicator catalog and verification pairs are declared in `SERIES_META` and `VERIFICATION_PAIRS` constants — add new series/pairs there.
+- `economy.py`: GET `/api/economy/series` (params: `ids`, `start`, `end`, `months`) returns time-series JSON for cross-strait economic indicators with metadata baked in. GET `/api/economy/series/meta` returns just the indicator catalog. GET `/api/economy/verification` returns all reporter pairs (TW vs PRC Customs, TW vs HK Customs) with computed `gap_pct` (= `(value_b - value_a) / value_a * 100`); each pair carries a `kind` field for UI grouping. Indicator catalog and verification pairs are declared in `SERIES_META` and `VERIFICATION_PAIRS` constants — add new series/pairs there.
 
 ### Frontend (`frontend/src/`)
 React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key components:
@@ -188,7 +193,7 @@ React 19 + Recharts + Tailwind CSS 4. State management lives in `App.js`. Key co
 - `ReviewQueue.js`: human review UI with translation editing fields (headline, summary, key quote) always visible — changed fields saved via `updateArticleTranslation` before resolving. Confirm/override auto-approves the article.
 - `SignalCharts.jsx`: sentiment trend (Y-axis clamped to `[-1, 1]`, single YAxis) + topic breakdown charts.
 - `StatsSidebar.jsx`: dashboard gauges sorted PRC → TW → HK/Macao → International; Taiwan by camp gauges driven by `sentiment_by_bias` from stats API (`green`, `green_leaning`, `blue`); camp gauges hidden below n=5 articles to avoid noise. When a scoping filter is active, a teal chip appears above "Strait Watch" with a dismissable `×`; each gauge shows a grey ghost dot at the global baseline position (only when scoped score differs by >0.01). `TopicBreakdownChart` hides when `filters.topic` is set (one bar is useless). All sidebar elements are clickable to set filters: gauges → `onPlaceClick(placeKey|null)`, camp gauges → `onBiasClick(bias)`, source rows → `onSourceClick(dbPrefix)` using `SOURCE_FILTER` map (publication display name → DB name prefix), entity rows → `onEntityClick(entityNameEn)`. `hasScopingFilter`/`buildScopeLabel` drive the scope chip — add any new scoping filter keys to both. Sources section groups feeds by publication via `PUBLICATION_NAMES` map — when adding new multi-feed sources, add entries there too. Renders `EconomyMini` between the topic breakdown and Sources sections — receives `onOpenEconomy` callback to switch to the Economy tab.
-- `EconomyTab.jsx`: Phase 2a feature tab. KPI strip (4 cards), main trade chart with 1Y/3Y/5Y/All range toggle, indicator picker for the other 7 series, and a `VerificationSection` pairing MAC vs Comtrade (always shows last 60 months regardless of main-chart range, since PRC data lags ~6 months). Display formatters: `formatValue` (KPI/tooltip — expands 10k_persons to actual count), `formatYAxisTick` (compact K/M for visitor axes, `US$X B` for trade), `displayUnit` (caption label). Also exports `EconomyMini` — sidebar widget showing TW–PRC trade balance + total trade headline. When adding a new indicator: add it to `SERIES_META` in `api/routes/economy.py`, and only the new series_id needs to be added to `KPI_SERIES` (optional) — the picker chart auto-discovers via `data.series`.
+- `EconomyTab.jsx`: Phase 2a feature tab. KPI strip (4 cards), main trade chart with 1Y/3Y/5Y/All range toggle, indicator picker for the other series, and a `VerificationSection` that renders one subsection per `kind` returned by `/api/economy/verification` (TW vs PRC Customs and TW vs HK Customs). Subsection styling (header label, intro paragraph, line colour for reporter B) is declared in `VERIFICATION_KINDS` — add a new kind there when a new reporter pair lands. Verification charts always show last 60 months regardless of main-chart range, since PRC data lags ~6 months. Display formatters: `formatValue` (KPI/tooltip — expands 10k_persons to actual count), `formatYAxisTick` (compact K/M for visitor axes, `US$X B` for trade), `displayUnit` (caption label). Also exports `EconomyMini` — sidebar widget showing TW–PRC trade balance + total trade headline. When adding a new indicator: add it to `SERIES_META` in `api/routes/economy.py`, and only the new series_id needs to be added to `KPI_SERIES` (optional) — the picker chart auto-discovers via `data.series`.
 - `FlashTraffic.jsx`: priority signals section — renders full `ArticleCard` components, inverted colour scheme (`.signal-inverted` CSS class)
 - `SocialPulse.jsx`: accepts `column` prop — in column mode (right-hand aside in App.js) always expanded, vertical stack layout; in default inline mode, collapsible with two-column Weibo/PTT panel. Weibo shows only cross-strait relevant items. Inline translation correction via pencil icon (hidden in read-only build). Override colour highlight is also hidden in read-only build.
 - `KeyFigures.jsx`: horizontal scrollable row of cards above SocialPulse; each card shows portrait (images in `frontend/public/figures/`, initials fallback with party colour), name, role, latest approved statement; pencil icon (amber when candidates pending) opens per-card curation modal; hidden in read-only build via `READ_ONLY` constant
