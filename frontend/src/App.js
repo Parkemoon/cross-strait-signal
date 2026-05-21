@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
-import { useSmartSticky } from "./hooks/useSmartSticky";
 import { useDashboardData } from "./hooks/useDashboardData";
 import ThemeToggle from "./components/ThemeToggle";
 import AboutModal from "./components/AboutModal";
@@ -23,8 +22,6 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "social" | "review"
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
-  const leftStickyRef  = useSmartSticky();
-  const rightStickyRef = useSmartSticky();
 
   const {
     articles, total, loading, stats,
@@ -286,20 +283,22 @@ export default function App() {
         minHeight: "calc(100vh - 52px)",
         alignItems: "start",
       }}>
-        {/* Stats sidebar — always visible on desktop, tab-controlled on mobile.
-            useSmartSticky picks the right sticky `top` offset based on
-            measured sidebar vs viewport height: fits → top:0 (always
-            visible at viewport top); taller → negative offset so the
-            sidebar scrolls naturally with the feed until its bottom
-            reaches the viewport bottom, then pins there. */}
+        {/* Stats sidebar — always visible on desktop, tab-controlled on
+            mobile. Sticky-top so it stays at viewport top throughout the
+            feed scroll; max-height + overflow-y:auto give it independent
+            scroll when the user hovers and wheels. hide-scrollbar keeps
+            the visible track suppressed. */}
         <aside
-          ref={isMobile ? null : leftStickyRef}
+          className={isMobile ? "" : "hide-scrollbar"}
           style={{
             background: "var(--sidebar-bg)",
             borderRight: isMobile ? "none" : "1px solid var(--border-color)",
             padding: "24px 20px",
             position: isMobile ? "static" : "sticky",
+            top: 0,
             alignSelf: "start",
+            maxHeight: isMobile ? "none" : "calc(100vh - 52px)",
+            overflowY: isMobile ? "visible" : "auto",
             minWidth: 0,
             display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
           }}
@@ -506,17 +505,20 @@ export default function App() {
           )}
         </div>
 
-        {/* Social Pulse — right column, desktop only. Same smart-sticky
-            hook as the left sidebar (see comment above). Hidden on the
+        {/* Social Pulse — right column, desktop only. Same sticky-top +
+            internal-scroll pattern as the left sidebar. Hidden on the
             Economy and Trade tabs to give those wide panels room. */}
         <aside
-          ref={isMobile ? null : rightStickyRef}
+          className="hide-scrollbar"
           style={{
             background: "var(--sidebar-bg)",
             borderLeft: "1px solid var(--border-color)",
             padding: "24px 20px",
             position: "sticky",
+            top: 0,
             alignSelf: "start",
+            maxHeight: "calc(100vh - 52px)",
+            overflowY: "auto",
             minWidth: 0,
             display: (view === "economy" || view === "trade")
               ? "none"
