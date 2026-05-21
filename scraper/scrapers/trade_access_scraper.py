@@ -368,15 +368,19 @@ def scrape_trade_access() -> dict:
         print(f'[trade_access] MOF_PRC_SUSP_W2 parse failed: {e}')
         counts['mof_prc_susp_w2'] = 0
 
-    # 5. Curated PRC bans on TW agri/food
+    # 5. Curated PRC bans / partial lifts on TW agri/food. Each entry can
+    #    declare its own `status` (banned | partial_lift); defaults to banned.
+    #    `effective_date` is the date the *current* status took effect
+    #    (ban_date for bans; lift_date for partial lifts).
     try:
         with open(CURATED_BANS_PATH, encoding='utf-8') as f:
             curated = json.load(f)
         rows = [
             ('prc_imports_from_tw', _normalise_hs(b['hs_code']),
              b.get('product_zh'), b.get('product_en'),
-             'banned', b.get('ban_date'), 'CURATED',
-             b.get('notes'), b.get('announcement_url'))
+             b.get('status', 'banned'),
+             b.get('effective_date') or b.get('ban_date'),
+             'CURATED', b.get('notes'), b.get('announcement_url'))
             for b in curated.get('bans', [])
         ]
         counts['curated_prc_bans'] = _upsert(conn, rows)

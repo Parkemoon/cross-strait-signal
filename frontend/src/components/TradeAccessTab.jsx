@@ -13,18 +13,44 @@ const STATUS_FILTERS = [
   { id: "",                value: null,            label: "All" },
   { id: "banned",          value: "banned",        label: "Banned" },
   { id: "ecfa_suspended",  value: "ecfa_suspended",label: "ECFA suspended" },
+  { id: "partial_lift",    value: "partial_lift",  label: "Partial lift" },
   { id: "conditional",     value: "conditional",   label: "Conditional" },
   { id: "ecfa_active",     value: "ecfa_active",   label: "ECFA active" },
 ];
 
 // Status presentation. Colour shading is the visual hook — banned/suspended
 // dominate the right column (Into TW) for an analyst scanning the table.
+// `partial_lift` uses teal — distinct from banned-red and ecfa-active-green
+// to flag the political-channel-mediated middle state.
 const STATUS_PILLS = {
   banned:         { label: "Banned",          dot: "#dc2626", bg: "rgba(220,38,38,0.10)",   fg: "#991b1b", border: "rgba(220,38,38,0.30)" },
   ecfa_suspended: { label: "ECFA suspended",  dot: "#f59e0b", bg: "rgba(245,158,11,0.10)",  fg: "#92400e", border: "rgba(245,158,11,0.35)" },
+  partial_lift:   { label: "Partial lift",    dot: "#0d9488", bg: "rgba(13,148,136,0.10)",  fg: "#115e59", border: "rgba(13,148,136,0.35)" },
   conditional:    { label: "Conditional",     dot: "#0ea5e9", bg: "rgba(14,165,233,0.10)",  fg: "#0369a1", border: "rgba(14,165,233,0.30)" },
   ecfa_active:    { label: "ECFA active",     dot: "#16a34a", bg: "rgba(22,163,74,0.10)",   fg: "#166534", border: "rgba(22,163,74,0.30)" },
   allowed:        { label: "Allowed",         dot: "#6b7280", bg: "rgba(107,114,128,0.08)", fg: "#374151", border: "rgba(107,114,128,0.25)" },
+};
+
+// Where each source's underlying dataset / announcement lives, so users can
+// audit the data origin. For curated rows the per-row ban_announcement_url
+// wins (the GACC notice for that specific ban), so we fall back to a
+// general project doc only if that's empty.
+const SOURCE_URLS = {
+  BOFT_22674:        "https://data.gov.tw/dataset/22674",
+  BOFT_22675:        "https://data.gov.tw/dataset/22675",
+  CUSTOMS_ECFA_2024: "https://web.customs.gov.tw/singlehtml/711?cntId=cus1_179540_711",
+  MOF_PRC_SUSP_W1:   "https://gss.mof.gov.cn/gzdt/zhengcefabu/",
+  MOF_PRC_SUSP_W2:   "https://gss.mof.gov.cn/gzdt/zhengcefabu/202405/t20240531_3936149.htm",
+  CURATED:           null,
+};
+
+// CIFER snapshot — manually captured because the database is browser-gated
+// and not API-scrapeable from this server (see CLAUDE.md). Refresh when
+// re-querying ciferquery.singlewindow.cn under the 港澳台 tab.
+const CIFER_SNAPSHOT = {
+  suspended: 1291,
+  valid:     1046,
+  asOf:      "2026-05-21",
 };
 
 const PAGE_SIZE = 50;
@@ -140,17 +166,27 @@ function HeadlineStrip({ summary }) {
             color: "var(--text-primary)",
             lineHeight: 1.25,
           }}>
-            <strong style={{ color: "#16a34a" }}>{prcActive.toLocaleString()}</strong> ECFA active
-            <span style={{ color: "var(--text-muted)", fontSize: "16px" }}> · </span>
-            <strong style={{ color: "#f59e0b" }}>{prcSuspended}</strong> suspended
+            <strong style={{ color: "#dc2626" }}>{CIFER_SNAPSHOT.suspended.toLocaleString()}</strong> food exporters suspended
+          </div>
+          <div style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "10px",
+            color: "var(--text-muted)",
+            marginTop: "2px",
+          }}>
+            GACC CIFER {CIFER_SNAPSHOT.asOf} · {CIFER_SNAPSHOT.valid.toLocaleString()} still valid
           </div>
           <div style={{
             fontFamily: "var(--font-body)",
             fontSize: "12px",
             color: "var(--text-secondary)",
-            marginTop: "4px",
+            marginTop: "6px",
           }}>
-            {prcBanned} targeted agri/food bans (pineapples, grouper, etc.)
+            ECFA preferences: <strong style={{ color: "#16a34a" }}>{prcActive.toLocaleString()}</strong> active
+            <span style={{ color: "var(--text-muted)" }}> · </span>
+            <strong style={{ color: "#f59e0b" }}>{prcSuspended}</strong> suspended
+            <span style={{ color: "var(--text-muted)" }}> · </span>
+            {prcBanned} HS-8 lines targeted (agri/food)
           </div>
         </div>
       </div>
@@ -163,13 +199,39 @@ function HeadlineStrip({ summary }) {
         color: "var(--text-secondary)",
         lineHeight: 1.5,
       }}>
-        The cross-strait import regime is asymmetric by orders of magnitude. Taiwan
-        maintains a long-standing ban list of {twBanned.toLocaleString()} HS-8 lines
-        from the mainland, mostly agricultural and certain industrial goods. The
-        mainland permits most Taiwanese imports by default and uses targeted bans
-        on a small number of agricultural exports as a coercive lever — which is
-        why the "pineapple ban" debate often missed that Taiwan never imported
-        mainland pineapples in the first place.
+        The two sides regulate cross-strait imports in fundamentally different ways
+        — making the asymmetry as much qualitative as quantitative. Taiwan publishes
+        a {twBanned.toLocaleString()}-line HS-8 ban list against PRC-origin goods
+        (BOFT 22674), maintained alongside a {(tw.conditional || 0).toLocaleString()}-line
+        conditional list. The mainland publishes no equivalent Taiwan-specific
+        HS-code ban list — but operates the functional equivalent through
+        <strong> GACC exporter facility registration</strong>: all imported food and
+        agricultural products must come from a GACC-registered exporter, and
+        Beijing suspends those registrations as needed (the "pineapple ban,"
+        "grouper ban," etc. are all technically registration suspensions, not
+        HS-code bans). As of <strong>2026-05-21</strong>, a direct query of PRC's
+        CIFER database (
+        <a href="https://ciferquery.singlewindow.cn/" target="_blank" rel="noreferrer"
+           style={{ color: "var(--text-secondary)", textDecoration: "underline dotted" }}>
+          ciferquery.singlewindow.cn
+        </a>
+        , 港澳台 tab) found <strong>1,291</strong> Taiwan-registered food
+        exporting <em>companies</em> with status <em>暂停进口 (suspended import)</em>{" "}
+        against <strong>1,046</strong> still marked <em>有效 (valid)</em> — ~55%
+        suspended. These are <em>company-level</em> registrations; each company
+        can be registered for multiple products, so the older "~2,000 products
+        suspended" figure cited in 2022 reporting referred to a different unit
+        and is not directly comparable. Most of these Decree 248 registrations
+        carried 5-year terms expiring 2026-01-01; CIFER still surfaces the
+        suspended set in that status today rather than as lapsed, suggesting
+        the suspensions have hardened into a quasi-permanent state rather than
+        being allowed to quietly expire. PRC's CIFER schema also classifies
+        Taiwan companies under <em>港澳台</em> (Hong Kong / Macao / Taiwan)
+        rather than under <em>境外</em> (foreign) — an administrative
+        classification with cross-strait political subtext. The HS-code rows
+        below capture what's encoded in published tariff schedules; the
+        registration-level dimension is summarised here but not represented
+        row-by-row.
       </p>
     </div>
   );
@@ -342,7 +404,10 @@ function ItemTable({ items, total, page, setPage }) {
               <th style={{ textAlign: "left", padding: "8px 12px" }}>中文貨名</th>
               <th style={{ textAlign: "left", padding: "8px 12px" }}>English</th>
               <th style={{ textAlign: "left", padding: "8px 12px", whiteSpace: "nowrap" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "8px 12px", whiteSpace: "nowrap" }}>Effective</th>
+              <th
+                style={{ textAlign: "left", padding: "8px 12px", whiteSpace: "nowrap", cursor: "help" }}
+                title="For BOFT rows, the date the current rule code was implemented — the underlying ban may be older if the classification was revised. For ECFA suspensions and curated PRC bans, this is the enforcement date."
+              >Last updated</th>
               <th style={{ textAlign: "left", padding: "8px 12px", whiteSpace: "nowrap" }}>Source</th>
             </tr>
           </thead>
@@ -375,11 +440,17 @@ function ItemTable({ items, total, page, setPage }) {
                   color: "var(--text-muted)",
                   whiteSpace: "nowrap",
                 }}>
-                  {it.ban_announcement_url ? (
-                    <a href={it.ban_announcement_url} target="_blank" rel="noreferrer" style={{
-                      color: "var(--text-muted)", textDecoration: "underline dotted",
-                    }}>{it.source}</a>
-                  ) : it.source}
+                  {(() => {
+                    // Prefer a per-row announcement URL (curated rows have GACC
+                    // notices specific to that ban); fall back to the source-level
+                    // dataset / announcement page from SOURCE_URLS.
+                    const href = it.ban_announcement_url || SOURCE_URLS[it.source];
+                    return href ? (
+                      <a href={href} target="_blank" rel="noreferrer" style={{
+                        color: "var(--text-muted)", textDecoration: "underline dotted",
+                      }}>{it.source}</a>
+                    ) : it.source;
+                  })()}
                 </td>
               </tr>
             ))}
