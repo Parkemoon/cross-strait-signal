@@ -23,6 +23,20 @@ const RANGE_OPTIONS = [
   { id: "all", label: "All", months: null },
 ];
 
+// TW vs PRC macro side-by-side. Each pair gets its own chart in the Macro
+// section. `dualAxis` is true when the two scales are very different
+// (TW FX ~$600B vs PRC ~$3.3T; TWD/USD ~31 vs CNY/USD ~7).
+const MACRO_PAIRS = [
+  { id: "gdp_growth", tw: "tw_gdp_growth_pct",    prc: "prc_gdp_growth_pct",
+    title: "Real GDP growth (YoY)", dualAxis: false },
+  { id: "cpi",        tw: "tw_cpi_yoy_pct",       prc: "prc_cpi_yoy_pct",
+    title: "Consumer prices (YoY)", dualAxis: false },
+  { id: "fx_res",     tw: "tw_fx_reserves_usd_b", prc: "prc_fx_reserves_usd_b",
+    title: "Foreign exchange reserves", dualAxis: true },
+  { id: "fx_rate",    tw: "twd_usd_rate",         prc: "cny_usd_rate",
+    title: "Exchange rate vs USD", dualAxis: true },
+];
+
 function formatPeriodLabel(period) {
   // 'YYYY-MM' → 'MMM YY'
   if (!period) return "";
@@ -43,6 +57,12 @@ function formatValue(value, unit) {
   if (unit === "cases") {
     return Math.round(value).toString();
   }
+  if (unit === "percent") {
+    return `${value.toFixed(2)}%`;
+  }
+  if (unit === "rate") {
+    return value.toFixed(3);
+  }
   return value.toString();
 }
 
@@ -60,6 +80,8 @@ function formatYAxisTick(value, unit) {
     if (Math.abs(actual) >= 1_000) return `${Math.round(actual / 1_000)}K`;
     return actual.toString();
   }
+  if (unit === "percent") return `${value}%`;
+  if (unit === "rate") return value.toString();
   return value.toString();
 }
 
@@ -378,7 +400,9 @@ export default function EconomyTab() {
         gap: "6px",
         marginBottom: "12px",
       }}>
-        {data.series.filter((s) => s.id !== MAIN_CHART_SERIES).map((s) => (
+        {data.series
+          .filter((s) => s.id !== MAIN_CHART_SERIES && s.category !== "macro")
+          .map((s) => (
           <button
             key={s.id}
             onClick={() => setPickedSeries(s.id)}
@@ -446,6 +470,9 @@ export default function EconomyTab() {
         </ResponsiveContainer>
       </div>
 
+      {/* Macro: TW vs PRC side-by-side (MAC dataset 7888). */}
+      <MacroSection seriesById={seriesById} monthsLimit={monthsLimit} />
+
       {/* Verification: MAC (TW) vs Comtrade (PRC).
           Uses its own range — PRC data lags MAC by ~6 months so we always
           show a multi-year window to make the overlap visible. */}
@@ -459,14 +486,220 @@ export default function EconomyTab() {
         lineHeight: 1.5,
       }}>
         Sources: Mainland Affairs Council, R.O.C. (Taiwan) — 兩岸經濟交流統計速報 (dataset
-        7887 on <em>data.gov.tw</em>) for cross-strait indicators and 臺灣對香港貿易統計表
-        (dataset 7459) for TW-HK trade with HK Census &amp; Statistics Department
-        cross-reporting. UN Comtrade preview API (reporter 156 China, partner 490
-        "Other Asia, nes") — PRC files Taiwan trade under the "Other Asia" partner code.
-        Investment figures count only TW-government-approved cases. People-flow data
-        interrupted Jan 2020 – early 2023 due to COVID border controls.
+        7887) for cross-strait indicators, 臺灣對香港貿易統計表 (7459) for TW-HK trade
+        with HK Census &amp; Statistics Department cross-reporting, and 兩岸重要經濟指標
+        統計速報 (7888) for TW vs PRC macro indicators — all via <em>data.gov.tw</em>.
+        UN Comtrade preview API (reporter 156 China, partner 490 "Other Asia, nes") —
+        PRC files Taiwan trade under the "Other Asia" partner code. Investment figures
+        count only TW-government-approved cases. People-flow data interrupted Jan 2020 –
+        early 2023 due to COVID border controls. GDP is quarterly; other indicators
+        monthly.
       </p>
     </main>
+  );
+}
+
+// ---- Macro section (TW vs PRC) ----
+
+function MacroPairTooltip({ active, payload, label, twLabel, prcLabel, unit }) {
+  if (!active || !payload?.length) return null;
+  // Recharts gives us one payload entry per Line; we surface both reporters.
+  const tw = payload.find((p) => p.dataKey === "tw_value");
+  const prc = payload.find((p) => p.dataKey === "prc_value");
+  const fmt = (v) => {
+    if (v === null || v === undefined) return "—";
+    if (unit === "percent") return `${v.toFixed(2)}%`;
+    if (unit === "rate") return v.toFixed(3);
+    if (unit === "USD billions") return `US$${v.toFixed(1)}B`;
+    return v.toString();
+  };
+  return (
+    <div style={{
+      background: "var(--bg-card)",
+      border: "1px solid var(--border-color)",
+      padding: "8px 12px",
+      fontSize: "11px",
+      fontFamily: "var(--font-mono)",
+      color: "var(--text-primary)",
+      minWidth: "160px",
+    }}>
+      <div style={{ color: "var(--text-muted)", marginBottom: "6px" }}>{formatPeriodLabel(label)}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", color: "var(--accent-teal)" }}>
+        <span>{twLabel}</span>
+        <span>{fmt(tw?.value)}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", color: "var(--accent-red)" }}>
+        <span>{prcLabel}</span>
+        <span>{fmt(prc?.value)}</span>
+      </div>
+    </div>
+  );
+}
+
+// Merge two series (TW and PRC) into a single array of {period, tw_value, prc_value}
+// keyed by the union of periods, so Recharts can plot them on a shared time axis.
+function mergePair(twPoints, prcPoints) {
+  const map = new Map();
+  for (const p of twPoints || []) {
+    map.set(p.period, { period: p.period, tw_value: p.value, prc_value: null });
+  }
+  for (const p of prcPoints || []) {
+    const existing = map.get(p.period) || { period: p.period, tw_value: null };
+    existing.prc_value = p.value;
+    map.set(p.period, existing);
+  }
+  return Array.from(map.values()).sort((a, b) => a.period.localeCompare(b.period));
+}
+
+function MacroPairChart({ pair, seriesById, monthsLimit }) {
+  const twSeries = seriesById[pair.tw];
+  const prcSeries = seriesById[pair.prc];
+  if (!twSeries || !prcSeries) return null;
+
+  const twPoints = trimPoints(twSeries.points, monthsLimit);
+  const prcPoints = trimPoints(prcSeries.points, monthsLimit);
+  const merged = mergePair(twPoints, prcPoints);
+  if (!merged.length) return null;
+
+  const unit = twSeries.unit;
+  const latestPeriod = merged[merged.length - 1].period;
+  const latestTw = [...merged].reverse().find((p) => p.tw_value !== null)?.tw_value;
+  const latestPrc = [...merged].reverse().find((p) => p.prc_value !== null)?.prc_value;
+
+  const formatTick = (v) => formatYAxisTick(v, unit);
+  // For exchange rates the suffix is the currency; for percent the suffix is %; etc.
+  const formatLatest = (v) => {
+    if (v === null || v === undefined) return "—";
+    if (unit === "percent") return `${v.toFixed(2)}%`;
+    if (unit === "rate") return v.toFixed(3);
+    if (unit === "USD billions") return `US$${v.toFixed(1)}B`;
+    return String(v);
+  };
+
+  return (
+    <div style={{
+      background: "var(--bg-card)",
+      border: "1px solid var(--border-color)",
+      padding: "14px 12px 8px",
+      marginBottom: "16px",
+    }}>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        padding: "0 4px 10px",
+      }}>
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "11px",
+          fontWeight: 600,
+          color: "var(--text-primary)",
+          letterSpacing: "0.04em",
+        }}>
+          {pair.title}
+        </span>
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          color: "var(--text-muted)",
+        }}>
+          {formatPeriodLabel(latestPeriod)}: TW <span style={{ color: "var(--accent-teal)" }}>{formatLatest(latestTw)}</span>
+          {" · "}PRC <span style={{ color: "var(--accent-red)" }}>{formatLatest(latestPrc)}</span>
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={merged} margin={{ top: 4, right: pair.dualAxis ? 36 : 12, bottom: 0, left: 0 }}>
+          <XAxis
+            dataKey="period"
+            tickFormatter={formatPeriodLabel}
+            tick={{ fontSize: 9, fontFamily: "var(--font-mono)", fill: "var(--text-muted)" }}
+            axisLine={false}
+            tickLine={false}
+            minTickGap={28}
+          />
+          <YAxis
+            yAxisId="tw"
+            orientation="left"
+            width={48}
+            tick={{ fontSize: 9, fontFamily: "var(--font-mono)", fill: "var(--accent-teal)" }}
+            tickFormatter={formatTick}
+            axisLine={false}
+            tickLine={false}
+          />
+          {pair.dualAxis && (
+            <YAxis
+              yAxisId="prc"
+              orientation="right"
+              width={48}
+              tick={{ fontSize: 9, fontFamily: "var(--font-mono)", fill: "var(--accent-red)" }}
+              tickFormatter={formatTick}
+              axisLine={false}
+              tickLine={false}
+            />
+          )}
+          {unit === "percent" && <ReferenceLine y={0} yAxisId="tw" stroke="var(--border-color)" />}
+          <Tooltip content={<MacroPairTooltip twLabel="Taiwan" prcLabel="PRC" unit={unit} />} />
+          <Line
+            type="monotone"
+            yAxisId="tw"
+            dataKey="tw_value"
+            name="Taiwan"
+            stroke="var(--accent-teal)"
+            strokeWidth={2}
+            dot={false}
+            connectNulls
+            activeDot={{ r: 4, fill: "var(--accent-teal)" }}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            yAxisId={pair.dualAxis ? "prc" : "tw"}
+            dataKey="prc_value"
+            name="PRC"
+            stroke="var(--accent-red)"
+            strokeWidth={2}
+            strokeDasharray={pair.dualAxis ? undefined : "4 3"}
+            dot={false}
+            connectNulls
+            activeDot={{ r: 4, fill: "var(--accent-red)" }}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function MacroSection({ seriesById, monthsLimit }) {
+  // Bail if 7888 hasn't been scraped yet (any one pair missing data is enough)
+  const allLoaded = MACRO_PAIRS.every(
+    (p) => seriesById[p.tw]?.points?.length && seriesById[p.prc]?.points?.length
+  );
+  if (!allLoaded) return null;
+  return (
+    <>
+      <SectionHeader>Macro — TW vs PRC</SectionHeader>
+      <p style={{
+        fontFamily: "var(--font-body)",
+        fontSize: "12px",
+        color: "var(--text-secondary)",
+        marginBottom: "14px",
+        lineHeight: 1.5,
+      }}>
+        The two economies side-by-side. Real GDP growth and consumer-price inflation
+        share a single axis; FX reserves and exchange rates use dual axes because TW
+        and PRC operate at very different scales. GDP appears quarterly (one dot per
+        quarter); other series are monthly.
+      </p>
+      {MACRO_PAIRS.map((pair) => (
+        <MacroPairChart
+          key={pair.id}
+          pair={pair}
+          seriesById={seriesById}
+          monthsLimit={monthsLimit}
+        />
+      ))}
+    </>
   );
 }
 
