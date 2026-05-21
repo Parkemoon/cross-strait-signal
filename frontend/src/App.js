@@ -282,17 +282,23 @@ export default function App() {
         alignItems: "start",
         overflow: "hidden",
       }}>
-        {/* Stats sidebar — always visible on desktop, tab-controlled on mobile */}
+        {/* Stats sidebar — always visible on desktop, tab-controlled on mobile.
+            Sticky to viewport top, but grows to natural content height (no
+            fixed 100vh cap or internal scrollbar). min-height keeps the
+            sidebar bg filling at least the viewport so we never see blank
+            columns. When content exceeds viewport, sticky keeps the top in
+            view while the feed scrolls; once the parent grid row scrolls
+            past, the sidebar moves with it (briefly exposing its bottom
+            before page end). */}
         <aside
-          className={isMobile ? "" : "hide-scrollbar"}
           style={{
             background: "var(--sidebar-bg)",
             borderRight: isMobile ? "none" : "1px solid var(--border-color)",
             padding: "24px 20px",
-            overflowY: "auto",
             position: isMobile ? "static" : "sticky",
             top: 0,
-            height: isMobile ? "auto" : "100vh",
+            alignSelf: "start",
+            minHeight: isMobile ? "auto" : "calc(100vh - 52px)",
             minWidth: 0,
             display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
           }}
@@ -499,18 +505,19 @@ export default function App() {
           )}
         </div>
 
-        {/* Social Pulse — right column, desktop only, sticky full-height.
-            Hidden on the Economy tab to give the trade panels room. */}
+        {/* Social Pulse — right column, desktop only. Same sticky+grow
+            behaviour as the left sidebar (no internal scrollbar, sticky to
+            viewport top, bg fills at least one viewport). Hidden on the
+            Economy and Trade tabs to give those wide panels room. */}
         <aside
-          className={isMobile ? "" : "hide-scrollbar"}
           style={{
             background: "var(--sidebar-bg)",
             borderLeft: "1px solid var(--border-color)",
             padding: "24px 20px",
             position: "sticky",
             top: 0,
-            height: "100vh",
-            overflowY: "auto",
+            alignSelf: "start",
+            minHeight: "calc(100vh - 52px)",
             minWidth: 0,
             display: (view === "economy" || view === "trade")
               ? "none"
