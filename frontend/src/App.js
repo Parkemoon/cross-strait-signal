@@ -275,7 +275,9 @@ export default function App() {
       </nav>}
 
       {/* Main layout — collapses to 2 columns on the Economy and Trade
-          tabs so the wide tables and charts get the full width. */}
+          tabs so the wide tables and charts get the full width.
+          NB: do NOT add `overflow: hidden` here — it breaks
+          `position: sticky` on the sidebar children. */}
       <div style={{
         display: isMobile ? "block" : "grid",
         gridTemplateColumns: (view === "economy" || view === "trade")
@@ -283,7 +285,6 @@ export default function App() {
           : "clamp(300px, 20vw, 420px) 1fr 300px",
         minHeight: "calc(100vh - 52px)",
         alignItems: "start",
-        overflow: "hidden",
       }}>
         {/* Stats sidebar — always visible on desktop, tab-controlled on mobile.
             useSmartSticky picks the right sticky `top` offset based on
