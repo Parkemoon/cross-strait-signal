@@ -1108,6 +1108,15 @@ function InvestmentVerification() {
         padding: "14px 16px 8px",
       }}>
         <div style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          color: "var(--text-muted)",
+          marginBottom: "8px",
+        }}>
+          MAC annuals derived as end-of-year cumulative differences from
+          MAC 7473. Years where either side is missing are omitted.
+        </div>
+        <div style={{
           display: "flex",
           gap: "14px",
           fontFamily: "var(--font-mono)",
