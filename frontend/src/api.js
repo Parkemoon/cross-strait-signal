@@ -163,6 +163,20 @@ export async function fetchEconomyVerification(params = {}) {
   return request(`/api/economy/verification?${query}`);
 }
 
+export async function fetchTradeAccessItems(params = {}) {
+  const query = new URLSearchParams();
+  ["direction", "status", "hs_prefix", "search", "limit", "offset"].forEach((k) => {
+    if (params[k] !== undefined && params[k] !== "" && params[k] !== null) {
+      query.append(k, params[k]);
+    }
+  });
+  return request(`/api/trade-access/items?${query}`);
+}
+
+export async function fetchTradeAccessSummary() {
+  return request(`/api/trade-access/summary`);
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",

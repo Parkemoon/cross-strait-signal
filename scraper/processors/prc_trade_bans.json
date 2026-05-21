@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "description": "PRC's targeted import bans on Taiwanese goods. Direction is implicit: all entries are direction='prc_imports_from_tw' with status='banned'. Compiled from GACC announcements and contemporary news reporting; HS codes are best-effort 8-digit (PRC system) — many GACC suspensions are at the exporter-registration level rather than the HS-code level, so the `notes` field carries that context.",
+    "last_reviewed": "2026-05-21",
+    "review_cadence": "Update when news scrape surfaces new GACC import suspensions"
+  },
+  "bans": [
+    {
+      "hs_code": "08043000",
+      "product_zh": "鳳梨（鮮或乾）",
+      "product_en": "Pineapples, fresh or dried",
+      "ban_date": "2021-03-01",
+      "announcement_url": "http://www.customs.gov.cn/customs/302249/2480148/3537826/index.html",
+      "notes": "GACC cited pest (mealybug) contamination. 91% of TW pineapple exports went to PRC pre-ban. Widely framed as political coercion."
+    },
+    {
+      "hs_code": "08109010",
+      "product_zh": "釋迦（番荔枝）",
+      "product_en": "Sugar apples (atemoya)",
+      "ban_date": "2021-09-20",
+      "announcement_url": "http://www.customs.gov.cn/customs/302249/302266/302267/3923316/index.html",
+      "notes": "97% of TW sugar apple exports went to PRC pre-ban. GACC cited mealybug."
+    },
+    {
+      "hs_code": "08109090",
+      "product_zh": "蓮霧（洋蒲桃）",
+      "product_en": "Wax apples (java apples)",
+      "ban_date": "2021-09-20",
+      "announcement_url": "http://www.customs.gov.cn/customs/302249/302266/302267/3923316/index.html",
+      "notes": "98% of TW wax apple exports went to PRC pre-ban. Same GACC notice as sugar apples."
+    },
+    {
+      "hs_code": "03019929",
+      "product_zh": "石斑魚（活）",
+      "product_en": "Grouper, live",
+      "ban_date": "2022-06-13",
+      "announcement_url": "http://www.customs.gov.cn/customs/302249/302266/302267/4416614/index.html",
+      "notes": "GACC cited oxytetracycline residue and prohibited drug use. 90% of TW grouper exports went to PRC pre-ban."
+    },
+    {
+      "hs_code": "03026900",
+      "product_zh": "石斑魚（鮮或冷藏）",
+      "product_en": "Grouper, fresh or chilled",
+      "ban_date": "2022-06-13",
+      "announcement_url": "http://www.customs.gov.cn/customs/302249/302266/302267/4416614/index.html",
+      "notes": "Same GACC notice as live grouper."
+    },
+    {
+      "hs_code": "08051000",
+      "product_zh": "柑橘類水果（鮮）",
+      "product_en": "Citrus fruits, fresh",
+      "ban_date": "2022-08-03",
+      "announcement_url": "http://gdjm.customs.gov.cn/gdjm_customs/394219/394247/4534252/index.html",
+      "notes": "Post-Pelosi visit retaliation. GACC suspended imports of fresh citrus from Taiwan citing pest/pathogen detection."
+    },
+    {
+      "hs_code": "03038900",
+      "product_zh": "冷凍鯖魚",
+      "product_en": "Frozen mackerel",
+      "ban_date": "2022-08-03",
+      "announcement_url": "http://gdjm.customs.gov.cn/gdjm_customs/394219/394247/4534252/index.html",
+      "notes": "Post-Pelosi visit retaliation. Suspended alongside chilled white scallops and citrus fruits."
+    },
+    {
+      "hs_code": "03079200",
+      "product_zh": "帶殼鮮干貝",
+      "product_en": "Chilled white scallops, in shell",
+      "ban_date": "2022-08-03",
+      "announcement_url": "http://gdjm.customs.gov.cn/gdjm_customs/394219/394247/4534252/index.html",
+      "notes": "Post-Pelosi visit retaliation."
+    },
+    {
+      "hs_code": "19059000",
+      "product_zh": "糕餅及焙烤食品（特定廠商）",
+      "product_en": "Confectionery and baked goods (selected exporters)",
+      "ban_date": "2022-08-03",
+      "announcement_url": "http://gdjm.customs.gov.cn/gdjm_customs/394219/394247/4534252/index.html",
+      "notes": "Exporter-level suspension: GACC suspended import registrations from 35 named Taiwanese biscuit/pastry exporters. Approx. 2,000 of TW's 3,200 GACC-registered food product registrations were suspended in this period — a much broader action than the HS-code-level bans listed here."
+    }
+  ]
+}

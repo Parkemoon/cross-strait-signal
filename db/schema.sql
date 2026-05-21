@@ -224,3 +224,33 @@ CREATE TABLE IF NOT EXISTS economic_indicators (
 
 CREATE INDEX IF NOT EXISTS idx_econ_series_period ON economic_indicators(series_id, period DESC);
 CREATE INDEX IF NOT EXISTS idx_econ_period_type ON economic_indicators(period_type, period DESC);
+
+-- ============================================================
+-- TRADE ACCESS (Phase 2a.2 — cross-strait import permission regime)
+-- ============================================================
+-- One row per (direction, hs_code) tuple. `direction` records which side is
+-- the *importer* (so an item TW refuses to import from PRC is
+-- 'tw_imports_from_prc' with status 'banned'). Sources:
+--   * BOFT 大陸物品不准許輸入項目 (TW ban list)
+--   * BOFT 大陸物品有條件准許輸入項目 (TW conditional list)
+--   * MoF Customs ECFA correspondence table (ODS) — paired TW↔PRC HS codes
+--   * MoF (PRC) State Council Tariff Commission suspension PDFs
+--   * Curated prc_trade_bans.json for PRC's targeted bans on TW goods
+
+CREATE TABLE IF NOT EXISTS trade_access (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction             TEXT NOT NULL,   -- 'tw_imports_from_prc' | 'prc_imports_from_tw'
+    hs_code               TEXT NOT NULL,   -- 8-digit HS code (the importer's system)
+    product_zh            TEXT,
+    product_en            TEXT,
+    status                TEXT NOT NULL,   -- 'allowed' | 'banned' | 'conditional' | 'ecfa_active' | 'ecfa_suspended'
+    effective_date        TEXT,            -- 'YYYY-MM-DD' if known, else NULL
+    source                TEXT NOT NULL,   -- 'BOFT_22674' | 'BOFT_22675' | 'CUSTOMS_ECFA_2024' | 'MOF_PRC_SUSP_W1' | 'MOF_PRC_SUSP_W2' | 'CURATED'
+    notes                 TEXT,
+    ban_announcement_url  TEXT,            -- News / official URL for targeted bans
+    scraped_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(direction, hs_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_trade_access_direction_status ON trade_access(direction, status);
+CREATE INDEX IF NOT EXISTS idx_trade_access_hs ON trade_access(hs_code);
