@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "description": "PRC's targeted import bans on Taiwanese goods. Direction is implicit: all entries are direction='prc_imports_from_tw' with status='banned'. Compiled from GACC announcements and contemporary news reporting; HS codes are best-effort 8-digit (PRC system) — many GACC suspensions are at the exporter-registration level rather than the HS-code level, so the `notes` field carries that context.",
+    "description": "PRC's targeted import bans (and partial lifts) on Taiwanese goods. Direction is implicit: all entries are direction='prc_imports_from_tw'. Status defaults to 'banned'; entries that have been selectively re-opened via PRC-mediated political channels carry status='partial_lift' with effective_date set to the lift date. Compiled from GACC announcements and contemporary news reporting; HS codes are best-effort 8-digit (PRC system). Many actual GACC actions are at the exporter-registration level rather than HS-code level — that nuance lives in the notes field.",
     "last_reviewed": "2026-05-21",
-    "review_cadence": "Update when news scrape surfaces new GACC import suspensions"
+    "review_cadence": "Update when news scrape surfaces new GACC import suspensions or politically-brokered lifts"
   },
   "bans": [
     {
@@ -33,17 +33,31 @@
       "hs_code": "03019929",
       "product_zh": "石斑魚（活）",
       "product_en": "Grouper, live",
+      "status": "partial_lift",
+      "effective_date": "2023-12-22",
       "ban_date": "2022-06-13",
-      "announcement_url": "http://www.customs.gov.cn/customs/302249/302266/302267/4416614/index.html",
-      "notes": "GACC cited oxytetracycline residue and prohibited drug use. 90% of TW grouper exports went to PRC pre-ban."
+      "announcement_url": "https://www.cna.com.tw/news/acn/202312220041.aspx",
+      "notes": "Banned by GACC 2022-06-13 (oxytetracycline residue + prohibited drug use; 90% of TW grouper exports went to PRC pre-ban). Partially lifted 2023-12-22 — Beijing's TAO approved 6 farms + 1 company under selective audit-and-registration, framed as the outcome of KMT Deputy Policy Director Su Ching-chuan's mediation. Timing: 22 days before TW presidential election. TW Agriculture Ministry warned against politicising fishermen via selective approval. Cheng Li-wun's April 2026 Beijing visit produced further TAO signalling about broader resumption, but no GACC implementation yet."
     },
     {
       "hs_code": "03026900",
       "product_zh": "石斑魚（鮮或冷藏）",
       "product_en": "Grouper, fresh or chilled",
+      "status": "partial_lift",
+      "effective_date": "2023-12-22",
       "ban_date": "2022-06-13",
-      "announcement_url": "http://www.customs.gov.cn/customs/302249/302266/302267/4416614/index.html",
-      "notes": "Same GACC notice as live grouper."
+      "announcement_url": "https://www.cna.com.tw/news/acn/202312220041.aspx",
+      "notes": "Same lift as live grouper — selective approval of 6 farms + 1 company."
+    },
+    {
+      "hs_code": "08054000",
+      "product_zh": "文旦柚（鮮）",
+      "product_en": "Pomelos, fresh",
+      "status": "banned",
+      "effective_date": "2022-08-03",
+      "ban_date": "2022-08-03",
+      "announcement_url": "https://news.pts.org.tw/article/803311",
+      "notes": "Suspended alongside other agri products in the August 2022 post-Pelosi crackdown via the GACC registration-suspension mechanism. April 2026: TAO included pomelos among 10 'Taiwan-friendly measures' announced after KMT chair Cheng Li-wun's meeting with Xi Jinping — but TW Agriculture Ministry has not received GACC notification, so this remains a diplomatic signal rather than an implemented lift."
     },
     {
       "hs_code": "08051000",
@@ -75,7 +89,7 @@
       "product_en": "Confectionery and baked goods (selected exporters)",
       "ban_date": "2022-08-03",
       "announcement_url": "http://gdjm.customs.gov.cn/gdjm_customs/394219/394247/4534252/index.html",
-      "notes": "Exporter-level suspension: GACC suspended import registrations from 35 named Taiwanese biscuit/pastry exporters. Approx. 2,000 of TW's 3,200 GACC-registered food product registrations were suspended in this period — a much broader action than the HS-code-level bans listed here."
+      "notes": "Exporter-level suspension: GACC suspended import registrations from 35 named Taiwanese biscuit/pastry exporters during the August 2022 post-Pelosi crackdown. The broader registration-suspension action was much wider — a direct CIFER query on 2026-05-21 returned 1,291 Taiwan exporter companies still marked 暂停进口 against 1,046 marked 有效 (~55% suspended). These are company-level registrations; the older '~2,000 products' figure from 2022 reporting referred to product-level SKUs, which is a different unit. Most carried 5-year Decree 248 terms expiring 2026-01-01 — CIFER still surfaces the suspended set in that status post-cliff rather than as lapsed, suggesting the suspensions have hardened into a quasi-permanent state. Queryable at ciferquery.singlewindow.cn under the 港澳台 tab (PRC schema files Taiwan there, not under 境外/foreign)."
     }
   ]
 }

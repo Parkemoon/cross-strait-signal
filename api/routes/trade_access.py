@@ -18,10 +18,14 @@ router = APIRouter(prefix="/api/trade-access", tags=["trade-access"])
 
 # Status display order — surface bans first so they dominate the eye when
 # scanning. Keep aligned with the status values written by the scraper.
-STATUS_ORDER = ["banned", "ecfa_suspended", "conditional", "ecfa_active", "allowed"]
+STATUS_ORDER = ["banned", "ecfa_suspended", "partial_lift", "conditional", "ecfa_active", "allowed"]
 STATUS_LABELS = {
     "banned":         "Banned",
     "ecfa_suspended": "ECFA preference suspended",
+    # 'partial_lift' is distinct from BOFT's longstanding 'conditional' list:
+    # it marks PRC bans that have been partially lifted via selective
+    # exporter approval — usually as a politically-brokered concession.
+    "partial_lift":   "Partial lift (selective approval)",
     "conditional":    "Conditionally allowed",
     "ecfa_active":    "ECFA preference active",
     "allowed":        "Allowed",
