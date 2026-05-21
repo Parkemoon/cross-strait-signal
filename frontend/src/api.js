@@ -163,6 +163,14 @@ export async function fetchEconomyVerification(params = {}) {
   return request(`/api/economy/verification?${query}`);
 }
 
+export async function fetchInvestmentByIndustry(direction = "prc_to_tw", top = 10) {
+  return request(`/api/economy/investment-by-industry?direction=${direction}&top=${top}`);
+}
+
+export async function fetchInvestmentVerification() {
+  return request(`/api/economy/investment-verification`);
+}
+
 export async function fetchTradeAccessItems(params = {}) {
   const query = new URLSearchParams();
   ["direction", "status", "hs_prefix", "search", "limit", "offset"].forEach((k) => {

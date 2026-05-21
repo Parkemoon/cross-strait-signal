@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, Area, ComposedChart,
 } from "recharts";
-import { fetchEconomySeries, fetchEconomyVerification } from "../api";
+import { fetchEconomySeries, fetchEconomyVerification, fetchInvestmentByIndustry, fetchInvestmentVerification } from "../api";
 
 // All eight series in the order the API returns them, with display defaults.
 // The "headline" indicator (trade balance) is what the sidebar mini shows.
@@ -470,6 +470,10 @@ export default function EconomyTab() {
         </ResponsiveContainer>
       </div>
 
+      {/* Cross-strait investment by industry (MAC 7478 + 7473), with
+          direction toggle to expose the ~50× asymmetry between flows. */}
+      <InvestmentSection />
+
       {/* Macro: TW vs PRC side-by-side (MAC dataset 7888). */}
       <MacroSection seriesById={seriesById} monthsLimit={monthsLimit} />
 
@@ -666,6 +670,612 @@ function MacroPairChart({ pair, seriesById, monthsLimit }) {
           />
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ---- PRC investment in TW by industry (MAC 7478) ----
+
+// Bucket each industry into a coarse sector for colour coding. Anything
+// not matched falls into "Other" (grey). Keep this list short and
+// economically meaningful — it's an interpretive overlay, not a taxonomy.
+const INDUSTRY_SECTOR = [
+  { sector: "Tech / electronics", color: "#2563eb",
+    match: ["電子零組件", "電腦", "資訊軟體", "電信", "研究發展", "技術檢測"] },
+  { sector: "Heavy manufacturing", color: "#dc2626",
+    match: ["機械設備", "電力設備", "金屬製品", "化學製品", "化學材料", "塑膠製品",
+            "汽車", "醫療器材", "基本金屬", "其他製造業", "其他電子", "橡膠", "電子產品",
+            "光學製品", "運輸工具", "印刷", "皮革", "木竹", "紙漿", "家具", "紡織"] },
+  { sector: "Finance", color: "#7c3aed",
+    match: ["銀行", "證券", "保險", "創業投資", "金融"] },
+  { sector: "Services & retail", color: "#16a34a",
+    match: ["批發", "零售", "餐飲", "住宿", "會議", "支援", "教育", "藝術",
+            "其他服務", "專業", "不動產", "出版", "醫療"] },
+  { sector: "Logistics / infra", color: "#f59e0b",
+    match: ["港埠", "運輸及倉儲", "建築", "土木", "廢棄物", "農", "礦", "食品", "飲料",
+            "產業用機械", "維修"] },
+];
+
+function classifySector(zh) {
+  if (!zh) return { sector: "Other", color: "#6b7280" };
+  for (const s of INDUSTRY_SECTOR) {
+    if (s.match.some((token) => zh.includes(token))) return s;
+  }
+  return { sector: "Other", color: "#6b7280" };
+}
+
+// Render a USD-thousands value at the right scale: $X.XK / M / B.
+// Values are stored normalised in thousands of USD across both directions.
+function formatInvestmentAmount(usdK) {
+  if (usdK === null || usdK === undefined) return "—";
+  if (Math.abs(usdK) >= 1_000_000) return `US$${(usdK / 1_000_000).toFixed(1)}B`;
+  if (Math.abs(usdK) >= 1_000)     return `US$${(usdK / 1_000).toFixed(1)}M`;
+  return `US$${usdK.toFixed(0)}K`;
+}
+
+const INVESTMENT_DIRECTIONS = [
+  {
+    id:       "tw_to_prc",
+    label:    "Taiwan → PRC",
+    source:   "MAC 7473",
+    since:    "1991",
+    blurb:    "Approved Taiwanese investment into the mainland, cumulative since 1991.",
+    analytical: (
+      <>
+        The dominant cross-strait capital flow. Concentrated in electronics
+        manufacturing and computers/optics — the supply-chain backbone that
+        followed Taiwanese firms across the strait in the 1990s–2010s. The
+        single largest bucket is &ldquo;Other&rdquo;, an artefact of MAC&apos;s
+        coarse outbound categorisation rather than a real industry.
+      </>
+    ),
+  },
+  {
+    id:       "prc_to_tw",
+    label:    "PRC → Taiwan",
+    source:   "MAC 7478",
+    since:    "2009-07",
+    blurb:    "Approved PRC investment into Taiwan, cumulative since 2009-07.",
+    analytical: (
+      <>
+        Vanishingly small in absolute terms — Taiwan&apos;s Investment Commission
+        approves a fraction of PRC-origin applications. Most approved flow
+        concentrates in wholesale/retail and electronics rather than strategic
+        sectors. The asymmetry vs the Taiwan → PRC flow is roughly
+        <strong> 50&times;</strong> in dollar terms.
+      </>
+    ),
+  },
+];
+
+function InvestmentSection() {
+  const [direction, setDirection] = useState("tw_to_prc");
+  const [dataByDir, setDataByDir] = useState({});
+
+  // Cache results per direction so toggling is instant after first load.
+  useEffect(() => {
+    if (dataByDir[direction]) return;
+    fetchInvestmentByIndustry(direction, 10)
+      .then((d) => setDataByDir((prev) => ({ ...prev, [direction]: d })))
+      .catch(console.error);
+  }, [direction, dataByDir]);
+
+  const data = dataByDir[direction];
+  const meta = INVESTMENT_DIRECTIONS.find((d) => d.id === direction);
+  if (!data?.latest?.length) {
+    return (
+      <>
+        <SectionHeader>Cross-strait investment — by industry</SectionHeader>
+        <p style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "11px",
+          color: "var(--text-muted)",
+          marginBottom: "16px",
+        }}>Loading…</p>
+      </>
+    );
+  }
+
+  const topN = 10;
+  const top = data.latest.slice(0, topN);
+  const rest = data.latest.slice(topN);
+  const restAmount = rest.reduce((a, r) => a + (r.amount_usd_k || 0), 0);
+  const restShare  = rest.reduce((a, r) => a + (r.amount_share_pct || 0), 0);
+  const restCases  = rest.reduce((a, r) => a + (r.cases || 0), 0);
+  const rows = [...top];
+  if (rest.length) {
+    rows.push({
+      industry_zh: `其他 (${rest.length} 行業)`,
+      industry_en: `Other (${rest.length} industries)`,
+      cases: restCases,
+      amount_usd_k: restAmount,
+      amount_share_pct: restShare,
+      _isOther: true,
+    });
+  }
+  const maxAmount = Math.max(...rows.map((r) => r.amount_usd_k || 0));
+  const totalAmount = data.latest.reduce((a, r) => a + (r.amount_usd_k || 0), 0);
+  const totalCases  = data.latest.reduce((a, r) => a + (r.cases || 0), 0);
+
+  return (
+    <>
+      <SectionHeader right={`${meta.source} · cumulative since ${meta.since} · through ${formatPeriodLabel(data.latest_period)}`}>
+        Cross-strait investment — by industry
+      </SectionHeader>
+
+      {/* Direction toggle */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
+        {INVESTMENT_DIRECTIONS.map((d) => (
+          <button
+            key={d.id}
+            onClick={() => setDirection(d.id)}
+            style={{
+              padding: "6px 14px",
+              fontFamily: "var(--font-mono)",
+              fontSize: "10px",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              background: direction === d.id ? "var(--text-primary)" : "transparent",
+              color: direction === d.id ? "var(--bg-primary)" : "var(--text-secondary)",
+              border: "1px solid var(--border-color)",
+              cursor: "pointer",
+            }}
+            title={d.blurb}
+          >{d.label}</button>
+        ))}
+      </div>
+
+      <p style={{
+        fontFamily: "var(--font-body)",
+        fontSize: "12px",
+        color: "var(--text-secondary)",
+        marginBottom: "14px",
+        lineHeight: 1.5,
+      }}>
+        Cumulative approved investment in this direction stands at{" "}
+        <strong>{formatInvestmentAmount(totalAmount)}</strong> across{" "}
+        <strong>{totalCases.toLocaleString()}</strong> approved cases.{" "}
+        {meta.analytical} Bar colour groups each industry into a coarse sector.
+      </p>
+
+      <div style={{
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-color)",
+        padding: "14px 16px 8px",
+        marginBottom: "16px",
+      }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(180px, 1.2fr) 1fr 70px 80px",
+          rowGap: "8px",
+          columnGap: "10px",
+          alignItems: "center",
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--text-muted)",
+          paddingBottom: "8px",
+          borderBottom: "1px solid var(--border-color)",
+        }}>
+          <span>Industry</span>
+          <span>Share of approved amount</span>
+          <span style={{ textAlign: "right" }}>Amount</span>
+          <span style={{ textAlign: "right" }}>Cases</span>
+        </div>
+        {rows.map((r, i) => {
+          const { sector, color } = r._isOther
+            ? { sector: "Mixed", color: "#9ca3af" }
+            : classifySector(r.industry_zh);
+          const widthPct = maxAmount ? (r.amount_usd_k / maxAmount) * 100 : 0;
+          return (
+            <div key={i} style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(180px, 1.2fr) 1fr 70px 80px",
+              alignItems: "center",
+              gap: "10px",
+              padding: "8px 0",
+              borderBottom: i === rows.length - 1 ? "none" : "1px solid var(--border-color)",
+              fontFamily: "var(--font-body)",
+              fontSize: "13px",
+              color: "var(--text-primary)",
+            }}>
+              <div>
+                <div title={sector} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}>
+                  <span style={{
+                    display: "inline-block",
+                    width: "8px", height: "8px", borderRadius: "50%",
+                    background: color, flexShrink: 0,
+                  }} />
+                  <span>{r.industry_en || r.industry_zh}</span>
+                </div>
+                <div style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  color: "var(--text-muted)",
+                  marginLeft: "16px",
+                  marginTop: "1px",
+                }}>{r.industry_zh}</div>
+              </div>
+              <div>
+                <div style={{
+                  position: "relative",
+                  height: "10px",
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                }}>
+                  <div style={{
+                    position: "absolute",
+                    top: 0, left: 0, bottom: 0,
+                    width: `${widthPct}%`,
+                    background: color,
+                    opacity: 0.85,
+                  }} />
+                </div>
+                <div style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  color: "var(--text-muted)",
+                  marginTop: "2px",
+                }}>{r.amount_share_pct?.toFixed(1)}%</div>
+              </div>
+              <div style={{
+                textAlign: "right",
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                color: "var(--text-primary)",
+              }}>
+                {formatInvestmentAmount(r.amount_usd_k)}
+              </div>
+              <div style={{
+                textAlign: "right",
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                color: "var(--text-secondary)",
+              }}>
+                {(r.cases || 0).toLocaleString()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Sector legend */}
+      <div style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "12px",
+        marginBottom: "16px",
+        fontFamily: "var(--font-mono)",
+        fontSize: "10px",
+        color: "var(--text-muted)",
+      }}>
+        {INDUSTRY_SECTOR.map((s) => (
+          <span key={s.sector} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+            <span style={{
+              display: "inline-block",
+              width: "8px", height: "8px", borderRadius: "50%",
+              background: s.color,
+            }} />
+            {s.sector}
+          </span>
+        ))}
+      </div>
+
+      {/* MAC vs MOFCOM verification — only when looking at outbound (TW → PRC).
+          MOFCOM doesn't publish a country-destination breakdown for outbound
+          PRC FDI to Taiwan, so there's no counterpart for the inbound view. */}
+      {direction === "tw_to_prc" && <InvestmentVerification />}
+    </>
+  );
+}
+
+function InvestmentVerification() {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    fetchInvestmentVerification().then(setData).catch(console.error);
+  }, []);
+
+  if (!data?.pairs?.length) return null;
+
+  const cum     = data.cumulative;
+  const macCum  = cum?.mac_amount_usd_b;
+  const mofCum  = cum?.mofcom_amount_usd_b;
+  const cumRatio = cum?.utilisation_ratio_pct;
+  const cumYear = cum?.year;
+
+  // Bar chart: pair MAC vs MOFCOM per year
+  const maxAnnual = Math.max(
+    ...data.pairs.flatMap((p) => [p.mac_approved_usd_b || 0, p.mofcom_actual_usd_b || 0])
+  );
+
+  return (
+    <div style={{ marginTop: "30px", marginBottom: "20px" }}>
+      <div style={{
+        height: "2px",
+        background: "var(--border-color)",
+        marginBottom: "9px",
+      }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "11px",
+          fontWeight: 600,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--text-primary)",
+        }}>
+          Verification — MAC approved vs MOFCOM actually used
+        </span>
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          color: "var(--text-muted)",
+        }}>
+          <a href={data.mofcom_source_url} target="_blank" rel="noreferrer" style={{
+            color: "var(--text-muted)", textDecoration: "underline dotted",
+          }}>{data.mofcom_source_label}</a>
+          {" · extracted "}{data.mofcom_extracted_at}
+        </span>
+      </div>
+      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px", marginBottom: "14px" }} />
+
+      {/* Cumulative headline */}
+      {macCum && mofCum && (
+        <div style={{
+          background: "var(--bg-card)",
+          border: "1px solid var(--border-color)",
+          padding: "14px 18px",
+          marginBottom: "14px",
+        }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: "16px",
+          }}>
+            <div>
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                color: "var(--text-muted)",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}>MAC approved · cumulative end-{cumYear}</div>
+              <div style={{
+                fontFamily: "var(--font-serif, Georgia, serif)",
+                fontSize: "20px",
+                color: "var(--text-primary)",
+              }}>
+                <strong>US${macCum.toFixed(1)}B</strong>
+              </div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                Since {cum.mac_start_year}
+              </div>
+            </div>
+            <div>
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                color: "var(--text-muted)",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}>MOFCOM actually used · cumulative end-{cumYear}</div>
+              <div style={{
+                fontFamily: "var(--font-serif, Georgia, serif)",
+                fontSize: "20px",
+                color: "var(--text-primary)",
+              }}>
+                <strong>US${mofCum.toFixed(1)}B</strong>
+              </div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                Since ~{cum.mofcom_start_year_approx} ({cum.mofcom_companies?.toLocaleString()} companies)
+              </div>
+            </div>
+            <div>
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                color: "var(--text-muted)",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}>Utilisation ratio</div>
+              <div style={{
+                fontFamily: "var(--font-serif, Georgia, serif)",
+                fontSize: "20px",
+                color: "#dc2626",
+              }}>
+                <strong>{cumRatio.toFixed(0)}%</strong>
+              </div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                MOFCOM ÷ MAC
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Annual paired bars */}
+      <div style={{
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-color)",
+        padding: "14px 16px 8px",
+      }}>
+        <div style={{
+          display: "flex",
+          gap: "14px",
+          fontFamily: "var(--font-mono)",
+          fontSize: "10px",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--text-muted)",
+          paddingBottom: "10px",
+          borderBottom: "1px solid var(--border-color)",
+          alignItems: "center",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+            <span style={{ width: "10px", height: "10px", background: "#0d9488" }} />
+            MAC approved
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+            <span style={{ width: "10px", height: "10px", background: "#dc2626" }} />
+            MOFCOM actually used
+          </span>
+          <span style={{ marginLeft: "auto" }}>USD billions, annual</span>
+        </div>
+        {data.pairs.map((p) => {
+          const macW = maxAnnual ? ((p.mac_approved_usd_b || 0) / maxAnnual * 100) : 0;
+          const mofW = maxAnnual ? ((p.mofcom_actual_usd_b || 0) / maxAnnual * 100) : 0;
+          return (
+            <div key={p.year} style={{
+              padding: "10px 0",
+              borderBottom: "1px solid var(--border-color)",
+              display: "grid",
+              gridTemplateColumns: "44px 1fr 100px",
+              gap: "10px",
+              alignItems: "center",
+            }}>
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                color: "var(--text-primary)",
+              }}>{p.year}</div>
+              <div>
+                {/* MAC bar */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "4px",
+                }}>
+                  <div style={{
+                    flex: 1,
+                    height: "12px",
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    position: "relative",
+                  }}>
+                    <div style={{
+                      position: "absolute",
+                      top: 0, left: 0, bottom: 0,
+                      width: `${macW}%`,
+                      background: "#0d9488",
+                      opacity: 0.85,
+                    }} />
+                  </div>
+                  <span style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    color: "var(--text-secondary)",
+                    minWidth: "55px",
+                    textAlign: "right",
+                  }}>
+                    {p.mac_approved_usd_b != null ? `$${p.mac_approved_usd_b.toFixed(2)}B` : "—"}
+                  </span>
+                </div>
+                {/* MOFCOM bar */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}>
+                  <div style={{
+                    flex: 1,
+                    height: "12px",
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border-color)",
+                    position: "relative",
+                  }}>
+                    <div style={{
+                      position: "absolute",
+                      top: 0, left: 0, bottom: 0,
+                      width: `${mofW}%`,
+                      background: "#dc2626",
+                      opacity: 0.85,
+                    }} />
+                  </div>
+                  <span style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    color: "var(--text-secondary)",
+                    minWidth: "55px",
+                    textAlign: "right",
+                  }}>
+                    {p.mofcom_actual_usd_b != null ? `$${p.mofcom_actual_usd_b.toFixed(2)}B` : "—"}
+                  </span>
+                </div>
+              </div>
+              <div style={{
+                textAlign: "right",
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                color: p.utilisation_ratio_pct != null && p.utilisation_ratio_pct < 25 ? "#dc2626" : "var(--text-secondary)",
+              }}>
+                {p.utilisation_ratio_pct != null
+                  ? `${p.utilisation_ratio_pct.toFixed(0)}% used`
+                  : "—"}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p style={{
+        fontFamily: "var(--font-body)",
+        fontSize: "12px",
+        color: "var(--text-secondary)",
+        marginTop: "14px",
+        lineHeight: 1.5,
+      }}>
+        The gap is structural. <strong>MAC counts at approval</strong>{" "}
+        (with annual flows from Taiwan's Investment Commission, cumulative
+        since 1991). <strong>MOFCOM counts at actual capital landing</strong>{" "}
+        attributed by <em>immediate</em> source country (cumulative since
+        records began ~1988 — coinciding with the 1988 国务院 document
+        encouraging Taiwanese investment). The two start dates differ by
+        ~3 years; 1988-1990 flows were small relative to the full window,
+        so this affects the comparison only marginally. The two-thirds
+        gap is driven by (1) approved-but-not-deployed investment, and
+        (2) Taiwanese capital routed via Cayman, BVI or HK subsidiaries
+        — which MOFCOM books under those source jurisdictions rather than
+        Taiwan. The utilisation ratio has fallen from ~50% in 2017 to
+        ~15% recently, suggesting the offshore-routing share is growing.
+      </p>
+      <p style={{
+        fontFamily: "var(--font-body)",
+        fontSize: "12px",
+        color: "var(--text-secondary)",
+        marginTop: "10px",
+        marginBottom: "0",
+        lineHeight: 1.5,
+        padding: "10px 14px",
+        background: "rgba(220,38,38,0.06)",
+        border: "1px solid rgba(220,38,38,0.18)",
+      }}>
+        <strong style={{ color: "#991b1b" }}>Scale caveat:</strong> Both
+        figures likely undercount the true cross-strait flow. Academic
+        consensus (PIIE, China Quarterly) is that the majority of
+        Taiwanese FDI booked under <em>Hong Kong, Singapore and Caribbean
+        tax havens</em> in fact deploys in China — so MAC's $210B omits
+        a large share of capital that left Taiwan but was approved for
+        offshore destinations. For pace comparison: TSMC alone has
+        committed roughly <strong>US$165B to its Arizona expansion in
+        the past ~5 years</strong> — close to <em>80% of all the
+        Taiwan→PRC investment MAC has approved over the 35 years since
+        1991</em>, but compressed into a fraction of the time. Taiwanese
+        capex is migrating away from PRC and toward the US, Japan and
+        Southeast Asia post-2018. The story this chart tells is therefore
+        narrower than it appears — it's the gap between
+        Taiwanese-government-approved and PRC-government-claimed figures
+        for the subset of capital that <em>both sides acknowledge</em>;
+        the shadow flow is larger still.
+      </p>
     </div>
   );
 }
