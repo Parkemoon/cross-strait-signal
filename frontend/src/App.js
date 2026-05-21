@@ -283,22 +283,20 @@ export default function App() {
         overflow: "hidden",
       }}>
         {/* Stats sidebar — always visible on desktop, tab-controlled on mobile.
-            Sticky to viewport top, but grows to natural content height (no
-            fixed 100vh cap or internal scrollbar). min-height keeps the
-            sidebar bg filling at least the viewport so we never see blank
-            columns. When content exceeds viewport, sticky keeps the top in
-            view while the feed scrolls; once the parent grid row scrolls
-            past, the sidebar moves with it (briefly exposing its bottom
-            before page end). */}
+            Sticky to viewport BOTTOM (not top) so the sidebar scrolls
+            naturally with the feed while its content is being revealed,
+            then pins to the bottom of the viewport once the user has seen
+            the last sidebar item. From that point on it stays in view as
+            the feed continues to scroll. Natural content height (no cap
+            or internal scrollbar). */}
         <aside
           style={{
             background: "var(--sidebar-bg)",
             borderRight: isMobile ? "none" : "1px solid var(--border-color)",
             padding: "24px 20px",
             position: isMobile ? "static" : "sticky",
-            top: 0,
+            bottom: 0,
             alignSelf: "start",
-            minHeight: isMobile ? "auto" : "calc(100vh - 52px)",
             minWidth: 0,
             display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
           }}
@@ -505,19 +503,19 @@ export default function App() {
           )}
         </div>
 
-        {/* Social Pulse — right column, desktop only. Same sticky+grow
-            behaviour as the left sidebar (no internal scrollbar, sticky to
-            viewport top, bg fills at least one viewport). Hidden on the
-            Economy and Trade tabs to give those wide panels room. */}
+        {/* Social Pulse — right column, desktop only. Same sticky-bottom
+            behaviour as the left sidebar: scroll naturally with the feed
+            while content is being revealed, then pin to viewport bottom
+            once the last item is at the bottom of the viewport. Hidden on
+            the Economy and Trade tabs to give those wide panels room. */}
         <aside
           style={{
             background: "var(--sidebar-bg)",
             borderLeft: "1px solid var(--border-color)",
             padding: "24px 20px",
             position: "sticky",
-            top: 0,
+            bottom: 0,
             alignSelf: "start",
-            minHeight: "calc(100vh - 52px)",
             minWidth: 0,
             display: (view === "economy" || view === "trade")
               ? "none"
