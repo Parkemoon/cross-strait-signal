@@ -12,13 +12,14 @@ import StatsSidebar from "./components/StatsSidebar";
 import FilterBar from "./components/FilterBar";
 import ReviewQueue from "./components/ReviewQueue";
 import EconomyTab from "./components/EconomyTab";
+import TradeAccessTab from "./components/TradeAccessTab";
 
 export default function App() {
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
-  const [view, setView] = useState("feed"); // "feed" | "review" | "economy"
+  const [view, setView] = useState("feed"); // "feed" | "review" | "economy" | "trade"
   const [showAbout, setShowAbout] = useState(false);
-  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "social" | "review"
+  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "social" | "review"
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
 
@@ -123,6 +124,24 @@ export default function App() {
               Economy
             </button>
           )}
+          {!isMobile && (
+            <button
+              onClick={() => setView(view === "trade" ? "feed" : "trade")}
+              style={{
+                padding: "5px 12px",
+                background: view === "trade" ? "rgba(255,255,255,0.12)" : "transparent",
+                color: view === "trade" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                cursor: "pointer",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              Trade Access
+            </button>
+          )}
           {!isMobile && !READ_ONLY && (
             <button
               onClick={() => setView(view === "review" ? "feed" : "review")}
@@ -220,6 +239,7 @@ export default function App() {
           { id: "feed", label: "Feed" },
           { id: "stats", label: "Stats" },
           { id: "economy", label: "Economy" },
+          { id: "trade", label: "Trade" },
           { id: "social", label: "Social" },
           ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
         ].map((tab) => (
@@ -229,6 +249,7 @@ export default function App() {
               setMobileTab(tab.id);
               if (tab.id === "review") setView("review");
               else if (tab.id === "economy") setView("economy");
+              else if (tab.id === "trade") setView("trade");
               else setView("feed");
             }}
             style={{
@@ -250,11 +271,11 @@ export default function App() {
         ))}
       </nav>}
 
-      {/* Main layout — collapses to 2 columns on the Economy tab so the
-          trade charts get the full width. */}
+      {/* Main layout — collapses to 2 columns on the Economy and Trade
+          tabs so the wide tables and charts get the full width. */}
       <div style={{
         display: isMobile ? "block" : "grid",
-        gridTemplateColumns: view === "economy"
+        gridTemplateColumns: (view === "economy" || view === "trade")
           ? "clamp(300px, 20vw, 420px) 1fr"
           : "clamp(300px, 20vw, 420px) 1fr 300px",
         minHeight: "calc(100vh - 52px)",
@@ -312,12 +333,14 @@ export default function App() {
           />
         </aside>
 
-        {/* Feed / Review / Economy — center column */}
-        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy") ? "block" : "none") : "block", minWidth: 0 }}>
+        {/* Feed / Review / Economy / Trade — center column */}
+        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy" || mobileTab === "trade") ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : view === "economy" ? (
             <EconomyTab />
+          ) : view === "trade" ? (
+            <TradeAccessTab />
           ) : (
             <main style={{
               padding: isMobile ? "16px" : "28px 32px",
@@ -489,7 +512,7 @@ export default function App() {
             height: "100vh",
             overflowY: "auto",
             minWidth: 0,
-            display: view === "economy"
+            display: (view === "economy" || view === "trade")
               ? "none"
               : (isMobile ? (mobileTab === "social" ? "block" : "none") : "block"),
           }}

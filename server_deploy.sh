@@ -41,6 +41,25 @@ CREATE TABLE IF NOT EXISTS economic_indicators (
 CREATE INDEX IF NOT EXISTS idx_econ_series_period ON economic_indicators(series_id, period DESC);
 CREATE INDEX IF NOT EXISTS idx_econ_period_type ON economic_indicators(period_type, period DESC);
 
+-- Trade access (Phase 2a.2) — cross-strait import permission regime.
+-- One row per (direction, hs_code). See db/schema.sql for full column docs.
+CREATE TABLE IF NOT EXISTS trade_access (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction             TEXT NOT NULL,
+    hs_code               TEXT NOT NULL,
+    product_zh            TEXT,
+    product_en            TEXT,
+    status                TEXT NOT NULL,
+    effective_date        TEXT,
+    source                TEXT NOT NULL,
+    notes                 TEXT,
+    ban_announcement_url  TEXT,
+    scraped_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(direction, hs_code)
+);
+CREATE INDEX IF NOT EXISTS idx_trade_access_direction_status ON trade_access(direction, status);
+CREATE INDEX IF NOT EXISTS idx_trade_access_hs ON trade_access(hs_code);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run
