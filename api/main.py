@@ -20,7 +20,7 @@ app = FastAPI(
 # (e.g. for local dev: "http://localhost:3000"). Default covers the two prod
 # vhosts. Browsers reject credentialed requests to "*"; we use a strict list
 # and do not enable credentials because the API does not rely on cookies.
-_default_origins = "https://strait-signal.net,https://admin.strait-signal.net,http://localhost:3000"
+_default_origins = "https://strait-signal.net,https://admin.strait-signal.net,http://localhost:3000,http://localhost:3001"
 _origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", _default_origins).split(",") if o.strip()]
 
 app.add_middleware(
