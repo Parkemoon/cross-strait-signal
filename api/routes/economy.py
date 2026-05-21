@@ -407,6 +407,29 @@ VERIFICATION_PAIRS = [
         "reporter_a_label": "TW MAC",
         "reporter_b_label": "HK Customs",
     },
+    # ── TW vs HK CSD direct (third reporter — confirms MAC's compilation
+    # of HK Customs figures matches HK CSD's own publication, AND surfaces
+    # the same HK→TW transit gap independent of MAC altogether) ──
+    {
+        "flow_id": "tw_exports_to_hk",
+        "kind": "hk_csd_direct",
+        "label_en": "Taiwan exports to HK",
+        "label_zh": "對香港出口",
+        "series_a": "exports_to_hk_usd_b",
+        "series_b": "hk_csd_hk_from_tw_imports_usd_b",
+        "reporter_a_label": "TW MAC",
+        "reporter_b_label": "HK CSD (direct)",
+    },
+    {
+        "flow_id": "tw_imports_from_hk",
+        "kind": "hk_csd_direct",
+        "label_en": "Taiwan imports from HK",
+        "label_zh": "自香港進口",
+        "series_a": "imports_from_hk_usd_b",
+        "series_b": "hk_csd_hk_to_tw_exports_usd_b",
+        "reporter_a_label": "TW MAC",
+        "reporter_b_label": "HK CSD (direct)",
+    },
 ]
 
 
@@ -425,19 +448,29 @@ def get_verification(
     pairs_out = []
     with db_conn() as conn:
         for pair in VERIFICATION_PAIRS:
+            # Full-outer-join semantics so periods covered by *either* reporter
+            # are returned (SQLite has no FULL OUTER JOIN; the UNION of the
+            # two series' periods gives the same result). HK CSD covers
+            # 1972+; we don't want MAC's narrower window to crop it.
             rows = conn.execute(
                 '''
-                SELECT a.period AS period, a.value AS value_a, b.value AS value_b
-                FROM economic_indicators a
-                LEFT JOIN economic_indicators b
-                  ON b.series_id = ?
-                 AND b.period = a.period
-                 AND b.period_type = 'month'
-                WHERE a.series_id = ?
-                  AND a.period_type = 'month'
-                ORDER BY a.period ASC
+                WITH periods AS (
+                    SELECT period FROM economic_indicators
+                    WHERE series_id = ? AND period_type = 'month'
+                    UNION
+                    SELECT period FROM economic_indicators
+                    WHERE series_id = ? AND period_type = 'month'
+                )
+                SELECT
+                    p.period AS period,
+                    (SELECT value FROM economic_indicators
+                     WHERE series_id = ? AND period_type = 'month' AND period = p.period) AS value_a,
+                    (SELECT value FROM economic_indicators
+                     WHERE series_id = ? AND period_type = 'month' AND period = p.period) AS value_b
+                FROM periods p
+                ORDER BY p.period ASC
                 ''',
-                (pair["series_b"], pair["series_a"]),
+                (pair["series_a"], pair["series_b"], pair["series_a"], pair["series_b"]),
             ).fetchall()
 
             points = []

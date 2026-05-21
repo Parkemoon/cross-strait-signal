@@ -21,6 +21,7 @@ from scraper.scrapers.mac_macro_scraper import scrape_mac_macro
 from scraper.scrapers.trade_access_scraper import scrape_trade_access
 from scraper.scrapers.mac_invest_industry_inbound import scrape_mac_invest_industry_inbound
 from scraper.scrapers.mac_invest_industry_outbound import scrape_mac_invest_industry_outbound
+from scraper.scrapers.hk_census_scraper import scrape_hk_census
 from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 from scraper.processors.social_translator import translate_social_pulse
@@ -81,6 +82,10 @@ async def main():
     scrape_mac_invest_industry_inbound()
     print("\n--- STEP 2h: Investment by Industry (TW → PRC) ---")
     scrape_mac_invest_industry_outbound()
+
+    # Step 2i: HK Census & Statistics Dept — TW-HK trade as a third reporter
+    print("\n--- STEP 2i: HK CSD Trade Verification ---")
+    scrape_hk_census()
 
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence

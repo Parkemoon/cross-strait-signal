@@ -1330,6 +1330,7 @@ const VERIFICATION_KINDS = {
   prc_customs: {
     section_label: "Verification — MAC vs PRC Customs",
     reporter_b_color: "var(--accent-red)",
+    chart_months: 60,
     intro: (
       <>
         Each cross-strait flow as reported by both governments. Solid line: Taiwan's MAC
@@ -1341,18 +1342,37 @@ const VERIFICATION_KINDS = {
     empty_message: "PRC-reported trade data not yet loaded. Run the Comtrade scraper.",
   },
   hk_customs: {
-    section_label: "Verification — MAC vs HK Customs",
+    section_label: "Verification — MAC vs HK Customs (MAC compilation)",
     reporter_b_color: "var(--accent-purple)",
+    chart_months: 60,
     intro: (
       <>
-        TW-HK trade as recorded by both customs authorities. Solid line: Taiwan's MAC.
-        Dashed line: Hong Kong Census &amp; Statistics Department. The TW→HK leg
-        usually agrees within a few percent, but HK records far more outbound trade to
-        Taiwan than TW records as imports from HK — most of HK's exports to TW are
-        PRC-origin goods that TW books as imports from the mainland instead.
+        TW-HK trade as compiled by MAC dataset 7459, which republishes HK Customs
+        figures alongside TW Customs. Solid line: Taiwan's MAC. Dashed line: HK Customs
+        (via MAC). The TW→HK leg usually agrees within a few percent, but HK records
+        far more outbound trade to Taiwan than TW records as imports from HK — most of
+        HK's exports to TW are PRC-origin goods that TW books as imports from the
+        mainland instead.
       </>
     ),
     empty_message: "TW-HK trade data not yet loaded. Run scrape_mac_hk_trade.",
+  },
+  hk_csd_direct: {
+    section_label: "Verification — MAC vs HK CSD (direct, third reporter)",
+    reporter_b_color: "var(--accent-teal)",
+    chart_months: 60,
+    intro: (
+      <>
+        Same TW-HK flows, but sourced <em>directly</em> from Hong Kong's Census &amp;
+        Statistics Department (Tables 410-50012 / 410-50013, HKD converted to USD at
+        the 7.78 peg) rather than via MAC&apos;s compilation. Lets us cross-check both
+        MAC&apos;s compilation accuracy <em>and</em> see the HK transit gap from a
+        third independent angle. HK CSD has data back to 1972, but the chart shows
+        the last 60 months for readability — early-decade magnitudes are orders of
+        magnitude smaller and would compress the modern story.
+      </>
+    ),
+    empty_message: "HK CSD data not yet loaded. Run scrape_hk_census.",
   },
 };
 
@@ -1488,12 +1508,15 @@ function VerificationFlowChart({ pair, reporterBColor }) {
   );
 }
 
-const VERIFICATION_DEFAULT_MONTHS = 60;
-
 function VerificationKindSubsection({ kind, pairs }) {
   const cfg = VERIFICATION_KINDS[kind];
   if (!cfg) return null;
-  const hasData = pairs.some((p) => p.points.some((pt) => pt.value_b !== null));
+  // Trim to chart_months per kind. null/undefined = keep the full series.
+  const limit = cfg.chart_months;
+  const trimmedPairs = limit
+    ? pairs.map((p) => ({ ...p, points: (p.points || []).slice(-limit) }))
+    : pairs;
+  const hasData = trimmedPairs.some((p) => p.points.some((pt) => pt.value_b !== null));
   return (
     <>
       <SectionHeader>{cfg.section_label}</SectionHeader>
@@ -1507,7 +1530,7 @@ function VerificationKindSubsection({ kind, pairs }) {
         {cfg.intro}
       </p>
       {hasData ? (
-        pairs.map((pair) => (
+        trimmedPairs.map((pair) => (
           <VerificationFlowChart
             key={pair.flow_id}
             pair={pair}
@@ -1532,7 +1555,10 @@ function VerificationSection() {
 
   useEffect(() => {
     setLoading(true);
-    fetchEconomyVerification({ months: VERIFICATION_DEFAULT_MONTHS })
+    // Fetch the full history; trim per-kind in VerificationKindSubsection.
+    // The HK CSD direct pair goes back to 1972 — only ~1300 numeric points
+    // across all pairs, well within Recharts comfort.
+    fetchEconomyVerification({})
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
