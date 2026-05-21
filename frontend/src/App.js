@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
+import { useSmartSticky } from "./hooks/useSmartSticky";
 import { useDashboardData } from "./hooks/useDashboardData";
 import ThemeToggle from "./components/ThemeToggle";
 import AboutModal from "./components/AboutModal";
@@ -22,6 +23,8 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "social" | "review"
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
+  const leftStickyRef  = useSmartSticky();
+  const rightStickyRef = useSmartSticky();
 
   const {
     articles, total, loading, stats,
@@ -283,19 +286,18 @@ export default function App() {
         overflow: "hidden",
       }}>
         {/* Stats sidebar — always visible on desktop, tab-controlled on mobile.
-            Sticky to viewport BOTTOM (not top) so the sidebar scrolls
-            naturally with the feed while its content is being revealed,
-            then pins to the bottom of the viewport once the user has seen
-            the last sidebar item. From that point on it stays in view as
-            the feed continues to scroll. Natural content height (no cap
-            or internal scrollbar). */}
+            useSmartSticky picks the right sticky `top` offset based on
+            measured sidebar vs viewport height: fits → top:0 (always
+            visible at viewport top); taller → negative offset so the
+            sidebar scrolls naturally with the feed until its bottom
+            reaches the viewport bottom, then pins there. */}
         <aside
+          ref={isMobile ? null : leftStickyRef}
           style={{
             background: "var(--sidebar-bg)",
             borderRight: isMobile ? "none" : "1px solid var(--border-color)",
             padding: "24px 20px",
             position: isMobile ? "static" : "sticky",
-            bottom: 0,
             alignSelf: "start",
             minWidth: 0,
             display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
@@ -503,18 +505,16 @@ export default function App() {
           )}
         </div>
 
-        {/* Social Pulse — right column, desktop only. Same sticky-bottom
-            behaviour as the left sidebar: scroll naturally with the feed
-            while content is being revealed, then pin to viewport bottom
-            once the last item is at the bottom of the viewport. Hidden on
-            the Economy and Trade tabs to give those wide panels room. */}
+        {/* Social Pulse — right column, desktop only. Same smart-sticky
+            hook as the left sidebar (see comment above). Hidden on the
+            Economy and Trade tabs to give those wide panels room. */}
         <aside
+          ref={isMobile ? null : rightStickyRef}
           style={{
             background: "var(--sidebar-bg)",
             borderLeft: "1px solid var(--border-color)",
             padding: "24px 20px",
             position: "sticky",
-            bottom: 0,
             alignSelf: "start",
             minWidth: 0,
             display: (view === "economy" || view === "trade")
