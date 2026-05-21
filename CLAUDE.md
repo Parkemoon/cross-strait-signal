@@ -92,6 +92,7 @@ Parallel pipelines (no AI processing):
     Curated prc_trade_bans.json ──────────────────┴→ trade_access table → /api/trade-access/*
     MAC 7478 (PRC→TW) + MAC 7473 (TW→PRC) monthly snapshots → investment_by_industry → /api/economy/investment-by-industry
     HK CSD 410-50012/13 (HK Customs direct) → economic_indicators (hk_csd_*_usd_b) → /api/economy/verification (kind=hk_csd_direct)
+    CIFER portal (Playwright, monthly) → cifer_snapshots → /api/trade-access/cifer-snapshot → TradeAccessTab headline
 ```
 
 ### Three-Tier AI Pipeline (`scraper/processors/ai_pipeline.py`)
@@ -144,6 +145,7 @@ Two types:
 | `mac_invest_industry_inbound.py` | MAC dataset 7478 — cumulative monthly snapshots of approved PRC investment INTO Taiwan, broken out by industry. Writes direction='prc_to_tw' to `investment_by_industry`. See Cross-Strait Investment by Industry section below |
 | `mac_invest_industry_outbound.py` | MAC dataset 7473 — same for Taiwan-side investment INTO PRC. Writes direction='tw_to_prc'. Reuses `INDUSTRY_EN` from the inbound scraper plus an `_EXTRA_INDUSTRY_EN` map for outbound-only industry names |
 | `hk_census_scraper.py` | HK Census & Statistics Department Tables 410-50012 / 410-50013 — TW-HK trade as a **third reporter** (HK Customs direct, not via MAC compilation). Coverage 1972-01 onwards. HKD converted to USD via 7.78 peg. See Trade Verification section |
+| `cifer_snapshot_scraper.py` | Monthly Playwright-driven scraper of PRC's CIFER portal (`ciferquery.singlewindow.cn`) — captures Taiwan food-exporter registration counts (suspended vs valid). Separate monthly cron at `0 3 1 * *`, NOT in run_pipeline.py. See CIFER Tracker section below |
 
 When adding a new HTML scraper: follow the pattern in any existing one. Register the source in `seed_sources.py` and add the import + call to `run_pipeline.py`.
 
@@ -169,6 +171,21 @@ Separate pipeline for cross-strait macro data — does NOT go through the articl
 **YoY parsing gotcha**: MAC's TW-visitors growth column uses decimal-fraction notation without `%` suffix (e.g. `0.103` = 10.3%) while every other column uses `30.6%` style. `parse_pct()` applies the ×100 conversion only when `|val| < 1` and no `%` sign — narrow enough that a real 100% reading isn't collapsed to 1%.
 
 **The verification story**: PRC's reported imports from Taiwan are ~80-125% higher than MAC's reported exports to PRC (gap widening from 80% in 2017 to 124% in 2024). Mostly Hong Kong transit trade booked differently. The same gap is visible from the HK side: HK Customs records ~20× more outbound trade to TW than TW records as imports from HK — because TW books PRC-origin goods (which dominate HK→TW shipments) as imports from the mainland, not from HK. The `/api/economy/verification` endpoint pairs reporters by period and emits three kinds (`prc_customs`, `hk_customs`, `hk_csd_direct`) under a single response — each pair carries `series_a`/`series_b`/`reporter_a_label`/`reporter_b_label`/`kind` and aligned monthly points `{period, value_a, value_b, gap_usd_b, gap_pct}`. The frontend `VerificationSection` groups them into a section per kind via `VERIFICATION_KINDS`.
+
+### CIFER Tracker (`scraper/scrapers/cifer_snapshot_scraper.py`)
+Automates the manual count we baked into TradeAccessTab earlier. PRC's CIFER (China Import Food Enterprises Registration) portal at `ciferquery.singlewindow.cn` is browser-gated — direct POSTs to the underlying API endpoint return generic error pages from this server's IP, so we drive a real headless Chromium via Playwright. The scraper:
+
+1. Loads the landing page.
+2. Calls the page's own `tabClick('1')` JS handler to switch to the 港澳台 tab (Taiwan companies are filed under HK/Macao/Taiwan, not 境外 — itself an analytical artefact worth surfacing).
+3. Fills the autocomplete country field with `中国台湾` and clicks the matching suggestion to populate the hidden country code.
+4. Runs two queries: `status='P'` (暂停进口) and `status='R'` (有效), capturing the result count from the `共 X 条记录` pagination header.
+5. Writes both counts to `cifer_snapshots` with today's date.
+
+Runs monthly via a dedicated cron entry (`0 3 1 * *`) — NOT in `run_pipeline.py`, because (a) it only needs monthly cadence, (b) the ~30s Playwright launch would slow every 6-hourly pipeline run, and (c) PRC's anti-bot detection could fail intermittently and we don't want that to fail the main pipeline.
+
+**System deps**: chromium needs `libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4` installed via apt; `playwright install chromium` for the binary itself (already in `~/.cache/ms-playwright/`).
+
+**TradeAccessTab** consumes the latest snapshot via GET `/api/trade-access/cifer-snapshot`. Falls back to a hardcoded constant if the API returns no rows (fresh DB with no scrapes yet).
 
 **HK CSD direct as third reporter** (`scraper/scrapers/hk_census_scraper.py`, kind `hk_csd_direct`): MAC 7459 *compiles* HK Customs figures; HK CSD publishes the same data directly via censtatd's JSON API. The two should agree by construction. The verification value is twofold: (1) sanity-checks MAC compilation accuracy (in practice within 0.3%, confirmed end-2025 / early-2026 data); (2) gives an independent angle on the HK transit gap without going through MAC at all. Series: `hk_csd_hk_to_tw_exports_usd_b`, `hk_csd_hk_from_tw_imports_usd_b`. Source: censtatd Tables 410-50012 (imports) and 410-50013 (exports), JSON API at `www.censtatd.gov.hk/api/get.php?id=410-XXXXX&lang=en&full_series=1`. **Gotcha**: `full_series=1` parameter is required — without it the API returns "Parameter is not defined" validation errors. HKD→USD via 7.78 peg (HKD has been pegged 1983+; pre-1983 figures use the same constant for simplicity).
 
@@ -225,6 +242,7 @@ SQLite with FTS5 full-text search. Key tables:
 - **social_pulse**: Weibo and PTT items — `platform`, `item_key` (dedup key), `title` (Chinese), `title_en` (AI translation), `title_en_override` (analyst correction), engagement fields (`rank_position`, `heat_index` for Weibo; `push_count`, `boo_count`, `board`, `url` for PTT)
 - **economic_indicators**: cross-strait macro time-series from MAC + UN Comtrade — `series_id` (e.g. `trade_total_usd_b`, `comtrade_prc_imports_from_tw_usd_b`), `period` (`YYYY-MM`), `period_type` (`month`/`ytd`/`cumulative_alltime`, MVP uses `month` only), `value`, `unit` (`usd_billion`/`count`/`10k_persons`), `yoy_pct`, `source` (`MAC_7887`/`UN_COMTRADE_156`); unique on (series_id, period, period_type)
 - **trade_access**: cross-strait import permission regime — `direction` (`tw_imports_from_prc`/`prc_imports_from_tw`), `hs_code` (8-digit, importer's schedule), `product_zh`/`product_en`, `status` (`banned`/`conditional`/`ecfa_active`/`ecfa_suspended`/`allowed`), `effective_date`, `source` (`BOFT_22674`/`BOFT_22675`/`CUSTOMS_ECFA_2024`/`MOF_PRC_SUSP_W1`/`MOF_PRC_SUSP_W2`/`CURATED`), `notes`, `ban_announcement_url`; unique on (direction, hs_code)
+- **cifer_snapshots**: monthly headless-Chromium scraped snapshots of TW food exporter registration counts from PRC's CIFER portal — `snapshot_date` (YYYY-MM-DD), `status` (`suspended`/`valid`), `status_zh`, `count`, `notes`; unique on (snapshot_date, status)
 - **investment_by_industry**: cumulative monthly snapshots of approved cross-strait investment in both directions (MAC 7478 + 7473) — `direction` (`prc_to_tw` | `tw_to_prc`), `period` (`YYYY-MM`, end of cumulative range), `industry_zh`, `industry_en`, `cases`, `amount_usd_k` (normalised to thousands of USD), `amount_share_pct`, `source_url`; unique on (direction, period, industry_zh)
 
 ### API Layer (`api/routes/`)
@@ -234,7 +252,7 @@ SQLite with FTS5 full-text search. Key tables:
 - `review.py`: review queue — confirm / override / dismiss. Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
 - `social.py`: GET `/api/social/` returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h; PATCH `/api/social/{id}/translation` saves analyst translation override
 - `economy.py`: GET `/api/economy/series` (params: `ids`, `start`, `end`, `months`) returns time-series JSON for cross-strait economic indicators with metadata baked in. GET `/api/economy/series/meta` returns just the indicator catalog. GET `/api/economy/verification` returns all reporter pairs (TW vs PRC Customs, TW vs HK Customs) with computed `gap_pct` (= `(value_b - value_a) / value_a * 100`); each pair carries a `kind` field for UI grouping. Indicator catalog and verification pairs are declared in `SERIES_META` and `VERIFICATION_PAIRS` constants — add new series/pairs there.
-- `trade_access.py`: GET `/api/trade-access/items` (params: `direction`, `status`, `hs_prefix`, `search`, `limit`, `offset`) — filtered slice of the `trade_access` table, sorted with banned/suspended first via a CASE expression on `STATUS_ORDER`. GET `/api/trade-access/summary` returns asymmetry counts (`by_direction[direction][status] = n`), `status_labels`, and the hardcoded `SUSPENSION_WAVES` timeline used by the frontend header strip. Add new suspension waves to `SUSPENSION_WAVES` when MoF announces them.
+- `trade_access.py`: GET `/api/trade-access/items` (params: `direction`, `status`, `hs_prefix`, `search`, `limit`, `offset`) — filtered slice of the `trade_access` table, sorted with banned/suspended first via a CASE expression on `STATUS_ORDER`. GET `/api/trade-access/summary` returns asymmetry counts (`by_direction[direction][status] = n`), `status_labels`, and the hardcoded `SUSPENSION_WAVES` timeline used by the frontend header strip. Add new suspension waves to `SUSPENSION_WAVES` when MoF announces them. GET `/api/trade-access/cifer-snapshot` returns the most recent `cifer_snapshots` row plus a short history — replaces the previously hardcoded `CIFER_SNAPSHOT` constant in the frontend.
 - `economy.py` also exposes GET `/api/economy/investment-by-industry?direction=prc_to_tw|tw_to_prc&top=N` returning `{direction, latest_period, latest, top_industries, series}` — `latest` is the most recent snapshot's industries sorted by amount desc; `series` is a flat list of {period, industry_zh, industry_en, amount_usd_k, amount_share_pct} for the top-N industries across all periods (caller pivots for area charts).
 
 ### Frontend (`frontend/src/`)

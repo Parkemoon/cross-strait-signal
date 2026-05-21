@@ -185,6 +185,10 @@ export async function fetchTradeAccessSummary() {
   return request(`/api/trade-access/summary`);
 }
 
+export async function fetchCiferSnapshot() {
+  return request(`/api/trade-access/cifer-snapshot`);
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",

@@ -79,6 +79,19 @@ CREATE TABLE IF NOT EXISTS investment_by_industry (
 CREATE INDEX IF NOT EXISTS idx_invest_direction_period ON investment_by_industry(direction, period DESC);
 CREATE INDEX IF NOT EXISTS idx_invest_industry ON investment_by_industry(industry_zh, direction, period DESC);
 
+-- CIFER snapshots (Phase 2a.2) — monthly count from PRC's CIFER portal.
+CREATE TABLE IF NOT EXISTS cifer_snapshots (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_date TEXT NOT NULL,
+    status        TEXT NOT NULL,
+    status_zh     TEXT,
+    count         INTEGER NOT NULL,
+    notes         TEXT,
+    scraped_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(snapshot_date, status)
+);
+CREATE INDEX IF NOT EXISTS idx_cifer_snapshots_date ON cifer_snapshots(snapshot_date DESC);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run

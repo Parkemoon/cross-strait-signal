@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchTradeAccessItems, fetchTradeAccessSummary } from "../api";
+import { fetchTradeAccessItems, fetchTradeAccessSummary, fetchCiferSnapshot } from "../api";
 
 // Direction toggle. The DB stores who the importer is, so reading these
 // rows means "what does the importer admit". Labels frame it as a flow
@@ -44,10 +44,10 @@ const SOURCE_URLS = {
   CURATED:           null,
 };
 
-// CIFER snapshot — manually captured because the database is browser-gated
-// and not API-scrapeable from this server (see CLAUDE.md). Refresh when
-// re-querying ciferquery.singlewindow.cn under the 港澳台 tab.
-const CIFER_SNAPSHOT = {
+// CIFER snapshot — now sourced from /api/trade-access/cifer-snapshot,
+// driven by the monthly Playwright scraper. Falls back to the
+// 2026-05-21 manual capture if the API returns no data yet.
+const CIFER_FALLBACK = {
   suspended: 1291,
   valid:     1046,
   asOf:      "2026-05-21",
@@ -103,7 +103,7 @@ function StatusPill({ status }) {
   );
 }
 
-function HeadlineStrip({ summary }) {
+function HeadlineStrip({ summary, cifer }) {
   if (!summary) return null;
   const tw = summary.by_direction.tw_imports_from_prc || {};
   const prc = summary.by_direction.prc_imports_from_tw || {};
@@ -166,7 +166,7 @@ function HeadlineStrip({ summary }) {
             color: "var(--text-primary)",
             lineHeight: 1.25,
           }}>
-            <strong style={{ color: "#dc2626" }}>{CIFER_SNAPSHOT.suspended.toLocaleString()}</strong> food exporters suspended
+            <strong style={{ color: "#dc2626" }}>{(cifer.suspended).toLocaleString()}</strong> food exporters suspended
           </div>
           <div style={{
             fontFamily: "var(--font-mono)",
@@ -174,7 +174,7 @@ function HeadlineStrip({ summary }) {
             color: "var(--text-muted)",
             marginTop: "2px",
           }}>
-            GACC CIFER {CIFER_SNAPSHOT.asOf} · {CIFER_SNAPSHOT.valid.toLocaleString()} still valid
+            GACC CIFER {cifer.asOf} · {(cifer.valid).toLocaleString()} still valid
           </div>
           <div style={{
             fontFamily: "var(--font-body)",
@@ -209,15 +209,17 @@ function HeadlineStrip({ summary }) {
         agricultural products must come from a GACC-registered exporter, and
         Beijing suspends those registrations as needed (the "pineapple ban,"
         "grouper ban," etc. are all technically registration suspensions, not
-        HS-code bans). As of <strong>2026-05-21</strong>, a direct query of PRC's
+        HS-code bans). As of <strong>{cifer.asOf}</strong>, a query of PRC's
         CIFER database (
         <a href="https://ciferquery.singlewindow.cn/" target="_blank" rel="noreferrer"
            style={{ color: "var(--text-secondary)", textDecoration: "underline dotted" }}>
           ciferquery.singlewindow.cn
         </a>
-        , 港澳台 tab) found <strong>1,291</strong> Taiwan-registered food
-        exporting <em>companies</em> with status <em>暂停进口 (suspended import)</em>{" "}
-        against <strong>1,046</strong> still marked <em>有效 (valid)</em> — ~55%
+        , 港澳台 tab) found <strong>{cifer.suspended.toLocaleString()}</strong> Taiwan-
+        registered food exporting <em>companies</em> with status{" "}
+        <em>暂停进口 (suspended import)</em> against{" "}
+        <strong>{cifer.valid.toLocaleString()}</strong> still marked{" "}
+        <em>有效 (valid)</em> — ~{(cifer.suspended / (cifer.suspended + cifer.valid) * 100).toFixed(0)}%
         suspended. These are <em>company-level</em> registrations; each company
         can be registered for multiple products, so the older "~2,000 products
         suspended" figure cited in 2022 reporting referred to a different unit
@@ -506,6 +508,7 @@ function ItemTable({ items, total, page, setPage }) {
 
 export default function TradeAccessTab() {
   const [summary, setSummary] = useState(null);
+  const [ciferLive, setCiferLive] = useState(null);
   const [direction, setDirection] = useState(null);  // null = both
   const [status, setStatus] = useState(null);        // null = all
   const [searchInput, setSearchInput] = useState("");
@@ -514,10 +517,26 @@ export default function TradeAccessTab() {
   const [data, setData] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Summary loads once on mount.
+  // Summary + CIFER snapshot load once on mount.
   useEffect(() => {
     fetchTradeAccessSummary().then(setSummary).catch(console.error);
+    fetchCiferSnapshot()
+      .then((d) => { if (d?.latest) setCiferLive(d.latest); })
+      .catch(console.error);
   }, []);
+
+  // Use the live snapshot when available, fall back to the hardcoded
+  // 2026-05-21 capture otherwise (e.g. fresh DB with no scrapes yet).
+  const cifer = useMemo(() => {
+    if (ciferLive && ciferLive.suspended != null && ciferLive.valid != null) {
+      return {
+        suspended: ciferLive.suspended,
+        valid:     ciferLive.valid,
+        asOf:      ciferLive.snapshot_date,
+      };
+    }
+    return CIFER_FALLBACK;
+  }, [ciferLive]);
 
   // Debounce the search input so we don't fire on every keystroke.
   useEffect(() => {
@@ -556,7 +575,7 @@ export default function TradeAccessTab() {
       <SectionHeader right={`Last refreshed ${lastUpdated}`}>
         Cross-strait trade access
       </SectionHeader>
-      <HeadlineStrip summary={summary} />
+      <HeadlineStrip summary={summary} cifer={cifer} />
       <SuspensionTimeline waves={summary?.suspension_waves} />
 
       <SectionHeader>Browse items</SectionHeader>
