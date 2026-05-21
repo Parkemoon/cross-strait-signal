@@ -501,22 +501,14 @@ def investment_verification():
         mofcom = _json.load(f)
 
     with db_conn() as conn:
-        # MAC: monthly approved outbound amount (USD billions), summed to annual
-        mac_monthly = conn.execute(
-            """
-            SELECT period, value
-            FROM economic_indicators
-            WHERE series_id = 'tw_investment_prc_amount_usd_b'
-              AND period_type = 'month'
-              AND value IS NOT NULL
-            ORDER BY period
-            """
-        ).fetchall()
-
         # MAC cumulative-since-1991 at end of each year — sum across industries
-        # at the YYYY-12 snapshot from investment_by_industry. Used to align
-        # the headline MAC figure with MOFCOM's end-of-year cumulative
-        # (otherwise we'd be comparing across different endpoints).
+        # at the YYYY-12 snapshot from investment_by_industry. We use these
+        # both for the headline cumulative and for deriving annual flows
+        # (annual Y = cum end-Y minus cum end-(Y-1)). Coverage goes back to
+        # 2016-12 thanks to the manual pre-2019 backfill (see
+        # scripts/backfill_invest_industry_pre2019.py); MAC 7887's monthly
+        # series in economic_indicators only goes to 2017-08, which is why
+        # we don't use it here anymore.
         mac_cum_rows = conn.execute(
             """
             SELECT substr(period, 1, 4) AS year,
@@ -530,23 +522,27 @@ def investment_verification():
         ).fetchall()
         mac_cum_by_year = {int(r["year"]): r["amount_usd_b"] for r in mac_cum_rows}
 
-    mac_annual: dict[int, float] = {}
-    for r in mac_monthly:
-        year = int(r["period"][:4])
-        mac_annual[year] = mac_annual.get(year, 0.0) + (r["value"] or 0.0)
-
+    # Derive MAC annual flows from cumulative differences (more internally
+    # consistent than summing monthly flows: same dataset as the headline
+    # cumulative figure, no risk of partial-year under-counting). Pairs
+    # where either side is missing are dropped so the chart doesn't show
+    # half-empty rows.
     pairs = []
     for entry in mofcom["annual"]:
         y = entry["year"]
-        mac_v = mac_annual.get(y)
+        cum_end_y    = mac_cum_by_year.get(y)
+        cum_end_prev = mac_cum_by_year.get(y - 1)
+        if cum_end_y is None or cum_end_prev is None:
+            continue
+        mac_v = cum_end_y - cum_end_prev
         mof_v = entry["amount_usd_b"]
-        util = (mof_v / mac_v * 100) if (mac_v and mac_v > 0) else None
+        util = (mof_v / mac_v * 100) if mac_v > 0 else None
         pairs.append({
             "year":                  y,
             "mac_approved_usd_b":    mac_v,
             "mofcom_actual_usd_b":   mof_v,
             "mofcom_companies":      entry["companies"],
-            "gap_usd_b":             (mac_v - mof_v) if mac_v is not None else None,
+            "gap_usd_b":             mac_v - mof_v,
             "utilisation_ratio_pct": util,
         })
 
