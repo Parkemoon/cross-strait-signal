@@ -139,3 +139,42 @@ def summary():
         "status_labels":    STATUS_LABELS,
         "suspension_waves": SUSPENSION_WAVES,
     }
+
+
+@router.get("/cifer-snapshot")
+def cifer_snapshot():
+    """Latest CIFER snapshot of TW food exporter registrations, paired with
+    a short history of prior snapshots for trend context.
+
+    Powered by `scraper/scrapers/cifer_snapshot_scraper.py` — runs monthly
+    via cron, scraping `ciferquery.singlewindow.cn` via Playwright/Chromium.
+    """
+    with db_conn() as conn:
+        latest_rows = conn.execute(
+            """
+            SELECT status, status_zh, count, snapshot_date
+            FROM cifer_snapshots
+            WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM cifer_snapshots)
+            """
+        ).fetchall()
+        history_rows = conn.execute(
+            """
+            SELECT snapshot_date, status, count
+            FROM cifer_snapshots
+            ORDER BY snapshot_date ASC, status
+            """
+        ).fetchall()
+
+    if not latest_rows:
+        return {"latest": None, "history": []}
+
+    latest = {r["status"]: {"count": r["count"], "status_zh": r["status_zh"]} for r in latest_rows}
+    snapshot_date = latest_rows[0]["snapshot_date"]
+    return {
+        "latest": {
+            "snapshot_date": snapshot_date,
+            "suspended":     latest.get("suspended", {}).get("count"),
+            "valid":         latest.get("valid", {}).get("count"),
+        },
+        "history": [dict(r) for r in history_rows],
+    }

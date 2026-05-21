@@ -285,3 +285,25 @@ CREATE TABLE IF NOT EXISTS investment_by_industry (
 
 CREATE INDEX IF NOT EXISTS idx_invest_direction_period ON investment_by_industry(direction, period DESC);
 CREATE INDEX IF NOT EXISTS idx_invest_industry ON investment_by_industry(industry_zh, direction, period DESC);
+
+-- ============================================================
+-- CIFER SNAPSHOTS (Phase 2a.2 — automated tracker of PRC's CIFER counts)
+-- ============================================================
+-- Headless-browser scraper drives ciferquery.singlewindow.cn (港澳台 tab,
+-- country = 中国台湾) and captures the totals for status = 暫停進口
+-- (suspended) and 有效 (valid). One row per (snapshot_date, status).
+-- Cron runs monthly; the Trade Access tab reads the latest row to
+-- replace the previously-hardcoded CIFER_SNAPSHOT constant.
+
+CREATE TABLE IF NOT EXISTS cifer_snapshots (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_date TEXT NOT NULL,          -- 'YYYY-MM-DD'
+    status        TEXT NOT NULL,          -- 'suspended' | 'valid' | 'total'
+    status_zh     TEXT,                   -- '暫停進口' | '有效' | '全部'
+    count         INTEGER NOT NULL,
+    notes         TEXT,
+    scraped_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(snapshot_date, status)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cifer_snapshots_date ON cifer_snapshots(snapshot_date DESC);
