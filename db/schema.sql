@@ -254,3 +254,34 @@ CREATE TABLE IF NOT EXISTS trade_access (
 
 CREATE INDEX IF NOT EXISTS idx_trade_access_direction_status ON trade_access(direction, status);
 CREATE INDEX IF NOT EXISTS idx_trade_access_hs ON trade_access(hs_code);
+
+-- ============================================================
+-- CROSS-STRAIT INVESTMENT BY INDUSTRY (Phase 2a.2 — MAC datasets 7478 + 7473)
+-- ============================================================
+-- Cumulative monthly snapshots of approved cross-strait investment cases,
+-- broken out by industry sector. Two directions:
+--   * direction='prc_to_tw' — MAC 7478, cumulative since 2009-07
+--   * direction='tw_to_prc' — MAC 7473, cumulative since 1991
+-- One row per (direction, period, industry_zh).
+--
+-- `period` is the END month of the cumulative range, formatted YYYY-MM.
+-- `amount_usd_k` is in thousands of USD (normalised — MAC 7478 publishes
+-- in 千美元 directly; 7473 publishes in 百萬美元 and is multiplied by 1000
+-- on ingest). `amount_share_pct` is share of cumulative total at snapshot.
+
+CREATE TABLE IF NOT EXISTS investment_by_industry (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction         TEXT NOT NULL,         -- 'prc_to_tw' | 'tw_to_prc'
+    period            TEXT NOT NULL,
+    industry_zh       TEXT NOT NULL,
+    industry_en       TEXT,
+    cases             INTEGER,
+    amount_usd_k      REAL,
+    amount_share_pct  REAL,
+    source_url        TEXT,
+    scraped_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(direction, period, industry_zh)
+);
+
+CREATE INDEX IF NOT EXISTS idx_invest_direction_period ON investment_by_industry(direction, period DESC);
+CREATE INDEX IF NOT EXISTS idx_invest_industry ON investment_by_industry(industry_zh, direction, period DESC);

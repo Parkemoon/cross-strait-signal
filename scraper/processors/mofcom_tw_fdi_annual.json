@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "description": "MOFCOM-reported (商务部) annual statistics on Taiwan-source foreign direct investment in mainland China. Sourced from MOFCOM's '對外投資合作國別（地區）指南 中國台灣 (2025年版)', Table 3-9 (大陸吸收台資). Amounts are 'actually utilised Taiwan FDI' (實際使用台資) per MOFCOM's customs-of-entry accounting — meaningfully different from MAC's 'approved' figures because: (1) MAC counts at approval, MOFCOM at actual capital landing; (2) MOFCOM attributes by immediate source country, so Taiwanese capital routed via Cayman/BVI/HK shows up under those jurisdictions, not Taiwan.",
+    "source_pdf_url": "http://www.mofcom.gov.cn/dl/gbdqzn/upload/zhongguotaiwan.pdf",
+    "source_pdf_label": "MOFCOM 中國台灣 (2025年版)",
+    "extracted_at": "2026-05-21",
+    "refresh_cadence": "Annually when MOFCOM publishes the next country guide edition (typically Q1/Q2 of the following year).",
+    "next_update_target": "When MOFCOM 中國台灣 (2026年版) is published, refresh with 2025 annual figure and updated cumulative."
+  },
+  "annual": [
+    {"year": 2016, "companies": 3517, "amount_usd_b": 1.96, "yoy_companies_pct": 18.7, "yoy_amount_pct": 27.7},
+    {"year": 2017, "companies": 3464, "amount_usd_b": 1.77, "yoy_companies_pct": -1.5, "yoy_amount_pct": -9.7},
+    {"year": 2018, "companies": 4911, "amount_usd_b": 1.39, "yoy_companies_pct": 41.8, "yoy_amount_pct": -21.4},
+    {"year": 2019, "companies": 5252, "amount_usd_b": 1.59, "yoy_companies_pct": 6.9,  "yoy_amount_pct": 14.1},
+    {"year": 2020, "companies": 5105, "amount_usd_b": 1.00, "yoy_companies_pct": -2.8, "yoy_amount_pct": -37.3},
+    {"year": 2021, "companies": 6595, "amount_usd_b": 0.94, "yoy_companies_pct": 29.2, "yoy_amount_pct": -5.6},
+    {"year": 2022, "companies": 5852, "amount_usd_b": 0.66, "yoy_companies_pct": -11.2, "yoy_amount_pct": -29.7},
+    {"year": 2023, "companies": 7777, "amount_usd_b": 0.73, "yoy_companies_pct": 32.9, "yoy_amount_pct": 10.6},
+    {"year": 2024, "companies": 7907, "amount_usd_b": 0.58, "yoy_companies_pct": 1.7,  "yoy_amount_pct": -20.5}
+  ],
+  "cumulative_end_of_2024": {
+    "companies": 145678,
+    "amount_usd_b": 73.31,
+    "share_of_total_fie_companies_pct": 11.8,
+    "share_of_total_actual_fdi_pct": 2.4
+  }
+}

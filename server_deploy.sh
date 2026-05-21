@@ -60,6 +60,25 @@ CREATE TABLE IF NOT EXISTS trade_access (
 CREATE INDEX IF NOT EXISTS idx_trade_access_direction_status ON trade_access(direction, status);
 CREATE INDEX IF NOT EXISTS idx_trade_access_hs ON trade_access(hs_code);
 
+-- Cross-strait investment by industry (Phase 2a.2) — MAC 7478 + 7473.
+-- Cumulative monthly snapshots in both directions; see db/schema.sql for
+-- direction values and unit normalisation notes.
+CREATE TABLE IF NOT EXISTS investment_by_industry (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction         TEXT NOT NULL,
+    period            TEXT NOT NULL,
+    industry_zh       TEXT NOT NULL,
+    industry_en       TEXT,
+    cases             INTEGER,
+    amount_usd_k      REAL,
+    amount_share_pct  REAL,
+    source_url        TEXT,
+    scraped_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(direction, period, industry_zh)
+);
+CREATE INDEX IF NOT EXISTS idx_invest_direction_period ON investment_by_industry(direction, period DESC);
+CREATE INDEX IF NOT EXISTS idx_invest_industry ON investment_by_industry(industry_zh, direction, period DESC);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run

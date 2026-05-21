@@ -19,6 +19,8 @@ from scraper.scrapers.mac_economic_scraper import scrape_mac_economic
 from scraper.scrapers.mac_hk_trade_scraper import scrape_mac_hk_trade
 from scraper.scrapers.mac_macro_scraper import scrape_mac_macro
 from scraper.scrapers.trade_access_scraper import scrape_trade_access
+from scraper.scrapers.mac_invest_industry_inbound import scrape_mac_invest_industry_inbound
+from scraper.scrapers.mac_invest_industry_outbound import scrape_mac_invest_industry_outbound
 from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 from scraper.processors.social_translator import translate_social_pulse
@@ -73,6 +75,12 @@ async def main():
     # Step 2g: Cross-strait trade access (BOFT ban lists + ECFA + PRC suspensions)
     print("\n--- STEP 2g: Trade Access ---")
     scrape_trade_access()
+
+    # Step 2h: MAC 7478 + 7473 — cross-strait investment by industry (both directions)
+    print("\n--- STEP 2h: Investment by Industry (PRC → TW) ---")
+    scrape_mac_invest_industry_inbound()
+    print("\n--- STEP 2h: Investment by Industry (TW → PRC) ---")
+    scrape_mac_invest_industry_outbound()
 
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence

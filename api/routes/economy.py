@@ -11,6 +11,8 @@ flow. Two pair kinds today: TW MAC vs PRC Customs (the HK transit gap on
 the cross-strait leg), and TW MAC vs HK Customs (the same transit visible
 from the HK side).
 """
+import os
+
 from fastapi import APIRouter, Query
 from typing import Optional
 
@@ -464,4 +466,178 @@ def get_verification(
     return {
         "pairs": pairs_out,
         "last_updated": last_updated_row["latest"] if last_updated_row else None,
+    }
+
+
+# ── TW → PRC investment verification (MAC approved vs MOFCOM actually used) ──
+#
+# MAC publishes APPROVED outbound TW→PRC investment monthly (via 7887, in
+# our economic_indicators table). MOFCOM publishes ACTUALLY UTILISED FDI
+# from Taiwan annually (via its country guide PDFs). The two figures
+# diverge substantially in both directions:
+#   * Approved-vs-utilised lag (MAC counts at approval moment).
+#   * Offshore routing: Taiwanese capital via Cayman/BVI/HK shows under
+#     those source-countries in MOFCOM's books, not Taiwan.
+# Cumulative since 1991: MAC ~$212B vs MOFCOM ~$73B (utilisation/routing
+# ratio ~35%). The 65% gap is the "shadow flow" — capital that left
+# Taiwan with approval but never appears in MOFCOM as Taiwan-source.
+
+_MOFCOM_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "scraper", "processors",
+    "mofcom_tw_fdi_annual.json",
+)
+
+
+@router.get("/investment-verification")
+def investment_verification():
+    """Pair MAC's annual approved TW→PRC outbound with MOFCOM's annual
+    actually-used Taiwan-source FDI figures.
+
+    MAC annuals are summed from monthly `tw_investment_prc_amount_usd_b`
+    in economic_indicators. MOFCOM annuals come from the curated JSON.
+    """
+    import json as _json
+    with open(_MOFCOM_PATH, encoding="utf-8") as f:
+        mofcom = _json.load(f)
+
+    with db_conn() as conn:
+        # MAC: monthly approved outbound amount (USD billions), summed to annual
+        mac_monthly = conn.execute(
+            """
+            SELECT period, value
+            FROM economic_indicators
+            WHERE series_id = 'tw_investment_prc_amount_usd_b'
+              AND period_type = 'month'
+              AND value IS NOT NULL
+            ORDER BY period
+            """
+        ).fetchall()
+
+        # MAC cumulative-since-1991 at end of each year — sum across industries
+        # at the YYYY-12 snapshot from investment_by_industry. Used to align
+        # the headline MAC figure with MOFCOM's end-of-year cumulative
+        # (otherwise we'd be comparing across different endpoints).
+        mac_cum_rows = conn.execute(
+            """
+            SELECT substr(period, 1, 4) AS year,
+                   SUM(amount_usd_k) / 1e6 AS amount_usd_b
+            FROM investment_by_industry
+            WHERE direction = 'tw_to_prc'
+              AND substr(period, 6, 2) = '12'
+            GROUP BY year
+            ORDER BY year
+            """
+        ).fetchall()
+        mac_cum_by_year = {int(r["year"]): r["amount_usd_b"] for r in mac_cum_rows}
+
+    mac_annual: dict[int, float] = {}
+    for r in mac_monthly:
+        year = int(r["period"][:4])
+        mac_annual[year] = mac_annual.get(year, 0.0) + (r["value"] or 0.0)
+
+    pairs = []
+    for entry in mofcom["annual"]:
+        y = entry["year"]
+        mac_v = mac_annual.get(y)
+        mof_v = entry["amount_usd_b"]
+        util = (mof_v / mac_v * 100) if (mac_v and mac_v > 0) else None
+        pairs.append({
+            "year":                  y,
+            "mac_approved_usd_b":    mac_v,
+            "mofcom_actual_usd_b":   mof_v,
+            "mofcom_companies":      entry["companies"],
+            "gap_usd_b":             (mac_v - mof_v) if mac_v is not None else None,
+            "utilisation_ratio_pct": util,
+        })
+
+    # Pair the headline cumulatives at the same end year — MOFCOM's
+    # cumulative is end of 2024 (from the 2025 country guide), so use
+    # MAC end-2024 too rather than the latest MAC snapshot, to keep the
+    # comparison apples-to-apples.
+    mofcom_cum_year = 2024
+    mac_cum_at_mofcom_year = mac_cum_by_year.get(mofcom_cum_year)
+
+    return {
+        "pairs":                  pairs,
+        "cumulative": {
+            "year":                       mofcom_cum_year,
+            "mac_amount_usd_b":           mac_cum_at_mofcom_year,
+            "mac_start_year":             1991,
+            "mofcom_amount_usd_b":        mofcom["cumulative_end_of_2024"]["amount_usd_b"],
+            "mofcom_companies":           mofcom["cumulative_end_of_2024"]["companies"],
+            "mofcom_start_year_approx":   1988,
+            "utilisation_ratio_pct": (
+                (mofcom["cumulative_end_of_2024"]["amount_usd_b"] / mac_cum_at_mofcom_year * 100)
+                if mac_cum_at_mofcom_year else None
+            ),
+        },
+        "mofcom_source_label":    mofcom["_meta"]["source_pdf_label"],
+        "mofcom_source_url":      mofcom["_meta"]["source_pdf_url"],
+        "mofcom_extracted_at":    mofcom["_meta"]["extracted_at"],
+    }
+
+
+# ── Cross-strait investment by industry (MAC 7478 + 7473) ────────────────
+#
+# Cumulative monthly snapshots in both directions:
+#   * prc_to_tw (MAC 7478) — cumulative since 2009-07
+#   * tw_to_prc (MAC 7473) — cumulative since 1991
+# The 4-5 orders of magnitude asymmetry (TW→PRC much larger) IS the story.
+
+_INVESTMENT_DIRECTIONS = {"prc_to_tw", "tw_to_prc"}
+
+
+@router.get("/investment-by-industry")
+def investment_by_industry(
+    direction: str = Query("prc_to_tw", description="prc_to_tw | tw_to_prc"),
+    top: int       = Query(10, ge=1, le=30, description="Top-N industries to surface in time-series"),
+):
+    """Return latest industry breakdown + top-N share-evolution for one direction."""
+    if direction not in _INVESTMENT_DIRECTIONS:
+        return {"error": "invalid direction", "valid": sorted(_INVESTMENT_DIRECTIONS)}
+
+    with db_conn() as conn:
+        latest_period_row = conn.execute(
+            "SELECT MAX(period) AS p FROM investment_by_industry WHERE direction = ?",
+            (direction,),
+        ).fetchone()
+        latest_period = latest_period_row["p"]
+        if not latest_period:
+            return {"direction": direction, "latest_period": None, "latest": [],
+                    "top_industries": [], "series": []}
+
+        latest_rows = conn.execute(
+            """
+            SELECT industry_zh, industry_en, cases, amount_usd_k, amount_share_pct
+            FROM investment_by_industry
+            WHERE direction = ? AND period = ?
+            ORDER BY amount_usd_k DESC NULLS LAST
+            """,
+            (direction, latest_period),
+        ).fetchall()
+        latest = [dict(r) for r in latest_rows]
+
+        top_industries = [r["industry_zh"] for r in latest_rows[:top]]
+
+        if not top_industries:
+            return {"direction": direction, "latest_period": latest_period,
+                    "latest": latest, "top_industries": [], "series": []}
+        placeholders = ",".join("?" for _ in top_industries)
+        series_rows = conn.execute(
+            f"""
+            SELECT period, industry_zh, industry_en, amount_usd_k, amount_share_pct
+            FROM investment_by_industry
+            WHERE direction = ? AND industry_zh IN ({placeholders})
+            ORDER BY period ASC, amount_usd_k DESC
+            """,
+            [direction, *top_industries],
+        ).fetchall()
+        series = [dict(r) for r in series_rows]
+
+    return {
+        "direction":      direction,
+        "latest_period":  latest_period,
+        "latest":         latest,
+        "top_industries": top_industries,
+        "series":         series,
     }
