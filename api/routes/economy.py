@@ -11,6 +11,7 @@ flow. Two pair kinds today: TW MAC vs PRC Customs (the HK transit gap on
 the cross-strait leg), and TW MAC vs HK Customs (the same transit visible
 from the HK side).
 """
+import json
 import os
 
 from fastapi import APIRouter, Query
@@ -669,4 +670,93 @@ def investment_by_industry(
         "latest":         latest,
         "top_industries": top_industries,
         "series":         series,
+    }
+
+
+# ── People records: bidirectional cross-strait residency ──
+#
+# Pulls `cross_strait_population` (TW NIA permit flows + curated PRC-side
+# milestones) and pairs it with the existing tw_visitors_prc_10k +
+# prc_visitors_tw_10k series so the frontend can present stock (residents)
+# alongside flow (visitors).
+#
+# `policy_timeline` is a hand-curated array in the JSON sidecar — major
+# regulatory events that explain inflection points (1992 launch, 2015 visa-
+# free + electronic card, 2020 COVID collapse, 2023 reopening, 2025 first-
+# time fee waiver). Loaded once at module import so the endpoint stays fast.
+_PEOPLE_JSON_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..",
+    "scraper", "processors", "prc_tw_people_records.json",
+)
+with open(_PEOPLE_JSON_PATH, encoding="utf-8") as _f:
+    _PEOPLE_SIDECAR = json.load(_f)
+
+
+def _people_flow_series(conn, series_id: str):
+    rows = conn.execute(
+        """
+        SELECT period, value, yoy_pct
+        FROM economic_indicators
+        WHERE series_id = ? AND period_type = 'month'
+        ORDER BY period ASC
+        """,
+        (series_id,),
+    ).fetchall()
+    series = [dict(r) for r in rows]
+    return {
+        "series_id": series_id,
+        "series":    series,
+        "latest":    series[-1] if series else None,
+    }
+
+
+@router.get("/people-records")
+def people_records():
+    """Bidirectional cross-strait residency: who lives on the other side."""
+    with db_conn() as conn:
+        pop_rows = conn.execute(
+            """
+            SELECT direction, metric, period, period_type, value, unit,
+                   source, source_url, notes
+            FROM cross_strait_population
+            ORDER BY direction, metric, period ASC
+            """
+        ).fetchall()
+
+        # Pivot rows into nested {direction: {metric: [row, ...]}}.
+        directions: dict = {}
+        for r in pop_rows:
+            d = dict(r)
+            directions.setdefault(d["direction"], {}) \
+                      .setdefault(d["metric"], []) \
+                      .append({
+                          "period":      d["period"],
+                          "period_type": d["period_type"],
+                          "value":       d["value"],
+                          "unit":        d["unit"],
+                          "source":      d["source"],
+                          "source_url":  d["source_url"],
+                          "notes":       d["notes"],
+                      })
+
+        flows = {
+            "tw_visitors_to_prc": {
+                "label_en": "TW visitors to PRC",
+                "label_zh": "國人赴中國大陸",
+                "unit":     "10k persons",
+                **_people_flow_series(conn, "tw_visitors_prc_10k"),
+            },
+            "prc_visitors_to_tw": {
+                "label_en": "PRC visitors to Taiwan",
+                "label_zh": "中國大陸人民來臺",
+                "unit":     "10k persons",
+                **_people_flow_series(conn, "prc_visitors_tw_10k"),
+            },
+        }
+
+    return {
+        "meta":            _PEOPLE_SIDECAR.get("_meta", {}),
+        "directions":      directions,
+        "policy_timeline": _PEOPLE_SIDECAR.get("policy_timeline", []),
+        "flows":           flows,
     }

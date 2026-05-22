@@ -27,6 +27,7 @@ SQLite with FTS5 full-text search.
 - **trade_access** unique on (direction, hs_code); status priority `banned > ecfa_suspended > conditional > ecfa_active` is enforced in the scraper.
 - **cifer_snapshots** unique on (snapshot_date, status) — one row per (date, suspended/valid).
 - **investment_by_industry.amount_usd_k** is normalised to thousands of USD in both directions (outbound source CSVs are 百萬美元 and get ×1000 on ingest).
+- **cross_strait_population** unique on (direction, metric, period, period_type). Three directions: `prc_in_taiwan` (TW NIA scraper writes here), `hk_macao_in_taiwan` (same scraper, spouse data only), `taiwanese_in_prc` (curated seed script). `unit` is `'persons'` or `'permits'` — distinct because one person may hold multiple permits over time. `period_type`: `'annual'` for full-year flows, `'monthly'` for sub-annual snapshots, `'snapshot'` for milestone counts.
 - **articles_fts** is the FTS5 mirror; use it for bilingual full-text search. Triggers keep it in sync with `articles`.
 
 ## Schema migration pattern

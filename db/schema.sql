@@ -307,3 +307,38 @@ CREATE TABLE IF NOT EXISTS cifer_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cifer_snapshots_date ON cifer_snapshots(snapshot_date DESC);
+
+-- ============================================================
+-- CROSS-STRAIT POPULATION (Phase 2a.2 — residents in the other side)
+-- ============================================================
+-- Unified table holding both directions of cross-strait residency:
+--   * direction='taiwanese_in_prc'  — TW citizens living in PRC
+--   * direction='prc_in_taiwan'     — PRC citizens living in TW
+-- Multiple metric types per direction (residence flows, settlement
+-- flows, cumulative spouse counts, census snapshots, 台胞证 issuance).
+-- One row per (direction, metric, period, period_type).
+--
+-- Note: ROC household registration dropped 籍貫 (ancestral origin) in
+-- 1992 to dissolve 省籍情結, so there's no current census-derived
+-- 外省人 count — the 1949-cohort estimates remain ~1.2M but aren't
+-- refreshed. Modern PRC-citizen residents in TW are tracked via NIA's
+-- 居留/定居 permits and 大陸配偶 statistics.
+
+CREATE TABLE IF NOT EXISTS cross_strait_population (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction   TEXT NOT NULL,        -- 'taiwanese_in_prc' | 'prc_in_taiwan'
+    metric      TEXT NOT NULL,        -- 'permits_annual_residence' | 'permits_annual_settlement' |
+                                      -- 'spouses_cumulative' | 'census_snapshot' |
+                                      -- 'tbz_cumulative' | 'tbz_annual_issued' | etc.
+    period      TEXT NOT NULL,        -- 'YYYY' for annual, 'YYYY-MM' for monthly
+    period_type TEXT NOT NULL,        -- 'annual' | 'monthly' | 'snapshot'
+    value       REAL,                 -- usually integer count
+    unit        TEXT NOT NULL,        -- 'persons' | 'permits' (one company may issue multiple permits)
+    source      TEXT NOT NULL,        -- 'TW_NIA_167829' | 'TW_NIA_13503' | 'PRC_CENSUS_7' | 'PRC_NIA' | 'CURATED'
+    source_url  TEXT,
+    notes       TEXT,
+    scraped_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(direction, metric, period, period_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_csp_direction_metric ON cross_strait_population(direction, metric, period DESC);

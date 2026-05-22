@@ -1,0 +1,93 @@
+{
+  "_meta": {
+    "description": "PRC-side administrative records on Taiwanese cross-strait movement and settlement. Three distinct measures: 1) 台灣居民來往大陸通行證 (台胞證) issuance by PRC公安部/國家移民管理局 — the entry permit required for every TW resident going to mainland; 2) 2020 PRC Census Bulletin No.8 — Taiwanese registered as PRC residents (i.e. with hukou-equivalent permanent registration); 3) policy timeline of permit-regime changes that drive issuance spikes. All data is PRC-source because PRC controls the border (台胞證 is issued by PRC; the Census is PRC's; TW NIA does NOT issue 台胞證). Pair with the existing MAC 7887 tw_visitors_prc_10k series (TW-side outbound visitor count) for the cross-strait verification dimension.",
+    "refresh_cadence": "Permit issuance: quarterly when PRC NIA publishes 移民管理工作主要数据新闻发布会 (typically 4 per year — quarterly + half-year + full-year). Census: decennial (next 2030). Policy timeline: ad-hoc when news scrape surfaces a new measure.",
+    "extracted_at": "2026-05-22",
+    "next_update_target": "Watch NIA 2025年 全年移民管理工作 press release (typically Jan-Feb 2026); fill in 2024 full-year and 2025 full-year permit issuance once Taiwan-specific breakdowns appear. NIA's published headline (e.g. '2024年签发港澳台居民来往内地通行证257.8万张') combines HK/Macao/Taiwan — usable for trend but NOT a TW-only figure."
+  },
+  "cumulative_milestones": [
+    {
+      "as_of": "2019-12-31",
+      "permits_issued_total": 23000000,
+      "unique_taiwanese_holders": 11600000,
+      "note": "Cumulative since the permit was first issued 1992-05-01. ~half of Taiwan's adult population has held one at some point.",
+      "source_label": "Multiple Xinhua/中新社 reports citing PRC公安部 figures, summarised on Wikipedia 臺灣居民來往大陸通行證",
+      "source_url": "https://zh.wikipedia.org/zh-tw/%E5%8F%B0%E7%81%A3%E5%B1%85%E6%B0%91%E4%BE%86%E5%BE%80%E5%A4%A7%E9%99%B8%E9%80%9A%E8%A1%8C%E8%AD%89"
+    }
+  ],
+  "annual_permits_issued": [
+    {
+      "year": 2024,
+      "permits": 994000,
+      "partial": "Q1-Q3 only",
+      "yoy_pct": 14.5,
+      "note": "Q1-Q3 2024. PRC NIA 三季度新闻发布会 figure. Annual projection ~1.32M. Full-year breakdown by HK/Macao/Taiwan was not published in the year-end press release (only the combined 港澳台 figure of 257.8萬 was given).",
+      "source_label": "PRC NIA 2024年三季度移民管理工作主要数据新闻发布会",
+      "source_url": "https://www.nia.gov.cn/n741435/n1194535/n1679265/index.html"
+    }
+  ],
+  "settler_floor": {
+    "as_of": "2020-11-01",
+    "count": 157886,
+    "definition": "Taiwanese persons enumerated as residents (常住人口) of mainland PRC in the 2020 national population census. Excludes short-term visitors; counts only those with mainland habitual residence.",
+    "source_label": "国务院第七次全国人口普查领导小组办公室 第八号公报 (2021-05-11)",
+    "source_url": "http://www.stats.gov.cn/sj/tjgb/rkpcgb/qgrkpcgb/202302/t20230206_1902005.html",
+    "next_census": "2030 (decennial)"
+  },
+  "policy_timeline": [
+    {
+      "date": "1992-05-01",
+      "event": "台胞證 first issued",
+      "event_zh": "台胞證啟用",
+      "blurb": "Initial 91-version booklet format. Cross-strait travel becomes administratively possible for ordinary TW residents."
+    },
+    {
+      "date": "2015-07-01",
+      "event": "Visa-free entry + signature requirement removed",
+      "event_zh": "免簽注、免簽名",
+      "blurb": "Per-trip visa endorsement abolished; holders can enter mainland directly using the permit. Major liberalisation."
+    },
+    {
+      "date": "2015-09-21",
+      "event": "Electronic card permits nationwide",
+      "event_zh": "電子卡式台胞證全面換發",
+      "blurb": "Booklet replaced by chip card. Eight-digit number, machine-readable at border."
+    },
+    {
+      "date": "2018-09-01",
+      "event": "台灣居民居住證 introduced",
+      "event_zh": "台灣居民居住證實施",
+      "blurb": "Optional secondary ID for TW residents living in PRC long-term (work, study, life). Grants access to social services parallel to PRC residents."
+    },
+    {
+      "date": "2020-01-23",
+      "event": "Cross-strait travel collapses (COVID)",
+      "event_zh": "兩岸通關中斷",
+      "blurb": "TW visits to PRC drop ~95% YoY. Direct flights and three-mini-links largely suspended. Border restrictions persist through late 2022."
+    },
+    {
+      "date": "2023-03-25",
+      "event": "Cross-strait travel reopens",
+      "event_zh": "兩岸通關復常",
+      "blurb": "Group tours from TW to PRC permitted; three-mini-links resume. Permit demand rebuilds."
+    },
+    {
+      "date": "2024-05-06",
+      "event": "Online renewal expanded",
+      "event_zh": "20試點城市線上換發補發",
+      "blurb": "Beijing, Shanghai + 18 other cities pilot online permit renewal for 16+ hukou holders. Reduces friction for long-term TW residents."
+    },
+    {
+      "date": "2025-07-01",
+      "event": "First-time fee waiver",
+      "event_zh": "首辦免費 (至 2027-12-31)",
+      "blurb": "PRC waives first-issuance certificate fee through end-2027. Targets TW residents who have never held a permit (estimated 12M+ adults given the 11.6M cumulative figure)."
+    },
+    {
+      "date": "2025-11-20",
+      "event": "100 ports issue one-time permits",
+      "event_zh": "100口岸辦理一次有效台胞證",
+      "blurb": "Expanded from limited pilot to all 100 ports of entry. TW residents arriving without a valid permit can get a single-use one at the border."
+    }
+  ]
+}

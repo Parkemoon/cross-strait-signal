@@ -55,6 +55,7 @@ Returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT p
 - `GET /api/economy/series/meta` — just the indicator catalog.
 - `GET /api/economy/verification` — all reporter pairs with computed `gap_pct = (value_b - value_a) / value_a * 100`. Each pair carries a `kind` field (`prc_customs` / `hk_customs` / `hk_csd_direct`) for UI grouping. Add new pairs in `VERIFICATION_PAIRS`.
 - `GET /api/economy/investment-by-industry?direction=prc_to_tw|tw_to_prc&top=N` — returns `{direction, latest_period, latest, top_industries, series}`. `latest` is the most recent snapshot's industries sorted by amount desc; `series` is a flat list for the top-N industries across all periods (caller pivots for area charts).
+- `GET /api/economy/people-records` — bidirectional cross-strait residency. Pivots `cross_strait_population` into `directions.{prc_in_taiwan|hk_macao_in_taiwan|taiwanese_in_prc}.{metric}: [...]`; loads `policy_timeline` from the JSON sidecar (`scraper/processors/prc_tw_people_records.json`, also home to `_meta`); pairs with existing `tw_visitors_prc_10k` and `prc_visitors_tw_10k` series under `flows.{tw_visitors_to_prc|prc_visitors_to_tw}` so the frontend can show stock alongside flow. Sidecar JSON is loaded once at module import — touch `economy.py` (or restart uvicorn) after editing the JSON to see changes.
 
 **Indicator catalog and verification pairs are declared in `SERIES_META` and `VERIFICATION_PAIRS`** — add new series/pairs there. Each series needs a `category` field (`trade`/`verification`/`investment`/`people`/`macro`).
 
