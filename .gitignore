@@ -213,7 +213,10 @@ db/*.db
 frontend/build-public/
 
 # Claude Code per-developer config (hooks, settings, etc.)
-.claude/
+# Ignore everything directly under .claude/, then un-ignore project-shared content
+.claude/*
+!.claude/rules/
+!.claude/CLAUDE.md
 
 # Local scratch scripts — never commit
 fix.py
