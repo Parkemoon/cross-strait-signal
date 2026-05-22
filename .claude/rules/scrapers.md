@@ -43,6 +43,7 @@ Two types:
 | `mac_invest_industry_inbound.py` | `investment_by_industry` | MAC 7478 — PRC→TW |
 | `mac_invest_industry_outbound.py` | `investment_by_industry` | MAC 7473 — TW→PRC |
 | `cifer_snapshot_scraper.py` | `cifer_snapshots` | Playwright, monthly cron — NOT in `run_pipeline.py` |
+| `tw_nia_population_scraper.py` | `cross_strait_population` | TW NIA 167829 (居留/定居 permits) + 13503 (大陸/港澳配偶) |
 
 ## Economic Indicators
 
@@ -109,3 +110,29 @@ MAC datasets 7478 (inbound, PRC→TW) and 7473 (outbound, TW→PRC). Both feed `
 - Numbers use thousands commas inside quoted strings (e.g. `" 753,556 "`); `_parse_number` strips quotes, whitespace, and commas.
 
 **The analytical asymmetry**: TW→PRC cumulative since 1991 is ~$212B across ~50k cases. PRC→TW cumulative since 2009 is ~$2.6B across ~1.7k cases. Roughly **50× larger in dollars** in the outbound direction. The inbound figure is small because Taiwan's Investment Commission (投審會) approves only a fraction of PRC-origin applications. The outbound is also distorted by MAC's coarse outbound categorisation: the single biggest bucket is `其他產業` (Other) at ~30% of cumulative outbound — not a real industry, just everything not pulled out by name.
+
+## Cross-Strait Population (`tw_nia_population_scraper.py` + curated)
+
+Two datasets from TW NIA via `opdadm.moi.gov.tw`:
+
+- **167829** — 大陸地區人民、港澳居民、無戶籍國民來臺居留及定居人數. Annual flow: new residence (居留) and settlement (定居) permits granted each year. 8 columns (cols 1, 2 = mainland 居留/定居; cols 3–8 = HK/Macao/stateless — not ingested). Direction `prc_in_taiwan`. ROC year → Gregorian via `_roc_year_to_gregorian`.
+- **13503** — 外籍配偶人數與大陸（含港澳配偶人數）─按區域別、性別分. Cumulative spouse stock since 1987 by region+gender. Scraper filters strictly to rows where the label contains BOTH `區域別總計` AND `性別總計` (the country/gender-total summary rows; per-city detail is skipped). Yields mainland-spouse and HK/Macao-spouse rows. Direction `prc_in_taiwan` and `hk_macao_in_taiwan`.
+
+Both write to `cross_strait_population` keyed on (direction, metric, period, period_type). Runs as **Step 2j** in `run_pipeline.py` after HK CSD.
+
+**Dataset 167829 header gotcha**: the dataset misspells 大陸地"區" as 大陸地"居" in the 定居 column header. The scraper uses column indices, not header names, so it's unaffected — but if you ever rewrite by header-matching, watch out.
+
+**Dataset 13503 sparse-summary gotcha**: in practice only a handful of periods (e.g. 2020-10, 2020-12) carry rows with BOTH summary annotations; everything else has the gender breakdown only. If we ever want more snapshots, we'd need to sum gendered rows ourselves.
+
+### Curated PRC-side data (`scripts/seed_taiwanese_in_prc_curated.py`)
+
+The `taiwanese_in_prc` direction is fed by curated JSON, not scraping — PRC bureaus don't expose machine-readable endpoints. Source-of-truth lives at `scraper/processors/prc_tw_people_records.json`:
+
+- `cumulative_milestones` → `tbz_cumulative_permits` (台胞证 ever issued) and `tbz_cumulative_holders` (unique holders)
+- `annual_permits_issued` → `tbz_annual_issued_partial` (Q-partial years carry `partial: true` and use this metric; full years would use `tbz_annual_issued`)
+- `settler_floor` → `census_residents` (currently the 2020 PRC Census Bulletin No.8 figure)
+- `policy_timeline` is NOT ingested — it's loaded by `/api/economy/people-records` directly as annotations
+
+Idempotent: re-running upserts on (direction, metric, period, period_type). Run after editing the JSON (e.g. when a new NIA quarterly press release lands). Not in `run_pipeline.py` — manual cadence by design.
+
+**The 1992 籍貫 cutoff**: ROC household registration dropped 籍貫 (ancestral origin) in 1992 to dissolve 省籍情結, so there's no current census-derived 外省人 count. Modern PRC-citizen residents in TW are tracked via NIA permits + 大陸配偶 statistics — the curated data above complements the scraper for the missing direction.

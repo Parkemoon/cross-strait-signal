@@ -92,6 +92,23 @@ CREATE TABLE IF NOT EXISTS cifer_snapshots (
 );
 CREATE INDEX IF NOT EXISTS idx_cifer_snapshots_date ON cifer_snapshots(snapshot_date DESC);
 
+-- Cross-strait population (Phase 2a.2) — residents in the other side.
+CREATE TABLE IF NOT EXISTS cross_strait_population (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction   TEXT NOT NULL,
+    metric      TEXT NOT NULL,
+    period      TEXT NOT NULL,
+    period_type TEXT NOT NULL,
+    value       REAL,
+    unit        TEXT NOT NULL,
+    source      TEXT NOT NULL,
+    source_url  TEXT,
+    notes       TEXT,
+    scraped_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(direction, metric, period, period_type)
+);
+CREATE INDEX IF NOT EXISTS idx_csp_direction_metric ON cross_strait_population(direction, metric, period DESC);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run

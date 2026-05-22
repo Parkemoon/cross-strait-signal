@@ -171,6 +171,10 @@ export async function fetchInvestmentVerification() {
   return request(`/api/economy/investment-verification`);
 }
 
+export async function fetchPeopleRecords() {
+  return request(`/api/economy/people-records`);
+}
+
 export async function fetchTradeAccessItems(params = {}) {
   const query = new URLSearchParams();
   ["direction", "status", "hs_prefix", "search", "limit", "offset"].forEach((k) => {

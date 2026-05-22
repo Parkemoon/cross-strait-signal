@@ -23,6 +23,7 @@ from scraper.scrapers.mac_invest_industry_inbound import scrape_mac_invest_indus
 from scraper.scrapers.mac_invest_industry_outbound import scrape_mac_invest_industry_outbound
 from scraper.scrapers.hk_census_scraper import scrape_hk_census
 from scraper.scrapers.comtrade_scraper import scrape_comtrade
+from scraper.scrapers.tw_nia_population_scraper import scrape_tw_nia_population
 from scraper.processors.ai_pipeline import process_unanalysed_articles
 from scraper.processors.social_translator import translate_social_pulse
 
@@ -86,6 +87,10 @@ async def main():
     # Step 2i: HK Census & Statistics Dept — TW-HK trade as a third reporter
     print("\n--- STEP 2i: HK CSD Trade Verification ---")
     scrape_hk_census()
+
+    # Step 2j: TW NIA — PRC + HK/Macao citizens resident in Taiwan
+    print("\n--- STEP 2j: TW NIA Population ---")
+    scrape_tw_nia_population()
 
     # Step 3: Analyse unprocessed articles
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence
