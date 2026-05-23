@@ -759,4 +759,11 @@ def people_records():
         "directions":      directions,
         "policy_timeline": _PEOPLE_SIDECAR.get("policy_timeline", []),
         "flows":           flows,
+        "annual_flows":    {
+            # Tourism Bureau historical annuals pre-date MAC 7887's
+            # 2017-08 archive window. tw_to_prc covers 2008-present;
+            # prc_to_tw not yet curated.
+            "tw_to_prc":   _PEOPLE_SIDECAR.get("tw_outbound_annual"),
+            "prc_to_tw":   _PEOPLE_SIDECAR.get("prc_inbound_annual"),
+        },
     }

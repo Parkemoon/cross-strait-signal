@@ -1,9 +1,9 @@
 {
   "_meta": {
-    "description": "PRC-side administrative records on Taiwanese cross-strait movement and settlement. Three distinct measures: 1) 台灣居民來往大陸通行證 (台胞證) issuance by PRC公安部/國家移民管理局 — the entry permit required for every TW resident going to mainland; 2) 2020 PRC Census Bulletin No.8 — Taiwanese registered as PRC residents (i.e. with hukou-equivalent permanent registration); 3) policy timeline of permit-regime changes that drive issuance spikes. All data is PRC-source because PRC controls the border (台胞證 is issued by PRC; the Census is PRC's; TW NIA does NOT issue 台胞證). Pair with the existing MAC 7887 tw_visitors_prc_10k series (TW-side outbound visitor count) for the cross-strait verification dimension.",
-    "refresh_cadence": "Permit issuance: quarterly when PRC NIA publishes 移民管理工作主要数据新闻发布会 (typically 4 per year — quarterly + half-year + full-year). Census: decennial (next 2030). Policy timeline: ad-hoc when news scrape surfaces a new measure.",
-    "extracted_at": "2026-05-22",
-    "next_update_target": "Watch NIA 2025年 全年移民管理工作 press release (typically Jan-Feb 2026); fill in 2024 full-year and 2025 full-year permit issuance once Taiwan-specific breakdowns appear. NIA's published headline (e.g. '2024年签发港澳台居民来往内地通行证257.8万张') combines HK/Macao/Taiwan — usable for trend but NOT a TW-only figure."
+    "description": "Curated cross-strait people-flow annotations not derivable from automated scrapers. Mixes PRC-side administrative records (台胞證 issuance, 2020 PRC Census Bulletin No.8) with TW-side Tourism Bureau annual visitor data that pre-dates MAC 7887's 2017-08 archive window. The policy timeline annotates events on both sides. Pair with the live MAC 7887 monthly series (prc_visitors_tw_10k, tw_visitors_prc_10k) — those are the current cadence; the annual series here are the long-history context.",
+    "refresh_cadence": "Permit issuance: quarterly when PRC NIA publishes 移民管理工作主要数据新闻发布会 (typically 4 per year — quarterly + half-year + full-year). Census: decennial (next 2030). Policy timeline: ad-hoc when news scrape surfaces a new measure. Tourism Bureau annuals: yearly when 觀光署 publishes the prior-year rollup (usually Q1).",
+    "extracted_at": "2026-05-23",
+    "next_update_target": "Watch NIA 2025年 全年移民管理工作 press release (typically Jan-Feb 2026); fill in 2024 full-year and 2025 full-year permit issuance once Taiwan-specific breakdowns appear. NIA's published headline (e.g. '2024年签发港澳台居民来往内地通行证257.8万张') combines HK/Macao/Taiwan — usable for trend but NOT a TW-only figure. Tourism Bureau: pull annual PRC→TW from stat.taiwan.net.tw/inboundSearch to mirror tw_outbound_annual."
   },
   "cumulative_milestones": [
     {
@@ -89,5 +89,31 @@
       "event_zh": "100口岸辦理一次有效台胞證",
       "blurb": "Expanded from limited pilot to all 100 ports of entry. TW residents arriving without a valid permit can get a single-use one at the border."
     }
-  ]
+  ],
+  "tw_outbound_annual": {
+    "source_label": "交通部觀光署 國民出國目的地統計",
+    "source_url": "https://stat.taiwan.net.tw/outboundSearch",
+    "pulled_at": "2026-05-23",
+    "note": "Annual TW residents departing to mainland China (中國大陸 destination). Authoritative pre-2024; the MAC 7887 monthly tw_visitors_prc_10k series is preferred for 2024-onward cadence — annual rollups of those months should reconcile with these figures (verified: 2023 here = 1,761,134 vs MAC's 112年 = 176.1萬).",
+    "series": [
+      {"year": 2008, "visitors": 188744},
+      {"year": 2009, "visitors": 1516087},
+      {"year": 2010, "visitors": 2424242},
+      {"year": 2011, "visitors": 2846572},
+      {"year": 2012, "visitors": 3139055},
+      {"year": 2013, "visitors": 3072327},
+      {"year": 2014, "visitors": 3267238},
+      {"year": 2015, "visitors": 3403920},
+      {"year": 2016, "visitors": 3685477},
+      {"year": 2017, "visitors": 3928352},
+      {"year": 2018, "visitors": 4172704},
+      {"year": 2019, "visitors": 4043686},
+      {"year": 2020, "visitors": 414634},
+      {"year": 2021, "visitors": 128637},
+      {"year": 2022, "visitors": 165895},
+      {"year": 2023, "visitors": 1761134},
+      {"year": 2024, "visitors": 2770284},
+      {"year": 2025, "visitors": 3237511}
+    ]
+  }
 }

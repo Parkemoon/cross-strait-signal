@@ -134,6 +134,60 @@ function PeoplePermitsChart({ residence, settlement }) {
   );
 }
 
+// Long-history annual view — pulled from Tourism Bureau (stat.taiwan.net.tw).
+// Covers 2008→ which pre-dates MAC 7887's 2017-08 archive window. We keep the
+// PRC visitor line dashed-placeholder until a matching prc_inbound_annual is
+// curated; for now, only TW outbound is plotted.
+function AnnualFlowChart({ tw, prc }) {
+  const byYear = {};
+  for (const r of tw?.series || []) byYear[r.year] = { year: r.year, tw: r.visitors };
+  for (const r of prc?.series || []) byYear[r.year] = { ...byYear[r.year], year: r.year, prc: r.visitors };
+  const data = Object.values(byYear).sort((a, b) => a.year - b.year);
+
+  return (
+    <div style={{ height: "220px", marginTop: "8px" }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 12, right: 12, left: 4, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="2 4" stroke="var(--border-color)" />
+          <XAxis
+            dataKey="year"
+            tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" }}
+            stroke="var(--border-color)"
+            interval="preserveStartEnd"
+            minTickGap={28}
+          />
+          <YAxis
+            tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" }}
+            stroke="var(--border-color)"
+            tickFormatter={(v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}K` : v)}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--bg-primary)",
+              border: "1px solid var(--border-color)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+            }}
+            formatter={(v, key) => [
+              v !== null && v !== undefined ? v.toLocaleString() + " visitors" : "—",
+              key === "tw" ? "TW → PRC" : "PRC → TW",
+            ]}
+            labelFormatter={(y) => `Year ${y}`}
+          />
+          {prc?.series?.length > 0 && (
+            <Line type="monotone" dataKey="prc" stroke="var(--accent-teal, #14B8A6)"
+                  strokeWidth={1.5} dot={{ r: 2, fill: "var(--accent-teal, #14B8A6)" }}
+                  activeDot={{ r: 4 }} />
+          )}
+          <Line type="monotone" dataKey="tw" stroke="var(--text-primary)"
+                strokeWidth={1.5} dot={{ r: 2, fill: "var(--text-primary)" }}
+                activeDot={{ r: 4 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // "2024-03" → "Mar '24"
@@ -497,6 +551,58 @@ export default function PeopleTab() {
         </div>
       </div>
 
+      {/* Annual flow strip — long-history Tourism Bureau context.
+          Sits above the monthly chart so the multi-decade trend (COVID
+          cliff and pre-2019 ~4M peak) frames the recent monthly cadence. */}
+      {data.annual_flows?.tw_to_prc?.series?.length > 0 && (
+        <div style={{
+          padding: "14px 16px",
+          border: "1px solid var(--border-color)",
+          background: "var(--bg-card)",
+          marginBottom: "16px",
+        }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            gap: "10px",
+            marginBottom: "4px",
+          }}>
+            <h3 style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "15px",
+              fontWeight: 500,
+              color: "var(--text-primary)",
+              margin: 0,
+            }}>Annual visitor flows — long view</h3>
+            <span style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "9.5px",
+              color: "var(--text-muted)",
+            }}>觀光署 · persons / year</span>
+          </div>
+          <p style={{
+            fontFamily: "var(--font-body)",
+            fontSize: "11.5px",
+            color: "var(--text-secondary)",
+            marginTop: "4px",
+            marginBottom: "0",
+            lineHeight: 1.45,
+          }}>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>TW → PRC</span>{" "}
+            from Tourism Bureau (2008→). Peak ~4.17M in 2018, collapsed to ~130K under
+            COVID (2021), recovery to ~3.24M by 2025 — back to ~78% of the 2018 high.
+            {!data.annual_flows?.prc_to_tw?.series && (
+              <em style={{ color: "var(--text-muted)" }}> PRC→TW annual not yet curated.</em>
+            )}
+          </p>
+          <AnnualFlowChart
+            tw={data.annual_flows?.tw_to_prc}
+            prc={data.annual_flows?.prc_to_tw}
+          />
+        </div>
+      )}
+
       {/* Flow strip — paired monthly visitors */}
       <div style={{
         padding: "14px 16px",
@@ -535,11 +641,11 @@ export default function PeopleTab() {
           <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>TW → PRC</span>{" "}
           (dark) and{" "}
           <span style={{ color: "var(--accent-teal, #14B8A6)", fontWeight: 600 }}>PRC → TW</span>{" "}
-          (teal). Dots show each MAC release: the PRC→TW line is monthly across 2017→
+          (teal). Dots show each MAC release. The PRC→TW line is monthly across 2017→
           (pre-2019 ~250K/month, COVID floor near zero 2020–22, recovery still
-          incomplete); MAC only started carrying TW outbound in dataset 7887 in March
-          2024 (marked) and skips an occasional month. The pre-2024 TW series exists in
-          Tourism Bureau records but isn't in 7887.
+          incomplete). MAC only started carrying TW outbound in dataset 7887 in March
+          2024 (marked) and skips an occasional month — for the pre-2024 TW trend, see
+          the annual chart above.
         </p>
         <PeopleFlowChart tw={data.flows?.tw_visitors_to_prc} prc={data.flows?.prc_visitors_to_tw} />
       </div>
