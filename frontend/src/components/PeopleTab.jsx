@@ -600,8 +600,10 @@ export default function PeopleTab() {
             peaked earlier (~4.14M in 2015), declined under the 2019 自由行 ban, hit
             ~13K in 2021, and has only rebuilt to ~620K — 15% of the 2015 high. The
             asymmetric recovery is the analytical story. Both lines from 觀光署; PRC→TW
-            uses the 華僑 column (mainland passport holders), which reconciles with MAC
-            7887 within rounding.
+            uses the 華僑 column under 居住地=中國大陸. 華僑 is an umbrella status
+            category by definition, but cross-checked against MAC 7887 it matches
+            within rounding — the umbrella's edge cases (港澳 / 無戶籍國民 with
+            residence in mainland) are negligible in practice.
           </p>
           <AnnualFlowChart
             tw={data.annual_flows?.tw_to_prc}
