@@ -589,6 +589,10 @@ export default function PeopleTab() {
             marginBottom: "0",
             lineHeight: 1.45,
           }}>
+            Series begins 2008 because direct cross-strait flights opened that December
+            (大三通) — before then, travel had to route via Hong Kong, Macao, or third
+            countries, so a "TW→PRC visitors" annual count isn't meaningfully distinct
+            from outbound travel generally.{" "}
             <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>TW → PRC</span>{" "}
             peaked at ~4.17M in 2018, collapsed to ~130K under COVID (2021), recovery to
             ~3.24M by 2025 — back to ~78% of the 2018 high.{" "}
