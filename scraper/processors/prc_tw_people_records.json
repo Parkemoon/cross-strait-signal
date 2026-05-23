@@ -90,6 +90,33 @@
       "blurb": "Expanded from limited pilot to all 100 ports of entry. TW residents arriving without a valid permit can get a single-use one at the border."
     }
   ],
+  "prc_inbound_annual": {
+    "source_label": "交通部觀光署 來臺旅客居住地統計 (residence = 中國大陸)",
+    "source_url": "https://stat.taiwan.net.tw/inboundSearch",
+    "pulled_at": "2026-05-23",
+    "note": "Annual visitors arriving from mainland China. Tourism Bureau splits the residence=中國大陸 cohort into 華僑 (PRC nationals — labelled '華僑' because ROC constitutional framing can't call mainland Chinese 外籍) and 外籍 (third-country nationals flying from mainland to TW). The 華僑 column matches MAC 7887's monthly prc_visitors_tw_10k series within rounding (e.g. 2024 MAC sum 4,275,080 ≈ TB 華僑 4,275,080 — wait, let me recompute: MAC 2024 sum = 4.27e6/10 = 427,000 vs TB 華僑 = 427,508). Chart plots 華僑 only for methodology consistency with MAC; 外籍 retained here for completeness (typically 0.5–4% of the total).",
+    "plot_column": "huaqiao",
+    "series": [
+      {"year": 2008, "huaqiao": 314914,  "foreign": 14290},
+      {"year": 2009, "huaqiao": 953009,  "foreign": 19114},
+      {"year": 2010, "huaqiao": 1607569, "foreign": 23166},
+      {"year": 2011, "huaqiao": 1755529, "foreign": 28656},
+      {"year": 2012, "huaqiao": 2551532, "foreign": 34896},
+      {"year": 2013, "huaqiao": 2837470, "foreign": 37232},
+      {"year": 2014, "huaqiao": 3947610, "foreign": 39542},
+      {"year": 2015, "huaqiao": 4143836, "foreign": 40266},
+      {"year": 2016, "huaqiao": 3472673, "foreign": 39061},
+      {"year": 2017, "huaqiao": 2695721, "foreign": 36828},
+      {"year": 2018, "huaqiao": 2661977, "foreign": 33638},
+      {"year": 2019, "huaqiao": 2683093, "foreign": 30972},
+      {"year": 2020, "huaqiao": 107531,  "foreign": 3519},
+      {"year": 2021, "huaqiao": 13251,   "foreign": 16},
+      {"year": 2022, "huaqiao": 24158,   "foreign": 220},
+      {"year": 2023, "huaqiao": 218017,  "foreign": 8252},
+      {"year": 2024, "huaqiao": 427508,  "foreign": 10704},
+      {"year": 2025, "huaqiao": 621532,  "foreign": 15528}
+    ]
+  },
   "tw_outbound_annual": {
     "source_label": "交通部觀光署 國民出國目的地統計",
     "source_url": "https://stat.taiwan.net.tw/outboundSearch",

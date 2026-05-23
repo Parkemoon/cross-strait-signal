@@ -754,16 +754,31 @@ def people_records():
             },
         }
 
+    # Tourism Bureau historical annuals pre-date MAC 7887's 2017-08
+    # archive window. The inbound JSON splits each year into 華僑 (PRC
+    # passport holders) + 外籍 (foreign passport holders flying via
+    # mainland) — collapse to a single `visitors` key for the chart,
+    # using the column the sidecar nominates in plot_column. Default
+    # `huaqiao` matches MAC's 7887 monthly methodology so the annual
+    # and monthly lines reconcile.
+    def _normalise_annual(block):
+        if not block:
+            return None
+        plot_col = block.get("plot_column", "visitors")
+        out = dict(block)
+        out["series"] = [
+            {"year": r["year"], "visitors": r.get(plot_col, r.get("visitors"))}
+            for r in block.get("series", [])
+        ]
+        return out
+
     return {
         "meta":            _PEOPLE_SIDECAR.get("_meta", {}),
         "directions":      directions,
         "policy_timeline": _PEOPLE_SIDECAR.get("policy_timeline", []),
         "flows":           flows,
         "annual_flows":    {
-            # Tourism Bureau historical annuals pre-date MAC 7887's
-            # 2017-08 archive window. tw_to_prc covers 2008-present;
-            # prc_to_tw not yet curated.
-            "tw_to_prc":   _PEOPLE_SIDECAR.get("tw_outbound_annual"),
-            "prc_to_tw":   _PEOPLE_SIDECAR.get("prc_inbound_annual"),
+            "tw_to_prc":   _normalise_annual(_PEOPLE_SIDECAR.get("tw_outbound_annual")),
+            "prc_to_tw":   _normalise_annual(_PEOPLE_SIDECAR.get("prc_inbound_annual")),
         },
     }

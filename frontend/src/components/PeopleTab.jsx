@@ -590,11 +590,14 @@ export default function PeopleTab() {
             lineHeight: 1.45,
           }}>
             <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>TW → PRC</span>{" "}
-            from Tourism Bureau (2008→). Peak ~4.17M in 2018, collapsed to ~130K under
-            COVID (2021), recovery to ~3.24M by 2025 — back to ~78% of the 2018 high.
-            {!data.annual_flows?.prc_to_tw?.series && (
-              <em style={{ color: "var(--text-muted)" }}> PRC→TW annual not yet curated.</em>
-            )}
+            peaked at ~4.17M in 2018, collapsed to ~130K under COVID (2021), recovery to
+            ~3.24M by 2025 — back to ~78% of the 2018 high.{" "}
+            <span style={{ color: "var(--accent-teal, #14B8A6)", fontWeight: 600 }}>PRC → TW</span>{" "}
+            peaked earlier (~4.14M in 2015), declined under the 2019 自由行 ban, hit
+            ~13K in 2021, and has only rebuilt to ~620K — 15% of the 2015 high. The
+            asymmetric recovery is the analytical story. Both lines from 觀光署; PRC→TW
+            uses the 華僑 column (mainland passport holders), which reconciles with MAC
+            7887 within rounding.
           </p>
           <AnnualFlowChart
             tw={data.annual_flows?.tw_to_prc}
