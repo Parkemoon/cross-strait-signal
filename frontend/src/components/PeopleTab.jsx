@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, CartesianGrid,
+  BarChart, Bar, CartesianGrid, ReferenceLine,
 } from "recharts";
 import { fetchPeopleRecords } from "../api";
 
@@ -134,10 +134,21 @@ function PeoplePermitsChart({ residence, settlement }) {
   );
 }
 
+const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+// "2024-03" → "Mar '24"
+function fmtMonthYear(period) {
+  if (!period) return "";
+  const [y, m] = period.split("-");
+  return `${MONTH_ABBR[Number(m) - 1]} '${y.slice(2)}`;
+}
+
 // MAC 7887 only publishes the TW→PRC outbound visitor figure from 2024-03
 // onwards (the column existed earlier but was '－' for years). Show all
 // available data rather than slicing to a fixed window — slicing made the
-// TW line look like it cliffed out of nowhere.
+// TW line look like it cliffed out of nowhere. Visible dots on each data
+// point make the actual reporting cadence legible (MAC skips an occasional
+// month for tw_visitors_prc; prc_visitors_tw is unbroken monthly).
 function PeopleFlowChart({ tw, prc }) {
   const byPeriod = {};
   for (const r of prc?.series || []) byPeriod[r.period] = { period: r.period, prc: r.value };
@@ -146,18 +157,22 @@ function PeopleFlowChart({ tw, prc }) {
   }
   const data = Object.values(byPeriod).sort((a, b) => a.period.localeCompare(b.period));
 
+  // Mark the first period where TW outbound data exists so readers can
+  // see "this isn't a cliff — MAC just started publishing here."
+  const twDebut = (tw?.series || []).find((r) => r.value !== null && r.value !== undefined)?.period;
+
   return (
-    <div style={{ height: "220px", marginTop: "8px" }}>
+    <div style={{ height: "240px", marginTop: "8px" }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+        <LineChart data={data} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="2 4" stroke="var(--border-color)" />
           <XAxis
             dataKey="period"
             tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" }}
             stroke="var(--border-color)"
-            tickFormatter={(p) => p?.slice(0, 4)}
+            tickFormatter={fmtMonthYear}
             interval="preserveStartEnd"
-            minTickGap={40}
+            minTickGap={48}
           />
           <YAxis
             tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" }}
@@ -165,6 +180,7 @@ function PeopleFlowChart({ tw, prc }) {
             tickFormatter={(v) => `${v}`}
           />
           <Tooltip
+            labelFormatter={fmtMonthYear}
             contentStyle={{
               background: "var(--bg-primary)",
               border: "1px solid var(--border-color)",
@@ -176,8 +192,37 @@ function PeopleFlowChart({ tw, prc }) {
               key === "tw" ? "TW → PRC" : "PRC → TW",
             ]}
           />
-          <Line type="monotone" dataKey="tw" stroke="var(--text-primary)" strokeWidth={1.5} dot={false} connectNulls={false} />
-          <Line type="monotone" dataKey="prc" stroke="var(--accent-teal, #14B8A6)" strokeWidth={1.5} dot={false} />
+          {twDebut && (
+            <ReferenceLine
+              x={twDebut}
+              stroke="var(--text-muted)"
+              strokeDasharray="3 3"
+              label={{
+                value: "MAC begins TW outbound",
+                position: "insideTopRight",
+                fill: "var(--text-muted)",
+                fontSize: 9,
+                fontFamily: "var(--font-mono)",
+              }}
+            />
+          )}
+          <Line
+            type="monotone"
+            dataKey="prc"
+            stroke="var(--accent-teal, #14B8A6)"
+            strokeWidth={1.5}
+            dot={{ r: 1.6, fill: "var(--accent-teal, #14B8A6)", strokeWidth: 0 }}
+            activeDot={{ r: 4 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="tw"
+            stroke="var(--text-primary)"
+            strokeWidth={1.5}
+            dot={{ r: 1.8, fill: "var(--text-primary)", strokeWidth: 0 }}
+            activeDot={{ r: 4 }}
+            connectNulls={false}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -490,10 +535,11 @@ export default function PeopleTab() {
           <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>TW → PRC</span>{" "}
           (dark) and{" "}
           <span style={{ color: "var(--accent-teal, #14B8A6)", fontWeight: 600 }}>PRC → TW</span>{" "}
-          (teal). MAC has only published a monthly TW outbound figure since March 2024 —
-          the gap before that is the source, not a scrape error. PRC inbound runs to TW
-          across the full 2017→ window: pre-2019 ~250K/month, COVID floor near zero
-          2020–22, recovery still incomplete.
+          (teal). Dots show each MAC release: the PRC→TW line is monthly across 2017→
+          (pre-2019 ~250K/month, COVID floor near zero 2020–22, recovery still
+          incomplete); MAC only started carrying TW outbound in dataset 7887 in March
+          2024 (marked) and skips an occasional month. The pre-2024 TW series exists in
+          Tourism Bureau records but isn't in 7887.
         </p>
         <PeopleFlowChart tw={data.flows?.tw_visitors_to_prc} prc={data.flows?.prc_visitors_to_tw} />
       </div>
