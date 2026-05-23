@@ -138,46 +138,77 @@ def parse_pct(cell: str) -> float | None:
     return val
 
 
-def map_headers_to_columns(headers: list[str]) -> dict[str, tuple[int, float]]:
+def map_headers_to_columns(headers: list[str]) -> dict[str, tuple[int, float, int | None]]:
     """For each series spec, find the column index of its value field.
 
-    Returns {series_id: (col_index, scale_factor)}. Series not found are omitted.
+    Returns {series_id: (col_index, scale_factor, period_col_or_None)}.
+    `period_col` is the immediately-preceding column when its header contains
+    '年(月)別' — used because MAC adopted per-column period sub-headers around
+    2024-04, and the visitor columns can now lag the headline period by 1–2
+    months (or even report an annual rollup like '112年') even though the
+    document's headline period is the current month. Without honouring the
+    per-column period we'd file lagged or annual values under the wrong
+    monthly period. Series not found are omitted.
     """
     result = {}
     for series_id, tokens, _unit, scale in SERIES_SPECS:
         for i, h in enumerate(headers):
             h_clean = h.strip()
             if all(tok in h_clean for tok in tokens) and '成長率' not in h_clean:
-                result[series_id] = (i, scale)
+                period_col = None
+                if i > 0 and '年(月)別' in headers[i - 1]:
+                    period_col = i - 1
+                result[series_id] = (i, scale, period_col)
                 break
     return result
 
 
-def parse_monthly_row(headers: list[str], row: list[str]) -> tuple[str, dict] | None:
-    """Parse the '當月統計數' row. Returns (iso_period, {series_id: (value, yoy_pct)})."""
+def parse_monthly_row(headers: list[str], row: list[str]) -> list[tuple[str, str, float | None, float | None]] | None:
+    """Parse the '當月統計數' row.
+
+    Returns a list of (series_id, iso_period, value, yoy_pct) — one entry per
+    series. Different series can land on different periods because of MAC's
+    per-column period sub-headers (the visitor columns typically lag 1–2
+    months behind the trade columns). Returns None if the row isn't a monthly
+    snapshot row or has no parseable headline period.
+    """
     if not row or row[0].strip() != '當月統計數':
         return None
     col_map = map_headers_to_columns(headers)
-    # The period label sits in the column just before each value group's first
-    # value column. Easiest robust approach: find the first '年X月' looking cell.
-    iso_period = None
+    # Headline period: first '年X月' looking cell in the row. Used as a
+    # fallback for columns that don't carry their own period sub-header.
+    headline_period = None
     for cell in row[1:]:
         candidate = roc_to_iso(cell)
         if candidate:
-            iso_period = candidate
+            headline_period = candidate
             break
-    if not iso_period:
+    if not headline_period:
         return None
-    series_values = {}
-    for series_id, (col_idx, scale) in col_map.items():
+    out: list[tuple[str, str, float | None, float | None]] = []
+    for series_id, (col_idx, scale, period_col) in col_map.items():
         if col_idx >= len(row):
             continue
+        # Resolve the period for this specific column. If MAC has tagged the
+        # column with its own '年(月)別' header and the cell is a monthly
+        # label, use it; if the cell is an annual rollup ('112年') skip the
+        # value entirely so it doesn't pollute the monthly series.
+        period = headline_period
+        if period_col is not None and period_col < len(row):
+            cell = row[period_col].strip()
+            if not cell:
+                continue  # no period reported → skip
+            parsed = roc_to_iso(cell)
+            if parsed is None:
+                # Non-monthly cell (annual, range, etc.) — drop.
+                continue
+            period = parsed
         raw_value = parse_number(row[col_idx])
         value = raw_value * scale if raw_value is not None else None
-        # YoY % is typically the next column (and is unit-agnostic)
+        # YoY % is typically the next column (and is unit-agnostic).
         yoy = parse_pct(row[col_idx + 1]) if col_idx + 1 < len(row) else None
-        series_values[series_id] = (value, yoy)
-    return iso_period, series_values
+        out.append((series_id, period, value, yoy))
+    return out
 
 
 def fetch_csv(url: str, client: httpx.Client) -> tuple[list[str], list[list[str]]] | None:
@@ -199,11 +230,15 @@ def fetch_csv(url: str, client: httpx.Client) -> tuple[list[str], list[list[str]
     return rows[0], rows[1:]
 
 
-def upsert_indicators(conn, iso_period: str, series_values: dict, source_url: str) -> int:
+def upsert_indicators(
+    conn,
+    rows: list[tuple[str, str, float | None, float | None]],
+    source_url: str,
+) -> int:
     """UPSERT rows into economic_indicators. Returns row count touched."""
     unit_map = {sid: unit for sid, _tokens, unit, _scale in SERIES_SPECS}
     count = 0
-    for series_id, (value, yoy) in series_values.items():
+    for series_id, iso_period, value, yoy in rows:
         conn.execute('''
             INSERT INTO economic_indicators
                 (series_id, period, period_type, value, unit, yoy_pct, source, source_url, scraped_at)
@@ -242,8 +277,7 @@ def scrape_mac_economic():
                 print(f'  ! parse failed: {url}', file=sys.stderr)
                 months_failed += 1
                 continue
-            iso_period, series_values = parsed
-            n = upsert_indicators(conn, iso_period, series_values, url)
+            n = upsert_indicators(conn, parsed, url)
             total_rows += n
             months_loaded += 1
             # Commit every 10 files so a crash mid-run doesn't lose all progress
