@@ -7,8 +7,13 @@ import {
   fetchMilitaryIncursions,
   fetchMilitarySummary,
   fetchMilitaryZones,
+  fetchMilitaryExercises,
+  fetchMilitaryExerciseCandidates,
 } from "../api";
+import { READ_ONLY } from "../readOnly";
 import { TAIWAN_PATHS, PRC_COAST_PATHS, MEDIAN_LINE } from "./taiwanStraitMap";
+import ExerciseMap, { PERFORMER_COLOUR, PERFORMER_LABEL } from "./ExerciseMap";
+import ExerciseReviewQueue from "./ExerciseReviewQueue";
 
 // Purple is the project's "hostile" colour (locked). PLA incursions are the
 // prototypical hostile cross-strait act, so the whole tab leans purple.
@@ -508,11 +513,176 @@ function Heatmap({ rows }) {
   );
 }
 
+const DATE_RANGES = [
+  { key: 30,  label: "30d" },
+  { key: 90,  label: "90d" },
+  { key: 365, label: "1y"  },
+  { key: 1000, label: "All" },
+];
+
+function PerformerPill({ code, active, count, onToggle }) {
+  const colour = PERFORMER_COLOUR[code];
+  return (
+    <button
+      onClick={() => onToggle(code)}
+      style={{
+        padding: "3px 9px",
+        fontFamily: "var(--font-mono)",
+        fontSize: "10px",
+        letterSpacing: "0.06em",
+        border: `1px solid ${active ? colour : "var(--border-color)"}`,
+        background: active ? `${colour}22` : "transparent",
+        color: active ? colour : "var(--text-muted)",
+        cursor: "pointer",
+      }}
+    >
+      <span style={{ display: "inline-block", width: "8px", height: "8px",
+                     background: colour, marginRight: "6px", verticalAlign: "middle" }} />
+      {PERFORMER_LABEL[code]}{count !== undefined ? ` (${count})` : ""}
+    </button>
+  );
+}
+
+function ExerciseFilters({ filters, setFilters, counts, pendingCount, onOpenReview }) {
+  const togglePerformer = (code) => {
+    const next = new Set(filters.performers);
+    if (next.has(code)) next.delete(code); else next.add(code);
+    setFilters({ ...filters, performers: next });
+  };
+  return (
+    <div style={{
+      display: "flex", flexWrap: "wrap", alignItems: "center",
+      gap: "6px", marginBottom: "12px",
+    }}>
+      {Object.keys(PERFORMER_LABEL).map((p) => (
+        <PerformerPill key={p} code={p}
+                       active={filters.performers.has(p)}
+                       count={counts?.[p]}
+                       onToggle={togglePerformer} />
+      ))}
+      <div style={{ flex: 1 }} />
+      <div style={{ display: "flex", border: "1px solid var(--border-color)" }}>
+        {DATE_RANGES.map((r) => (
+          <button key={r.key}
+                  onClick={() => setFilters({ ...filters, days: r.key })}
+                  style={{
+                    padding: "3px 9px",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "10px",
+                    background: filters.days === r.key ? "var(--text-primary)" : "transparent",
+                    color: filters.days === r.key ? "var(--bg-primary)" : "var(--text-secondary)",
+                    border: "none",
+                    cursor: "pointer",
+                  }}>
+            {r.label}
+          </button>
+        ))}
+      </div>
+      {!READ_ONLY && onOpenReview && (
+        <button onClick={onOpenReview}
+                title={`${pendingCount} pending`}
+                style={{
+                  padding: "3px 9px",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  letterSpacing: "0.06em",
+                  border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
+                  background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
+                  color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)",
+                  cursor: "pointer",
+                }}>
+          ✎ Review{pendingCount > 0 ? ` (${pendingCount})` : ""}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ExerciseList({ rows }) {
+  if (!rows || rows.length === 0) {
+    return (
+      <div style={{
+        padding: "20px",
+        fontFamily: "var(--font-mono)", fontSize: "11px",
+        color: "var(--text-muted)", textAlign: "center",
+      }}>
+        No approved exercises in this window.
+      </div>
+    );
+  }
+  return (
+    <div style={{
+      maxHeight: "460px",
+      overflowY: "auto",
+      border: "1px solid var(--border-color)",
+      background: "var(--bg-card)",
+    }}>
+      {rows.map((ex) => {
+        const colour = PERFORMER_COLOUR[ex.performer] || "#666";
+        const hasGeo = typeof ex.latitude === "number" && typeof ex.longitude === "number";
+        const displayName = ex.name_en || (ex.name_zh
+          ? `${ex.name_zh}`
+          : `${PERFORMER_LABEL[ex.performer]} ${ex.exercise_kind.replace("_", " ")}`);
+        return (
+          <div key={ex.id} style={{
+            padding: "8px 12px",
+            borderBottom: "1px solid var(--border-color)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between",
+                          alignItems: "baseline", gap: "8px" }}>
+              <span style={{
+                fontFamily: "var(--font-display, serif)",
+                fontSize: "13px",
+                color: "var(--text-primary)",
+              }}>{displayName}</span>
+              <span style={{ color: colour, fontWeight: 700, letterSpacing: "0.06em",
+                             fontSize: "9px", textTransform: "uppercase",
+                             whiteSpace: "nowrap" }}>
+                {PERFORMER_LABEL[ex.performer]}
+              </span>
+            </div>
+            <div style={{ color: "var(--text-muted)", marginTop: "2px",
+                          display: "flex", justifyContent: "space-between" }}>
+              <span>
+                {ex.start_date || "—"}
+                {ex.end_date && ex.end_date !== ex.start_date ? ` → ${ex.end_date}` : ""}
+              </span>
+              <span style={{ fontStyle: hasGeo ? "normal" : "italic",
+                             color: hasGeo ? "var(--text-secondary)" : "var(--text-muted)" }}>
+                {ex.location_label || (hasGeo ? "" : "(no location)")}
+              </span>
+            </div>
+            {ex.article?.url && (
+              <a href={ex.article.url} target="_blank" rel="noreferrer"
+                 style={{ color: "var(--text-muted)",
+                          fontSize: "9.5px", letterSpacing: "0.05em",
+                          textTransform: "uppercase", textDecoration: "underline" }}>
+                via {ex.article.source_name}
+              </a>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function MilitaryTab() {
   const [summary, setSummary] = useState(null);
   const [daily, setDaily] = useState(null);
   const [zones, setZones] = useState(null);
   const [error, setError] = useState(false);
+
+  // Exercise tracker state — independent fetches, separate filters.
+  const [exercises, setExercises] = useState(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [exFilters, setExFilters] = useState({
+    days: 90,
+    performers: new Set(["PRC", "ROC", "US", "JP", "MULTI"]),
+  });
 
   useEffect(() => {
     Promise.all([
@@ -527,6 +697,35 @@ export default function MilitaryTab() {
       })
       .catch(() => setError(true));
   }, []);
+
+  // Re-fetch approved exercises when the date window changes; performer
+  // filter is applied client-side from this row set so toggling pills
+  // is instant.
+  useEffect(() => {
+    fetchMilitaryExercises({ days: exFilters.days })
+      .then((r) => setExercises(r.rows || []))
+      .catch(() => setExercises([]));
+  }, [exFilters.days]);
+
+  // Pending-count badge — admin build only.
+  const loadPendingCount = () => {
+    if (READ_ONLY) return;
+    fetchMilitaryExerciseCandidates()
+      .then((r) => setPendingCount(r.total_pending || 0))
+      .catch(() => setPendingCount(0));
+  };
+  useEffect(() => { loadPendingCount(); }, []);
+
+  // Client-side performer filter + per-performer counts (for the pill labels).
+  const filteredExercises = useMemo(() => {
+    if (!exercises) return [];
+    return exercises.filter((e) => exFilters.performers.has(e.performer));
+  }, [exercises, exFilters.performers]);
+  const performerCounts = useMemo(() => {
+    const c = { PRC: 0, ROC: 0, US: 0, JP: 0, MULTI: 0 };
+    for (const e of exercises || []) c[e.performer] = (c[e.performer] || 0) + 1;
+    return c;
+  }, [exercises]);
 
   if (error) {
     return (
@@ -670,6 +869,64 @@ export default function MilitaryTab() {
         PLATracker only publishes the median-line/ADIZ-entry count — vessels, coast-guard
         figures, and zone breakdowns become available the day MND coverage begins.
       </p>
+
+      {/* ============ EXERCISE TRACKER (Phase 2b.2) ============ */}
+      <SectionHeader right={exercises ? `${filteredExercises.length} approved` : "—"}>
+        Exercise Tracker
+      </SectionHeader>
+
+      <p style={{
+        fontFamily: "var(--font-body)",
+        fontSize: "13px",
+        color: "var(--text-secondary)",
+        lineHeight: 1.55,
+        margin: "0 0 14px",
+      }}>
+        Cross-strait military exercises and drills extracted from MIL_EXERCISE
+        articles by the AI pipeline and editorially approved before display.
+        Markers show where the activity took place; the list below includes
+        approved exercises whose location could not be confidently geocoded.
+        Performer pills filter both views.
+      </p>
+
+      <ExerciseFilters
+        filters={exFilters}
+        setFilters={setExFilters}
+        counts={performerCounts}
+        pendingCount={pendingCount}
+        onOpenReview={() => setReviewOpen(true)}
+      />
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 1fr)",
+        gap: "16px",
+        alignItems: "start",
+      }}>
+        <ExerciseMap rows={filteredExercises} />
+        <ExerciseList rows={filteredExercises} />
+      </div>
+
+      <p style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "10px",
+        color: "var(--text-muted)",
+        marginTop: "16px",
+        lineHeight: 1.5,
+      }}>
+        Map basemap: CartoDB Positron (&copy; OpenStreetMap contributors, &copy; CARTO).
+        Coordinates are AI-extracted from article text and analyst-confirmed; exercises
+        without a confidently-parseable location appear in the list only.
+      </p>
+
+      {reviewOpen && (
+        <ExerciseReviewQueue
+          onClose={() => { setReviewOpen(false); loadPendingCount();
+                           fetchMilitaryExercises({ days: exFilters.days })
+                             .then((r) => setExercises(r.rows || [])); }}
+          onResolveAll={() => setPendingCount(0)}
+        />
+      )}
     </main>
   );
 }
