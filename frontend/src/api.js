@@ -193,6 +193,28 @@ export async function fetchCiferSnapshot() {
   return request(`/api/trade-access/cifer-snapshot`);
 }
 
+export async function fetchMilitaryIncursions(params = {}) {
+  const query = new URLSearchParams();
+  ["days", "start", "end"].forEach((k) => {
+    if (params[k] !== undefined && params[k] !== "" && params[k] !== null) {
+      query.append(k, params[k]);
+    }
+  });
+  return request(`/api/military/incursions?${query}`);
+}
+
+export async function fetchMilitaryIncursionsMonthly(months = 48) {
+  return request(`/api/military/incursions/monthly?months=${months}`);
+}
+
+export async function fetchMilitarySummary() {
+  return request(`/api/military/incursions/summary`);
+}
+
+export async function fetchMilitaryZones() {
+  return request(`/api/military/zones`);
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",

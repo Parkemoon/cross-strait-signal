@@ -14,13 +14,14 @@ import ReviewQueue from "./components/ReviewQueue";
 import EconomyTab from "./components/EconomyTab";
 import TradeAccessTab from "./components/TradeAccessTab";
 import PeopleTab from "./components/PeopleTab";
+import MilitaryTab from "./components/MilitaryTab";
 
 export default function App() {
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
-  const [view, setView] = useState("feed"); // "feed" | "review" | "economy" | "trade" | "people"
+  const [view, setView] = useState("feed"); // "feed" | "review" | "economy" | "trade" | "people" | "military"
   const [showAbout, setShowAbout] = useState(false);
-  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "people" | "social" | "review"
+  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "people" | "military" | "social" | "review"
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
 
@@ -161,6 +162,24 @@ export default function App() {
               People
             </button>
           )}
+          {!isMobile && (
+            <button
+              onClick={() => setView(view === "military" ? "feed" : "military")}
+              style={{
+                padding: "5px 12px",
+                background: view === "military" ? "rgba(255,255,255,0.12)" : "transparent",
+                color: view === "military" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                cursor: "pointer",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              Military
+            </button>
+          )}
           {!isMobile && !READ_ONLY && (
             <button
               onClick={() => setView(view === "review" ? "feed" : "review")}
@@ -260,6 +279,7 @@ export default function App() {
           { id: "economy", label: "Economy" },
           { id: "trade", label: "Trade" },
           { id: "people", label: "People" },
+          { id: "military", label: "Military" },
           { id: "social", label: "Social" },
           ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
         ].map((tab) => (
@@ -271,6 +291,7 @@ export default function App() {
               else if (tab.id === "economy") setView("economy");
               else if (tab.id === "trade") setView("trade");
               else if (tab.id === "people") setView("people");
+              else if (tab.id === "military") setView("military");
               else setView("feed");
             }}
             style={{
@@ -298,7 +319,7 @@ export default function App() {
           `position: sticky` on the sidebar children. */}
       <div style={{
         display: isMobile ? "block" : "grid",
-        gridTemplateColumns: (view === "economy" || view === "trade" || view === "people")
+        gridTemplateColumns: (view === "economy" || view === "trade" || view === "people" || view === "military")
           ? "clamp(300px, 20vw, 420px) 1fr"
           : "clamp(300px, 20vw, 420px) 1fr 300px",
         minHeight: "calc(100vh - 52px)",
@@ -361,7 +382,7 @@ export default function App() {
         </aside>
 
         {/* Feed / Review / Economy / Trade / People — center column */}
-        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy" || mobileTab === "trade" || mobileTab === "people") ? "block" : "none") : "block", minWidth: 0 }}>
+        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy" || mobileTab === "trade" || mobileTab === "people" || mobileTab === "military") ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : view === "economy" ? (
@@ -370,6 +391,8 @@ export default function App() {
             <TradeAccessTab />
           ) : view === "people" ? (
             <PeopleTab />
+          ) : view === "military" ? (
+            <MilitaryTab />
           ) : (
             <main style={{
               padding: isMobile ? "16px" : "28px 32px",
@@ -543,7 +566,7 @@ export default function App() {
             maxHeight: "calc(100vh - 52px)",
             overflowY: "auto",
             minWidth: 0,
-            display: (view === "economy" || view === "trade" || view === "people")
+            display: (view === "economy" || view === "trade" || view === "people" || view === "military")
               ? "none"
               : (isMobile ? (mobileTab === "social" ? "block" : "none") : "block"),
           }}
