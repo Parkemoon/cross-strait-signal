@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # if the systemd unit ever switches to EnvironmentFile=.
 load_dotenv()
 
-from api.routes import articles, stats, notes, social, economy, trade_access
+from api.routes import articles, stats, notes, social, economy, trade_access, military
 from api.routes.review import router as review_router
 
 app = FastAPI(
@@ -39,6 +39,7 @@ app.include_router(review_router)
 app.include_router(social.router)
 app.include_router(economy.router)
 app.include_router(trade_access.router)
+app.include_router(military.router)
 
 @app.get("/")
 def root():

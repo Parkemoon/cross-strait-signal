@@ -342,3 +342,36 @@ CREATE TABLE IF NOT EXISTS cross_strait_population (
 );
 
 CREATE INDEX IF NOT EXISTS idx_csp_direction_metric ON cross_strait_population(direction, metric, period DESC);
+
+-- ============================================================
+-- PLA INCURSIONS (Phase 2b — MND daily activity tracker)
+-- ============================================================
+-- Daily counts of PLA aircraft and vessel activity around Taiwan,
+-- as reported by Taiwan's Ministry of National Defence in its
+-- "中共解放軍臺海周邊海、空域動態" press releases (reporting day runs
+-- 0600-0600 in MND's convention). Two sources can populate a date:
+--   * source='mnd'                  — live scrape of mnd.gov.tw
+--   * source='platracker_backfill'  — one-time history pull from the
+--                                     public PLATracker Google Sheet
+-- API endpoints coalesce, preferring 'mnd' when both rows exist for
+-- a date. MND publishes a list of zones plus a single crossing count
+-- (not per-zone counts), so zones are stored as a comma-separated list
+-- of sector codes drawn from {N, C, SW, SE, E} matching MND's wording
+-- (北部 / 中部 / 西南 / 東南 / 東部).
+
+CREATE TABLE IF NOT EXISTS pla_incursions (
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    date                     TEXT NOT NULL,         -- 'YYYY-MM-DD'
+    aircraft_total           INTEGER,               -- 共機 N 架次
+    aircraft_intruded        INTEGER,               -- count in parenthetical, covers both 逾越中線 and ADIZ entry forms
+    aircraft_zones           TEXT,                  -- comma list of sectors entered, e.g. 'N,SW,E'
+    vessels_total            INTEGER,               -- 共艦 N 艘
+    coast_guard_total        INTEGER,               -- 公務船 N 艘
+    source                   TEXT NOT NULL,         -- 'mnd' | 'platracker_backfill'
+    source_url               TEXT,
+    raw_text                 TEXT,                  -- verbatim Chinese summary preserved for audit
+    scraped_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(date, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pla_incursions_date ON pla_incursions(date DESC);
