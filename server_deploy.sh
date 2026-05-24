@@ -109,6 +109,23 @@ CREATE TABLE IF NOT EXISTS cross_strait_population (
 );
 CREATE INDEX IF NOT EXISTS idx_csp_direction_metric ON cross_strait_population(direction, metric, period DESC);
 
+-- PLA incursions (Phase 2b) — daily MND counts of PLA aircraft/vessel activity.
+CREATE TABLE IF NOT EXISTS pla_incursions (
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    date                     TEXT NOT NULL,
+    aircraft_total           INTEGER,
+    aircraft_intruded        INTEGER,
+    aircraft_zones           TEXT,
+    vessels_total            INTEGER,
+    coast_guard_total        INTEGER,
+    source                   TEXT NOT NULL,
+    source_url               TEXT,
+    raw_text                 TEXT,
+    scraped_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(date, source)
+);
+CREATE INDEX IF NOT EXISTS idx_pla_incursions_date ON pla_incursions(date DESC);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run
