@@ -41,7 +41,7 @@ def main():
     # that don't yet have any rows in key_figure_statements
     articles = conn.execute(f"""
         SELECT DISTINCT a.id, a.title_original, a.content_original,
-               a.language, s.name AS source_name
+               a.language, a.published_at, s.name AS source_name
         FROM articles a
         JOIN entities e ON e.article_id = a.id
         JOIN sources s ON s.id = a.source_id
@@ -68,7 +68,8 @@ def main():
                 title=title,
                 content=article['content_original'],
                 language=article['language'],
-                source_name=article['source_name']
+                source_name=article['source_name'],
+                published_at=article['published_at'],
             )
 
             statements = analysis.get('key_figure_statements', [])
