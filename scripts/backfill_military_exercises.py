@@ -39,6 +39,8 @@ from google import genai
 from scraper.utils.db import get_connection
 from scraper.processors.ai_pipeline import (
     _CANONICAL_ENTITIES,
+    _build_exercise_canonical_key,
+    _geocode_from_label,
     generate_dynamic_glossary,
 )
 
@@ -82,11 +84,23 @@ Thunder 海峽雷霆, Wan An 萬安) AND unnamed drills explicitly described
 (live-fire / readiness / patrols / amphibious / cyber). Map actor →
 performer_side: PLA/解放軍/東部戰區 → PRC; MND/國防部/國軍/漢光 → ROC;
 INDOPACOM/USN/USAF → US; JSDF/海上自衛隊 → JP; two-or-more sides → MULTI
-with `participants`. Only emit latitude/longitude when you can confidently
-resolve coordinates (named base, named waters with established centroid,
-or explicit coords) — otherwise both null. description_en MUST be English.
-Return {"military_exercises": []} if no exercise is mentioned. Use British
-spelling.
+with `participants`.
+
+LOCATION HANDLING — `location_label` is REQUIRED whenever the article
+mentions ANY place reference for the exercise: a named base, range,
+harbour, county, body of water, region, or compass-quadrant ("eastern
+Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 /
+artillery testing centre north-bank position", "Jiupeng base 九鵬基地",
+"Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place
+names to English; preserve the original in description_zh. The bar for
+location_label is LOW — if you can identify a place in the article, fill
+it. `latitude` and `longitude` are SEPARATE: only emit numeric coords
+when confidently resolvable (named base with established centroid, named
+waters, or explicit coords) — otherwise both null. False-negatives-
+preferred applies to lat/lng only, NOT to location_label.
+
+description_en MUST be English. Return {"military_exercises": []} if no
+exercise is mentioned. Use British spelling.
 """
 
 
@@ -98,24 +112,25 @@ def _canonical_lookup(name_zh: str | None, name_en: str | None) -> tuple[str | N
             if len(zh) >= 2 and (zh == name_zh or name_zh.startswith(zh) or zh in name_zh):
                 canonical_en = en
                 break
-    canonical_key = None
-    if canonical_en:
-        canonical_key = canonical_en.lower().strip().replace(' ', '-').replace('_', '-')
-    return canonical_en, canonical_key
+    return canonical_en, _build_exercise_canonical_key(canonical_en)
 
 
-def _sanitise_coords(lat, lng):
+def _sanitise_coords(lat, lng, fallback_label=None):
     try:
         lat = float(lat) if lat is not None else None
         lng = float(lng) if lng is not None else None
     except (TypeError, ValueError):
-        return None, None
+        lat, lng = None, None
     if lat is not None and not (8.0 <= lat <= 35.0):
         lat = None
     if lng is not None and not (105.0 <= lng <= 135.0):
         lng = None
     if lat is None or lng is None:
-        return None, None
+        lat, lng = None, None
+    # Curated lookup fallback — fill coords from the location_label when the
+    # AI declined to supply them, so the map gets populated for known bases.
+    if lat is None and fallback_label:
+        lat, lng = _geocode_from_label(fallback_label)
     return lat, lng
 
 
@@ -211,7 +226,9 @@ def main():
                 if cjk_ratio > 0.15:
                     desc_en = None
 
-            lat, lng = _sanitise_coords(ex.get('latitude'), ex.get('longitude'))
+            location_label = (ex.get('location_label') or '').strip() or None
+            lat, lng = _sanitise_coords(ex.get('latitude'), ex.get('longitude'),
+                                        fallback_label=location_label)
 
             participants = ex.get('participants') if performer == 'MULTI' else None
             participants_json = (json.dumps(participants) if isinstance(participants, list)
@@ -237,7 +254,7 @@ def main():
                 article['id'], canonical_key, canonical_en, name_zh_raw,
                 name_en_raw or name_zh_raw, performer, participants_json, kind,
                 ex.get('start_date'), ex.get('end_date'),
-                (ex.get('location_label') or '').strip() or None,
+                location_label,
                 lat, lng, desc_en,
                 (ex.get('description_zh') or '').strip() or None,
                 ex.get('confidence', 0.7),

@@ -39,7 +39,7 @@ function labelStyle() {
   };
 }
 
-function CandidateCard({ candidate, approvedTargets, onResolve }) {
+function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone }) {
   const [draft, setDraft] = useState({
     name_en:        candidate.name_en || "",
     name_zh:        candidate.name_zh || "",
@@ -81,8 +81,16 @@ function CandidateCard({ candidate, approvedTargets, onResolve }) {
       if (isDirty && fn !== dismissMilitaryExercise) {
         await updateMilitaryExercise(candidate.id, patchFromDraft());
       }
-      await fn(candidate.id, extra);
-      onResolve(candidate.id);
+      const result = await fn(candidate.id, extra);
+      // Approve has a side effect (auto-merge of same-canonical pending
+      // rows). When that fires we need a full re-fetch so the disappeared
+      // candidates clear from the modal too; dismiss and merge are local-
+      // removal only.
+      if (fn === approveMilitaryExercise && result?.auto_merged > 0 && onApproveDone) {
+        onApproveDone(result.auto_merged);
+      } else {
+        onResolve(candidate.id);
+      }
     } catch (e) {
       setError(e.message || String(e));
       setBusy(false);
@@ -364,7 +372,8 @@ export default function ExerciseReviewQueue({ onClose, onResolveAll }) {
               {list.map((c) => (
                 <CandidateCard key={c.id} candidate={c}
                                approvedTargets={approvedTargets}
-                               onResolve={onResolve} />
+                               onResolve={onResolve}
+                               onApproveDone={loadCandidates} />
               ))}
             </div>
           ))}

@@ -11,6 +11,7 @@ particular, `aircraft_intruded` covers both 逾越中線 and 進入空域 forms.
 """
 from datetime import date, timedelta
 import json
+import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -33,6 +34,23 @@ _VISIBLE_ARTICLE = (
 _VALID_PERFORMERS = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
 _VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
                          'named_exercise', 'cyber', 'amphibious', 'other'}
+
+# Mirror of scraper.processors.ai_pipeline._build_exercise_canonical_key —
+# kept in sync because api/ cannot import from scraper/ without inverting
+# the project's layering. Strip interchangeable trailing nouns so name
+# variants like "Formation Drill" / "Formation Exercise" / "Formation
+# Training" all collapse to the same canonical key.
+_EXERCISE_SUFFIX_RE = re.compile(
+    r'\s+(drills?|exercises?|trainings?)$', re.IGNORECASE
+)
+
+
+def _build_exercise_canonical_key(name_en):
+    if not name_en:
+        return None
+    stripped = _EXERCISE_SUFFIX_RE.sub('', name_en.strip())
+    key = stripped.lower().replace(' ', '-').replace('_', '-')
+    return key or None
 
 ZONE_LABELS = {
     "N":  "North",
@@ -369,17 +387,44 @@ def exercise_candidates():
 
 @router.post("/exercises/{exercise_id}/approve", dependencies=[Depends(require_admin)])
 def approve_exercise(exercise_id: int):
-    """Mark an exercise candidate as approved for public display."""
+    """Mark an exercise candidate as approved for public display.
+
+    Side effect — auto-merge: any OTHER `pending` candidates with the same
+    non-null canonical_name are silently marked as merged into this one,
+    collapsing duplicate reports of the same named exercise without the
+    analyst having to click Merge on each. Unnamed drills (canonical_name
+    NULL) are NOT auto-merged because there's no reliable key — those
+    still require manual review per row.
+    """
     with db_conn() as conn:
-        cur = conn.execute("""
+        row = conn.execute(
+            "SELECT canonical_name FROM military_exercises WHERE id = ?",
+            (exercise_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"exercise {exercise_id} not found")
+
+        conn.execute("""
             UPDATE military_exercises
             SET approval_status = 'approved', reviewed_at = datetime('now')
             WHERE id = ?
         """, (exercise_id,))
-        if cur.rowcount == 0:
-            raise HTTPException(404, f"exercise {exercise_id} not found")
+
+        auto_merged = 0
+        canonical = row["canonical_name"]
+        if canonical:
+            cur = conn.execute("""
+                UPDATE military_exercises
+                SET approval_status = 'merged',
+                    merged_into_id = :target,
+                    reviewed_at = datetime('now')
+                WHERE approval_status = 'pending'
+                  AND canonical_name = :canonical
+                  AND id != :target
+            """, {"target": exercise_id, "canonical": canonical})
+            auto_merged = cur.rowcount
         conn.commit()
-    return {"status": "approved", "id": exercise_id}
+    return {"status": "approved", "id": exercise_id, "auto_merged": auto_merged}
 
 
 @router.post("/exercises/{exercise_id}/dismiss", dependencies=[Depends(require_admin)])
@@ -459,9 +504,7 @@ def patch_exercise(exercise_id: int, patch: ExercisePatch):
     if "name_en" in data:
         en = (data["name_en"] or "").strip()
         data["name_en"] = en or None
-        data["canonical_name"] = (
-            en.lower().strip().replace(' ', '-').replace('_', '-') if en else None
-        )
+        data["canonical_name"] = _build_exercise_canonical_key(en)
 
     if "participants" in data:
         parts = data.pop("participants")
