@@ -11,6 +11,7 @@ particular, `aircraft_intruded` covers both 逾越中線 and 進入空域 forms.
 """
 from datetime import date, timedelta
 import json
+import os
 import re
 from typing import List, Optional
 
@@ -19,6 +20,65 @@ from pydantic import BaseModel
 
 from api.auth import require_admin
 from api.database import db_conn
+
+# Two-file split so the curated, hand-vetted military_locations.json stays
+# the canonical source while analyst PATCH-time additions accumulate in a
+# separate auto file. The scraper layer loads both at module init.
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_MIL_LOCATIONS_PATH = os.path.join(
+    _PROJECT_ROOT, "scraper", "processors", "military_locations.json"
+)
+_MIL_LOCATIONS_AUTO_PATH = os.path.join(
+    _PROJECT_ROOT, "scraper", "processors", "military_locations_auto.json"
+)
+
+
+def _location_label_already_covered(label):
+    """True if `label` (case-insensitive) contains any name from either
+    lookup file. Mirrors the substring match used by _geocode_from_label."""
+    if not label:
+        return True
+    needle = label.lower()
+    for path in (_MIL_LOCATIONS_PATH, _MIL_LOCATIONS_AUTO_PATH):
+        try:
+            with open(path, encoding="utf-8") as f:
+                entries = json.load(f)
+        except FileNotFoundError:
+            continue
+        for entry in entries:
+            for name in entry.get("names", []):
+                if name.lower() in needle:
+                    return True
+    return False
+
+
+def _record_learned_location(label, lat, lng):
+    """Append a new entry to military_locations_auto.json so future
+    extractions geocode this label without analyst help. No-op if the
+    label is already covered. Best-effort write — failures are logged
+    but don't break the PATCH response."""
+    if not label or lat is None or lng is None:
+        return False
+    if _location_label_already_covered(label):
+        return False
+    try:
+        try:
+            with open(_MIL_LOCATIONS_AUTO_PATH, encoding="utf-8") as f:
+                auto = json.load(f)
+        except FileNotFoundError:
+            auto = []
+        auto.append({
+            "key":   f"auto-{label.lower().replace(' ', '-')[:40]}",
+            "lat":   float(lat),
+            "lng":   float(lng),
+            "names": [label],
+        })
+        with open(_MIL_LOCATIONS_AUTO_PATH, "w", encoding="utf-8") as f:
+            json.dump(auto, f, ensure_ascii=False, indent=2)
+        return True
+    except (OSError, ValueError) as e:
+        print(f"[military] failed to record learned location {label!r}: {e}")
+        return False
 
 router = APIRouter(prefix="/api/military", tags=["military"])
 
@@ -536,4 +596,11 @@ def patch_exercise(exercise_id: int, patch: ExercisePatch):
             WHERE e.id = ?
         """, (exercise_id,)).fetchone()
         conn.commit()
+
+    # Auto-extend the lookup: if the analyst supplied coords + a
+    # location_label that the table doesn't already cover, append it so
+    # the next article mentioning the same place geocodes automatically.
+    if row and row["latitude"] is not None and row["longitude"] is not None:
+        _record_learned_location(row["location_label"], row["latitude"], row["longitude"])
+
     return _row_to_exercise(row)

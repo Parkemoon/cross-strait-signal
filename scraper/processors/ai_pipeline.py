@@ -35,8 +35,19 @@ with open(_CANONICAL_PATH, encoding='utf-8') as _f:
     _CANONICAL_ENTITIES = json.load(_f)
 
 _MIL_LOCATIONS_PATH = os.path.join(os.path.dirname(__file__), 'military_locations.json')
+# Companion file written by the API's PATCH endpoint each time an analyst
+# supplies coords + a location_label that the lookup didn't already cover.
+# Kept separate from military_locations.json so the curated, human-vetted
+# entries stay clean while the auto-learned ones accumulate.
+_MIL_LOCATIONS_AUTO_PATH = os.path.join(os.path.dirname(__file__), 'military_locations_auto.json')
+
 with open(_MIL_LOCATIONS_PATH, encoding='utf-8') as _f:
     _MIL_LOCATIONS = json.load(_f)
+try:
+    with open(_MIL_LOCATIONS_AUTO_PATH, encoding='utf-8') as _f:
+        _MIL_LOCATIONS = _MIL_LOCATIONS + json.load(_f)
+except FileNotFoundError:
+    pass
 # Sorted longest-name-first within each entry so a search for "Hualien airbase"
 # matches before "Hualien" when both appear in the table.
 for _entry in _MIL_LOCATIONS:
