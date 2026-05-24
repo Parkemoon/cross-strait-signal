@@ -337,7 +337,7 @@ CLASSIFICATION RULES:
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
 - For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
 - KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
-- MILITARY EXERCISES: Extract any military exercise mentioned in the article — both named exercises (Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, Talisman Sabre, RIMPAC, Strait Thunder 海峽雷霆, Wan An 萬安, etc.) AND unnamed drills explicitly described as conducting live-fire training, readiness drills, joint patrols, amphibious landings, or cyber exercises (e.g. "MND conducted a routine readiness drill in eastern waters on 22 May" qualifies even with no exercise name). Map the actor to performer_side: PLA / 解放軍 / 東部戰區 / 南部戰區 → PRC; MND / 國防部 / 國軍 / 漢光 → ROC; INDOPACOM / US Pacific Fleet / USAF / USN / USMC → US; JSDF / 海上自衛隊 / 航空自衛隊 → JP; multilateral activity involving two or more sides → MULTI with `participants` listing each ISO-style side code. LOCATION HANDLING — Two separate fields with different bars: `location_label` is REQUIRED whenever the article mentions ANY place reference for the exercise — a named base, range, harbour, county, body of water, region, or compass-quadrant description ("eastern Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 / artillery testing centre north-bank position", "Jiupeng base 九鵬基地", "Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place names to English in `location_label`; preserve the original in `description_zh`. The bar for `location_label` is LOW — if you can identify a place in the article, fill it. `latitude` and `longitude` are SEPARATE: only emit numeric coords when you can confidently resolve them from the text (named base with established centroid, named body of water, or coordinates stated explicitly) — otherwise both null. Use false-negatives-preferred discipline for lat/lng only, not for location_label. Return an empty array if no exercise is mentioned. description_en MUST be English (translate if needed); never put Chinese characters in description_en. If no name is given in the article, leave name_zh and name_en as null — do NOT invent a name.
+- MILITARY EXERCISES: Extract any military exercise mentioned in the article — both named exercises (Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, Talisman Sabre, RIMPAC, Strait Thunder 海峽雷霆, Wan An 萬安, etc.) AND unnamed drills explicitly described as conducting live-fire training, readiness drills, joint patrols, amphibious landings, or cyber exercises (e.g. "MND conducted a routine readiness drill in eastern waters on 22 May" qualifies even with no exercise name). Map the actor to performer_side: PLA / 解放軍 / 東部戰區 / 南部戰區 → PRC; MND / 國防部 / 國軍 / 漢光 → ROC; INDOPACOM / US Pacific Fleet / USAF / USN / USMC → US; JSDF / 海上自衛隊 / 航空自衛隊 → JP; multilateral activity involving two or more sides → MULTI with `participants` listing each ISO-style side code. DATE ANCHORING — `start_date` and `end_date` default to the article's PUBLISHED year (given above). When the article says "today", "this week", "on 22 May", or any month/day without a year, use the PUBLISHED year. Only use a different year when the article explicitly cites one (e.g. "the 2024 drill", "Han Kuang 41 last year", "the original 2022 exercise"). Do NOT anchor dates to your training-data baseline — the PUBLISHED date is authoritative for the article's "now". LOCATION HANDLING — Two separate fields with different bars: `location_label` is REQUIRED whenever the article mentions ANY place reference for the exercise — a named base, range, harbour, county, body of water, region, or compass-quadrant description ("eastern Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 / artillery testing centre north-bank position", "Jiupeng base 九鵬基地", "Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place names to English in `location_label`; preserve the original in `description_zh`. The bar for `location_label` is LOW — if you can identify a place in the article, fill it. `latitude` and `longitude` are SEPARATE: only emit numeric coords when you can confidently resolve them from the text (named base with established centroid, named body of water, or coordinates stated explicitly) — otherwise both null. Use false-negatives-preferred discipline for lat/lng only, not for location_label. Return an empty array if no exercise is mentioned. description_en MUST be English (translate if needed); never put Chinese characters in description_en. If no name is given in the article, leave name_zh and name_en as null — do NOT invent a name.
 - Use British English spelling in all English-language output fields (e.g. "analyse" not "analyze", "behaviour" not "behavior", "colour" not "color", "centre" not "center", "organisation" not "organization").
 - CURRENT OFFICIALS: When an article references officials by role title alone (e.g. "the president", "總統", "the premier", "院長", "the foreign minister"), use the CURRENT OFFICIAL ROSTER provided below to identify who currently holds that role. If a name appears that is listed under FORMER OFFICIALS, describe them as "former [role]" — never as currently holding the role. Do not rely on training-data knowledge for current role-holders; the roster below is authoritative.
 - SENTIMENT WORKED EXAMPLES (apply the same logic to all similar cases):
@@ -363,7 +363,7 @@ def generate_dynamic_glossary(content: str, title: str = "") -> str:
     )
 
 
-def analyse_article(title, content, language, source_name):
+def analyse_article(title, content, language, source_name, published_at=None):
     """Send one article to Gemini and return structured analysis."""
     glossary_block = generate_dynamic_glossary(content, title)
     prompt = f"""{ANALYSIS_SYSTEM_PROMPT}
@@ -372,6 +372,7 @@ def analyse_article(title, content, language, source_name):
 
 SOURCE: {source_name}
 LANGUAGE: {language}
+PUBLISHED: {published_at or 'unknown'}
 TITLE: {title}
 
 FULL TEXT:
@@ -404,7 +405,8 @@ def process_unanalysed_articles(limit=10):
 
     articles = conn.execute("""
         SELECT articles.id, articles.title_original, articles.content_original,
-               articles.language, sources.name as source_name,
+               articles.language, articles.published_at,
+               sources.name as source_name,
                sources.place as source_place
         FROM articles
         JOIN sources ON articles.source_id = sources.id
@@ -465,7 +467,8 @@ def process_unanalysed_articles(limit=10):
                 title=title,
                 content=article['content_original'],
                 language=article['language'],
-                source_name=article['source_name']
+                source_name=article['source_name'],
+                published_at=article['published_at'],
             )
 
             # Enforce relevance gate — either field is sufficient to reject
@@ -700,6 +703,7 @@ def process_unanalysed_articles(limit=10):
 
 SOURCE: {article['source_name']}
 LANGUAGE: {article['language']}
+PUBLISHED: {article['published_at'] or 'unknown'}
 TITLE: {title}
 
 FULL TEXT:
@@ -852,6 +856,12 @@ location_label. Beware of conflating REPORTER-location bylines (e.g.
 "記者X／彰化報導") with EXERCISE location — the reporter's city is not
 the drill's location unless the body explicitly says so.
 
+DATE ANCHORING — `start_date` and `end_date` default to the article's
+PUBLISHED year (given below). "Today", "this week", "on 22 May", or any
+month/day without a year → use the PUBLISHED year. Only use a different
+year when the article explicitly cites one. Do NOT anchor dates to your
+training-data baseline.
+
 description_en MUST be English. Return {"military_exercises": []} if no
 exercise is mentioned. Use British spelling.
 """
@@ -871,6 +881,7 @@ def _extract_exercises_only(article):
 
 SOURCE: {article['source_name']}
 LANGUAGE: {article['language']}
+PUBLISHED: {article.get('published_at') or 'unknown'}
 TITLE: {article['title_original']}
 
 FULL TEXT:
@@ -981,6 +992,7 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
     try:
         articles = conn.execute(f"""
             SELECT a.id, a.title_original, a.content_original, a.language,
+                   a.published_at,
                    s.name AS source_name
             FROM articles a
             JOIN sources s ON s.id = a.source_id

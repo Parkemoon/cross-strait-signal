@@ -100,6 +100,12 @@ when confidently resolvable (named base with established centroid, named
 waters, or explicit coords) — otherwise both null. False-negatives-
 preferred applies to lat/lng only, NOT to location_label.
 
+DATE ANCHORING — `start_date` and `end_date` default to the article's
+PUBLISHED year (given below). "Today", "this week", "on 22 May", or any
+month/day without a year → use the PUBLISHED year. Only use a different
+year when the article explicitly cites one. Do NOT anchor dates to your
+training-data baseline.
+
 description_en MUST be English. Return {"military_exercises": []} if no
 exercise is mentioned. Use British spelling.
 """
@@ -144,6 +150,7 @@ def extract(article):
 
 SOURCE: {article['source_name']}
 LANGUAGE: {article['language']}
+PUBLISHED: {article.get('published_at') or 'unknown'}
 TITLE: {article['title_original']}
 
 FULL TEXT:
@@ -180,6 +187,7 @@ def main():
     conn = get_connection()
     articles = conn.execute("""
         SELECT a.id, a.title_original, a.content_original, a.language,
+               a.published_at,
                s.name AS source_name
         FROM articles a
         JOIN ai_analysis ai ON ai.article_id = a.id
