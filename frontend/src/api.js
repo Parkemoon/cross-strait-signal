@@ -215,6 +215,56 @@ export async function fetchMilitaryZones() {
   return request(`/api/military/zones`);
 }
 
+export async function fetchMilitaryExercises(params = {}) {
+  const query = new URLSearchParams();
+  ["start", "end", "performer", "kind", "days", "with_geo"].forEach((k) => {
+    if (params[k] !== undefined && params[k] !== "" && params[k] !== null) {
+      query.append(k, params[k]);
+    }
+  });
+  return request(`/api/military/exercises?${query}`);
+}
+
+export async function fetchMilitaryExerciseSummary() {
+  return request(`/api/military/exercises/summary`);
+}
+
+export async function fetchMilitaryExerciseCandidates() {
+  return request(`/api/military/exercises/candidates`, {
+    headers: authHeaders(),
+  });
+}
+
+export async function approveMilitaryExercise(id) {
+  return request(`/api/military/exercises/${id}/approve`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+}
+
+export async function dismissMilitaryExercise(id) {
+  return request(`/api/military/exercises/${id}/dismiss`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+}
+
+export async function mergeMilitaryExercise(id, targetId) {
+  return request(`/api/military/exercises/${id}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ target_id: targetId }),
+  });
+}
+
+export async function updateMilitaryExercise(id, patch) {
+  return request(`/api/military/exercises/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(patch),
+  });
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",
