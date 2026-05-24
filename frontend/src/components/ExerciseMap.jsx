@@ -1,6 +1,30 @@
 import { useEffect, useRef } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+
+// Pans/zooms the map to a selected marker and opens its popup. Lives
+// inside MapContainer so it can grab the Leaflet Map instance via
+// useMap(). Receives the marker ref map by ref-object so opening the
+// popup goes through the existing <CircleMarker> + <Popup> binding —
+// no need to re-render the popup contents here.
+function FlyToSelected({ targetId, rows, markerRefs }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!targetId) return;
+    const target = rows.find((r) => r.id === targetId);
+    if (!target || typeof target.latitude !== "number") return;
+    map.flyTo([target.latitude, target.longitude], Math.max(map.getZoom(), 7), {
+      duration: 0.6,
+    });
+    const marker = markerRefs.current[targetId];
+    if (marker) {
+      // Slight defer so the flyTo animation has the popup attached to
+      // the moved-to coordinates rather than the prior centre.
+      setTimeout(() => marker.openPopup(), 200);
+    }
+  }, [targetId, rows, map, markerRefs]);
+  return null;
+}
 
 // Locked performer palette (matches the project's party-colour scheme where
 // it overlaps; MULTI is grey because it has no single owner).
@@ -93,7 +117,7 @@ function MarkerPopup({ exercise }) {
   );
 }
 
-export default function ExerciseMap({ rows }) {
+export default function ExerciseMap({ rows, selectedId }) {
   const geoRows = (rows || []).filter(
     (r) => typeof r.latitude === "number" && typeof r.longitude === "number",
   );
@@ -110,6 +134,10 @@ export default function ExerciseMap({ rows }) {
       delete container._leaflet_id;
     }
   }, []);
+
+  // Collect Leaflet marker refs keyed by exercise id so FlyToSelected can
+  // open the right one's popup on click in the side list.
+  const markerRefs = useRef({});
 
   return (
     <div ref={wrapperRef} style={{
@@ -134,23 +162,28 @@ export default function ExerciseMap({ rows }) {
           maxZoom={11}
           minZoom={4}
         />
-        {geoRows.map((ex) => (
-          <CircleMarker
-            key={ex.id}
-            center={[ex.latitude, ex.longitude]}
-            radius={7}
-            pathOptions={{
-              color: PERFORMER_COLOUR[ex.performer] || "#666",
-              fillColor: PERFORMER_COLOUR[ex.performer] || "#666",
-              fillOpacity: 0.65,
-              weight: 1.4,
-            }}
-          >
-            <Popup>
-              <MarkerPopup exercise={ex} />
-            </Popup>
-          </CircleMarker>
-        ))}
+        {geoRows.map((ex) => {
+          const isSelected = ex.id === selectedId;
+          return (
+            <CircleMarker
+              key={ex.id}
+              center={[ex.latitude, ex.longitude]}
+              radius={isSelected ? 10 : 7}
+              ref={(m) => { if (m) markerRefs.current[ex.id] = m; }}
+              pathOptions={{
+                color: PERFORMER_COLOUR[ex.performer] || "#666",
+                fillColor: PERFORMER_COLOUR[ex.performer] || "#666",
+                fillOpacity: isSelected ? 0.85 : 0.65,
+                weight: isSelected ? 2.2 : 1.4,
+              }}
+            >
+              <Popup>
+                <MarkerPopup exercise={ex} />
+              </Popup>
+            </CircleMarker>
+          );
+        })}
+        <FlyToSelected targetId={selectedId} rows={geoRows} markerRefs={markerRefs} />
       </MapContainer>
       {geoRows.length === 0 && (
         <div style={{
