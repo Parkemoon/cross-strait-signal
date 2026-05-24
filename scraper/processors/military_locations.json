@@ -1,7 +1,7 @@
 [
   { "key": "jiupeng",           "lat": 22.05,  "lng": 120.85,
     "names": ["Jiupeng base", "Jiupeng", "Jiu-peng", "九鵬基地", "九鵬",
-              "Pingtung artillery test", "artillery testing centre", "砲測中心"] },
+              "Pingtung Jiupeng"] },
   { "key": "hualien-ab",        "lat": 24.02,  "lng": 121.62,
     "names": ["Hualien airbase", "Hualien AB", "Hualien base", "Jiashan", "Chia-shan",
               "花蓮基地", "佳山基地", "花蓮空軍"] },
