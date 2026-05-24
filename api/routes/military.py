@@ -10,9 +10,11 @@ See `db/schema.sql` (`pla_incursions`) for column semantics; in
 particular, `aircraft_intruded` covers both 逾越中線 and 進入空域 forms.
 """
 from datetime import date, timedelta
+import fcntl
 import json
 import os
 import re
+import tempfile
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -31,66 +33,173 @@ _MIL_LOCATIONS_PATH = os.path.join(
 _MIL_LOCATIONS_AUTO_PATH = os.path.join(
     _PROJECT_ROOT, "scraper", "processors", "military_locations_auto.json"
 )
+# Locked under the auto-file for the duration of any read-modify-write so
+# concurrent PATCHes don't race. Sentinel lockfile rather than locking the
+# auto-file itself to avoid edge cases with truncate + flock + replace.
+_MIL_LOCATIONS_AUTO_LOCK = _MIL_LOCATIONS_AUTO_PATH + ".lock"
+
+# Indo-Pacific sanity bbox shared with the AI ingest path. Coords outside
+# this rectangle are presumed analyst typos and rejected at the API edge
+# rather than silently nulled (the PATCH route has an analyst to argue
+# with; the AI path doesn't).
+_COORD_BBOX = (8.0, 35.0, 105.0, 135.0)  # lat_min, lat_max, lon_min, lon_max
+
+
+def _load_auto_locations():
+    """Read the auto file fresh from disk. Used by callers that must see
+    the latest analyst-added entries (not the snapshot ai_pipeline.py
+    cached at module init)."""
+    try:
+        with open(_MIL_LOCATIONS_AUTO_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return []
 
 
 def _location_label_already_covered(label):
     """True if `label` (case-insensitive) contains any name from either
-    lookup file. Mirrors the substring match used by _geocode_from_label."""
+    lookup file. Mirrors the substring match used by _geocode_from_label.
+    Re-reads both files each call so a freshly-recorded auto entry is
+    visible to the next PATCH in the same process."""
     if not label:
         return True
     needle = label.lower()
-    for path in (_MIL_LOCATIONS_PATH, _MIL_LOCATIONS_AUTO_PATH):
-        try:
-            with open(path, encoding="utf-8") as f:
-                entries = json.load(f)
-        except FileNotFoundError:
-            continue
-        for entry in entries:
-            for name in entry.get("names", []):
-                if name.lower() in needle:
-                    return True
+    curated = []
+    try:
+        with open(_MIL_LOCATIONS_PATH, encoding="utf-8") as f:
+            curated = json.load(f)
+    except (FileNotFoundError, ValueError):
+        pass
+    for entry in curated + _load_auto_locations():
+        for name in entry.get("names", []):
+            if name.lower() in needle:
+                return True
     return False
 
 
-def _record_learned_location(label, lat, lng):
+def _record_learned_location(label, lat, lng, source_exercise_id=None):
     """Append a new entry to military_locations_auto.json so future
     extractions geocode this label without analyst help. No-op if the
-    label is already covered. Best-effort write — failures are logged
-    but don't break the PATCH response."""
+    label is already covered. Uses a file lock + atomic temp+rename so
+    concurrent PATCHes and a crash mid-write can't corrupt the file."""
     if not label or lat is None or lng is None:
         return False
-    if _location_label_already_covered(label):
+    # Defensive sanity-check (the PATCH route validates first, but cheap to
+    # double-check here so direct callers can't poison the table either).
+    lat_min, lat_max, lon_min, lon_max = _COORD_BBOX
+    if not (lat_min <= float(lat) <= lat_max and lon_min <= float(lng) <= lon_max):
         return False
+    # Refuse obviously-fragmentary labels — substring matching on '2-letter'
+    # entries traps future articles, so we require a meaningful length.
+    if len(label.strip()) < 5:
+        return False
+
     try:
-        try:
-            with open(_MIL_LOCATIONS_AUTO_PATH, encoding="utf-8") as f:
-                auto = json.load(f)
-        except FileNotFoundError:
-            auto = []
-        auto.append({
-            "key":   f"auto-{label.lower().replace(' ', '-')[:40]}",
-            "lat":   float(lat),
-            "lng":   float(lng),
-            "names": [label],
-        })
-        with open(_MIL_LOCATIONS_AUTO_PATH, "w", encoding="utf-8") as f:
-            json.dump(auto, f, ensure_ascii=False, indent=2)
-        return True
+        # Take an exclusive lock for the read-modify-write window. The lock
+        # file is created if missing; multiple PATCHes serialise here.
+        os.makedirs(os.path.dirname(_MIL_LOCATIONS_AUTO_LOCK), exist_ok=True)
+        with open(_MIL_LOCATIONS_AUTO_LOCK, "a+") as lockfile:
+            fcntl.flock(lockfile.fileno(), fcntl.LOCK_EX)
+            try:
+                # Re-check under the lock — another PATCH may have added the
+                # same label between our caller's pre-check and now.
+                if _location_label_already_covered(label):
+                    return False
+                auto = _load_auto_locations()
+                auto.append({
+                    "key":   f"auto-{label.lower().replace(' ', '-')[:40]}",
+                    "lat":   float(lat),
+                    "lng":   float(lng),
+                    "names": [label],
+                    "source_exercise_id": source_exercise_id,
+                })
+                # Atomic write: tempfile in the same directory, then
+                # os.replace() → consumers either see the old file or the
+                # new one, never a half-written one.
+                fd, tmp_path = tempfile.mkstemp(
+                    prefix=".military_locations_auto.",
+                    suffix=".json.tmp",
+                    dir=os.path.dirname(_MIL_LOCATIONS_AUTO_PATH),
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        json.dump(auto, f, ensure_ascii=False, indent=2)
+                    os.replace(tmp_path, _MIL_LOCATIONS_AUTO_PATH)
+                except Exception:
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+                    raise
+                return True
+            finally:
+                fcntl.flock(lockfile.fileno(), fcntl.LOCK_UN)
     except (OSError, ValueError) as e:
         print(f"[military] failed to record learned location {label!r}: {e}")
         return False
 
+
+def _remove_learned_locations_for(source_exercise_id):
+    """When a candidate is dismissed (or merged-then-the-target-is-rejected),
+    remove any auto-entry that was sourced from it. Same lock + atomic
+    rename pattern as the writer. No-op when no entries are tagged with
+    this id (rows that were never the source of a learned location)."""
+    if source_exercise_id is None:
+        return 0
+    try:
+        with open(_MIL_LOCATIONS_AUTO_LOCK, "a+") as lockfile:
+            fcntl.flock(lockfile.fileno(), fcntl.LOCK_EX)
+            try:
+                auto = _load_auto_locations()
+                before = len(auto)
+                auto = [e for e in auto if e.get("source_exercise_id") != source_exercise_id]
+                if len(auto) == before:
+                    return 0
+                fd, tmp_path = tempfile.mkstemp(
+                    prefix=".military_locations_auto.",
+                    suffix=".json.tmp",
+                    dir=os.path.dirname(_MIL_LOCATIONS_AUTO_PATH),
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        json.dump(auto, f, ensure_ascii=False, indent=2)
+                    os.replace(tmp_path, _MIL_LOCATIONS_AUTO_PATH)
+                except Exception:
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+                    raise
+                return before - len(auto)
+            finally:
+                fcntl.flock(lockfile.fileno(), fcntl.LOCK_UN)
+    except (OSError, ValueError) as e:
+        print(f"[military] failed to prune learned locations for ex {source_exercise_id}: {e}")
+        return 0
+
 router = APIRouter(prefix="/api/military", tags=["military"])
 
-# Exercise-tracker visibility predicate. INTENTIONALLY weaker than the
-# main-feed VISIBLE predicate (in api/routes/stats.py) because the
-# exercise's own approval_status='approved' is itself the editorial gate
-# — the analyst reviewed each candidate against its source article before
-# approving. We only enforce that the source article hasn't been hidden.
-# This also lets exercise-only articles (those rejected by the keyword
-# pre-filter in the parallel YDN extraction pass — no ai_analysis row at
-# all) surface once their exercises are approved.
-_VISIBLE_ARTICLE = "a.is_hidden = 0"
+# Exercise-tracker visibility predicate.
+#
+# The exercise's own approval_status='approved' is the primary editorial
+# gate; analysts review each candidate against its source article. But
+# we still want to:
+#   * never surface exercises whose source article was hidden
+#   * never surface from articles that the main pipeline flagged for Tier
+#     3 human review where the dispute hasn't been resolved (translation
+#     could be wrong → description_zh would mislead)
+#   * still surface exercises from articles that have NO ai_analysis row
+#     (exercise-only YDN articles rejected by the keyword pre-filter —
+#     these have nothing to dispute)
+#
+# Hence: article must not be hidden; AND (it has no ai_analysis row OR
+# its analyst-approved AND review is resolved-or-not-needed).
+_VISIBLE_ARTICLE = (
+    "a.is_hidden = 0 AND ("
+    "ai.id IS NULL "
+    "OR (a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1))"
+    ")"
+)
 
 _VALID_PERFORMERS = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
 _VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
@@ -450,29 +559,74 @@ def exercise_candidates():
 def approve_exercise(exercise_id: int):
     """Mark an exercise candidate as approved for public display.
 
-    Side effect — auto-merge: any OTHER `pending` candidates with the same
-    non-null canonical_name are silently marked as merged into this one,
-    collapsing duplicate reports of the same named exercise without the
-    analyst having to click Merge on each. Unnamed drills (canonical_name
-    NULL) are NOT auto-merged because there's no reliable key — those
-    still require manual review per row.
+    Side effect — auto-merge: OTHER `pending` candidates with the same
+    non-null canonical_name AND the same performer AND a start_date
+    within ±30 days (or both NULL) are folded into this one. The triple
+    guard prevents the buggy pre-fix behaviour where two genuinely-
+    different drills sharing a generic canonical name (e.g. PRC April
+    east coast vs ROC August south coast — both 'combat-readiness')
+    silently collapsed. Unnamed drills (canonical_name NULL) are not
+    auto-merged at all.
+
+    A second pass catches the cross-day-duplicate case: if an APPROVED
+    row with the same canonical+performer already exists, the candidate
+    being approved is itself merged into that earlier approved row
+    rather than creating a duplicate marker on the public map. The
+    response indicates which mode fired via `duplicate_of`.
     """
     with db_conn() as conn:
         row = conn.execute(
-            "SELECT canonical_name FROM military_exercises WHERE id = ?",
+            "SELECT canonical_name, performer, start_date "
+            "FROM military_exercises WHERE id = ?",
             (exercise_id,),
         ).fetchone()
         if not row:
             raise HTTPException(404, f"exercise {exercise_id} not found")
 
+        canonical = row["canonical_name"]
+        performer = row["performer"]
+        start_date = row["start_date"]
+
+        # 1. Already-approved-row dedupe: if an approved twin exists with
+        # same canonical+performer, the new row gets merged into it
+        # rather than approved. Skip when canonical is NULL.
+        if canonical:
+            twin = conn.execute("""
+                SELECT id FROM military_exercises
+                WHERE approval_status = 'approved'
+                  AND canonical_name = :canonical
+                  AND performer = :performer
+                  AND id != :id
+                ORDER BY id ASC LIMIT 1
+            """, {"canonical": canonical, "performer": performer, "id": exercise_id}).fetchone()
+            if twin:
+                conn.execute("""
+                    UPDATE military_exercises
+                    SET approval_status = 'merged',
+                        merged_into_id = ?,
+                        reviewed_at = datetime('now')
+                    WHERE id = ?
+                """, (twin["id"], exercise_id))
+                conn.commit()
+                return {
+                    "status": "merged_into_existing",
+                    "id": exercise_id,
+                    "duplicate_of": twin["id"],
+                    "auto_merged": 0,
+                }
+
+        # 2. Standard approve path.
         conn.execute("""
             UPDATE military_exercises
             SET approval_status = 'approved', reviewed_at = datetime('now')
             WHERE id = ?
         """, (exercise_id,))
 
+        # 3. Pending-row auto-merge: same canonical AND same performer AND
+        # date proximity (±30 days, or both NULL). Date proximity uses
+        # julianday so SQLite's lexical string compare can't bite us on
+        # malformed dates — those just fall out of the BETWEEN.
         auto_merged = 0
-        canonical = row["canonical_name"]
         if canonical:
             cur = conn.execute("""
                 UPDATE military_exercises
@@ -481,8 +635,21 @@ def approve_exercise(exercise_id: int):
                     reviewed_at = datetime('now')
                 WHERE approval_status = 'pending'
                   AND canonical_name = :canonical
+                  AND performer = :performer
                   AND id != :target
-            """, {"target": exercise_id, "canonical": canonical})
+                  AND (
+                       (:start_date IS NULL AND start_date IS NULL)
+                       OR (
+                           :start_date IS NOT NULL AND start_date IS NOT NULL
+                           AND ABS(julianday(start_date) - julianday(:start_date)) <= 30
+                          )
+                  )
+            """, {
+                "target": exercise_id,
+                "canonical": canonical,
+                "performer": performer,
+                "start_date": start_date,
+            })
             auto_merged = cur.rowcount
         conn.commit()
     return {"status": "approved", "id": exercise_id, "auto_merged": auto_merged}
@@ -490,7 +657,9 @@ def approve_exercise(exercise_id: int):
 
 @router.post("/exercises/{exercise_id}/dismiss", dependencies=[Depends(require_admin)])
 def dismiss_exercise(exercise_id: int):
-    """Mark an exercise candidate as dismissed (not surfaced publicly)."""
+    """Mark an exercise candidate as dismissed (not surfaced publicly).
+    Also prunes any auto-learned location entries this row contributed,
+    so a rejected drill's coordinates don't pollute future geocoding."""
     with db_conn() as conn:
         cur = conn.execute("""
             UPDATE military_exercises
@@ -500,7 +669,8 @@ def dismiss_exercise(exercise_id: int):
         if cur.rowcount == 0:
             raise HTTPException(404, f"exercise {exercise_id} not found")
         conn.commit()
-    return {"status": "dismissed", "id": exercise_id}
+    pruned = _remove_learned_locations_for(exercise_id)
+    return {"status": "dismissed", "id": exercise_id, "auto_entries_pruned": pruned}
 
 
 class MergeRequest(BaseModel):
@@ -510,7 +680,9 @@ class MergeRequest(BaseModel):
 @router.post("/exercises/{exercise_id}/merge", dependencies=[Depends(require_admin)])
 def merge_exercise(exercise_id: int, body: MergeRequest):
     """Mark exercise as a duplicate of `target_id` — sets status='merged'
-    and merged_into_id. Public list/map ignore merged rows."""
+    and merged_into_id. The target MUST itself be 'approved' so the chain
+    can't dangle into a dismissed/already-merged target (which would hide
+    the merged row entirely from any read endpoint)."""
     if body.target_id == exercise_id:
         raise HTTPException(400, "cannot merge an exercise into itself")
     with db_conn() as conn:
@@ -520,6 +692,11 @@ def merge_exercise(exercise_id: int, body: MergeRequest):
         ).fetchone()
         if not target:
             raise HTTPException(404, f"target {body.target_id} not found")
+        if target["approval_status"] != "approved":
+            raise HTTPException(
+                400,
+                f"merge target {body.target_id} is {target['approval_status']!r}, must be 'approved'",
+            )
         cur = conn.execute("""
             UPDATE military_exercises
             SET approval_status = 'merged', merged_into_id = ?, reviewed_at = datetime('now')
@@ -548,11 +725,34 @@ class ExercisePatch(BaseModel):
     description_en: Optional[str] = None
 
 
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _validate_iso_date(value, field_name):
+    """Raises HTTPException if `value` isn't a parseable ISO date.
+    Returns the (still-string) value for chaining."""
+    if not _ISO_DATE_RE.match(value):
+        raise HTTPException(400, f"{field_name} must be YYYY-MM-DD, got {value!r}")
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(400, f"{field_name} is not a real calendar date: {value!r}")
+    return value
+
+
 @router.patch("/exercises/{exercise_id}", dependencies=[Depends(require_admin)])
 def patch_exercise(exercise_id: int, patch: ExercisePatch):
     """Analyst edits to a candidate row during review. Empty strings null
-    text fields; explicit numeric values overwrite lat/lng. Re-derives
-    canonical_name from name_en if name_en changes."""
+    text fields; explicit numeric values overwrite lat/lng. Always
+    recomputes canonical_name from the FINAL state of name_en (whether
+    name_en is in this patch or only name_zh was edited) so the merge
+    bucket can't end up stale.
+
+    Coordinates are bbox-validated against the same Indo-Pacific
+    rectangle the AI ingest path uses. Out-of-bbox PATCHes are 400'd
+    (vs the AI path which silently nulls — at this layer we have an
+    analyst to argue with).
+    """
     data = patch.model_dump(exclude_unset=True)
 
     if "performer" in data:
@@ -561,11 +761,29 @@ def patch_exercise(exercise_id: int, patch: ExercisePatch):
     if "exercise_kind" in data and data["exercise_kind"] not in _VALID_EXERCISE_KINDS:
         raise HTTPException(400, f"invalid exercise_kind {data['exercise_kind']!r}")
 
-    # Recompute canonical_name from name_en if the analyst edited the name.
-    if "name_en" in data:
-        en = (data["name_en"] or "").strip()
-        data["name_en"] = en or None
-        data["canonical_name"] = _build_exercise_canonical_key(en)
+    # Validate ISO date format BEFORE the empty-string normalisation
+    # downgrade below — empty strings are deliberately NULL.
+    for date_field in ("start_date", "end_date"):
+        if date_field in data and isinstance(data[date_field], str) and data[date_field].strip():
+            _validate_iso_date(data[date_field].strip(), date_field)
+
+    # Bbox-check lat/lng if either is being set to a number. We reject
+    # rather than silently null — the AI path's defensive null is for
+    # hallucinations; here we have an analyst who would prefer a clear
+    # error.
+    lat_min, lat_max, lon_min, lon_max = _COORD_BBOX
+    if "latitude" in data and data["latitude"] is not None:
+        if not (lat_min <= float(data["latitude"]) <= lat_max):
+            raise HTTPException(
+                400, f"latitude {data['latitude']} outside Indo-Pacific bbox "
+                     f"[{lat_min}, {lat_max}]"
+            )
+    if "longitude" in data and data["longitude"] is not None:
+        if not (lon_min <= float(data["longitude"]) <= lon_max):
+            raise HTTPException(
+                400, f"longitude {data['longitude']} outside Indo-Pacific bbox "
+                     f"[{lon_min}, {lon_max}]"
+            )
 
     if "participants" in data:
         parts = data.pop("participants")
@@ -579,15 +797,31 @@ def patch_exercise(exercise_id: int, patch: ExercisePatch):
     if not data:
         raise HTTPException(400, "no fields to update")
 
-    set_clause = ", ".join(f"{k} = :{k}" for k in data)
-    params = {**data, "id": exercise_id}
+    # Always recompute canonical_name from the FINAL name_en — read the
+    # existing row's name_en if it's not in the patch, so editing only
+    # name_zh doesn't leave canonical_name stale, and edits that touch
+    # both still see the new value.
     with db_conn() as conn:
-        cur = conn.execute(
+        existing = conn.execute(
+            "SELECT name_en, location_label FROM military_exercises WHERE id = ?",
+            (exercise_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(404, f"exercise {exercise_id} not found")
+
+        final_name_en = data.get("name_en") if "name_en" in data else existing["name_en"]
+        if "name_en" in data:
+            # normalise the patched name_en (strip whitespace)
+            final_name_en = (final_name_en or "").strip() or None
+            data["name_en"] = final_name_en
+        data["canonical_name"] = _build_exercise_canonical_key(final_name_en or "")
+
+        set_clause = ", ".join(f"{k} = :{k}" for k in data)
+        params = {**data, "id": exercise_id}
+        conn.execute(
             f"UPDATE military_exercises SET {set_clause} WHERE id = :id",
             params,
         )
-        if cur.rowcount == 0:
-            raise HTTPException(404, f"exercise {exercise_id} not found")
         row = conn.execute(f"""
             SELECT {_EXERCISE_PUBLIC_COLS}
             FROM military_exercises e
@@ -597,10 +831,18 @@ def patch_exercise(exercise_id: int, patch: ExercisePatch):
         """, (exercise_id,)).fetchone()
         conn.commit()
 
-    # Auto-extend the lookup: if the analyst supplied coords + a
-    # location_label that the table doesn't already cover, append it so
-    # the next article mentioning the same place geocodes automatically.
-    if row and row["latitude"] is not None and row["longitude"] is not None:
-        _record_learned_location(row["location_label"], row["latitude"], row["longitude"])
+    # Auto-extend the lookup ONLY when this patch explicitly touched the
+    # location_label — otherwise we'd be silently promoting the AI's
+    # extracted label as analyst-approved wording, which is exactly what
+    # the editorial gate is meant to prevent.
+    if (row
+            and row["latitude"] is not None
+            and row["longitude"] is not None
+            and "location_label" in data
+            and row["location_label"]):
+        _record_learned_location(
+            row["location_label"], row["latitude"], row["longitude"],
+            source_exercise_id=exercise_id,
+        )
 
     return _row_to_exercise(row)
