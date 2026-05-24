@@ -598,7 +598,7 @@ function ExerciseFilters({ filters, setFilters, counts, pendingCount, onOpenRevi
   );
 }
 
-function ExerciseList({ rows }) {
+function ExerciseList({ rows, selectedId, onSelect }) {
   if (!rows || rows.length === 0) {
     return (
       <div style={{
@@ -623,13 +623,21 @@ function ExerciseList({ rows }) {
         const displayName = ex.name_en || (ex.name_zh
           ? `${ex.name_zh}`
           : `${PERFORMER_LABEL[ex.performer]} ${ex.exercise_kind.replace("_", " ")}`);
+        const isSelected = ex.id === selectedId;
         return (
-          <div key={ex.id} style={{
-            padding: "8px 12px",
-            borderBottom: "1px solid var(--border-color)",
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-          }}>
+          <div
+            key={ex.id}
+            onClick={hasGeo ? () => onSelect(ex.id) : undefined}
+            title={hasGeo ? "Click to centre map on this exercise" : "No location — not on map"}
+            style={{
+              padding: "8px 12px",
+              borderLeft: isSelected ? `3px solid ${colour}` : "3px solid transparent",
+              borderBottom: "1px solid var(--border-color)",
+              background: isSelected ? `${colour}11` : "transparent",
+              cursor: hasGeo ? "pointer" : "default",
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+            }}>
             <div style={{ display: "flex", justifyContent: "space-between",
                           alignItems: "baseline", gap: "8px" }}>
               <span style={{
@@ -679,6 +687,7 @@ export default function MilitaryTab() {
   const [exercises, setExercises] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [selectedExerciseId, setSelectedExerciseId] = useState(null);
   const [exFilters, setExFilters] = useState({
     days: 90,
     performers: new Set(["PRC", "ROC", "US", "JP", "MULTI"]),
@@ -903,8 +912,12 @@ export default function MilitaryTab() {
         gap: "16px",
         alignItems: "start",
       }}>
-        <ExerciseMap rows={filteredExercises} />
-        <ExerciseList rows={filteredExercises} />
+        <ExerciseMap rows={filteredExercises} selectedId={selectedExerciseId} />
+        <ExerciseList
+          rows={filteredExercises}
+          selectedId={selectedExerciseId}
+          onSelect={setSelectedExerciseId}
+        />
       </div>
 
       <p style={{
