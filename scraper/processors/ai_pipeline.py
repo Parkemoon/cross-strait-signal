@@ -164,6 +164,23 @@ Analyse the following article and return a JSON object with this exact structure
       "confidence": 0.9
     }
   ],
+  "military_exercises": [
+    {
+      "name_zh": "exercise name in original language, e.g. '聯合劍2024B', or null if unnamed",
+      "name_en": "exercise name in English, e.g. 'Joint Sword 2024B', or null if unnamed",
+      "performer_side": "one of: PRC, ROC, US, JP, MULTI",
+      "participants": ["ISO-side codes — only when performer_side is MULTI, e.g. ['US','JP','ROC']"],
+      "exercise_kind": "one of: live_fire, readiness_drill, joint_patrol, named_exercise, cyber, amphibious, other",
+      "start_date": "YYYY-MM-DD or null if uncertain",
+      "end_date": "YYYY-MM-DD or null if single-day / ongoing / uncertain",
+      "location_label": "human-readable location, e.g. 'Eastern Taiwan, ~50nm offshore' or 'Hualien airbase'",
+      "latitude": "decimal degrees, null unless you can resolve a named base / named waters with established centroid / coordinates explicit in text",
+      "longitude": "decimal degrees, same rule",
+      "description_en": "MUST be in English — 1-2 sentence summary of what was reported",
+      "description_zh": "verbatim snippet from the article in original language",
+      "confidence": 0.85
+    }
+  ],
   "confidence": 0.8
 }
 
@@ -203,6 +220,7 @@ CLASSIFICATION RULES:
 - Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
 - For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
 - KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
+- MILITARY EXERCISES: Extract any military exercise mentioned in the article — both named exercises (Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, Talisman Sabre, RIMPAC, Strait Thunder 海峽雷霆, Wan An 萬安, etc.) AND unnamed drills explicitly described as conducting live-fire training, readiness drills, joint patrols, amphibious landings, or cyber exercises (e.g. "MND conducted a routine readiness drill in eastern waters on 22 May" qualifies even with no exercise name). Map the actor to performer_side: PLA / 解放軍 / 東部戰區 / 南部戰區 → PRC; MND / 國防部 / 國軍 / 漢光 → ROC; INDOPACOM / US Pacific Fleet / USAF / USN / USMC → US; JSDF / 海上自衛隊 / 航空自衛隊 → JP; multilateral activity involving two or more sides → MULTI with `participants` listing each ISO-style side code. Only emit `latitude`/`longitude` when you can confidently resolve coordinates from the text (named base, named body of water with an established centroid, or coordinates stated explicitly) — otherwise leave both null and put the location text in `location_label` only. Use false-negatives-preferred discipline: when in doubt, omit. Return an empty array if no exercise is mentioned. description_en MUST be English (translate if needed); never put Chinese characters in description_en. If no name is given in the article, leave name_zh and name_en as null — do NOT invent a name.
 - Use British English spelling in all English-language output fields (e.g. "analyse" not "analyze", "behaviour" not "behavior", "colour" not "color", "centre" not "center", "organisation" not "organization").
 - CURRENT OFFICIALS: When an article references officials by role title alone (e.g. "the president", "總統", "the premier", "院長", "the foreign minister"), use the CURRENT OFFICIAL ROSTER provided below to identify who currently holds that role. If a name appears that is listed under FORMER OFFICIALS, describe them as "former [role]" — never as currently holding the role. Do not rely on training-data knowledge for current role-holders; the roster below is authoritative.
 - SENTIMENT WORKED EXAMPLES (apply the same logic to all similar cases):
@@ -440,6 +458,92 @@ def process_unanalysed_articles(limit=10):
                     stmt.get('statement_zh'),
                     stmt.get('statement_kind', 'quote'),
                     stmt.get('confidence', 0.8)
+                ))
+
+            # Insert military exercises (pending analyst approval). Mirrors the
+            # key_figure_statements pattern; the editorial gate is required because
+            # mis-attributing performer (PRC vs ROC vs US) on a high-profile drill
+            # is a credibility-ender, identical to mis-quoting a senior figure.
+            _VALID_PERFORMERS = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
+            _VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
+                                     'named_exercise', 'cyber', 'amphibious', 'other'}
+            for ex in analysis.get('military_exercises', []):
+                performer = (ex.get('performer_side') or '').upper().strip()
+                if performer not in _VALID_PERFORMERS:
+                    continue
+
+                name_zh_raw = (ex.get('name_zh') or '').strip() or None
+                name_en_raw = (ex.get('name_en') or '').strip() or None
+                # Canonicalise via the same _CANONICAL_ENTITIES substring lookup
+                # the entity normaliser uses — 聯合劍2024B and 联合剑2024B both
+                # map to "Joint Sword 2024B".
+                canonical_en = name_en_raw
+                if name_zh_raw:
+                    for zh, en in _CANONICAL_ENTITIES.items():
+                        if len(zh) >= 2 and (zh == name_zh_raw or name_zh_raw.startswith(zh) or zh in name_zh_raw):
+                            canonical_en = en
+                            break
+                canonical_key = None
+                if canonical_en:
+                    canonical_key = canonical_en.lower().strip().replace(' ', '-').replace('_', '-')
+
+                # CJK guard on description_en — drop to NULL rather than reject,
+                # the row still has value for review even with no description.
+                desc_en = (ex.get('description_en') or '').strip()
+                if desc_en:
+                    cjk_ratio = sum(1 for c in desc_en if '一' <= c <= '鿿') / len(desc_en)
+                    if cjk_ratio > 0.15:
+                        desc_en = None
+
+                # Sanity-check coordinates against a generous Indo-Pacific bbox;
+                # the AI sometimes invents lat/lng for vague locations. Fall back
+                # to NULL so the row survives to review, just minus the marker.
+                lat = ex.get('latitude')
+                lng = ex.get('longitude')
+                try:
+                    lat = float(lat) if lat is not None else None
+                    lng = float(lng) if lng is not None else None
+                except (TypeError, ValueError):
+                    lat, lng = None, None
+                if lat is not None and not (8.0 <= lat <= 35.0):
+                    lat = None
+                if lng is not None and not (105.0 <= lng <= 135.0):
+                    lng = None
+                if lat is None or lng is None:
+                    lat, lng = None, None  # require both or neither
+
+                participants = ex.get('participants') if performer == 'MULTI' else None
+                participants_json = (json.dumps(participants) if isinstance(participants, list)
+                                     and participants else None)
+
+                kind = (ex.get('exercise_kind') or 'other').strip()
+                if kind not in _VALID_EXERCISE_KINDS:
+                    kind = 'other'
+
+                conn.execute("""
+                    INSERT INTO military_exercises
+                    (article_id, canonical_name, name_en, name_zh, name_raw,
+                     performer, participants_json, exercise_kind,
+                     start_date, end_date, location_label, latitude, longitude,
+                     description_en, description_zh, confidence, approval_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                """, (
+                    article['id'],
+                    canonical_key,
+                    canonical_en,
+                    name_zh_raw,
+                    name_en_raw or name_zh_raw,
+                    performer,
+                    participants_json,
+                    kind,
+                    ex.get('start_date'),
+                    ex.get('end_date'),
+                    (ex.get('location_label') or '').strip() or None,
+                    lat,
+                    lng,
+                    desc_en,
+                    (ex.get('description_zh') or '').strip() or None,
+                    ex.get('confidence', 0.7),
                 ))
 
             conn.commit()

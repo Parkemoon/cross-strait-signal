@@ -10,13 +10,29 @@ See `db/schema.sql` (`pla_incursions`) for column semantics; in
 particular, `aircraft_intruded` covers both 逾越中線 and 進入空域 forms.
 """
 from datetime import date, timedelta
-from typing import Optional
+import json
+from typing import List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
+from api.auth import require_admin
 from api.database import db_conn
 
 router = APIRouter(prefix="/api/military", tags=["military"])
+
+# Mirrors the VISIBLE predicate from api/routes/stats.py — keep in sync
+# if that one ever changes. Applied to every public exercise query that
+# joins to articles so unapproved/under-review articles can't leak the
+# exercises they mention into the public-facing list.
+_VISIBLE_ARTICLE = (
+    "a.is_hidden = 0 AND a.analyst_approved = 1 "
+    "AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
+)
+
+_VALID_PERFORMERS = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
+_VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
+                         'named_exercise', 'cyber', 'amphibious', 'other'}
 
 ZONE_LABELS = {
     "N":  "North",
@@ -181,3 +197,299 @@ def incursions_summary():
 def zones():
     """Static lookup mapping internal sector codes to display labels."""
     return {"zones": [{"code": k, "label": v} for k, v in ZONE_LABELS.items()]}
+
+
+# ============================================================
+# MILITARY EXERCISES (Phase 2b.2)
+# ============================================================
+# Editorial-gated exercise tracker — AI-extracted candidates land with
+# approval_status='pending' from the Tier 1 pipeline; analyst confirms /
+# edits / dismisses / merges through the admin UI. Public endpoints
+# hard-filter approval_status='approved' AND join to articles with the
+# VISIBLE predicate above — defence in depth.
+
+_EXERCISE_PUBLIC_COLS = """
+    e.id, e.canonical_name, e.name_en, e.name_zh, e.name_raw,
+    e.performer, e.participants_json, e.exercise_kind,
+    e.start_date, e.end_date, e.location_label,
+    e.latitude, e.longitude,
+    e.description_en, e.description_zh, e.confidence,
+    a.id AS article_id, a.url AS article_url, a.published_at,
+    s.name AS source_name, s.bias AS source_bias
+"""
+
+
+def _row_to_exercise(row):
+    """Shape an exercise row for JSON serialisation. Inflates
+    `participants_json` to a list and packages the article join as a nested
+    dict so the frontend can read it cleanly."""
+    d = dict(row)
+    raw_parts = d.pop("participants_json", None)
+    try:
+        d["participants"] = json.loads(raw_parts) if raw_parts else None
+    except (TypeError, ValueError):
+        d["participants"] = None
+    d["article"] = {
+        "id":           d.pop("article_id", None),
+        "url":          d.pop("article_url", None),
+        "published_at": d.pop("published_at", None),
+        "source_name":  d.pop("source_name", None),
+        "source_bias":  d.pop("source_bias", None),
+    }
+    return d
+
+
+@router.get("/exercises")
+def exercises(
+    days: int = Query(90, ge=1, le=1000, description="Trailing window in days."),
+    start: Optional[str] = Query(None, description="ISO start date (overrides `days`)."),
+    end:   Optional[str] = Query(None, description="ISO end date (defaults to today)."),
+    performer: Optional[str] = Query(None, description="Comma-separated subset of PRC,ROC,US,JP,MULTI."),
+    kind: Optional[str] = Query(None, description="Filter by exercise_kind."),
+    with_geo: bool = Query(False, description="If true, return only rows with latitude+longitude set."),
+):
+    """Approved exercises for the public map + list. Coalesces by the
+    `merged_into_id` chain — `merged` and `dismissed` rows never appear.
+    Joined article must pass the same VISIBLE predicate the rest of the
+    dashboard uses."""
+    end_d = date.fromisoformat(end) if end else date.today()
+    start_d = date.fromisoformat(start) if start else end_d - timedelta(days=days - 1)
+
+    clauses = [
+        "e.approval_status = 'approved'",
+        _VISIBLE_ARTICLE,
+        # An exercise overlaps the window if EITHER its start_date OR end_date
+        # falls inside the window. Rows without a start_date fall back to the
+        # source article's published date.
+        "(COALESCE(e.start_date, date(a.published_at)) <= :end_d "
+        " AND COALESCE(e.end_date, e.start_date, date(a.published_at)) >= :start_d)",
+    ]
+    params = {"start_d": start_d.isoformat(), "end_d": end_d.isoformat()}
+
+    if performer:
+        wanted = [p.strip().upper() for p in performer.split(",") if p.strip()]
+        wanted = [p for p in wanted if p in _VALID_PERFORMERS]
+        if wanted:
+            placeholders = ",".join(f":p{i}" for i in range(len(wanted)))
+            clauses.append(f"e.performer IN ({placeholders})")
+            for i, p in enumerate(wanted):
+                params[f"p{i}"] = p
+    if kind and kind in _VALID_EXERCISE_KINDS:
+        clauses.append("e.exercise_kind = :kind")
+        params["kind"] = kind
+    if with_geo:
+        clauses.append("e.latitude IS NOT NULL AND e.longitude IS NOT NULL")
+
+    sql = f"""
+        SELECT {_EXERCISE_PUBLIC_COLS}
+        FROM military_exercises e
+        JOIN articles a ON e.article_id = a.id
+        JOIN sources s ON s.id = a.source_id
+        JOIN ai_analysis ai ON ai.article_id = a.id
+        WHERE {' AND '.join(clauses)}
+        ORDER BY COALESCE(e.start_date, date(a.published_at)) DESC, e.id DESC
+    """
+    with db_conn() as conn:
+        rows = conn.execute(sql, params).fetchall()
+
+    return {
+        "start": start_d.isoformat(),
+        "end":   end_d.isoformat(),
+        "rows":  [_row_to_exercise(r) for r in rows],
+    }
+
+
+@router.get("/exercises/summary")
+def exercises_summary():
+    """Headline KPI strip for the EXERCISE TRACKER section: 30-day count,
+    breakdown by performer, latest approved exercise."""
+    today = date.today()
+    start_30 = (today - timedelta(days=29)).isoformat()
+    with db_conn() as conn:
+        by_performer = conn.execute(f"""
+            SELECT e.performer, COUNT(*) AS n
+            FROM military_exercises e
+            JOIN articles a ON e.article_id = a.id
+            JOIN ai_analysis ai ON ai.article_id = a.id
+            WHERE e.approval_status = 'approved'
+              AND {_VISIBLE_ARTICLE}
+              AND COALESCE(e.start_date, date(a.published_at)) >= :start_30
+            GROUP BY e.performer
+        """, {"start_30": start_30}).fetchall()
+
+        latest = conn.execute(f"""
+            SELECT {_EXERCISE_PUBLIC_COLS}
+            FROM military_exercises e
+            JOIN articles a ON e.article_id = a.id
+            JOIN sources s ON s.id = a.source_id
+            JOIN ai_analysis ai ON ai.article_id = a.id
+            WHERE e.approval_status = 'approved' AND {_VISIBLE_ARTICLE}
+            ORDER BY COALESCE(e.start_date, date(a.published_at)) DESC, e.id DESC
+            LIMIT 1
+        """).fetchone()
+
+    counts = {row["performer"]: row["n"] for row in by_performer}
+    return {
+        "window_start": start_30,
+        "window_end":   today.isoformat(),
+        "total_30d":    sum(counts.values()),
+        "by_performer": {p: counts.get(p, 0) for p in _VALID_PERFORMERS},
+        "latest":       _row_to_exercise(latest) if latest else None,
+    }
+
+
+@router.get("/exercises/candidates", dependencies=[Depends(require_admin)])
+def exercise_candidates():
+    """Pending candidates awaiting analyst review, grouped by canonical_name
+    (NULL canonical → '_unnamed_' bucket). No VISIBLE filter — analysts
+    need to see candidates regardless of whether the underlying article has
+    been approved yet (often the same review pass)."""
+    with db_conn() as conn:
+        rows = conn.execute(f"""
+            SELECT {_EXERCISE_PUBLIC_COLS}, e.created_at AS candidate_created_at,
+                   ai.topic_primary
+            FROM military_exercises e
+            JOIN articles a ON e.article_id = a.id
+            JOIN sources s ON s.id = a.source_id
+            JOIN ai_analysis ai ON ai.article_id = a.id
+            WHERE e.approval_status = 'pending'
+            ORDER BY COALESCE(e.start_date, date(a.published_at)) DESC, e.id DESC
+        """).fetchall()
+
+    by_group = {}
+    for r in rows:
+        ex = _row_to_exercise(r)
+        ex["topic_primary"] = r["topic_primary"]
+        ex["candidate_created_at"] = r["candidate_created_at"]
+        key = ex.get("canonical_name") or "_unnamed_"
+        by_group.setdefault(key, []).append(ex)
+
+    return {"candidates": by_group, "total_pending": len(rows)}
+
+
+@router.post("/exercises/{exercise_id}/approve", dependencies=[Depends(require_admin)])
+def approve_exercise(exercise_id: int):
+    """Mark an exercise candidate as approved for public display."""
+    with db_conn() as conn:
+        cur = conn.execute("""
+            UPDATE military_exercises
+            SET approval_status = 'approved', reviewed_at = datetime('now')
+            WHERE id = ?
+        """, (exercise_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(404, f"exercise {exercise_id} not found")
+        conn.commit()
+    return {"status": "approved", "id": exercise_id}
+
+
+@router.post("/exercises/{exercise_id}/dismiss", dependencies=[Depends(require_admin)])
+def dismiss_exercise(exercise_id: int):
+    """Mark an exercise candidate as dismissed (not surfaced publicly)."""
+    with db_conn() as conn:
+        cur = conn.execute("""
+            UPDATE military_exercises
+            SET approval_status = 'dismissed', reviewed_at = datetime('now')
+            WHERE id = ?
+        """, (exercise_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(404, f"exercise {exercise_id} not found")
+        conn.commit()
+    return {"status": "dismissed", "id": exercise_id}
+
+
+class MergeRequest(BaseModel):
+    target_id: int
+
+
+@router.post("/exercises/{exercise_id}/merge", dependencies=[Depends(require_admin)])
+def merge_exercise(exercise_id: int, body: MergeRequest):
+    """Mark exercise as a duplicate of `target_id` — sets status='merged'
+    and merged_into_id. Public list/map ignore merged rows."""
+    if body.target_id == exercise_id:
+        raise HTTPException(400, "cannot merge an exercise into itself")
+    with db_conn() as conn:
+        target = conn.execute(
+            "SELECT id, approval_status FROM military_exercises WHERE id = ?",
+            (body.target_id,)
+        ).fetchone()
+        if not target:
+            raise HTTPException(404, f"target {body.target_id} not found")
+        cur = conn.execute("""
+            UPDATE military_exercises
+            SET approval_status = 'merged', merged_into_id = ?, reviewed_at = datetime('now')
+            WHERE id = ?
+        """, (body.target_id, exercise_id))
+        if cur.rowcount == 0:
+            raise HTTPException(404, f"exercise {exercise_id} not found")
+        conn.commit()
+    return {"status": "merged", "id": exercise_id, "merged_into_id": body.target_id}
+
+
+class ExercisePatch(BaseModel):
+    # All optional; only provided fields are written. Use sentinel None
+    # to mean "don't change"; clients that want to NULL a field must use
+    # explicit empty string for text fields or a separate clear flag.
+    name_en:        Optional[str] = None
+    name_zh:        Optional[str] = None
+    performer:      Optional[str] = None
+    participants:   Optional[List[str]] = None
+    exercise_kind:  Optional[str] = None
+    start_date:     Optional[str] = None
+    end_date:       Optional[str] = None
+    location_label: Optional[str] = None
+    latitude:       Optional[float] = None
+    longitude:      Optional[float] = None
+    description_en: Optional[str] = None
+
+
+@router.patch("/exercises/{exercise_id}", dependencies=[Depends(require_admin)])
+def patch_exercise(exercise_id: int, patch: ExercisePatch):
+    """Analyst edits to a candidate row during review. Empty strings null
+    text fields; explicit numeric values overwrite lat/lng. Re-derives
+    canonical_name from name_en if name_en changes."""
+    data = patch.model_dump(exclude_unset=True)
+
+    if "performer" in data:
+        if data["performer"] not in _VALID_PERFORMERS:
+            raise HTTPException(400, f"invalid performer {data['performer']!r}")
+    if "exercise_kind" in data and data["exercise_kind"] not in _VALID_EXERCISE_KINDS:
+        raise HTTPException(400, f"invalid exercise_kind {data['exercise_kind']!r}")
+
+    # Recompute canonical_name from name_en if the analyst edited the name.
+    if "name_en" in data:
+        en = (data["name_en"] or "").strip()
+        data["name_en"] = en or None
+        data["canonical_name"] = (
+            en.lower().strip().replace(' ', '-').replace('_', '-') if en else None
+        )
+
+    if "participants" in data:
+        parts = data.pop("participants")
+        data["participants_json"] = json.dumps(parts) if parts else None
+
+    # Empty strings for text fields → NULL
+    for k in ("name_zh", "location_label", "description_en", "start_date", "end_date"):
+        if k in data and isinstance(data[k], str) and data[k].strip() == "":
+            data[k] = None
+
+    if not data:
+        raise HTTPException(400, "no fields to update")
+
+    set_clause = ", ".join(f"{k} = :{k}" for k in data)
+    params = {**data, "id": exercise_id}
+    with db_conn() as conn:
+        cur = conn.execute(
+            f"UPDATE military_exercises SET {set_clause} WHERE id = :id",
+            params,
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(404, f"exercise {exercise_id} not found")
+        row = conn.execute(f"""
+            SELECT {_EXERCISE_PUBLIC_COLS}
+            FROM military_exercises e
+            JOIN articles a ON e.article_id = a.id
+            JOIN sources s ON s.id = a.source_id
+            WHERE e.id = ?
+        """, (exercise_id,)).fetchone()
+        conn.commit()
+    return _row_to_exercise(row)

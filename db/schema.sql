@@ -375,3 +375,53 @@ CREATE TABLE IF NOT EXISTS pla_incursions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pla_incursions_date ON pla_incursions(date DESC);
+
+-- ============================================================
+-- MILITARY EXERCISES (Phase 2b.2 — cross-strait exercise tracker)
+-- ============================================================
+-- AI-extracted military exercises and drills from MIL_EXERCISE-topic
+-- articles (named exercises like 聯合劍 / Joint Sword / Han Kuang, plus
+-- unnamed readiness drills described in MND or PLA releases). Mirrors
+-- the `key_figure_statements` editorial-gate pattern: candidates land
+-- with approval_status='pending'; analyst confirms/edits/dismisses/
+-- merges through the admin UI before public exposure.
+--
+-- One row per article-mention. The analyst uses 'merged' status to
+-- collapse multiple articles about the same exercise (e.g. several
+-- outlets reporting on Joint Sword 2024B) into a single canonical row;
+-- merged_into_id links to the kept row.
+--
+-- Lat/lng are NULL unless the AI confidently parses a named base /
+-- well-known waters / explicit coordinates. Rows without coords are
+-- listed in the table view but omitted from the map.
+
+CREATE TABLE IF NOT EXISTS military_exercises (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id        INTEGER NOT NULL REFERENCES articles(id),
+    canonical_name    TEXT,                  -- 'joint-sword-2024b' (lower-hyphen); NULL for unnamed
+    name_en           TEXT,
+    name_zh           TEXT,
+    name_raw          TEXT,
+    performer         TEXT NOT NULL,         -- 'PRC' | 'ROC' | 'US' | 'JP' | 'MULTI'
+    participants_json TEXT,                  -- '["US","JP","ROC"]' when performer='MULTI'
+    exercise_kind     TEXT,                  -- 'live_fire'|'readiness_drill'|'joint_patrol'
+                                             -- |'named_exercise'|'cyber'|'amphibious'|'other'
+    start_date        TEXT,                  -- 'YYYY-MM-DD' (NULL if AI uncertain)
+    end_date          TEXT,
+    location_label    TEXT,
+    latitude          REAL,                  -- NULL unless AI confident
+    longitude         REAL,
+    description_en    TEXT,
+    description_zh    TEXT,
+    confidence        REAL,
+    approval_status   TEXT NOT NULL DEFAULT 'pending',  -- 'pending'|'approved'|'dismissed'|'merged'
+    merged_into_id    INTEGER REFERENCES military_exercises(id),
+    reviewed_at       TIMESTAMP,
+    reviewed_by       TEXT,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_milex_status_date ON military_exercises(approval_status, start_date DESC);
+CREATE INDEX IF NOT EXISTS idx_milex_canonical  ON military_exercises(canonical_name, approval_status);
+CREATE INDEX IF NOT EXISTS idx_milex_article    ON military_exercises(article_id);
+CREATE INDEX IF NOT EXISTS idx_milex_performer  ON military_exercises(performer, start_date DESC);
