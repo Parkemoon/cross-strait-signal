@@ -126,6 +126,37 @@ CREATE TABLE IF NOT EXISTS pla_incursions (
 );
 CREATE INDEX IF NOT EXISTS idx_pla_incursions_date ON pla_incursions(date DESC);
 
+-- Military exercises (Phase 2b.2) — AI-extracted exercise tracker with
+-- editorial approval gate. See db/schema.sql for full column docs.
+CREATE TABLE IF NOT EXISTS military_exercises (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id        INTEGER NOT NULL REFERENCES articles(id),
+    canonical_name    TEXT,
+    name_en           TEXT,
+    name_zh           TEXT,
+    name_raw          TEXT,
+    performer         TEXT NOT NULL,
+    participants_json TEXT,
+    exercise_kind     TEXT,
+    start_date        TEXT,
+    end_date          TEXT,
+    location_label    TEXT,
+    latitude          REAL,
+    longitude         REAL,
+    description_en    TEXT,
+    description_zh    TEXT,
+    confidence        REAL,
+    approval_status   TEXT NOT NULL DEFAULT 'pending',
+    merged_into_id    INTEGER REFERENCES military_exercises(id),
+    reviewed_at       TIMESTAMP,
+    reviewed_by       TEXT,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_milex_status_date ON military_exercises(approval_status, start_date DESC);
+CREATE INDEX IF NOT EXISTS idx_milex_canonical  ON military_exercises(canonical_name, approval_status);
+CREATE INDEX IF NOT EXISTS idx_milex_article    ON military_exercises(article_id);
+CREATE INDEX IF NOT EXISTS idx_milex_performer  ON military_exercises(performer, start_date DESC);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run
