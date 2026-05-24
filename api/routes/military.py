@@ -207,19 +207,23 @@ _VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
 
 # Mirror of scraper.processors.ai_pipeline._build_exercise_canonical_key —
 # kept in sync because api/ cannot import from scraper/ without inverting
-# the project's layering. Strip interchangeable trailing nouns so name
-# variants like "Formation Drill" / "Formation Exercise" / "Formation
-# Training" all collapse to the same canonical key.
+# the project's layering. See that file for full rationale; in short:
+#   - "Exercise No. <n>" → "<n>" so "X No. 42" matches "X 42 Exercise"
+#   - strip trailing drill/exercise/training/wargame (iteratively)
+#   - keep parenthesised clauses (they carry subtype info)
+_EXERCISE_NO_RE = re.compile(r'\bExercise\s+No\.?\s+(\d+)\b', re.IGNORECASE)
 _EXERCISE_SUFFIX_RE = re.compile(
-    r'\s+(drills?|exercises?|trainings?)$', re.IGNORECASE
+    r'(\s+(drills?|exercises?|trainings?|wargames?))+$', re.IGNORECASE
 )
 
 
 def _build_exercise_canonical_key(name_en):
     if not name_en:
         return None
-    stripped = _EXERCISE_SUFFIX_RE.sub('', name_en.strip())
-    key = stripped.lower().replace(' ', '-').replace('_', '-')
+    s = _EXERCISE_NO_RE.sub(r'\1', name_en.strip())
+    s = re.sub(r'\s{2,}', ' ', s)
+    s = _EXERCISE_SUFFIX_RE.sub('', s).strip()
+    key = s.lower().replace(' ', '-').replace('_', '-')
     return key or None
 
 ZONE_LABELS = {
