@@ -1,2 +1,20 @@
 [
+  {
+    "key": "auto-army-southern-testing-centre",
+    "lat": 23.352486,
+    "lng": 120.420654,
+    "names": [
+      "Army Southern Testing Centre"
+    ],
+    "source_exercise_id": 219
+  },
+  {
+    "key": "auto-miyako-islands",
+    "lat": 24.799142,
+    "lng": 125.234841,
+    "names": [
+      "Miyako Islands"
+    ],
+    "source_exercise_id": 71
+  }
 ]

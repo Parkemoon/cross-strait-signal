@@ -9,12 +9,18 @@ from scraper.processors.keyword_filter import check_relevance
 
 
 # Used by the exercise tracker to collapse name variants the AI produces
-# for the same activity (e.g. "Formation Drill" / "Formation Exercise" /
-# "Formation Training" — all the same event, three different canonical
-# keys without this normalisation). Strip the interchangeable trailing
-# noun, lowercase, hyphenate.
+# for the same activity. Three layers:
+#   1. "Exercise No. 42" → "42" so "Han Kuang Exercise No. 42" matches
+#      "Han Kuang 42 Exercise".
+#   2. Strip trailing interchangeable nouns (drill/exercise/training/
+#      wargame) — applied iteratively so chains like "Exercise Wargame"
+#      collapse fully.
+#   3. Lowercase + hyphenate.
+# Parenthesised clauses are deliberately preserved — they often carry
+# subtype info (CPX vs live-fire) that the merge logic must NOT collapse.
+_EXERCISE_NO_RE = re.compile(r'\bExercise\s+No\.?\s+(\d+)\b', re.IGNORECASE)
 _EXERCISE_SUFFIX_RE = re.compile(
-    r'\s+(drills?|exercises?|trainings?)$', re.IGNORECASE
+    r'(\s+(drills?|exercises?|trainings?|wargames?))+$', re.IGNORECASE
 )
 
 
@@ -22,8 +28,10 @@ def _build_exercise_canonical_key(name_en: str | None) -> str | None:
     """Lower-hyphenated canonical form used for grouping and auto-merge."""
     if not name_en:
         return None
-    stripped = _EXERCISE_SUFFIX_RE.sub('', name_en.strip())
-    key = stripped.lower().replace(' ', '-').replace('_', '-')
+    s = _EXERCISE_NO_RE.sub(r'\1', name_en.strip())
+    s = re.sub(r'\s{2,}', ' ', s)
+    s = _EXERCISE_SUFFIX_RE.sub('', s).strip()
+    key = s.lower().replace(' ', '-').replace('_', '-')
     return key or None
 
 
