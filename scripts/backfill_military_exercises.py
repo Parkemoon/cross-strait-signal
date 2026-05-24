@@ -40,6 +40,7 @@ from scraper.utils.db import get_connection
 from scraper.processors.ai_pipeline import (
     _CANONICAL_ENTITIES,
     _build_exercise_canonical_key,
+    _exercise_canonical_en,
     _geocode_from_label,
     generate_dynamic_glossary,
 )
@@ -105,13 +106,10 @@ exercise is mentioned. Use British spelling.
 
 
 def _canonical_lookup(name_zh: str | None, name_en: str | None) -> tuple[str | None, str | None]:
-    """Mirrors the canonicalisation logic in ai_pipeline.py's exercise insert."""
-    canonical_en = name_en
-    if name_zh:
-        for zh, en in _CANONICAL_ENTITIES.items():
-            if len(zh) >= 2 and (zh == name_zh or name_zh.startswith(zh) or zh in name_zh):
-                canonical_en = en
-                break
+    """Mirrors the canonicalisation logic in ai_pipeline.py's exercise insert.
+    Now exact-match-only via the shared _exercise_canonical_en helper —
+    see that function for why substring matching was wrong."""
+    canonical_en = _exercise_canonical_en(name_zh, name_en)
     return canonical_en, _build_exercise_canonical_key(canonical_en)
 
 

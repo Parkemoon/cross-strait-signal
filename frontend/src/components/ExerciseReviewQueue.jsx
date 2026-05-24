@@ -67,10 +67,31 @@ function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone })
     return (v || "") !== (orig || "");
   });
 
+  // Only send fields that actually changed. Two reasons:
+  //   1. Sending name_en='' (the form's empty-string default for null) on
+  //      a name_zh-only candidate would NULL canonical_name server-side,
+  //      breaking future auto-merge grouping for that exercise.
+  //   2. Server-side validators (bbox check on lat/lng, ISO date format)
+  //      should only run on fields the analyst actually edited — sending
+  //      an untouched typo'd date would 400 unexpectedly.
   const patchFromDraft = () => {
-    const p = { ...draft };
-    if (p.latitude === "")  p.latitude = null;  else p.latitude  = Number(p.latitude);
-    if (p.longitude === "") p.longitude = null; else p.longitude = Number(p.longitude);
+    const p = {};
+    for (const [k, v] of Object.entries(draft)) {
+      const orig = candidate[k];
+      let changed;
+      if (k === "latitude" || k === "longitude") {
+        const origStr = orig === null || orig === undefined ? "" : String(orig);
+        changed = String(v) !== origStr;
+      } else {
+        changed = (v || "") !== (orig || "");
+      }
+      if (!changed) continue;
+      if (k === "latitude" || k === "longitude") {
+        p[k] = v === "" ? null : Number(v);
+      } else {
+        p[k] = v;
+      }
+    }
     return p;
   };
 
@@ -79,15 +100,22 @@ function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone })
     setError(null);
     try {
       if (isDirty && fn !== dismissMilitaryExercise) {
-        await updateMilitaryExercise(candidate.id, patchFromDraft());
+        const patchBody = patchFromDraft();
+        if (Object.keys(patchBody).length > 0) {
+          await updateMilitaryExercise(candidate.id, patchBody);
+        }
       }
       const result = await fn(candidate.id, extra);
-      // Approve has a side effect (auto-merge of same-canonical pending
-      // rows). When that fires we need a full re-fetch so the disappeared
-      // candidates clear from the modal too; dismiss and merge are local-
-      // removal only.
-      if (fn === approveMilitaryExercise && result?.auto_merged > 0 && onApproveDone) {
-        onApproveDone(result.auto_merged);
+      // Approve has side effects (auto-merge of same-canonical pending
+      // rows AND possibly being merged into an existing approved twin).
+      // Either case needs a full re-fetch so the modal shows the new
+      // state; dismiss and merge clean up locally.
+      const needsReload = (
+        fn === approveMilitaryExercise
+        && (result?.auto_merged > 0 || result?.status === "merged_into_existing")
+      );
+      if (needsReload && onApproveDone) {
+        onApproveDone(result.auto_merged || 0);
       } else {
         onResolve(candidate.id);
       }

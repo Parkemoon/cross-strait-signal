@@ -622,7 +622,7 @@ function ExerciseList({ rows, selectedId, onSelect }) {
         const hasGeo = typeof ex.latitude === "number" && typeof ex.longitude === "number";
         const displayName = ex.name_en || (ex.name_zh
           ? `${ex.name_zh}`
-          : `${PERFORMER_LABEL[ex.performer]} ${ex.exercise_kind.replace("_", " ")}`);
+          : `${PERFORMER_LABEL[ex.performer]} ${(ex.exercise_kind || "other").replace("_", " ")}`);
         const isSelected = ex.id === selectedId;
         return (
           <div

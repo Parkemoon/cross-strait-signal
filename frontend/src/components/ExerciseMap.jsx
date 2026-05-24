@@ -10,18 +10,21 @@ import "leaflet/dist/leaflet.css";
 function FlyToSelected({ targetId, rows, markerRefs }) {
   const map = useMap();
   useEffect(() => {
-    if (!targetId) return;
+    if (!targetId) return undefined;
     const target = rows.find((r) => r.id === targetId);
-    if (!target || typeof target.latitude !== "number") return;
+    if (!target || typeof target.latitude !== "number") return undefined;
     map.flyTo([target.latitude, target.longitude], Math.max(map.getZoom(), 7), {
       duration: 0.6,
     });
-    const marker = markerRefs.current[targetId];
-    if (marker) {
-      // Slight defer so the flyTo animation has the popup attached to
-      // the moved-to coordinates rather than the prior centre.
-      setTimeout(() => marker.openPopup(), 200);
-    }
+    // Defer popup-open so the flyTo animation places the popup at the
+    // moved-to centre. The cleanup cancels the pending open if the
+    // user clicks another list row or the component unmounts before
+    // the timer fires, which prevents openPopup() on a detached marker.
+    const t = setTimeout(() => {
+      const marker = markerRefs.current[targetId];
+      if (marker && marker._map) marker.openPopup();
+    }, 200);
+    return () => clearTimeout(t);
   }, [targetId, rows, map, markerRefs]);
   return null;
 }
@@ -44,9 +47,38 @@ export const PERFORMER_LABEL = {
   MULTI: "Multilateral",
 };
 
-// Regional bbox — TW Strait + Senkaku + N. SCS. Matches the plan's locked
-// scope (108–127°E, 8–30°N). Leaflet expects [[south, west], [north, east]].
+// Default bbox when no geocoded exercises exist — TW Strait + Senkaku +
+// N. SCS. Leaflet expects [[south, west], [north, east]].
 const REGIONAL_BOUNDS = [[8, 108], [30, 127]];
+// Hard ceiling — maxBounds restricts panning to a generous Indo-Pacific
+// rectangle, large enough to include every entry in military_locations.json
+// (Yokosuka 35.29/139.66, Guam 13.45/144.78, Hainan/Yulin 18.22/109.69).
+// The map fits to actual markers within these limits.
+const MAX_BOUNDS = [[2, 100], [42, 148]];
+
+function boundsForRows(rows) {
+  const geo = rows.filter(
+    (r) => typeof r.latitude === "number" && typeof r.longitude === "number",
+  );
+  if (geo.length === 0) return REGIONAL_BOUNDS;
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const r of geo) {
+    if (r.latitude < minLat) minLat = r.latitude;
+    if (r.latitude > maxLat) maxLat = r.latitude;
+    if (r.longitude < minLng) minLng = r.longitude;
+    if (r.longitude > maxLng) maxLng = r.longitude;
+  }
+  // Pad ~1° each side so markers aren't clipped to the viewport edge.
+  // Also union with the regional bbox so single-marker views aren't
+  // disorientingly zoomed-in.
+  const pad = 1;
+  return [
+    [Math.min(minLat - pad, REGIONAL_BOUNDS[0][0]),
+     Math.min(minLng - pad, REGIONAL_BOUNDS[0][1])],
+    [Math.max(maxLat + pad, REGIONAL_BOUNDS[1][0]),
+     Math.max(maxLng + pad, REGIONAL_BOUNDS[1][1])],
+  ];
+}
 
 function fmtDateRange(start, end) {
   if (!start && !end) return "—";
@@ -61,7 +93,7 @@ function MarkerPopup({ exercise }) {
   const displayName = name_en || (
     name_zh
       ? `${name_zh} (no English name)`
-      : `${PERFORMER_LABEL[performer]} ${exercise_kind.replace("_", " ")}`
+      : `${PERFORMER_LABEL[performer]} ${(exercise_kind || "other").replace("_", " ")}`
   );
   return (
     <div style={{
@@ -87,7 +119,7 @@ function MarkerPopup({ exercise }) {
         {participants && participants.length > 0 && (
           <span> · {participants.join(" + ")}</span>
         )}
-        <span> · {exercise_kind.replace("_", " ")}</span>
+        <span> · {(exercise_kind || "other").replace("_", " ")}</span>
       </div>
       <div style={{ color: "#666" }}>{fmtDateRange(start_date, end_date)}</div>
       {location_label && (
@@ -148,7 +180,8 @@ export default function ExerciseMap({ rows, selectedId }) {
       position: "relative",
     }}>
       <MapContainer
-        bounds={REGIONAL_BOUNDS}
+        bounds={boundsForRows(rows || [])}
+        maxBounds={MAX_BOUNDS}
         scrollWheelZoom={false}
         style={{ height: "100%", width: "100%" }}
       >
@@ -169,7 +202,10 @@ export default function ExerciseMap({ rows, selectedId }) {
               key={ex.id}
               center={[ex.latitude, ex.longitude]}
               radius={isSelected ? 10 : 7}
-              ref={(m) => { if (m) markerRefs.current[ex.id] = m; }}
+              ref={(m) => {
+                if (m) markerRefs.current[ex.id] = m;
+                else delete markerRefs.current[ex.id];
+              }}
               pathOptions={{
                 color: PERFORMER_COLOUR[ex.performer] || "#666",
                 fillColor: PERFORMER_COLOUR[ex.performer] || "#666",

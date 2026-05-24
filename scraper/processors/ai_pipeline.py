@@ -26,6 +26,21 @@ def _build_exercise_canonical_key(name_en: str | None) -> str | None:
     key = stripped.lower().replace(' ', '-').replace('_', '-')
     return key or None
 
+
+def _exercise_canonical_en(name_zh, name_en_fallback):
+    """Override the AI's name_en with the dictionary's canonical English
+    ONLY on exact match against the Chinese name. Previously this used
+    substring matching (`zh in name_zh_raw`) which let unit names like
+    '東部戰區' (Eastern Theater Command) shadow the actual exercise name
+    in compound phrases like '東部戰區聯合戰備警巡', because dict
+    iteration order put the unit before the exercise. Exact match avoids
+    the shadowing without losing the cases that matter — the glossary
+    pre-injects canonical Chinese variants into the prompt, and we seed
+    both hyphenated and non-hyphenated forms in entity_canonical.json."""
+    if name_zh and name_zh in _CANONICAL_ENTITIES:
+        return _CANONICAL_ENTITIES[name_zh]
+    return name_en_fallback
+
 _GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
 with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
     _MASTER_GLOSSARY = json.load(_f)
@@ -41,32 +56,71 @@ _MIL_LOCATIONS_PATH = os.path.join(os.path.dirname(__file__), 'military_location
 # entries stay clean while the auto-learned ones accumulate.
 _MIL_LOCATIONS_AUTO_PATH = os.path.join(os.path.dirname(__file__), 'military_locations_auto.json')
 
-with open(_MIL_LOCATIONS_PATH, encoding='utf-8') as _f:
-    _MIL_LOCATIONS = json.load(_f)
-try:
-    with open(_MIL_LOCATIONS_AUTO_PATH, encoding='utf-8') as _f:
-        _MIL_LOCATIONS = _MIL_LOCATIONS + json.load(_f)
-except FileNotFoundError:
-    pass
-# Sorted longest-name-first within each entry so a search for "Hualien airbase"
-# matches before "Hualien" when both appear in the table.
-for _entry in _MIL_LOCATIONS:
-    _entry['names'] = sorted(_entry['names'], key=len, reverse=True)
+
+def _flatten_locations(entries):
+    """Return a list of (lower-cased-name, lat, lng) tuples sorted by
+    name length DESCENDING. Sorting once globally — not within each
+    entry — ensures the matcher prefers the longest available substring,
+    so 'tw-northern-waters' beats 'Taiwan strait' when the label is
+    'north of Taiwan Strait'."""
+    out = []
+    for entry in entries:
+        for name in entry.get('names', []):
+            out.append((name.lower(), entry['lat'], entry['lng']))
+    out.sort(key=lambda t: len(t[0]), reverse=True)
+    return out
+
+
+def _load_mil_locations():
+    """Read both files and return the flattened, length-sorted lookup +
+    the auto file's current mtime. Tolerant of FileNotFoundError AND
+    JSONDecodeError on the auto file (the API writer uses an atomic
+    temp+rename pattern, but if something else corrupts it we don't want
+    to crash the whole scraper at import time)."""
+    with open(_MIL_LOCATIONS_PATH, encoding='utf-8') as f:
+        entries = json.load(f)
+    try:
+        with open(_MIL_LOCATIONS_AUTO_PATH, encoding='utf-8') as f:
+            entries = entries + json.load(f)
+        auto_mtime = os.path.getmtime(_MIL_LOCATIONS_AUTO_PATH)
+    except FileNotFoundError:
+        auto_mtime = 0.0
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"[ai_pipeline] military_locations_auto.json unreadable, skipping: {e}")
+        auto_mtime = 0.0
+    return _flatten_locations(entries), auto_mtime
+
+
+_MIL_LOCATIONS_FLAT, _MIL_LOCATIONS_AUTO_MTIME = _load_mil_locations()
+
+
+def _refresh_locations_if_stale():
+    """Reload the lookup if the auto file has been touched since our
+    last read — so analyst PATCHes during a long-running scraper or
+    uvicorn process become visible to subsequent _geocode_from_label
+    calls without needing a process restart."""
+    global _MIL_LOCATIONS_FLAT, _MIL_LOCATIONS_AUTO_MTIME
+    try:
+        mtime = os.path.getmtime(_MIL_LOCATIONS_AUTO_PATH)
+    except FileNotFoundError:
+        return
+    if mtime > _MIL_LOCATIONS_AUTO_MTIME:
+        _MIL_LOCATIONS_FLAT, _MIL_LOCATIONS_AUTO_MTIME = _load_mil_locations()
 
 
 def _geocode_from_label(label):
     """Curated case-insensitive substring lookup. Returns (lat, lng) or
-    (None, None) when no entry matches. Used to fill coords when the AI
-    extracted a location_label but couldn't confidently resolve coordinates
-    itself — a deterministic fallback that avoids paying for a second AI
-    call and never hallucinates."""
+    (None, None) when no entry matches. Iterates names sorted by length
+    DESCENDING so 'tw-northern-waters' beats 'Taiwan strait' when both
+    could match — fixes the order-dependence bug. Re-reads the auto
+    file if it's been updated since our cached snapshot."""
     if not label:
         return None, None
+    _refresh_locations_if_stale()
     needle = label.lower()
-    for entry in _MIL_LOCATIONS:
-        for name in entry['names']:
-            if name.lower() in needle:
-                return entry['lat'], entry['lng']
+    for name, lat, lng in _MIL_LOCATIONS_FLAT:
+        if name in needle:
+            return lat, lng
     return None, None
 
 
@@ -529,15 +583,10 @@ def process_unanalysed_articles(limit=10):
 
                 name_zh_raw = (ex.get('name_zh') or '').strip() or None
                 name_en_raw = (ex.get('name_en') or '').strip() or None
-                # Canonicalise via the same _CANONICAL_ENTITIES substring lookup
-                # the entity normaliser uses — 聯合劍2024B and 联合剑2024B both
-                # map to "Joint Sword 2024B".
-                canonical_en = name_en_raw
-                if name_zh_raw:
-                    for zh, en in _CANONICAL_ENTITIES.items():
-                        if len(zh) >= 2 and (zh == name_zh_raw or name_zh_raw.startswith(zh) or zh in name_zh_raw):
-                            canonical_en = en
-                            break
+                # Exact-match-only canonicalisation. See _exercise_canonical_en
+                # for the reasoning (substring matching shadowed unit names
+                # over compound exercise phrases).
+                canonical_en = _exercise_canonical_en(name_zh_raw, name_en_raw)
                 canonical_key = _build_exercise_canonical_key(canonical_en)
 
                 # CJK guard on description_en — drop to NULL rather than reject,
@@ -852,12 +901,7 @@ def _insert_exercise_row(conn, article_id, ex):
 
     name_zh_raw = (ex.get('name_zh') or '').strip() or None
     name_en_raw = (ex.get('name_en') or '').strip() or None
-    canonical_en = name_en_raw
-    if name_zh_raw:
-        for zh, en in _CANONICAL_ENTITIES.items():
-            if len(zh) >= 2 and (zh == name_zh_raw or name_zh_raw.startswith(zh) or zh in name_zh_raw):
-                canonical_en = en
-                break
+    canonical_en = _exercise_canonical_en(name_zh_raw, name_en_raw)
     canonical_key = _build_exercise_canonical_key(canonical_en)
 
     desc_en = (ex.get('description_en') or '').strip()
@@ -926,43 +970,62 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
 
     from scraper.utils.db import get_connection
     conn = get_connection()
-    articles = conn.execute(f"""
-        SELECT a.id, a.title_original, a.content_original, a.language,
-               s.name AS source_name
-        FROM articles a
-        JOIN sources s ON s.id = a.source_id
-        LEFT JOIN ai_analysis ai ON ai.article_id = a.id
-        WHERE s.name IN ({placeholders})
-          AND a.ai_processed = 1
-          AND ai.id IS NULL
-          AND a.published_at >= datetime('now', ?)
-          AND NOT EXISTS (
-              SELECT 1 FROM military_exercises me WHERE me.article_id = a.id
-          )
-        ORDER BY a.published_at DESC
-        LIMIT ?
-    """, (*source_names, f'-{days} days', limit)).fetchall()
+    try:
+        articles = conn.execute(f"""
+            SELECT a.id, a.title_original, a.content_original, a.language,
+                   s.name AS source_name
+            FROM articles a
+            JOIN sources s ON s.id = a.source_id
+            LEFT JOIN ai_analysis ai ON ai.article_id = a.id
+            WHERE s.name IN ({placeholders})
+              AND a.ai_processed = 1
+              AND ai.id IS NULL
+              AND a.published_at >= datetime('now', ?)
+              AND NOT EXISTS (
+                  SELECT 1 FROM military_exercises me WHERE me.article_id = a.id
+              )
+            ORDER BY a.published_at DESC
+            LIMIT ?
+        """, (*source_names, f'-{days} days', limit)).fetchall()
 
-    if not articles:
-        print(f"  No candidate articles from {source_names} in the last {days} days.")
-        return
+        if not articles:
+            print(f"  No candidate articles from {source_names} in the last {days} days.")
+            return
 
-    inserted = 0
-    for i, article in enumerate(articles, 1):
-        try:
-            exercises = _extract_exercises_only(article)
-        except Exception as e:
-            print(f"  [{i}/{len(articles)}] article {article['id']}: extract failed — {e}")
-            continue
-        if not exercises:
-            continue
-        for ex in exercises:
-            if _insert_exercise_row(conn, article['id'], ex):
-                inserted += 1
-        conn.commit()
-        print(f"  [{i}/{len(articles)}] article {article['id']}: {len(exercises)} exercises")
-    print(f"  Inserted {inserted} pending exercise candidates from {len(articles)} articles.")
-    conn.close()
+        inserted = 0
+        # Wrap both extract AND insert in try/except per article so a single
+        # bad payload (auth blip, IntegrityError, JSON encoding) doesn't
+        # abort the whole batch and skip subsequent pipeline steps.
+        for i, article in enumerate(articles, 1):
+            try:
+                exercises = _extract_exercises_only(article)
+            except Exception as e:
+                print(f"  [{i}/{len(articles)}] article {article['id']}: extract failed — {e}")
+                continue
+            if not exercises:
+                continue
+            article_inserted = 0
+            for ex in exercises:
+                try:
+                    if _insert_exercise_row(conn, article['id'], ex):
+                        article_inserted += 1
+                except Exception as e:
+                    # IntegrityError, JSON encoding error, etc. Log and
+                    # continue — losing one candidate is preferable to
+                    # aborting the run.
+                    print(f"  [{i}/{len(articles)}] article {article['id']}: insert failed — {e}")
+            if article_inserted:
+                try:
+                    conn.commit()
+                except Exception as e:
+                    print(f"  [{i}/{len(articles)}] commit failed: {e}")
+                    conn.rollback()
+            inserted += article_inserted
+            print(f"  [{i}/{len(articles)}] article {article['id']}: "
+                  f"{len(exercises)} extracted, {article_inserted} inserted")
+        print(f"  Inserted {inserted} pending exercise candidates from {len(articles)} articles.")
+    finally:
+        conn.close()
 
 
 if __name__ == '__main__':
