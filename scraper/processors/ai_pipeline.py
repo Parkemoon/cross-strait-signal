@@ -731,5 +731,228 @@ FULL TEXT:
     print(f"\nDone. {success_count} analysed successfully, {error_count} errors.")
 
 
+# ============================================================
+# Exercise-only extraction pass (parallel to Tier 1)
+# ============================================================
+# Phase 2b.2 follow-up. The keyword pre-filter rejects ROC domestic
+# military training articles (e.g. YDN's "269 Brigade calibration
+# firing") as not-cross-strait-relevant — correct for the main feed
+# but blocks them from the exercise tracker. This pass runs a stripped-
+# down exercise-only prompt against articles from a small whitelist of
+# military-source feeds where Tier 1 was skipped (no ai_analysis row),
+# so domestic drills flow into the analyst review queue without
+# polluting the main signal feed with PR pieces.
+
+_EXERCISE_ONLY_PROMPT = """You are extracting military exercises from a news article.
+Return ONLY valid JSON of the shape:
+
+{
+  "military_exercises": [
+    {
+      "name_zh": "exercise name in original language, or null if unnamed",
+      "name_en": "exercise name in English, or null if unnamed",
+      "performer_side": "PRC | ROC | US | JP | MULTI",
+      "participants": ["ISO codes — only when performer_side is MULTI"],
+      "exercise_kind": "live_fire | readiness_drill | joint_patrol | named_exercise | cyber | amphibious | other",
+      "start_date": "YYYY-MM-DD or null",
+      "end_date": "YYYY-MM-DD or null",
+      "location_label": "human-readable location (English; translate Chinese place names)",
+      "latitude": "decimal degrees, null unless confidently parseable",
+      "longitude": "decimal degrees, null unless confidently parseable",
+      "description_en": "1-2 sentence English summary (English only)",
+      "description_zh": "verbatim snippet from article",
+      "confidence": 0.85
+    }
+  ]
+}
+
+Extract any military exercise mentioned — named (Joint Sword 聯合劍,
+Han Kuang 漢光, Keen Sword, RIMPAC, Wan An 萬安) AND unnamed drills
+explicitly described (live-fire / readiness / patrol / amphibious / cyber).
+Map actor → performer_side: PLA/解放軍/東部戰區 → PRC; MND/國防部/國軍/漢光
+→ ROC; INDOPACOM/USN/USAF → US; JSDF/海上自衛隊 → JP; two-or-more sides
+→ MULTI with `participants`.
+
+LOCATION HANDLING — `location_label` is REQUIRED whenever the article
+mentions ANY place reference for the exercise: a named base, range,
+harbour, county, body of water, or compass-quadrant. Translate Chinese
+place names to English; preserve the original in `description_zh`. The
+bar for location_label is LOW. `latitude` and `longitude` are SEPARATE:
+only emit numeric coords when confidently resolvable; otherwise both
+null. False-negatives-preferred applies to lat/lng only, NOT to
+location_label. Beware of conflating REPORTER-location bylines (e.g.
+"記者X／彰化報導") with EXERCISE location — the reporter's city is not
+the drill's location unless the body explicitly says so.
+
+description_en MUST be English. Return {"military_exercises": []} if no
+exercise is mentioned. Use British spelling.
+"""
+
+
+def _extract_exercises_only(article):
+    """Call Gemini with the exercise-only prompt. Returns the parsed list
+    (possibly empty) of raw exercise dicts ready for canonicalisation and
+    insertion via _insert_exercise_row."""
+    glossary = generate_dynamic_glossary(
+        article['content_original'] or '',
+        article['title_original'] or '',
+    )
+    prompt = f"""{_EXERCISE_ONLY_PROMPT}
+
+{glossary}
+
+SOURCE: {article['source_name']}
+LANGUAGE: {article['language']}
+TITLE: {article['title_original']}
+
+FULL TEXT:
+{(article['content_original'] or '')[:5000]}"""
+
+    resp = client.models.generate_content(
+        model="gemini-3.1-flash-lite",
+        contents=prompt,
+        config={
+            "response_mime_type": "application/json",
+            "max_output_tokens": 4000,
+            "temperature": 0.1,
+            "thinking_config": {"thinking_level": "medium"},
+        },
+    )
+    text = resp.text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1]
+        text = text.rsplit("```", 1)[0]
+    try:
+        return (json.loads(text) or {}).get('military_exercises', []) or []
+    except json.JSONDecodeError:
+        return []
+
+
+def _insert_exercise_row(conn, article_id, ex):
+    """Apply canonicalisation + sanity checks + geocoder fallback, then
+    insert one pending row. Returns True iff a row was inserted (skips
+    invalid performer_side)."""
+    valid_performers = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
+    valid_kinds = {'live_fire', 'readiness_drill', 'joint_patrol',
+                   'named_exercise', 'cyber', 'amphibious', 'other'}
+    performer = (ex.get('performer_side') or '').upper().strip()
+    if performer not in valid_performers:
+        return False
+
+    name_zh_raw = (ex.get('name_zh') or '').strip() or None
+    name_en_raw = (ex.get('name_en') or '').strip() or None
+    canonical_en = name_en_raw
+    if name_zh_raw:
+        for zh, en in _CANONICAL_ENTITIES.items():
+            if len(zh) >= 2 and (zh == name_zh_raw or name_zh_raw.startswith(zh) or zh in name_zh_raw):
+                canonical_en = en
+                break
+    canonical_key = _build_exercise_canonical_key(canonical_en)
+
+    desc_en = (ex.get('description_en') or '').strip()
+    if desc_en:
+        cjk_ratio = sum(1 for c in desc_en if '一' <= c <= '鿿') / len(desc_en)
+        if cjk_ratio > 0.15:
+            desc_en = None
+
+    lat = ex.get('latitude')
+    lng = ex.get('longitude')
+    try:
+        lat = float(lat) if lat is not None else None
+        lng = float(lng) if lng is not None else None
+    except (TypeError, ValueError):
+        lat, lng = None, None
+    if lat is not None and not (8.0 <= lat <= 35.0):
+        lat = None
+    if lng is not None and not (105.0 <= lng <= 135.0):
+        lng = None
+    if lat is None or lng is None:
+        lat, lng = None, None
+
+    location_label = (ex.get('location_label') or '').strip() or None
+    if lat is None and location_label:
+        lat, lng = _geocode_from_label(location_label)
+
+    participants = ex.get('participants') if performer == 'MULTI' else None
+    participants_json = (json.dumps(participants) if isinstance(participants, list)
+                         and participants else None)
+
+    kind = (ex.get('exercise_kind') or 'other').strip()
+    if kind not in valid_kinds:
+        kind = 'other'
+
+    conn.execute("""
+        INSERT INTO military_exercises
+        (article_id, canonical_name, name_en, name_zh, name_raw,
+         performer, participants_json, exercise_kind,
+         start_date, end_date, location_label, latitude, longitude,
+         description_en, description_zh, confidence, approval_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    """, (
+        article_id, canonical_key, canonical_en, name_zh_raw,
+        name_en_raw or name_zh_raw, performer, participants_json, kind,
+        ex.get('start_date'), ex.get('end_date'), location_label, lat, lng,
+        desc_en, (ex.get('description_zh') or '').strip() or None,
+        ex.get('confidence', 0.7),
+    ))
+    return True
+
+
+# Sources to scan in the exercise-only pass. Start narrow with YDN
+# (Youth Daily News — MND's organ — almost all the ROC drill content).
+# Add PLA Daily / INDOPACOM / JMOD here if coverage gaps emerge.
+EXERCISE_ONLY_SOURCES = ['YDN']
+
+
+def process_exercise_only_articles(source_names=None, days=14, limit=30):
+    """Scan articles from the whitelisted military sources where Tier 1
+    was skipped (rejected by the keyword pre-filter, no ai_analysis row),
+    and run exercise-only extraction. Capped per cron tick so a busy YDN
+    day can't run away. Idempotent — articles that already have any
+    military_exercises row are skipped."""
+    source_names = source_names or EXERCISE_ONLY_SOURCES
+    placeholders = ",".join("?" * len(source_names))
+
+    from scraper.utils.db import get_connection
+    conn = get_connection()
+    articles = conn.execute(f"""
+        SELECT a.id, a.title_original, a.content_original, a.language,
+               s.name AS source_name
+        FROM articles a
+        JOIN sources s ON s.id = a.source_id
+        LEFT JOIN ai_analysis ai ON ai.article_id = a.id
+        WHERE s.name IN ({placeholders})
+          AND a.ai_processed = 1
+          AND ai.id IS NULL
+          AND a.published_at >= datetime('now', ?)
+          AND NOT EXISTS (
+              SELECT 1 FROM military_exercises me WHERE me.article_id = a.id
+          )
+        ORDER BY a.published_at DESC
+        LIMIT ?
+    """, (*source_names, f'-{days} days', limit)).fetchall()
+
+    if not articles:
+        print(f"  No candidate articles from {source_names} in the last {days} days.")
+        return
+
+    inserted = 0
+    for i, article in enumerate(articles, 1):
+        try:
+            exercises = _extract_exercises_only(article)
+        except Exception as e:
+            print(f"  [{i}/{len(articles)}] article {article['id']}: extract failed — {e}")
+            continue
+        if not exercises:
+            continue
+        for ex in exercises:
+            if _insert_exercise_row(conn, article['id'], ex):
+                inserted += 1
+        conn.commit()
+        print(f"  [{i}/{len(articles)}] article {article['id']}: {len(exercises)} exercises")
+    print(f"  Inserted {inserted} pending exercise candidates from {len(articles)} articles.")
+    conn.close()
+
+
 if __name__ == '__main__':
     process_unanalysed_articles(limit=10)
