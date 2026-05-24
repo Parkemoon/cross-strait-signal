@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -97,8 +98,21 @@ export default function ExerciseMap({ rows }) {
     (r) => typeof r.latitude === "number" && typeof r.longitude === "number",
   );
 
+  // React 18+ Strict Mode double-mounts components in dev. Leaflet stamps
+  // the DOM container with `_leaflet_id` on first init and refuses to
+  // re-init the same element. Clearing the stamp on the fake-unmount
+  // cleanup lets the immediate re-mount succeed. Production builds don't
+  // double-mount, so this is purely a dev-mode guard.
+  const wrapperRef = useRef(null);
+  useEffect(() => () => {
+    const container = wrapperRef.current?.querySelector(".leaflet-container");
+    if (container && container._leaflet_id) {
+      delete container._leaflet_id;
+    }
+  }, []);
+
   return (
-    <div style={{
+    <div ref={wrapperRef} style={{
       height: "460px",
       width: "100%",
       border: "1px solid var(--border-color)",
