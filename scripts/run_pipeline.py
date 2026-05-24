@@ -25,7 +25,10 @@ from scraper.scrapers.hk_census_scraper import scrape_hk_census
 from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.scrapers.tw_nia_population_scraper import scrape_tw_nia_population
 from scraper.scrapers.mnd_incursion_scraper import scrape_mnd_incursions
-from scraper.processors.ai_pipeline import process_unanalysed_articles
+from scraper.processors.ai_pipeline import (
+    process_unanalysed_articles,
+    process_exercise_only_articles,
+)
 from scraper.processors.social_translator import translate_social_pulse
 
 # Add scripts dir to path for cluster_events import
@@ -101,6 +104,13 @@ async def main():
     total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
     process_unanalysed_articles(limit=500)
+
+    # Step 3b: Exercise-only extraction on articles the keyword pre-filter
+    # rejected (no ai_analysis row) from the YDN military-source whitelist.
+    # Feeds the exercise tracker with ROC domestic drill content without
+    # adding PR pieces to the main signal feed. Capped at 30/run.
+    print("\n--- STEP 3b: Exercise-only extraction (military sources) ---")
+    process_exercise_only_articles(days=14, limit=30)
 
     # Step 4: Cluster events
     print("\n" + "=" * 60)

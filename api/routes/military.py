@@ -22,14 +22,15 @@ from api.database import db_conn
 
 router = APIRouter(prefix="/api/military", tags=["military"])
 
-# Mirrors the VISIBLE predicate from api/routes/stats.py — keep in sync
-# if that one ever changes. Applied to every public exercise query that
-# joins to articles so unapproved/under-review articles can't leak the
-# exercises they mention into the public-facing list.
-_VISIBLE_ARTICLE = (
-    "a.is_hidden = 0 AND a.analyst_approved = 1 "
-    "AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
-)
+# Exercise-tracker visibility predicate. INTENTIONALLY weaker than the
+# main-feed VISIBLE predicate (in api/routes/stats.py) because the
+# exercise's own approval_status='approved' is itself the editorial gate
+# — the analyst reviewed each candidate against its source article before
+# approving. We only enforce that the source article hasn't been hidden.
+# This also lets exercise-only articles (those rejected by the keyword
+# pre-filter in the parallel YDN extraction pass — no ai_analysis row at
+# all) surface once their exercises are approved.
+_VISIBLE_ARTICLE = "a.is_hidden = 0"
 
 _VALID_PERFORMERS = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
 _VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
@@ -303,7 +304,7 @@ def exercises(
         FROM military_exercises e
         JOIN articles a ON e.article_id = a.id
         JOIN sources s ON s.id = a.source_id
-        JOIN ai_analysis ai ON ai.article_id = a.id
+        LEFT JOIN ai_analysis ai ON ai.article_id = a.id
         WHERE {' AND '.join(clauses)}
         ORDER BY COALESCE(e.start_date, date(a.published_at)) DESC, e.id DESC
     """
@@ -328,7 +329,7 @@ def exercises_summary():
             SELECT e.performer, COUNT(*) AS n
             FROM military_exercises e
             JOIN articles a ON e.article_id = a.id
-            JOIN ai_analysis ai ON ai.article_id = a.id
+            LEFT JOIN ai_analysis ai ON ai.article_id = a.id
             WHERE e.approval_status = 'approved'
               AND {_VISIBLE_ARTICLE}
               AND COALESCE(e.start_date, date(a.published_at)) >= :start_30
@@ -340,7 +341,7 @@ def exercises_summary():
             FROM military_exercises e
             JOIN articles a ON e.article_id = a.id
             JOIN sources s ON s.id = a.source_id
-            JOIN ai_analysis ai ON ai.article_id = a.id
+            LEFT JOIN ai_analysis ai ON ai.article_id = a.id
             WHERE e.approval_status = 'approved' AND {_VISIBLE_ARTICLE}
             ORDER BY COALESCE(e.start_date, date(a.published_at)) DESC, e.id DESC
             LIMIT 1
@@ -369,7 +370,7 @@ def exercise_candidates():
             FROM military_exercises e
             JOIN articles a ON e.article_id = a.id
             JOIN sources s ON s.id = a.source_id
-            JOIN ai_analysis ai ON ai.article_id = a.id
+            LEFT JOIN ai_analysis ai ON ai.article_id = a.id
             WHERE e.approval_status = 'pending'
             ORDER BY COALESCE(e.start_date, date(a.published_at)) DESC, e.id DESC
         """).fetchall()
