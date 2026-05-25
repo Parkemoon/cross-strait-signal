@@ -64,3 +64,22 @@ Returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT p
 - `GET /api/trade-access/items` — params `direction`, `status`, `hs_prefix`, `search`, `limit`, `offset`. Filtered slice of `trade_access`, sorted with banned/suspended first via a CASE expression on `STATUS_ORDER`.
 - `GET /api/trade-access/summary` — returns asymmetry counts (`by_direction[direction][status] = n`), `status_labels`, and the hardcoded `SUSPENSION_WAVES` timeline. Add new waves there when MoF announces them.
 - `GET /api/trade-access/cifer-snapshot` — most recent `cifer_snapshots` row plus a short history (replaces the previously hardcoded `CIFER_SNAPSHOT` constant in the frontend).
+
+## `military.py`
+
+PLA incursion endpoints (MND + PLATracker dual-source):
+- `GET /api/military/incursions` — params `start`, `end`, `source`. Day-level rows.
+- `GET /api/military/incursions/monthly` — monthly aggregates. Fields PLATracker never published (vessels, coast-guard counts, zone breakdown) return `null` not `0` — by design; the frontend renders MND-era only for those sparklines.
+- `GET /api/military/incursions/summary` — KPI strip (7d / 30d / 365d counters, trend deltas).
+- `GET /api/military/zones` — ADIZ zone heatmap (six MND sector codes — see [[mnd-incursion-parsing]] memory for parser wording variants).
+
+Exercise tracker endpoints:
+- `GET /api/military/exercises` — public read: approved rows only. Params `start`, `end`, `performer`. Uses LEFT JOIN against `ai_analysis` with a relaxed VISIBLE predicate so Step 3b exercise-only rows (no `ai_analysis` row) are still served.
+- `GET /api/military/exercises/summary` — counts by performer/kind.
+- `GET /api/military/exercises/candidates` (admin) — `status='pending'` rows grouped by canonical key for batch review.
+- `POST /api/military/exercises/{id}/approve` (admin) — flips status. Auto-merges other same-`canonical_name` pending rows into this one (one click clears a whole exercise group).
+- `POST /api/military/exercises/{id}/dismiss` (admin)
+- `POST /api/military/exercises/{id}/merge` (admin) — explicit merge with `merged_into_id`.
+- `PATCH /api/military/exercises/{id}` (admin) — analyst edits. Sends only changed fields (the frontend builds a minimal patch via `buildExercisePatch`). Always recomputes `canonical_name` from the final `name_en`. Coordinates bbox-validated to 8–35°N / 105–135°E — out-of-bbox PATCHes return 400 (vs the AI ingest path which silently nulls — at the analyst layer we'd rather argue). If the patch explicitly touched `location_label`, the (label → lat/lng) pair is auto-recorded into `military_locations_auto.json` for future AI extractions.
+
+Used by `MilitaryTab.jsx` for both the incursion KPI strip / ADIZ map and the Exercise Tracker section (map + list + analyst review queue + edit modal).

@@ -26,6 +26,10 @@ Cross-Strait Signal scrapes Chinese-language news sources from both sides of the
 - Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction; lives in a persistent right-hand column
 - Key Figures panel — curated roster of 10 senior PRC and Taiwan officials; AI extracts attributed quotes and actions per figure as pending candidates, requiring analyst approval before display to prevent misattribution
 - Filter-scoped Strait Watch gauges — selecting a topic, source place, urgency, or entity scopes the sidebar sentiment gauges to that filter, with a ghost dot showing the global baseline for comparison
+- **Economy tab** — TW-vs-PRC trade indicators with multi-reporter verification: MAC (TW), PRC Customs via UN Comtrade, and Hong Kong CSD direct. The reporting gap itself is the analytical signal — PRC's imports from Taiwan run ~80–125% above what MAC reports as exports to the PRC, widening from 80% in 2017 to 124% in 2024. Investment-by-industry charts cover both directions (PRC→TW since 2009, TW→PRC since 1991, with the ~50× outbound asymmetry visible)
+- **Trade Access tab** — what each side actually allows the other to ship in. BOFT bans + ECFA active/suspended + MoF PRC suspension waves + curated PRC bans on TW agricultural exports. Includes CIFER snapshot tracker (PRC's food-exporter suspension portal, scraped monthly via Playwright)
+- **People tab** — bidirectional cross-strait residency and flow. PRC-in-Taiwan via NIA residence/settlement permits + spouse stock, Taiwanese-in-PRC via curated 台胞证 / census / settler-floor data (PRC bureaus don't expose machine-readable endpoints, so this side is hand-maintained). Includes the asymmetric data-availability blurb explaining the 1992 籍貫 cutoff
+- **Military tab** — PLA incursion tracker (MND daily briefing + PLATracker backfill from 2020-09) with KPI strip, daily bars, six-sector ADIZ heatmap, and a custom-projected Taiwan Strait map. Plus the **Exercise Tracker** (Phase 2b.2) — interactive Leaflet map of cross-strait exercises and drills, extracted by Tier 1 from MIL_EXERCISE articles and editorially approved before display. Analyst review queue collapses same-name duplicates via canonical-key auto-merge; an edit modal lets analysts fix typos, coordinates, or dismiss false positives on already-approved rows
 - React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Key Figures panel, Social Pulse column, and review queue UI — fully responsive with mobile tab navigation
 - Two-build deployment: public read-only build (`strait-signal.net`) hides all write controls at build time; admin build (`admin.strait-signal.net`) exposes the full editorial interface
 - REST API with filtering by topic, sentiment, source place (PRC / Taiwan / HK/Macao / International), urgency, escalation status, and bilingual full-text search
@@ -57,6 +61,8 @@ Keyword Pre-filter (directional — no API calls on irrelevant articles)
 │
 Three-Tier AI Analysis Pipeline (articles only)
 ├── Tier 1: Gemini 3.1 Flash Lite — topic, sentiment, entities, urgency
+│           + side-extract: key figure statements (pending) + military
+│             exercise candidates from MIL_EXERCISE articles (pending)
 ├── Tier 2: Gemini 2.5 Flash — escalation review for flagged articles
 ├── Tier 3: Human review queue — model disagreement resolution
 │            (translation editing + auto-approve on resolution)
@@ -69,34 +75,65 @@ Sentiment consistency check (post-extraction): flags label/score band mismatches
 Editorial Approval Gate
 └── All articles held from public feed until analyst explicitly approves
 │
-Social Translation (separate lightweight pipeline)
-└── Gemini 3.1 Flash Lite — batch-translates Weibo/PTT titles only
+Parallel Data Pipelines (no AI analysis — feed dedicated tables and tabs)
+├── Social Pulse — Gemini 3.1 Flash Lite batch-translates Weibo / PTT titles
+├── Economic Indicators — MAC 7887 (TW trade), UN Comtrade (PRC Customs),
+│   MAC 7459 (TW-HK dual reporter), MAC 7888 (TW-vs-PRC macro), HK CSD direct
+│   → /api/economy/*  (verification dimension: same flow, different reporters)
+├── Investment by Industry — MAC 7478 (PRC→TW) + MAC 7473 (TW→PRC)
+│   → /api/economy/investment-by-industry
+├── Trade Access — BOFT bans, ECFA correspondence, MoF suspension waves,
+│   curated PRC bans, monthly CIFER snapshot (Playwright)
+│   → /api/trade-access/*
+├── Cross-Strait Population — TW NIA permits + curated PRC-side data
+│   → /api/economy/people-records
+└── PLA Incursions — Taiwan MND daily 共軍動態 briefing (sectors, vessels,
+    coast-guard) + one-shot PLATracker CSV backfill (ADIZ-entry count only,
+    2020-09 → 2026-04) → /api/military/incursions, /api/military/zones
 │
 Storage: SQLite with full-text search (FTS5)
 │
-FastAPI Backend
-├── GET /api/articles — filtered article feed; ?include_pending=true for admin (shows unapproved)
-├── GET /api/articles/{id} — single article with full details
-├── POST /api/articles/{id}/approve — mark article as analyst-approved for public feed
-├── PATCH /api/articles/{id}/translation — override headline, summary, or key quote translation
-├── GET /api/stats — dashboard summary (topic breakdown, sentiment trend, entities); accepts topic/source_place/urgency/escalation_only/entity scoping params — returns scoped aggregations alongside global baselines for gauge ghost-dot comparison
-├── GET /api/stats/entities — entity leaderboard by mention count
-├── POST /api/notes — analyst commentary with sentiment/topic/score override
-├── GET /api/social/ — latest Weibo top 50 + PTT trending posts
-├── PATCH /api/social/{id}/translation — save analyst translation correction
-├── GET /api/stats/key-figures — latest approved statement per curated figure
-├── GET /api/stats/key-figures/candidates — pending statements grouped by figure
-├── POST /api/stats/key-figures/statements/{id}/approve — approve a candidate
-├── POST /api/stats/key-figures/statements/{id}/dismiss — dismiss a candidate
-├── GET /review/queue — articles pending human review
-├── POST /review/{id}/resolve — resolve review with confirm/override/dismiss
-├── GET /review/stats — pending/resolved counts + pending_approval count
-└── GET /docs — interactive API documentation
+FastAPI Backend (selected — full list at /docs)
+├── Articles & analysis
+│   ├── GET    /api/articles                — filtered feed; ?include_pending=true for admin
+│   ├── GET    /api/articles/{id}           — single article with full details
+│   ├── POST   /api/articles/{id}/approve   — mark article analyst-approved
+│   └── PATCH  /api/articles/{id}/translation — override headline, summary, key quote
+├── Stats & key figures
+│   ├── GET    /api/stats                   — dashboard summary, scoped aggregations + global baselines
+│   ├── GET    /api/stats/entities          — entity leaderboard
+│   ├── GET    /api/stats/key-figures(/candidates)
+│   ├── POST   /api/stats/key-figures/statements/{id}/approve  (and /dismiss)
+│   └── POST   /api/notes                   — analyst commentary
+├── Social
+│   ├── GET    /api/social/                 — Weibo top 50 + PTT trending
+│   └── PATCH  /api/social/{id}/translation — analyst translation correction
+├── Economy & people
+│   ├── GET    /api/economy/series(/meta)   — time-series + indicator catalog
+│   ├── GET    /api/economy/verification    — paired reporter gaps (3 kinds)
+│   ├── GET    /api/economy/investment-by-industry?direction=…
+│   └── GET    /api/economy/people-records  — bidirectional residency + flows
+├── Trade access
+│   ├── GET    /api/trade-access/items?direction=…&status=…
+│   ├── GET    /api/trade-access/summary    — asymmetry counts + suspension waves
+│   └── GET    /api/trade-access/cifer-snapshot — monthly Playwright snapshot
+├── Military
+│   ├── GET    /api/military/incursions(/monthly|/summary)
+│   ├── GET    /api/military/zones          — ADIZ sector heatmap
+│   ├── GET    /api/military/exercises(/summary)        — approved exercises
+│   ├── GET    /api/military/exercises/candidates       — admin: pending queue
+│   ├── POST   /api/military/exercises/{id}/(approve|dismiss|merge)
+│   └── PATCH  /api/military/exercises/{id}             — analyst edit
+├── Review
+│   ├── GET    /review/queue                — articles pending human review
+│   ├── POST   /review/{id}/resolve         — confirm / override / dismiss
+│   └── GET    /review/stats                — pending/resolved + pending_approval
+└── GET /docs                              — interactive API documentation
 │
 React Dashboard
+├── Signal Feed — filterable article list with event clustering; filter by PRC / Taiwan / HK/Macao / International
 ├── Priority Signals (flash/priority urgency articles)
 ├── Key Figures panel (10 curated officials, portraits, latest approved statement, curation modal)
-├── Signal Feed (filterable article list with event clustering; filter by PRC / Taiwan / HK/Macao / International)
 ├── Social Pulse column (Weibo cross-strait items + PTT trending, persistent right-hand column)
 ├── Strait Watch gauges (overall + PRC / TW / HK/Macao / International + by political camp)
 ├── Sentiment trend chart and topic breakdown chart (Recharts)
@@ -105,6 +142,10 @@ React Dashboard
 ├── Editorial approval gate (pending articles shown with amber border + approve/dismiss buttons)
 ├── Analyst commentary per article
 ├── Review Queue (human review UI with translation editing + confirm/override/dismiss)
+├── Economy tab (TW-vs-PRC indicators, verification panels, investment by industry)
+├── Trade Access tab (asymmetry headline, suspension waves, status-coloured table)
+├── People tab (bidirectional residency, policy timeline, paired visitor flows)
+├── Military tab (PLA incursion KPIs + ADIZ heatmap + Strait map; Exercise Tracker with Leaflet map, list, analyst review queue, edit modal)
 └── Dark/light theme toggle
 ```
 
@@ -409,8 +450,11 @@ server {
 ### Cron Schedule
 
 ```bash
-# Pipeline runs twice daily — 7am and 7pm BST (6am/6pm UTC)
-0 6,18 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
+# Main pipeline runs every 6 hours
+0 */6 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
+
+# CIFER snapshot (Playwright, monthly — not in main pipeline because of the headless Chromium launch cost)
+0 3 1 * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python -m scraper.scrapers.cifer_snapshot_scraper >> /var/log/cifer-snapshot.log 2>&1
 ```
 
 ### Deploy Workflow
@@ -472,7 +516,16 @@ cd /var/www/cross-strait-signal && ./server_deploy.sh
 - [x] Wikidata-driven officials roster with auto-refresh script (`scripts/refresh_officials.py`) — ~28 positions across TW/US/PRC/JP, injected into every prompt to prevent officeholder hallucinations
 - [x] Sentiment audit trail (`sentiment_reasoning`) — one-sentence quoted evidence per non-neutral score, displayed in admin interface
 - [x] Sentiment consistency validation — label/score band mismatches and unsupported directional claims auto-flagged to human review queue
-- [ ] Map layer (geocoded entity plotting)
+- [x] **Economy tab** — TW-vs-PRC trade with multi-reporter verification (MAC + UN Comtrade + HK CSD direct); the reporter gap is the analytical signal
+- [x] **Investment-by-industry** — both directions, with industry colour-coding and the ~50× outbound asymmetry visible
+- [x] **Trade Access tab** — BOFT bans + ECFA active/suspended + MoF PRC suspension waves + curated PRC bans, plus the monthly CIFER snapshot scraper (Playwright)
+- [x] **People tab** — bidirectional cross-strait residency: TW NIA permits + spouse stock + curated PRC-side data (台胞证 / census / settler floor) — with the 1992 籍貫 cutoff documented inline
+- [x] **PLA Incursion tracker** — Taiwan MND daily 共軍動態 scraper + PLATracker historical CSV backfill (2020-09 → 2026-04); KPI strip, daily bars, six-sector ADIZ heatmap, custom Taiwan Strait SVG map
+- [x] **Exercise Tracker** — Leaflet map + list of cross-strait exercises and drills, AI-extracted from MIL_EXERCISE articles, with an analyst review queue, canonical-key auto-merge, and edit modal for approved rows
+- [ ] Maps for geocoded entities (entity table already carries lat/lng schema fields)
+- [ ] Poll tracker — TW domestic polling (presidential approval, cross-strait attitude)
+- [ ] Incursion × exercise cross-reference — apply the verification angle to military data (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?)
+- [ ] Monthly-aggregated sentiment endpoint (revisit when 12+ months of data exists)
 - [ ] ADS-B / AIS data integration (Phase 3)
 
 ---

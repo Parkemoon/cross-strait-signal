@@ -67,6 +67,8 @@ The project venv at `venv/` may be near-empty on Windows. Use `/c/Users/Ed/venv/
 ~30 RSS/HTML news sources
     → Keyword pre-filter (directional: saves ~80% API cost)
     → Tier 1 AI: Gemini 3.1 Flash Lite (topic, sentiment, entities, urgency)
+        ↳ side-extract: military exercise candidates from MIL_EXERCISE
+                        articles → military_exercises (status=pending)
     → Tier 2 AI: Gemini 2.5 Flash (escalation review, conditional)
     → Tier 3: Human review queue (model disagreements — translation editing + auto-approve on resolve)
     → Editorial approval gate (analyst_approved=0 until sign-off; hidden from public feed)
@@ -78,6 +80,13 @@ Parallel pipelines (no AI processing):
     BOFT + ECFA + MoF + curated bans → trade_access → /api/trade-access/*
     MAC 7478/7473 monthly snapshots → investment_by_industry → /api/economy/investment-by-industry
     CIFER portal (Playwright, monthly) → cifer_snapshots → /api/trade-access/cifer-snapshot
+    TW NIA + curated PRC data → cross_strait_population → /api/economy/people-records
+    MND daily briefing + PLATracker backfill → pla_incursions → /api/military/*
+
+Exercise-only pass (Step 3b):
+    YDN military articles the keyword pre-filter rejected → Tier 1 exercise
+    extraction only (no full ai_analysis row written) → military_exercises
+    → /api/military/exercises (analyst review queue, then map + list)
 ```
 
 Event clustering (`scripts/cluster_events.py`) groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
