@@ -30,6 +30,17 @@ When Tier 1 classifies an article as `MIL_EXERCISE`, it side-extracts up to a ha
 
 A second pass (**Step 3b** in `run_pipeline.py`, `process_exercise_only_articles`) runs the same extraction against military-source articles (YDN) the keyword pre-filter rejected. No `ai_analysis` row is written for these — they exist only to feed the exercise tracker. Capped at 30 per run, last 14 days. See `.claude/rules/scrapers.md` for the geocoding sidecars.
 
+## Poll extraction
+
+Tier 1 side-extracts public-opinion polls (TW identity / unification / approval / vote intent) into the `polls` table as `approval_status='pending'`. Same editorial-gate pattern as `military_exercises`. The prompt requires four signals before extracting — named pollster, fielded date, sample size, and at least one numeric option — so passing references to historical poll numbers don't pollute the queue.
+
+Two design quirks worth knowing:
+
+- **`pollster_hint` is free text.** The AI copies the organisation name verbatim from the article. `_resolve_pollster_id` then maps it to a `pollster_id` via a three-layer match (exact → name contains hint → hint contains name) against a lookup of slug/name_zh/name_en, falling back to the seeded `unknown` pollster when nothing matches. The roster is loaded once per pipeline run. There's also a layer-0 glossary fallback: if the hint contains a `_MASTER_GLOSSARY` key, the glossary's English value is added as a second lookup candidate. This is what makes MAC's short forms (`陸委會`, `陆委会`) resolve correctly even though they aren't contiguous substrings of the formal `大陸委員會` — the glossary already canonicalises them to "Mainland Affairs Council (MAC)", and the existing layer-2 substring match catches `Mainland Affairs Council` inside that string. Free alias resolution for any pollster whose Chinese variants are already in the glossary; no separate alias table needed.
+- **`pending_results_json` stages the questions until approval.** `poll_results.question_id` is a NOT NULL FK to `poll_questions`, but `question_key` is analyst-assigned (never AI-extracted) so long-tail miscategorisation can't corrupt cross-pollster trend charts. To bridge the gap, the extracted `{questions:[{question_text_zh, question_text_en, family_hint, options:[{label_zh, label_en, percentage, option_order}]}]}` is held in `polls.pending_results_json` while the row is `pending`. On approve, the review queue picks a `question_key` per question and the server materialises `poll_results` rows from the JSON then NULLs the column.
+
+The extraction validates that `fielded_start` matches `YYYY-MM-DD`, drops options whose percentage isn't a 0–100 float, and drops questions left with no usable options. Date anchoring follows the same rule as military exercises — partial dates resolve against the article's published year.
+
 ## Relevance gate
 
 The prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. `NOT_RELEVANT` is a special pseudo-topic that exists in the DB but is not part of the 28 visible categories — it marks filtered articles and is never shown in the UI. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.

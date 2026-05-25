@@ -461,7 +461,7 @@ CREATE TABLE IF NOT EXISTS pollsters (
     slug         TEXT NOT NULL UNIQUE,       -- 'nccu_esc'|'myformosa'|'tvbs'|'ettoday'|'tpof'|'unknown'
     name_zh      TEXT NOT NULL,
     name_en      TEXT NOT NULL,
-    bias         TEXT NOT NULL,              -- 'academic'|'green'|'green_leaning'|'centrist'|'blue_leaning'|'blue'
+    bias         TEXT NOT NULL,              -- 'academic'|'green'|'green_leaning'|'centrist'|'blue_leaning'|'blue'|'state_official'
     status       TEXT NOT NULL DEFAULT 'active',  -- 'active'|'historical'|'ad_hoc'|'unknown'
     cadence      TEXT,                       -- 'monthly'|'biannual'|'ad_hoc'|NULL
     methodology  TEXT,                       -- default method (CATI, online panel, etc.)
@@ -484,21 +484,28 @@ CREATE TABLE IF NOT EXISTS poll_questions (
 CREATE INDEX IF NOT EXISTS idx_poll_questions_family ON poll_questions(family);
 
 CREATE TABLE IF NOT EXISTS polls (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    pollster_id       INTEGER NOT NULL REFERENCES pollsters(id),
-    fielded_start     TEXT NOT NULL,         -- 'YYYY-MM-DD'
-    fielded_end       TEXT,                  -- 'YYYY-MM-DD' (NULL for single-day fielding)
-    sample_size       INTEGER,
-    methodology_note  TEXT,                  -- per-poll method details
-    source_url        TEXT,
-    source_article_id INTEGER REFERENCES articles(id),  -- where AI extracted from (NULL for manual entry)
-    notes             TEXT,
-    confidence        REAL,                  -- AI extraction confidence (NULL for manual)
-    approval_status   TEXT NOT NULL DEFAULT 'pending',  -- 'pending'|'approved'|'dismissed'|'merged'
-    merged_into_id    INTEGER REFERENCES polls(id),
-    reviewed_at       TIMESTAMP,
-    reviewed_by       TEXT,
-    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    pollster_id          INTEGER NOT NULL REFERENCES pollsters(id),
+    fielded_start        TEXT NOT NULL,         -- 'YYYY-MM-DD'
+    fielded_end          TEXT,                  -- 'YYYY-MM-DD' (NULL for single-day fielding)
+    sample_size          INTEGER,
+    methodology_note     TEXT,                  -- per-poll method details
+    source_url           TEXT,
+    source_article_id    INTEGER REFERENCES articles(id),  -- where AI extracted from (NULL for manual entry)
+    notes                TEXT,
+    confidence           REAL,                  -- AI extraction confidence (NULL for manual)
+    approval_status      TEXT NOT NULL DEFAULT 'pending',  -- 'pending'|'approved'|'dismissed'|'merged'
+    -- Holds AI-extracted {questions:[{question_text_zh, question_text_en,
+    -- family_hint, options:[{label_zh, label_en, percentage}]}]} while the
+    -- poll sits in pending. The analyst picks a question_key for each entry
+    -- in the review queue; on approve the server materialises poll_results
+    -- rows from this blob and NULLs the column. NULL for manual entries
+    -- (which create poll_results directly) and for already-approved polls.
+    pending_results_json TEXT,
+    merged_into_id       INTEGER REFERENCES polls(id),
+    reviewed_at          TIMESTAMP,
+    reviewed_by          TEXT,
+    created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_polls_status_date ON polls(approval_status, fielded_start DESC);
 CREATE INDEX IF NOT EXISTS idx_polls_pollster ON polls(pollster_id, fielded_start DESC);
@@ -525,6 +532,12 @@ INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, 
     ('tvbs',      'TVBS民調中心',             'TVBS Poll Center',                 'blue',          'active',     'monthly',  NULL),
     ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'centrist',      'active',     'monthly',  NULL),
     ('tpof',      '台灣民意基金會',           'Taiwan Public Opinion Foundation', 'green_leaning', 'historical', NULL,       'Chair moved to head TW CEC; no new polls expected'),
+    -- MAC is a TW executive-branch ministry, not party media — bias=state_official is symmetric
+    -- with how PRC state outlets are labelled. The chip colour in PollsTab is side-aware
+    -- (TW state → DPP green under current exec, PRC state → red) since state_official can
+    -- attach to either side. Short forms (陸委會/陆委会) resolve via _MASTER_GLOSSARY in
+    -- _resolve_pollster_id without needing an aliases column.
+    ('mac',       '大陸委員會',               'Mainland Affairs Council',         'state_official','active',     'quarterly', 'TW executive branch; cross-strait attitudes survey 民眾對當前兩岸關係之看法'),
     ('unknown',   '未識別',                   'Unknown',                          'centrist',      'unknown',    NULL,       'Fallback for AI extractions where pollster could not be identified — analyst sets during approval');
 
 -- Seed canonical question keys for the three hero series
