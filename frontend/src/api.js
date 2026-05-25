@@ -265,6 +265,31 @@ export async function updateMilitaryExercise(id, patch) {
   });
 }
 
+// Polls — read endpoints (admin actions land alongside in a follow-up).
+// The list endpoint returns multi-question poll envelopes (one polls row
+// can carry identity + unification + party-ID for the same survey wave);
+// use the `questions[]` array on each poll rather than expecting one
+// question per row. by-question filters down to a single canonical
+// question across pollsters for the trend charts.
+
+export async function fetchPolls(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/polls/?${query}`);
+}
+
+export async function fetchPollsByQuestion(questionKey, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/polls/by-question/${encodeURIComponent(questionKey)}${query ? `?${query}` : ""}`);
+}
+
+export async function fetchPollsRoster() {
+  return request(`/api/polls/roster`);
+}
+
+export async function fetchPollsTopics() {
+  return request(`/api/polls/topics`);
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",
