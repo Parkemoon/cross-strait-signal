@@ -44,6 +44,7 @@ Two types:
 | `mac_invest_industry_outbound.py` | `investment_by_industry` | MAC 7473 — TW→PRC |
 | `cifer_snapshot_scraper.py` | `cifer_snapshots` | Playwright, monthly cron — NOT in `run_pipeline.py` |
 | `tw_nia_population_scraper.py` | `cross_strait_population` | TW NIA 167829 (居留/定居 permits) + 13503 (大陸/港澳配偶) |
+| `mnd_incursion_scraper.py` | `pla_incursions` | Taiwan MND daily 共軍動態 briefing — see PLA Incursions below |
 
 ## Economic Indicators
 
@@ -123,6 +124,23 @@ Both write to `cross_strait_population` keyed on (direction, metric, period, per
 **Dataset 167829 header gotcha**: the dataset misspells 大陸地"區" as 大陸地"居" in the 定居 column header. The scraper uses column indices, not header names, so it's unaffected — but if you ever rewrite by header-matching, watch out.
 
 **Dataset 13503 sparse-summary gotcha**: in practice only a handful of periods (e.g. 2020-10, 2020-12) carry rows with BOTH summary annotations; everything else has the gender breakdown only. If we ever want more snapshots, we'd need to sum gendered rows ourselves.
+
+## PLA Incursions (`mnd_incursion_scraper.py` + PLATracker backfill)
+
+Two ingest paths into `pla_incursions`:
+
+- **MND daily briefing** (`source='mnd'`) — pulls `mnd.gov.tw/news/plaactlist/*` listing pages and `/news/plaact/<id>` detail pages. Captures the full breakdown: aircraft / median-line crossings / coast-guard / vessels / six ADIZ sector codes. MND's reporting window is 0600→0600; the END day is the canonical date (e.g. report titled `115.05.22` covers 05/21 0600 → 05/22 0600). Runs as **Step 2k** in `run_pipeline.py`. Idempotent on (date, source). See [[mnd-incursion-parsing]] memory for the parser wording variants (quiet days, singular sortie, six sector codes).
+- **PLATracker backfill** (`source='platracker'`) — one-shot CSV import via `scripts/backfill_pla_incursions_platracker.py`. Covers 2020-09-09 → 2026-04-10, ADIZ-entry count only. Vessels, coast-guard, zone breakdown are NULL by design — PLATracker never published those fields. Don't paper over with zeros; the monthly endpoint returns null and the frontend's vessel sparkline / zone heatmap render MND-era only.
+
+The 6-week gap between PLATracker's last row (2026-04-10) and present fills in automatically on the next MND run.
+
+## Exercise Tracker side-channel (`Step 3b`)
+
+Tier 1 AI extraction also writes `military_exercises` candidate rows from MIL_EXERCISE articles — see `.claude/rules/ai-pipeline.md`. **Step 3b** (`process_exercise_only_articles`, cap 30/run, last 14 days) does a *parallel* extraction pass against articles the keyword pre-filter REJECTED, restricted to military-source whitelist (YDN). The goal is to feed ROC domestic drill content into the exercise tracker without polluting the main signal feed — these articles never get an `ai_analysis` row written. The exercise endpoint uses LEFT JOIN + a relaxed VISIBLE predicate so the rows still surface.
+
+Geocoding is fed by two JSON sidecars in `scraper/processors/`:
+- `military_locations.json` — hand-curated lookup of named places (~55 entries).
+- `military_locations_auto.json` — auto-extending companion populated when an analyst PATCHes an exercise's `location_label` + coordinates together. Lock file (`.json.lock`) is a runtime artefact, gitignored.
 
 ### Curated PRC-side data (`scripts/seed_taiwanese_in_prc_curated.py`)
 

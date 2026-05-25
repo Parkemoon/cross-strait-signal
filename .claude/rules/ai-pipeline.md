@@ -24,6 +24,12 @@ Applied *after* AI extraction to normalise `name_en` on entity rows already writ
 
 Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `key_figures.json` — 10 figures with Chinese/English names, roles, party field (DPP/KMT/PRC), portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — intentional to prevent misattribution.
 
+## Military exercise extraction
+
+When Tier 1 classifies an article as `MIL_EXERCISE`, it side-extracts up to a handful of exercise candidates (name_en, name_zh, performer ∈ {PRC, ROC, US, JP, MULTI}, kind, start/end date, location label + best-effort lat/lng, English description) into `military_exercises` with `status='pending'`. The published year of the article is passed in as an anchor so partial date strings ("Aug 19") resolve to the right year. Pending rows are hidden from `/api/military/exercises` until an analyst approves them — see [[api-routes]] for the editorial flow and the canonical-name auto-merge. Extracted dates that fall outside ±1 year of `published_at` are silently dropped (likely a hallucination).
+
+A second pass (**Step 3b** in `run_pipeline.py`, `process_exercise_only_articles`) runs the same extraction against military-source articles (YDN) the keyword pre-filter rejected. No `ai_analysis` row is written for these — they exist only to feed the exercise tracker. Capped at 30 per run, last 14 days. See `.claude/rules/scrapers.md` for the geocoding sidecars.
+
 ## Relevance gate
 
 The prompt requires the model to set `is_cross_strait_primary` (bool) as its first decision before classification. If false, `topic_primary` is forced to `NOT_RELEVANT` both by the model and by a Python-level enforcement check. `NOT_RELEVANT` is a special pseudo-topic that exists in the DB but is not part of the 28 visible categories — it marks filtered articles and is never shown in the UI. PRC sources writing about Taiwan are explicitly exempt — their cultural/lifestyle coverage of Taiwan is analytically relevant (POL_TONGDU framing) and should not be filtered.
