@@ -9,12 +9,12 @@ import {
 } from "../api";
 import { PERFORMER_COLOUR, PERFORMER_LABEL } from "./ExerciseMap";
 
-export const EXERCISE_KINDS = [
+const EXERCISE_KINDS = [
   "live_fire", "readiness_drill", "joint_patrol",
   "named_exercise", "cyber", "amphibious", "other",
 ];
 
-export function fieldStyle() {
+function fieldStyle() {
   return {
     fontFamily: "var(--font-mono)",
     fontSize: "11px",
@@ -27,7 +27,7 @@ export function fieldStyle() {
   };
 }
 
-export function labelStyle() {
+function labelStyle() {
   return {
     fontFamily: "var(--font-mono)",
     fontSize: "9.5px",
