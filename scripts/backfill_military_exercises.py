@@ -150,7 +150,7 @@ def extract(article):
 
 SOURCE: {article['source_name']}
 LANGUAGE: {article['language']}
-PUBLISHED: {article.get('published_at') or 'unknown'}
+PUBLISHED: {article['published_at'] or 'unknown'}
 TITLE: {article['title_original']}
 
 FULL TEXT:
