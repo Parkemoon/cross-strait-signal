@@ -9,11 +9,13 @@ import {
   fetchMilitaryZones,
   fetchMilitaryExercises,
   fetchMilitaryExerciseCandidates,
+  dismissMilitaryExercise,
 } from "../api";
 import { READ_ONLY } from "../readOnly";
 import { TAIWAN_PATHS, PRC_COAST_PATHS, MEDIAN_LINE } from "./taiwanStraitMap";
 import ExerciseMap, { PERFORMER_COLOUR, PERFORMER_LABEL } from "./ExerciseMap";
 import ExerciseReviewQueue from "./ExerciseReviewQueue";
+import ExerciseEditModal from "./ExerciseEditModal";
 
 // Purple is the project's "hostile" colour (locked). PLA incursions are the
 // prototypical hostile cross-strait act, so the whole tab leans purple.
@@ -598,7 +600,29 @@ function ExerciseFilters({ filters, setFilters, counts, pendingCount, onOpenRevi
   );
 }
 
-function ExerciseList({ rows, selectedId, onSelect }) {
+// Small square icon button used by the per-row admin controls below.
+function RowIconButton({ title, onClick, colour, children }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      title={title}
+      style={{
+        background: "transparent",
+        border: "1px solid var(--border-color)",
+        color: colour || "var(--text-muted)",
+        cursor: "pointer",
+        padding: "1px 6px",
+        fontSize: "11px",
+        lineHeight: 1.2,
+        fontFamily: "var(--font-mono)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ExerciseList({ rows, selectedId, onSelect, onEdit, onQuickDismiss }) {
   if (!rows || rows.length === 0) {
     return (
       <div style={{
@@ -662,14 +686,31 @@ function ExerciseList({ rows, selectedId, onSelect }) {
                 {ex.location_label || (hasGeo ? "" : "(no location)")}
               </span>
             </div>
-            {ex.article?.url && (
-              <a href={ex.article.url} target="_blank" rel="noreferrer"
-                 style={{ color: "var(--text-muted)",
-                          fontSize: "9.5px", letterSpacing: "0.05em",
-                          textTransform: "uppercase", textDecoration: "underline" }}>
-                via {ex.article.source_name}
-              </a>
-            )}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                          marginTop: "4px", gap: "8px" }}>
+              {ex.article?.url ? (
+                <a href={ex.article.url} target="_blank" rel="noreferrer"
+                   onClick={(e) => e.stopPropagation()}
+                   style={{ color: "var(--text-muted)",
+                            fontSize: "9.5px", letterSpacing: "0.05em",
+                            textTransform: "uppercase", textDecoration: "underline" }}>
+                  via {ex.article.source_name}
+                </a>
+              ) : <span />}
+              {!READ_ONLY && onEdit && (
+                <span style={{ display: "flex", gap: "4px" }}>
+                  <RowIconButton title="Edit this exercise"
+                                 onClick={() => onEdit(ex)}>
+                    ✎
+                  </RowIconButton>
+                  <RowIconButton title="Dismiss this exercise"
+                                 colour="var(--accent-red, #dc2626)"
+                                 onClick={() => onQuickDismiss(ex)}>
+                    ✕
+                  </RowIconButton>
+                </span>
+              )}
+            </div>
           </div>
         );
       })}
@@ -687,6 +728,7 @@ export default function MilitaryTab() {
   const [exercises, setExercises] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [editingExercise, setEditingExercise] = useState(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState(null);
   const [exFilters, setExFilters] = useState({
     days: 90,
@@ -724,6 +766,34 @@ export default function MilitaryTab() {
       .catch(() => setPendingCount(0));
   };
   useEffect(() => { loadPendingCount(); }, []);
+
+  // Apply an in-place row replacement after a successful PATCH so the list
+  // and map update without a full re-fetch round-trip. Server returns the
+  // post-update row in the same shape /exercises serves.
+  const handleExerciseSaved = (updated) => {
+    setExercises((prev) => (prev || []).map((e) => (e.id === updated.id ? updated : e)));
+    setEditingExercise(null);
+  };
+
+  // Drop the row locally after dismiss — backend will 404 it from /exercises
+  // on next fetch anyway; this just avoids the round-trip.
+  const handleExerciseDismissed = (id) => {
+    setExercises((prev) => (prev || []).filter((e) => e.id !== id));
+    if (selectedExerciseId === id) setSelectedExerciseId(null);
+    setEditingExercise(null);
+  };
+
+  // One-click dismiss from the list — matches the no-confirm pattern of
+  // ArticleCard's Dismiss and the candidate review queue's Dismiss.
+  const handleQuickDismiss = async (ex) => {
+    try {
+      await dismissMilitaryExercise(ex.id);
+      handleExerciseDismissed(ex.id);
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      window.alert(`Dismiss failed: ${e.message || e}`);
+    }
+  };
 
   // Client-side performer filter + per-performer counts (for the pill labels).
   const filteredExercises = useMemo(() => {
@@ -912,11 +982,18 @@ export default function MilitaryTab() {
         gap: "16px",
         alignItems: "start",
       }}>
-        <ExerciseMap rows={filteredExercises} selectedId={selectedExerciseId} />
+        <ExerciseMap
+          rows={filteredExercises}
+          selectedId={selectedExerciseId}
+          onEdit={setEditingExercise}
+          onQuickDismiss={handleQuickDismiss}
+        />
         <ExerciseList
           rows={filteredExercises}
           selectedId={selectedExerciseId}
           onSelect={setSelectedExerciseId}
+          onEdit={setEditingExercise}
+          onQuickDismiss={handleQuickDismiss}
         />
       </div>
 
@@ -938,6 +1015,15 @@ export default function MilitaryTab() {
                            fetchMilitaryExercises({ days: exFilters.days })
                              .then((r) => setExercises(r.rows || [])); }}
           onResolveAll={() => setPendingCount(0)}
+        />
+      )}
+
+      {editingExercise && (
+        <ExerciseEditModal
+          exercise={editingExercise}
+          onClose={() => setEditingExercise(null)}
+          onSaved={handleExerciseSaved}
+          onDismissed={handleExerciseDismissed}
         />
       )}
     </main>

@@ -221,3 +221,6 @@ frontend/build-public/
 # Local scratch scripts — never commit
 fix.py
 scratch.py
+
+# Runtime lock files from military_locations auto-extend path
+scraper/processors/*.json.lock

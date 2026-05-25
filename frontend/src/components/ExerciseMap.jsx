@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { READ_ONLY } from "../readOnly";
 
 // Pans/zooms the map to a selected marker and opens its popup. Lives
 // inside MapContainer so it can grab the Leaflet Map instance via
@@ -86,7 +87,31 @@ function fmtDateRange(start, end) {
   return `${start} → ${end}`;
 }
 
-function MarkerPopup({ exercise }) {
+// Inline-styled icon button for popup actions. Popups render on a white
+// Leaflet-default background, so colours are hardcoded rather than theme
+// variables (which would be invisible against the popup chrome).
+function PopupIconButton({ title, onClick, colour, children }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      title={title}
+      style={{
+        background: "transparent",
+        border: `1px solid ${colour || "#bbb"}`,
+        color: colour || "#555",
+        cursor: "pointer",
+        padding: "2px 8px",
+        fontSize: "11px",
+        lineHeight: 1.2,
+        fontFamily: "var(--font-mono)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MarkerPopup({ exercise, onEdit, onQuickDismiss }) {
   const { name_en, name_zh, performer, exercise_kind,
           start_date, end_date, location_label,
           description_en, article, participants } = exercise;
@@ -145,11 +170,34 @@ function MarkerPopup({ exercise }) {
           </a>
         </div>
       )}
+      {!READ_ONLY && (onEdit || onQuickDismiss) && (
+        <div style={{
+          marginTop: "8px",
+          paddingTop: "6px",
+          borderTop: "1px dotted #ccc",
+          display: "flex",
+          gap: "6px",
+        }}>
+          {onEdit && (
+            <PopupIconButton title="Edit this exercise"
+                             onClick={() => onEdit(exercise)}>
+              ✎ Edit
+            </PopupIconButton>
+          )}
+          {onQuickDismiss && (
+            <PopupIconButton title="Dismiss this exercise"
+                             colour="#dc2626"
+                             onClick={() => onQuickDismiss(exercise)}>
+              ✕ Dismiss
+            </PopupIconButton>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-export default function ExerciseMap({ rows, selectedId }) {
+export default function ExerciseMap({ rows, selectedId, onEdit, onQuickDismiss }) {
   const geoRows = (rows || []).filter(
     (r) => typeof r.latitude === "number" && typeof r.longitude === "number",
   );
@@ -214,7 +262,9 @@ export default function ExerciseMap({ rows, selectedId }) {
               }}
             >
               <Popup>
-                <MarkerPopup exercise={ex} />
+                <MarkerPopup exercise={ex}
+                             onEdit={onEdit}
+                             onQuickDismiss={onQuickDismiss} />
               </Popup>
             </CircleMarker>
           );
