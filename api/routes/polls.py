@@ -56,15 +56,6 @@ _POLL_PUBLIC_COLS = """
 """
 
 
-def _serialise_poll(row) -> dict:
-    """Convert a sqlite3.Row carrying _POLL_PUBLIC_COLS into a plain dict.
-    Frontend builds expect plain dicts (Row objects don't JSON-serialise
-    directly across all FastAPI versions). Pulled out so the per-poll
-    `questions` aggregation in the list endpoint can attach to a fresh
-    object."""
-    return {k: row[k] for k in row.keys()}
-
-
 # ============================================================
 # GET / — recent approved polls feed
 # ============================================================
@@ -166,7 +157,7 @@ def polls_list(
 
     polls = []
     for row in poll_rows:
-        poll = _serialise_poll(row)
+        poll = dict(row)
         # dict.values() preserves insertion order (Python 3.7+) which mirrors
         # the ORDER BY q.id from the SQL — deterministic per-question order
         # within each poll envelope.
@@ -302,7 +293,7 @@ def polls_roster():
             ORDER BY ps.status, ps.name_en
         """).fetchall()
 
-    return {"pollsters": [{k: r[k] for k in r.keys()} for r in rows]}
+    return {"pollsters": [dict(r) for r in rows]}
 
 
 # ============================================================
@@ -336,7 +327,7 @@ def polls_topics():
     # surface first.
     families: dict = {}
     for r in rows:
-        q = {k: r[k] for k in r.keys()}
+        q = dict(r)
         families.setdefault(q["family"], []).append(q)
     for fam in families.values():
         fam.sort(key=lambda q: (-q["approved_count"], q["question_key"]))
