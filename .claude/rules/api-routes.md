@@ -83,3 +83,18 @@ Exercise tracker endpoints:
 - `PATCH /api/military/exercises/{id}` (admin) — analyst edits. Sends only changed fields (the frontend builds a minimal patch via `buildExercisePatch`). Always recomputes `canonical_name` from the final `name_en`. Coordinates bbox-validated to 8–35°N / 105–135°E — out-of-bbox PATCHes return 400 (vs the AI ingest path which silently nulls — at the analyst layer we'd rather argue). If the patch explicitly touched `location_label`, the (label → lat/lng) pair is auto-recorded into `military_locations_auto.json` for future AI extractions.
 
 Used by `MilitaryTab.jsx` for both the incursion KPI strip / ADIZ map and the Exercise Tracker section (map + list + analyst review queue + edit modal).
+
+## `polls.py` — `/api/polls` (Phase 2d, read endpoints)
+
+Public-safe read routes only in this file; admin endpoints (candidates queue, approve/dismiss/merge, PATCH, manual create) will land in a follow-up commit. All routes apply `approval_status = 'approved'` so pending / dismissed / merged rows stay in the review queue.
+
+- `GET /api/polls/` — recent approved feed, paginated (`limit`, `offset`). Filters: `pollster` (slug), `family` (question family), `question_key` (canonical key). `question_key` wins over `family` if both supplied. Each poll envelope carries its full `questions[]` array with nested `options[]` — one polls row CAN hold multiple questions (see [[database]] on the multi-question survey envelope), so the frontend gets the whole survey context, not just the filtered question. Sort: `fielded_start DESC, id DESC`.
+- `GET /api/polls/by-question/{question_key}` — cross-pollster time series for the trend charts. Filters: `pollster` (one slug), `start`, `end` (ISO dates on `fielded_start`). Returns canonical question metadata at top level (`question_text_zh/en`, `family`, `scale_type`, `description`) plus a `waves[]` array sorted `fielded_start ASC` (ready for left-to-right plotting). 404 on unknown `question_key`. Each wave carries pollster slug + bias so the frontend can colour per-pollster.
+- `GET /api/polls/roster` — pollster list with `approved_count` per pollster (LEFT JOIN so zero-poll pollsters still appear in the filter dropdown). Sorted by `status` then `name_en`.
+- `GET /api/polls/topics` — question families grouped, each carrying its `poll_questions` entries with `approved_count`, `first_wave`, `last_wave`. Within each family, questions sort by `approved_count DESC`.
+
+Non-obvious rules:
+- The list endpoint's `question_key` / `family` filter uses an `EXISTS` subquery (not a `JOIN`) so polls aren't multiplied when a poll carries the filtered question — one row per polls envelope, not one per (poll, result).
+- `poll_results` are batch-fetched in ONE follow-up query keyed on the page of poll_ids returned, then pivoted in Python — avoids N+1.
+- `polls.methodology_note` is survey-level (pollster, mode, fielding window), never question-specific. Question wording lives on `poll_questions.question_text_*`. If you need per-pollster wording variants for the same canonical question, that's a future feature (`pollster_question_phrasings` table) — don't bake it into `methodology_note`.
+- Provenance discriminators on returned polls: `source_article_id NOT NULL` = AI extraction; `reviewed_by LIKE 'backfill:%'` = script-seeded (NCCU long series); otherwise manual analyst entry.
