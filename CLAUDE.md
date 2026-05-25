@@ -87,6 +87,13 @@ Exercise-only pass (Step 3b):
     YDN military articles the keyword pre-filter rejected → Tier 1 exercise
     extraction only (no full ai_analysis row written) → military_exercises
     → /api/military/exercises (analyst review queue, then map + list)
+
+Poll-only pass (Step 3c):
+    TW-side articles the keyword pre-filter rejected whose title carries
+    民調/民意調查 → stripped poll-only Tier 1 prompt (no ai_analysis row
+    written) → polls + pending_results_json (questions/options blob held
+    until analyst assigns question_keys) → /api/polls/* (analyst review
+    queue, then cross-pollster trend charts)
 ```
 
 Event clustering (`scripts/cluster_events.py`) groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
