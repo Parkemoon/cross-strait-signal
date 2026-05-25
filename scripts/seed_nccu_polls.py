@@ -1,0 +1,198 @@
+"""Seed historical NCCU ESC trend data into `polls` + `poll_results`.
+
+Reads `scraper/processors/nccu_esc_seed.json` and upserts one polls row
+per (pollster=nccu_esc, year) wave with approval_status='approved' and
+the per-option percentages materialised straight into poll_results.
+
+Skips the editorial review queue deliberately — NCCU ESC is the curated
+gold-standard long series, the question_keys are seeded canonical, and
+the data is transcribed from NCCU's own labelled trend chart with
+per-year sum cross-validation. The review queue exists for AI-extracted
+ambiguity, not authoritative ingest. Same pattern as
+seed_taiwanese_in_prc_curated.py.
+
+Idempotent — re-running upserts on (pollster_id, fielded_start) for polls
+and on (poll_id, question_id, option_label_zh) for poll_results. Run
+after edits to the JSON file (e.g. when NCCU publishes a new wave).
+
+The JSON's `series[]` entries with empty `waves` (e.g. the unification
+series, deferred pending a cleaner data source) are skipped silently
+with an info-level log line — the script remains useful for any series
+that's been transcribed without erroring on those that haven't.
+"""
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from scraper.utils.db import get_connection
+
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+JSON_PATH = os.path.join(
+    os.path.dirname(__file__), '..',
+    'scraper', 'processors', 'nccu_esc_seed.json',
+)
+
+POLLSTER_SLUG = 'nccu_esc'
+
+# Standard envelope text on each backfilled poll. Identifies the row as
+# script-seeded (vs analyst-entered or AI-extracted) so future audits can
+# discriminate. The annual-aggregate note is the load-bearing caveat —
+# fielded_start/fielded_end span the full calendar year by design, since
+# NCCU merges biannual waves before publishing the trend point.
+SEEDED_BY = 'backfill:seed_nccu_polls'
+NOTES_TEMPLATE = (
+    "NCCU ESC {series_label} — annual aggregate of {sample_size} interviews. "
+    "Transcribed from NCCU's labelled trend chart (sum cross-validated to "
+    "99.9–100.1%); fielded_start/end cover the full year per NCCU's "
+    "annual-merge methodology."
+)
+
+
+def _resolve_pollster_id(conn) -> int:
+    row = conn.execute(
+        "SELECT id FROM pollsters WHERE slug = ?", (POLLSTER_SLUG,)
+    ).fetchone()
+    if row is None:
+        raise RuntimeError(
+            f"Pollster '{POLLSTER_SLUG}' not in roster — run schema migration first."
+        )
+    return row['id']
+
+
+def _resolve_question_id(conn, question_key: str) -> int:
+    row = conn.execute(
+        "SELECT id FROM poll_questions WHERE question_key = ?", (question_key,)
+    ).fetchone()
+    if row is None:
+        raise RuntimeError(
+            f"Question key '{question_key}' not in poll_questions — "
+            "run schema migration first (canonical keys are seeded there)."
+        )
+    return row['id']
+
+
+def _upsert_poll(conn, pollster_id, fielded_start, fielded_end, sample_size,
+                 methodology_note, notes) -> int:
+    """Look up the existing poll for (pollster_id, fielded_start); update
+    it in place if present, insert otherwise. Returns the poll_id.
+
+    Why manual upsert: the polls table has no UNIQUE constraint on
+    (pollster_id, fielded_start) — that uniqueness only applies to the
+    seed-backfill use case, not to AI extractions where two outlets
+    covering the same poll legitimately produce separate pending rows
+    until analyst merge. Encoding it as a constraint would break the AI
+    extraction flow."""
+    row = conn.execute(
+        "SELECT id FROM polls WHERE pollster_id = ? AND fielded_start = ? "
+        "AND reviewed_by = ?",
+        (pollster_id, fielded_start, SEEDED_BY),
+    ).fetchone()
+    if row is not None:
+        conn.execute("""
+            UPDATE polls SET
+                fielded_end       = ?,
+                sample_size       = ?,
+                methodology_note  = ?,
+                notes             = ?,
+                approval_status   = 'approved',
+                reviewed_at       = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (fielded_end, sample_size, methodology_note, notes, row['id']))
+        return row['id']
+    cur = conn.execute("""
+        INSERT INTO polls
+            (pollster_id, fielded_start, fielded_end, sample_size,
+             methodology_note, notes, approval_status, reviewed_by, reviewed_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, CURRENT_TIMESTAMP)
+    """, (pollster_id, fielded_start, fielded_end, sample_size,
+          methodology_note, notes, SEEDED_BY))
+    return cur.lastrowid
+
+
+def _seed_series(conn, pollster_id, series) -> int:
+    """Process one series block (identity_nccu_3pt or unification_nccu_6pt).
+    Returns the count of poll_results rows written. Series with empty
+    `waves` array (deferred series) return 0 silently."""
+    qkey = series['question_key']
+    waves = series.get('waves') or []
+    if not waves:
+        print(f"  [{qkey}] no waves to seed — skipping "
+              f"({series.get('deferred_reason', 'no reason given')[:80]}...)")
+        return 0
+
+    question_id = _resolve_question_id(conn, qkey)
+    options = series['options']
+    series_label = series['question_text_en_verbatim'][:80].rstrip('.,?') + '...'
+    # Per-poll methodology_note bundles the verbatim survey question +
+    # NCCU citation. Stored on the polls row so the review-queue UI and
+    # the API can surface the authoritative wording without re-querying
+    # poll_questions; also makes raw-DB browsing self-explanatory.
+    base_method = (
+        f"Pollster: NCCU Election Study Center. Survey question (verbatim):\n"
+        f"  ZH — {series['question_text_zh_verbatim']}\n"
+        f"  EN — {series['question_text_en_verbatim']}\n"
+        f"Mode: landline + mobile CATI, weighted by raking (sex, age, "
+        f"education, geography). Source: Core Political Attitudes Trend "
+        f"Chart, NCCU."
+    )
+
+    written = 0
+    for wave in waves:
+        year = int(wave['year'])
+        fielded_start = f"{year}-01-01"
+        fielded_end = f"{year}-12-31"
+        sample_size = int(wave['sample_size'])
+        notes = NOTES_TEMPLATE.format(
+            series_label=series_label, sample_size=f"{sample_size:,}"
+        )
+
+        poll_id = _upsert_poll(
+            conn, pollster_id, fielded_start, fielded_end, sample_size,
+            base_method, notes,
+        )
+
+        percentages = wave['percentages']
+        if len(percentages) != len(options):
+            raise ValueError(
+                f"{qkey} {year}: {len(percentages)} percentages but "
+                f"{len(options)} options defined — JSON mismatch."
+            )
+
+        for opt, pct in zip(options, percentages):
+            conn.execute("""
+                INSERT INTO poll_results
+                    (poll_id, question_id, option_label_zh, option_label_en,
+                     option_order, percentage)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(poll_id, question_id, option_label_zh) DO UPDATE SET
+                    option_label_en = excluded.option_label_en,
+                    option_order    = excluded.option_order,
+                    percentage      = excluded.percentage
+            """, (poll_id, question_id, opt['label_zh'], opt['label_en'],
+                  int(opt['order']), float(pct)))
+            written += 1
+
+    print(f"  [{qkey}] seeded {len(waves)} polls, {written} poll_results rows")
+    return written
+
+
+def main():
+    with open(JSON_PATH, encoding='utf-8') as f:
+        data = json.load(f)
+
+    conn = get_connection()
+    try:
+        pollster_id = _resolve_pollster_id(conn)
+        total = 0
+        for series in data.get('series', []):
+            total += _seed_series(conn, pollster_id, series)
+        conn.commit()
+        print(f"Done. {total} poll_results rows written/updated.")
+    finally:
+        conn.close()
+
+
+if __name__ == '__main__':
+    main()
