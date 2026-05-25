@@ -9,12 +9,12 @@ import {
 } from "../api";
 import { PERFORMER_COLOUR, PERFORMER_LABEL } from "./ExerciseMap";
 
-const EXERCISE_KINDS = [
+export const EXERCISE_KINDS = [
   "live_fire", "readiness_drill", "joint_patrol",
   "named_exercise", "cyber", "amphibious", "other",
 ];
 
-function fieldStyle() {
+export function fieldStyle() {
   return {
     fontFamily: "var(--font-mono)",
     fontSize: "11px",
@@ -27,7 +27,7 @@ function fieldStyle() {
   };
 }
 
-function labelStyle() {
+export function labelStyle() {
   return {
     fontFamily: "var(--font-mono)",
     fontSize: "9.5px",
@@ -39,68 +39,162 @@ function labelStyle() {
   };
 }
 
-function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone }) {
-  const [draft, setDraft] = useState({
-    name_en:        candidate.name_en || "",
-    name_zh:        candidate.name_zh || "",
-    performer:      candidate.performer,
-    exercise_kind:  candidate.exercise_kind || "other",
-    start_date:     candidate.start_date || "",
-    end_date:       candidate.end_date || "",
-    location_label: candidate.location_label || "",
-    latitude:       candidate.latitude  ?? "",
-    longitude:      candidate.longitude ?? "",
-    description_en: candidate.description_en || "",
-  });
-  const [busy, setBusy] = useState(false);
-  const [mergeTarget, setMergeTarget] = useState("");
-  const [error, setError] = useState(null);
+// Shared editable fields shape — used by both pending CandidateCard and the
+// approved-exercise edit modal. Empty strings for nullable text/coords are
+// the form's "absent" sentinel; the PATCH path normalises back to null.
+export function exerciseDraftFrom(row) {
+  return {
+    name_en:        row.name_en || "",
+    name_zh:        row.name_zh || "",
+    performer:      row.performer,
+    exercise_kind:  row.exercise_kind || "other",
+    start_date:     row.start_date || "",
+    end_date:       row.end_date || "",
+    location_label: row.location_label || "",
+    latitude:       row.latitude  ?? "",
+    longitude:      row.longitude ?? "",
+    description_en: row.description_en || "",
+  };
+}
 
-  // Track whether the draft diverges from the candidate's current DB state —
-  // only PATCH the row if the analyst edited something.
-  const isDirty = Object.entries(draft).some(([k, v]) => {
-    const orig = candidate[k];
+// True if any draft field diverges from the row it was derived from.
+export function isExerciseDraftDirty(draft, row) {
+  return Object.entries(draft).some(([k, v]) => {
+    const orig = row[k];
     if (k === "latitude" || k === "longitude") {
       const origNum = orig === null || orig === undefined ? "" : String(orig);
       return String(v) !== origNum;
     }
     return (v || "") !== (orig || "");
   });
+}
 
-  // Only send fields that actually changed. Two reasons:
-  //   1. Sending name_en='' (the form's empty-string default for null) on
-  //      a name_zh-only candidate would NULL canonical_name server-side,
-  //      breaking future auto-merge grouping for that exercise.
-  //   2. Server-side validators (bbox check on lat/lng, ISO date format)
-  //      should only run on fields the analyst actually edited — sending
-  //      an untouched typo'd date would 400 unexpectedly.
-  const patchFromDraft = () => {
-    const p = {};
-    for (const [k, v] of Object.entries(draft)) {
-      const orig = candidate[k];
-      let changed;
-      if (k === "latitude" || k === "longitude") {
-        const origStr = orig === null || orig === undefined ? "" : String(orig);
-        changed = String(v) !== origStr;
-      } else {
-        changed = (v || "") !== (orig || "");
-      }
-      if (!changed) continue;
-      if (k === "latitude" || k === "longitude") {
-        p[k] = v === "" ? null : Number(v);
-      } else {
-        p[k] = v;
-      }
+// Build a minimal PATCH body containing only changed fields. Two reasons
+// for the "only changed" rule, both load-bearing:
+//   1. Sending name_en='' on a name_zh-only row would NULL canonical_name
+//      server-side, breaking future auto-merge grouping for that exercise.
+//   2. Server-side validators (bbox check on lat/lng, ISO date format)
+//      should only run on fields the analyst actually edited — sending an
+//      untouched typo'd date would 400 unexpectedly.
+export function buildExercisePatch(draft, row) {
+  const p = {};
+  for (const [k, v] of Object.entries(draft)) {
+    const orig = row[k];
+    let changed;
+    if (k === "latitude" || k === "longitude") {
+      const origStr = orig === null || orig === undefined ? "" : String(orig);
+      changed = String(v) !== origStr;
+    } else {
+      changed = (v || "") !== (orig || "");
     }
-    return p;
-  };
+    if (!changed) continue;
+    if (k === "latitude" || k === "longitude") {
+      p[k] = v === "" ? null : Number(v);
+    } else {
+      p[k] = v;
+    }
+  }
+  return p;
+}
+
+// Pure controlled field grid. Used by both the pending-candidate review
+// card and the approved-exercise edit modal.
+export function ExerciseFieldsGrid({ draft, setDraft }) {
+  const performerColour = PERFORMER_COLOUR[draft.performer] || "#666";
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "2fr 1fr 1fr",
+      gap: "6px 10px",
+      marginBottom: "6px",
+    }}>
+      <div>
+        <label style={labelStyle()}>Name (English)</label>
+        <input style={fieldStyle()} value={draft.name_en}
+               placeholder="Joint Sword 2024B"
+               onChange={(e) => setDraft({ ...draft, name_en: e.target.value })} />
+      </div>
+      <div>
+        <label style={labelStyle()}>Performer</label>
+        <select style={{ ...fieldStyle(), color: performerColour, fontWeight: 700 }}
+                value={draft.performer}
+                onChange={(e) => setDraft({ ...draft, performer: e.target.value })}>
+          {Object.keys(PERFORMER_LABEL).map((p) =>
+            <option key={p} value={p}>{PERFORMER_LABEL[p]}</option>
+          )}
+        </select>
+      </div>
+      <div>
+        <label style={labelStyle()}>Kind</label>
+        <select style={fieldStyle()} value={draft.exercise_kind}
+                onChange={(e) => setDraft({ ...draft, exercise_kind: e.target.value })}>
+          {EXERCISE_KINDS.map((k) => <option key={k} value={k}>{k.replace("_", " ")}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <label style={labelStyle()}>Name (original)</label>
+        <input style={fieldStyle()} value={draft.name_zh}
+               onChange={(e) => setDraft({ ...draft, name_zh: e.target.value })} />
+      </div>
+      <div>
+        <label style={labelStyle()}>Start</label>
+        <input type="date" style={fieldStyle()} value={draft.start_date}
+               onChange={(e) => setDraft({ ...draft, start_date: e.target.value })} />
+      </div>
+      <div>
+        <label style={labelStyle()}>End</label>
+        <input type="date" style={fieldStyle()} value={draft.end_date}
+               onChange={(e) => setDraft({ ...draft, end_date: e.target.value })} />
+      </div>
+
+      <div style={{ gridColumn: "1 / span 3" }}>
+        <label style={labelStyle()}>Location label</label>
+        <input style={fieldStyle()} value={draft.location_label}
+               placeholder="e.g. Bashi Channel ~50nm SW of Eluanbi"
+               onChange={(e) => setDraft({ ...draft, location_label: e.target.value })} />
+      </div>
+
+      <div>
+        <label style={labelStyle()}>Latitude (8–35°N)</label>
+        <input style={fieldStyle()} type="number" step="0.001"
+               value={draft.latitude}
+               onChange={(e) => setDraft({ ...draft, latitude: e.target.value })} />
+      </div>
+      <div>
+        <label style={labelStyle()}>Longitude (105–135°E)</label>
+        <input style={fieldStyle()} type="number" step="0.001"
+               value={draft.longitude}
+               onChange={(e) => setDraft({ ...draft, longitude: e.target.value })} />
+      </div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)", alignSelf: "end" }}>
+        Empty = no marker on the map.
+      </div>
+
+      <div style={{ gridColumn: "1 / span 3" }}>
+        <label style={labelStyle()}>Description (English)</label>
+        <textarea style={{ ...fieldStyle(), minHeight: "44px", fontFamily: "var(--font-body)" }}
+                  value={draft.description_en}
+                  onChange={(e) => setDraft({ ...draft, description_en: e.target.value })} />
+      </div>
+    </div>
+  );
+}
+
+function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone }) {
+  const [draft, setDraft] = useState(() => exerciseDraftFrom(candidate));
+  const [busy, setBusy] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState("");
+  const [error, setError] = useState(null);
+
+  const isDirty = isExerciseDraftDirty(draft, candidate);
 
   const resolve = async (fn, extra) => {
     setBusy(true);
     setError(null);
     try {
       if (isDirty && fn !== dismissMilitaryExercise) {
-        const patchBody = patchFromDraft();
+        const patchBody = buildExercisePatch(draft, candidate);
         if (Object.keys(patchBody).length > 0) {
           await updateMilitaryExercise(candidate.id, patchBody);
         }
@@ -125,8 +219,6 @@ function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone })
     }
   };
 
-  const performerColour = PERFORMER_COLOUR[draft.performer] || "#666";
-
   return (
     <div style={{
       padding: "12px 14px",
@@ -149,83 +241,7 @@ function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone })
         </span>
       </div>
 
-      {/* Grid of editable fields */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "2fr 1fr 1fr",
-        gap: "6px 10px",
-        marginBottom: "6px",
-      }}>
-        <div>
-          <label style={labelStyle()}>Name (English)</label>
-          <input style={fieldStyle()} value={draft.name_en}
-                 placeholder="Joint Sword 2024B"
-                 onChange={(e) => setDraft({ ...draft, name_en: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle()}>Performer</label>
-          <select style={{ ...fieldStyle(), color: performerColour, fontWeight: 700 }}
-                  value={draft.performer}
-                  onChange={(e) => setDraft({ ...draft, performer: e.target.value })}>
-            {Object.keys(PERFORMER_LABEL).map((p) =>
-              <option key={p} value={p}>{PERFORMER_LABEL[p]}</option>
-            )}
-          </select>
-        </div>
-        <div>
-          <label style={labelStyle()}>Kind</label>
-          <select style={fieldStyle()} value={draft.exercise_kind}
-                  onChange={(e) => setDraft({ ...draft, exercise_kind: e.target.value })}>
-            {EXERCISE_KINDS.map((k) => <option key={k} value={k}>{k.replace("_", " ")}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label style={labelStyle()}>Name (original)</label>
-          <input style={fieldStyle()} value={draft.name_zh}
-                 onChange={(e) => setDraft({ ...draft, name_zh: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle()}>Start</label>
-          <input type="date" style={fieldStyle()} value={draft.start_date}
-                 onChange={(e) => setDraft({ ...draft, start_date: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle()}>End</label>
-          <input type="date" style={fieldStyle()} value={draft.end_date}
-                 onChange={(e) => setDraft({ ...draft, end_date: e.target.value })} />
-        </div>
-
-        <div style={{ gridColumn: "1 / span 3" }}>
-          <label style={labelStyle()}>Location label</label>
-          <input style={fieldStyle()} value={draft.location_label}
-                 placeholder="e.g. Bashi Channel ~50nm SW of Eluanbi"
-                 onChange={(e) => setDraft({ ...draft, location_label: e.target.value })} />
-        </div>
-
-        <div>
-          <label style={labelStyle()}>Latitude (8–35°N)</label>
-          <input style={fieldStyle()} type="number" step="0.001"
-                 value={draft.latitude}
-                 onChange={(e) => setDraft({ ...draft, latitude: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle()}>Longitude (105–135°E)</label>
-          <input style={fieldStyle()} type="number" step="0.001"
-                 value={draft.longitude}
-                 onChange={(e) => setDraft({ ...draft, longitude: e.target.value })} />
-        </div>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)", alignSelf: "end" }}>
-          Empty = no marker on the map.
-        </div>
-
-        <div style={{ gridColumn: "1 / span 3" }}>
-          <label style={labelStyle()}>Description (English)</label>
-          <textarea style={{ ...fieldStyle(), minHeight: "44px", fontFamily: "var(--font-body)" }}
-                    value={draft.description_en}
-                    onChange={(e) => setDraft({ ...draft, description_en: e.target.value })} />
-        </div>
-      </div>
+      <ExerciseFieldsGrid draft={draft} setDraft={setDraft} />
 
       {error && (
         <div style={{ color: "var(--accent-red)", fontFamily: "var(--font-mono)",
