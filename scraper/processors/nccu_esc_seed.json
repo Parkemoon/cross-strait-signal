@@ -1,0 +1,86 @@
+{
+  "_meta": {
+    "source": "NCCU Election Study Center — Trends in Core Political Attitudes",
+    "source_pages": {
+      "identity":    "https://esc.nccu.edu.tw/PageDoc/Detail?fid=7800",
+      "unification": "https://esc.nccu.edu.tw/PageDoc/Detail?fid=7801"
+    },
+    "chart_pngs": {
+      "identity":    "https://esc.nccu.edu.tw/upload/44/doc/6960/People202512.png",
+      "unification": "https://esc.nccu.edu.tw/upload/44/doc/6962/Tondu202512.png"
+    },
+    "methodology_pdf": "https://esc.nccu.edu.tw/upload/44/doc/6962/重要政治態度分佈趨勢圖資料研究方法說明(methodology)202512.pdf",
+    "transcribed_at": "2026-05-25",
+    "transcription_method": "Manual reading of NCCU's value-labelled trend chart PNGs. Each year's percentages cross-validated to sum to 99.9–100.1%; rows outside that band were re-read or omitted.",
+    "annual_aggregation_note": "Per the NCCU methodology PDF: 'Survey data is merged annually to generate data points, except those released in June; they come from surveys conducted between January and June.' Each wave below therefore represents the full-year aggregate. fielded_start=YYYY-01-01, fielded_end=YYYY-12-31 is the conservative envelope.",
+    "sample_sizes_source": "Authoritative — copied from the table in the NCCU methodology PDF, section II.",
+    "citation": "Source: Core Political Attitudes Trend Chart, Election Study Center, National Chengchi University"
+  },
+  "series": [
+    {
+      "question_key": "identity_nccu_3pt",
+      "question_text_zh_verbatim": "我們社會上，有人說自己是『臺灣人』，也有人說自己是『中國人』，也有人說都是。請問您認為自己是『臺灣人』、『中國人』，或者都是？",
+      "question_text_en_verbatim": "In our society, there are some people who call themselves 'Taiwanese', some who call themselves 'Chinese', and some who call themselves both. Do you consider yourself to be 'Taiwanese', 'Chinese', or both?",
+      "options": [
+        {"order": 0, "label_zh": "臺灣人",  "label_en": "Taiwanese"},
+        {"order": 1, "label_zh": "都是",    "label_en": "Both Taiwanese and Chinese"},
+        {"order": 2, "label_zh": "中國人",  "label_en": "Chinese"},
+        {"order": 3, "label_zh": "無反應",  "label_en": "Non response"}
+      ],
+      "waves": [
+        {"year": 1992, "sample_size":  4120, "percentages": [17.6, 46.4, 25.5, 10.5]},
+        {"year": 1994, "sample_size":  1209, "percentages": [20.2, 44.6, 26.2,  8.9]},
+        {"year": 1995, "sample_size": 21402, "percentages": [25.0, 47.0, 20.7,  7.3]},
+        {"year": 1996, "sample_size": 10666, "percentages": [24.1, 49.3, 17.6,  9.0]},
+        {"year": 1997, "sample_size":  3910, "percentages": [34.0, 41.4, 19.2,  5.3]},
+        {"year": 1998, "sample_size": 14063, "percentages": [36.2, 39.6, 16.3,  7.8]},
+        {"year": 1999, "sample_size":  9273, "percentages": [39.6, 42.5, 12.1,  5.8]},
+        {"year": 2000, "sample_size": 11062, "percentages": [36.9, 44.1, 12.5,  6.5]},
+        {"year": 2001, "sample_size": 10679, "percentages": [41.6, 43.1, 10.6,  4.7]},
+        {"year": 2002, "sample_size": 10003, "percentages": [41.2, 43.7,  9.2,  5.8]},
+        {"year": 2003, "sample_size": 14247, "percentages": [42.5, 43.3,  8.3,  5.9]},
+        {"year": 2004, "sample_size": 34854, "percentages": [41.1, 47.7,  6.2,  5.0]},
+        {"year": 2005, "sample_size":  7939, "percentages": [45.0, 43.4,  7.2,  4.4]},
+        {"year": 2006, "sample_size": 13193, "percentages": [44.9, 44.2,  6.3,  4.6]},
+        {"year": 2007, "sample_size": 13910, "percentages": [44.7, 43.7,  5.4,  6.2]},
+        {"year": 2008, "sample_size": 16280, "percentages": [48.4, 43.1,  4.0,  4.5]},
+        {"year": 2009, "sample_size": 20244, "percentages": [51.6, 39.8,  4.2,  4.4]},
+        {"year": 2010, "sample_size": 13163, "percentages": [52.7, 39.8,  3.7,  3.8]},
+        {"year": 2011, "sample_size": 23779, "percentages": [52.2, 40.3,  3.7,  3.9]},
+        {"year": 2012, "sample_size": 18011, "percentages": [54.3, 38.5,  3.6,  3.6]},
+        {"year": 2013, "sample_size": 13359, "percentages": [57.1, 35.8,  3.3,  3.8]},
+        {"year": 2014, "sample_size": 20009, "percentages": [60.6, 32.5,  3.5,  3.5]},
+        {"year": 2015, "sample_size": 22509, "percentages": [59.5, 33.3,  3.3,  4.0]},
+        {"year": 2016, "sample_size": 15099, "percentages": [58.2, 34.3,  3.4,  4.1]},
+        {"year": 2017, "sample_size": 13455, "percentages": [55.5, 37.0,  3.7,  3.7]},
+        {"year": 2018, "sample_size":  9490, "percentages": [54.5, 38.2,  3.6,  3.7]},
+        {"year": 2019, "sample_size": 16276, "percentages": [58.5, 34.7,  3.3,  3.5]},
+        {"year": 2020, "sample_size": 11490, "percentages": [64.3, 29.9,  2.6,  3.2]},
+        {"year": 2021, "sample_size": 12026, "percentages": [62.3, 31.7,  2.8,  3.2]},
+        {"year": 2022, "sample_size": 12173, "percentages": [63.3, 30.6,  2.5,  3.6]},
+        {"year": 2023, "sample_size": 14933, "percentages": [61.7, 32.0,  2.4,  3.9]},
+        {"year": 2024, "sample_size": 16442, "percentages": [63.4, 31.0,  2.4,  3.2]},
+        {"year": 2025, "sample_size": 14985, "percentages": [62.0, 31.7,  2.5,  3.8]}
+      ],
+      "omitted_years": {
+        "1993": "Chart has no value labels for 1993 (the methodology PDF's sample-size table also skips 1993, confirming this is a gap in NCCU's published series, not a transcription oversight)."
+      }
+    },
+    {
+      "question_key": "unification_nccu_6pt",
+      "question_text_zh_verbatim": "關於臺灣和大陸的關係，有下面幾種不同的看法 1.儘快統一；2.儘快宣布獨立；3.維持現狀，以後走向統一；4.維持現狀，以後走向獨立；5.維持現狀，看情形再決定獨立或統一；6.永遠維持現狀。請問您比較偏向那一種？",
+      "question_text_en_verbatim": "Thinking about Taiwan-mainland relations, there are several differing opinions: 1. unification as soon as possible; 2. independence as soon as possible; 3. maintain the status quo and move toward unification in the future; 4. maintain the status quo and move toward independence in the future; 5. maintain the status quo and decide in the future between independence or unification; 6. maintain the status quo indefinitely. Which do you prefer?",
+      "options": [
+        {"order": 0, "label_zh": "儘快統一",       "label_en": "Unification as soon as possible"},
+        {"order": 1, "label_zh": "偏向統一",       "label_en": "Status quo, move toward unification"},
+        {"order": 2, "label_zh": "維持現狀再決定", "label_en": "Status quo, decide at later date"},
+        {"order": 3, "label_zh": "永遠維持現狀",   "label_en": "Status quo indefinitely"},
+        {"order": 4, "label_zh": "偏向獨立",       "label_en": "Status quo, move toward independence"},
+        {"order": 5, "label_zh": "儘快獨立",       "label_en": "Independence as soon as possible"},
+        {"order": 6, "label_zh": "無反應",         "label_en": "Non response"}
+      ],
+      "waves": [],
+      "deferred_reason": "Unification trend has 7 overlapping series across 32 years — too dense to transcribe safely from the chart image alone (test transcription of year 1998 yielded a 103% sum, indicating a line-attribution error in the dense 1996–2010 region). Re-attempt when the XLS is obtained from NCCU (the on-page application form 404s; alternative is direct email to esc@nccu.edu.tw) or an academic mirror is found."
+    }
+  ]
+}
