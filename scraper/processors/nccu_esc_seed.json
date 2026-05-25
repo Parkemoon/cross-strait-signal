@@ -79,8 +79,41 @@
         {"order": 5, "label_zh": "儘快獨立",       "label_en": "Independence as soon as possible"},
         {"order": 6, "label_zh": "無反應",         "label_en": "Non response"}
       ],
-      "waves": [],
-      "deferred_reason": "Unification trend has 7 overlapping series across 32 years — too dense to transcribe safely from the chart image alone (test transcription of year 1998 yielded a 103% sum, indicating a line-attribution error in the dense 1996–2010 region). Re-attempt when the XLS is obtained from NCCU (the on-page application form 404s; alternative is direct email to esc@nccu.edu.tw) or an academic mirror is found."
+      "waves": [
+        {"year": 1994, "sample_size":  1209, "percentages": [4.4, 15.6, 38.5,  9.8,  8.0, 3.1, 20.5]},
+        {"year": 1995, "sample_size": 21402, "percentages": [2.3, 19.4, 24.8, 15.6,  8.1, 3.5, 26.3]},
+        {"year": 1996, "sample_size": 10666, "percentages": [2.5, 19.5, 30.5, 15.3,  9.5, 4.1, 18.6]},
+        {"year": 1997, "sample_size":  3910, "percentages": [3.2, 17.3, 30.5, 16.3, 11.5, 5.7, 15.4]},
+        {"year": 1998, "sample_size": 14063, "percentages": [2.1, 15.9, 30.3, 15.9, 11.5, 5.7, 18.7]},
+        {"year": 1999, "sample_size":  9273, "percentages": [2.2, 15.2, 30.9, 18.8, 13.6, 4.7, 14.5]},
+        {"year": 2000, "sample_size": 11062, "percentages": [2.0, 17.4, 29.5, 19.2, 11.6, 3.1, 17.3]},
+        {"year": 2001, "sample_size": 10679, "percentages": [2.8, 17.5, 35.9, 16.4, 10.5, 3.7, 13.3]},
+        {"year": 2002, "sample_size": 10003, "percentages": [2.5, 15.7, 36.2, 15.0, 13.8, 4.3, 12.4]},
+        {"year": 2003, "sample_size": 14247, "percentages": [1.8, 11.9, 35.0, 18.0, 14.5, 6.2, 12.5]},
+        {"year": 2004, "sample_size": 34854, "percentages": [1.5, 10.6, 36.5, 20.9, 15.2, 4.4, 11.0]},
+        {"year": 2005, "sample_size":  7939, "percentages": [1.8, 12.3, 37.3, 19.9, 14.2, 6.1,  8.5]},
+        {"year": 2006, "sample_size": 13193, "percentages": [2.0, 12.1, 38.7, 19.9, 13.8, 5.6,  7.9]},
+        {"year": 2007, "sample_size": 13910, "percentages": [1.9, 10.0, 36.8, 18.4, 13.7, 7.8, 11.4]},
+        {"year": 2008, "sample_size": 16280, "percentages": [1.5,  8.7, 35.8, 21.5, 16.0, 7.1,  9.4]},
+        {"year": 2009, "sample_size": 20244, "percentages": [1.3,  8.5, 35.1, 26.2, 15.0, 5.8,  8.1]},
+        {"year": 2010, "sample_size": 13163, "percentages": [1.2,  9.0, 35.9, 25.4, 16.2, 6.1,  6.2]},
+        {"year": 2011, "sample_size": 23779, "percentages": [1.5,  8.8, 33.8, 27.4, 15.6, 4.6,  8.2]},
+        {"year": 2012, "sample_size": 18011, "percentages": [1.7,  8.7, 33.9, 27.7, 15.1, 4.8,  8.1]},
+        {"year": 2013, "sample_size": 13359, "percentages": [1.9,  9.2, 32.6, 26.3, 17.2, 5.7,  7.2]},
+        {"year": 2014, "sample_size": 20009, "percentages": [1.3,  7.9, 34.3, 25.2, 18.0, 5.9,  7.3]},
+        {"year": 2015, "sample_size": 22509, "percentages": [1.5,  8.1, 34.0, 25.4, 17.9, 4.3,  8.8]},
+        {"year": 2016, "sample_size": 15099, "percentages": [1.7,  8.5, 33.3, 26.1, 18.3, 4.6,  7.4]},
+        {"year": 2017, "sample_size": 13455, "percentages": [2.3, 10.1, 33.1, 25.3, 17.2, 5.1,  6.9]},
+        {"year": 2018, "sample_size":  9490, "percentages": [3.1, 12.8, 33.4, 24.0, 15.1, 5.0,  6.6]},
+        {"year": 2019, "sample_size": 16276, "percentages": [1.4,  7.5, 29.8, 27.8, 21.8, 5.1,  6.5]},
+        {"year": 2020, "sample_size": 11490, "percentages": [1.0,  5.6, 28.8, 25.5, 25.8, 6.6,  6.8]},
+        {"year": 2021, "sample_size": 12026, "percentages": [1.4,  6.0, 28.4, 27.3, 25.1, 6.0,  5.8]},
+        {"year": 2022, "sample_size": 12173, "percentages": [1.3,  5.9, 27.7, 29.4, 24.4, 5.2,  6.0]},
+        {"year": 2023, "sample_size": 14933, "percentages": [1.2,  6.2, 27.9, 33.2, 21.5, 3.8,  6.2]},
+        {"year": 2024, "sample_size": 16442, "percentages": [1.1,  5.8, 26.4, 34.1, 22.5, 4.0,  6.1]},
+        {"year": 2025, "sample_size": 14985, "percentages": [1.1,  6.1, 26.3, 33.5, 21.9, 4.4,  6.6]}
+      ],
+      "transcription_notes": "32 years of biannual-aggregate trend data, transcribed off the labelled NCCU unification chart by analyst Ed (full-resolution browser view) on 2026-05-25. Every year sum-validated to 99.9–100.1% on encoding; 1996 originally read as 18.0 Non-response → sum 99.4 → re-checked → 18.6 confirmed (sum 100.0). Per NCCU, unification series begins 1994 (identity series goes back to 1992)."
     }
   ]
 }

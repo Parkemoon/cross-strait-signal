@@ -42,11 +42,27 @@ POLLSTER_SLUG = 'nccu_esc'
 # fielded_start/fielded_end span the full calendar year by design, since
 # NCCU merges biannual waves before publishing the trend point.
 SEEDED_BY = 'backfill:seed_nccu_polls'
+
+# Survey-level — same across all questions asked in a given wave. NCCU's
+# Trend in Core Political Attitudes surveys ask multiple questions per
+# fielded wave (identity + unification + party ID + …), so one polls row
+# carries multiple poll_results joined via different question_ids. The
+# methodology_note must describe the SURVEY, not any one question; the
+# canonical question wording lives on poll_questions.question_text.
+SURVEY_METHODOLOGY = (
+    "Pollster: NCCU Election Study Center (政大選研中心). "
+    "Mode: landline + mobile CATI, weighted by raking on sex / age / "
+    "education / geography against Ministry of the Interior demographic "
+    "data. Per NCCU: data points are annual aggregates of biannual waves "
+    "(Jan–Jun and Jul–Dec merged), so fielded_start/end span the full "
+    "calendar year. "
+    "Source: Core Political Attitudes Trend Chart, Election Study Center, "
+    "National Chengchi University."
+)
 NOTES_TEMPLATE = (
-    "NCCU ESC {series_label} — annual aggregate of {sample_size} interviews. "
-    "Transcribed from NCCU's labelled trend chart (sum cross-validated to "
-    "99.9–100.1%); fielded_start/end cover the full year per NCCU's "
-    "annual-merge methodology."
+    "NCCU ESC annual aggregate ({sample_size} interviews). Transcribed "
+    "from NCCU's labelled trend chart with per-year sum-to-100% cross-"
+    "validation; sample size from the NCCU methodology PDF table."
 )
 
 
@@ -124,19 +140,6 @@ def _seed_series(conn, pollster_id, series) -> int:
 
     question_id = _resolve_question_id(conn, qkey)
     options = series['options']
-    series_label = series['question_text_en_verbatim'][:80].rstrip('.,?') + '...'
-    # Per-poll methodology_note bundles the verbatim survey question +
-    # NCCU citation. Stored on the polls row so the review-queue UI and
-    # the API can surface the authoritative wording without re-querying
-    # poll_questions; also makes raw-DB browsing self-explanatory.
-    base_method = (
-        f"Pollster: NCCU Election Study Center. Survey question (verbatim):\n"
-        f"  ZH — {series['question_text_zh_verbatim']}\n"
-        f"  EN — {series['question_text_en_verbatim']}\n"
-        f"Mode: landline + mobile CATI, weighted by raking (sex, age, "
-        f"education, geography). Source: Core Political Attitudes Trend "
-        f"Chart, NCCU."
-    )
 
     written = 0
     for wave in waves:
@@ -144,13 +147,11 @@ def _seed_series(conn, pollster_id, series) -> int:
         fielded_start = f"{year}-01-01"
         fielded_end = f"{year}-12-31"
         sample_size = int(wave['sample_size'])
-        notes = NOTES_TEMPLATE.format(
-            series_label=series_label, sample_size=f"{sample_size:,}"
-        )
+        notes = NOTES_TEMPLATE.format(sample_size=f"{sample_size:,}")
 
         poll_id = _upsert_poll(
             conn, pollster_id, fielded_start, fielded_end, sample_size,
-            base_method, notes,
+            SURVEY_METHODOLOGY, notes,
         )
 
         percentages = wave['percentages']
