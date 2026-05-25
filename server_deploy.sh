@@ -157,6 +157,83 @@ CREATE INDEX IF NOT EXISTS idx_milex_canonical  ON military_exercises(canonical_
 CREATE INDEX IF NOT EXISTS idx_milex_article    ON military_exercises(article_id);
 CREATE INDEX IF NOT EXISTS idx_milex_performer  ON military_exercises(performer, start_date DESC);
 
+-- Polls (Phase 2d) — TW polling tracker.
+-- See db/schema.sql for full column docs and canonical-merge rationale.
+CREATE TABLE IF NOT EXISTS pollsters (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug         TEXT NOT NULL UNIQUE,
+    name_zh      TEXT NOT NULL,
+    name_en      TEXT NOT NULL,
+    bias         TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'active',
+    cadence      TEXT,
+    methodology  TEXT,
+    notes        TEXT,
+    homepage_url TEXT,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pollsters_status ON pollsters(status);
+
+CREATE TABLE IF NOT EXISTS poll_questions (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_key     TEXT NOT NULL UNIQUE,
+    question_text_zh TEXT NOT NULL,
+    question_text_en TEXT NOT NULL,
+    family           TEXT NOT NULL,
+    scale_type       TEXT NOT NULL,
+    description      TEXT,
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_poll_questions_family ON poll_questions(family);
+
+CREATE TABLE IF NOT EXISTS polls (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    pollster_id       INTEGER NOT NULL REFERENCES pollsters(id),
+    fielded_start     TEXT NOT NULL,
+    fielded_end       TEXT,
+    sample_size       INTEGER,
+    methodology_note  TEXT,
+    source_url        TEXT,
+    source_article_id INTEGER REFERENCES articles(id),
+    notes             TEXT,
+    confidence        REAL,
+    approval_status   TEXT NOT NULL DEFAULT 'pending',
+    merged_into_id    INTEGER REFERENCES polls(id),
+    reviewed_at       TIMESTAMP,
+    reviewed_by       TEXT,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_polls_status_date ON polls(approval_status, fielded_start DESC);
+CREATE INDEX IF NOT EXISTS idx_polls_pollster ON polls(pollster_id, fielded_start DESC);
+CREATE INDEX IF NOT EXISTS idx_polls_article ON polls(source_article_id);
+
+CREATE TABLE IF NOT EXISTS poll_results (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    poll_id         INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+    question_id     INTEGER NOT NULL REFERENCES poll_questions(id),
+    option_label_zh TEXT NOT NULL,
+    option_label_en TEXT,
+    option_order    INTEGER,
+    percentage      REAL NOT NULL,
+    margin_error    REAL,
+    UNIQUE(poll_id, question_id, option_label_zh)
+);
+CREATE INDEX IF NOT EXISTS idx_poll_results_poll ON poll_results(poll_id);
+CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id);
+
+INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, notes) VALUES
+    ('nccu_esc',  '國立政治大學選舉研究中心', 'NCCU Election Study Center',       'academic',      'active',     'biannual', 'Identity + unification trend since 1992'),
+    ('myformosa', '美麗島電子報',             'My-Formosa',                       'green_leaning', 'active',     'monthly',  'Best of the active regulars'),
+    ('tvbs',      'TVBS民調中心',             'TVBS Poll Center',                 'blue',          'active',     'monthly',  NULL),
+    ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'centrist',      'active',     'monthly',  NULL),
+    ('tpof',      '台灣民意基金會',           'Taiwan Public Opinion Foundation', 'green_leaning', 'historical', NULL,       'Chair moved to head TW CEC; no new polls expected'),
+    ('unknown',   '未識別',                   'Unknown',                          'centrist',      'unknown',    NULL,       'Fallback for AI extractions where pollster could not be identified — analyst sets during approval');
+
+INSERT OR IGNORE INTO poll_questions (question_key, question_text_zh, question_text_en, family, scale_type, description) VALUES
+    ('identity_nccu_3pt',    '請問您認為自己是台灣人、中國人，或者都是？',     'Do you consider yourself Taiwanese, Chinese, or both?',                'identity',    'choice',             'NCCU ESC flagship since 1992'),
+    ('unification_nccu_6pt', '請問您認為台灣和大陸的關係應該是什麼？',         'What should the relationship between Taiwan and mainland China be?',   'unification', 'six_point',          'NCCU ESC 6-point scale: unification now / status quo→union / status quo / status quo→indep / indep now / no opinion'),
+    ('approval_lai_overall', '請問您對賴清德總統的整體表現滿意還是不滿意？',   'Are you satisfied with President Lai Ching-te overall performance?',   'approval',    'approve_disapprove', 'Multi-pollster monthly approval tracker');
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run
