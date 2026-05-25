@@ -425,3 +425,110 @@ CREATE INDEX IF NOT EXISTS idx_milex_status_date ON military_exercises(approval_
 CREATE INDEX IF NOT EXISTS idx_milex_canonical  ON military_exercises(canonical_name, approval_status);
 CREATE INDEX IF NOT EXISTS idx_milex_article    ON military_exercises(article_id);
 CREATE INDEX IF NOT EXISTS idx_milex_performer  ON military_exercises(performer, start_date DESC);
+
+-- ============================================================
+-- POLLS (Phase 2d — TW polling tracker)
+-- ============================================================
+-- Public opinion polling on cross-strait identity, unification
+-- preference, presidential approval, and ad-hoc attitude questions
+-- (war risk, US trust, KMT-PRC engagement). Mirrors the
+-- `military_exercises` editorial-gate pattern: AI-extracted candidates
+-- land with approval_status='pending' and are hidden from the public
+-- tab until analyst review.
+--
+-- `pollsters` is a controlled vocabulary so bias chip and status are
+-- consistent across every poll from that pollster.
+--
+-- `poll_questions` is the cross-pollster join key. A single
+-- 'approval_lai_overall' question_key ties together TVBS, MyFormosa,
+-- ETtoday versions of the same question so they plot on one chart.
+-- Question keys are analyst-assigned during approval (NOT AI-extracted):
+-- AI provides raw question text, the reviewer picks an existing key or
+-- creates a new one. Prevents long-tail miscategorisation from
+-- corrupting trend charts.
+--
+-- `poll_results` carries per-option percentages with option_order
+-- preserved for stacked-chart display.
+--
+-- `source_article_id` on `polls` is populated automatically when the
+-- row is AI-extracted from an article. NULL for manually-entered
+-- polls. The canonical-merge step on approve collapses multi-outlet
+-- coverage of the same underlying poll on (pollster_id, fielded_start)
+-- match.
+
+CREATE TABLE IF NOT EXISTS pollsters (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug         TEXT NOT NULL UNIQUE,       -- 'nccu_esc'|'myformosa'|'tvbs'|'ettoday'|'tpof'|'unknown'
+    name_zh      TEXT NOT NULL,
+    name_en      TEXT NOT NULL,
+    bias         TEXT NOT NULL,              -- 'academic'|'green'|'green_leaning'|'centrist'|'blue_leaning'|'blue'
+    status       TEXT NOT NULL DEFAULT 'active',  -- 'active'|'historical'|'ad_hoc'|'unknown'
+    cadence      TEXT,                       -- 'monthly'|'biannual'|'ad_hoc'|NULL
+    methodology  TEXT,                       -- default method (CATI, online panel, etc.)
+    notes        TEXT,
+    homepage_url TEXT,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pollsters_status ON pollsters(status);
+
+CREATE TABLE IF NOT EXISTS poll_questions (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_key     TEXT NOT NULL UNIQUE,   -- 'identity_nccu_3pt'|'unification_nccu_6pt'|'approval_lai_overall'|'war_risk_5y'
+    question_text_zh TEXT NOT NULL,
+    question_text_en TEXT NOT NULL,
+    family           TEXT NOT NULL,          -- 'identity'|'unification'|'approval'|'attitude'|'vote_intent'|'issue'
+    scale_type       TEXT NOT NULL,          -- 'approve_disapprove'|'support_oppose'|'five_point'|'six_point'|'choice'|'numeric'
+    description      TEXT,
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_poll_questions_family ON poll_questions(family);
+
+CREATE TABLE IF NOT EXISTS polls (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    pollster_id       INTEGER NOT NULL REFERENCES pollsters(id),
+    fielded_start     TEXT NOT NULL,         -- 'YYYY-MM-DD'
+    fielded_end       TEXT,                  -- 'YYYY-MM-DD' (NULL for single-day fielding)
+    sample_size       INTEGER,
+    methodology_note  TEXT,                  -- per-poll method details
+    source_url        TEXT,
+    source_article_id INTEGER REFERENCES articles(id),  -- where AI extracted from (NULL for manual entry)
+    notes             TEXT,
+    confidence        REAL,                  -- AI extraction confidence (NULL for manual)
+    approval_status   TEXT NOT NULL DEFAULT 'pending',  -- 'pending'|'approved'|'dismissed'|'merged'
+    merged_into_id    INTEGER REFERENCES polls(id),
+    reviewed_at       TIMESTAMP,
+    reviewed_by       TEXT,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_polls_status_date ON polls(approval_status, fielded_start DESC);
+CREATE INDEX IF NOT EXISTS idx_polls_pollster ON polls(pollster_id, fielded_start DESC);
+CREATE INDEX IF NOT EXISTS idx_polls_article ON polls(source_article_id);
+
+CREATE TABLE IF NOT EXISTS poll_results (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    poll_id         INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+    question_id     INTEGER NOT NULL REFERENCES poll_questions(id),
+    option_label_zh TEXT NOT NULL,
+    option_label_en TEXT,
+    option_order    INTEGER,                 -- display order (low → high or source order)
+    percentage      REAL NOT NULL,
+    margin_error    REAL,
+    UNIQUE(poll_id, question_id, option_label_zh)
+);
+CREATE INDEX IF NOT EXISTS idx_poll_results_poll ON poll_results(poll_id);
+CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id);
+
+-- Seed pollster roster
+INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, notes) VALUES
+    ('nccu_esc',  '國立政治大學選舉研究中心', 'NCCU Election Study Center',       'academic',      'active',     'biannual', 'Identity + unification trend since 1992'),
+    ('myformosa', '美麗島電子報',             'My-Formosa',                       'green_leaning', 'active',     'monthly',  'Best of the active regulars'),
+    ('tvbs',      'TVBS民調中心',             'TVBS Poll Center',                 'blue',          'active',     'monthly',  NULL),
+    ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'centrist',      'active',     'monthly',  NULL),
+    ('tpof',      '台灣民意基金會',           'Taiwan Public Opinion Foundation', 'green_leaning', 'historical', NULL,       'Chair moved to head TW CEC; no new polls expected'),
+    ('unknown',   '未識別',                   'Unknown',                          'centrist',      'unknown',    NULL,       'Fallback for AI extractions where pollster could not be identified — analyst sets during approval');
+
+-- Seed canonical question keys for the three hero series
+INSERT OR IGNORE INTO poll_questions (question_key, question_text_zh, question_text_en, family, scale_type, description) VALUES
+    ('identity_nccu_3pt',    '請問您認為自己是台灣人、中國人，或者都是？',     'Do you consider yourself Taiwanese, Chinese, or both?',                'identity',    'choice',             'NCCU ESC flagship since 1992'),
+    ('unification_nccu_6pt', '請問您認為台灣和大陸的關係應該是什麼？',         'What should the relationship between Taiwan and mainland China be?',   'unification', 'six_point',          'NCCU ESC 6-point scale: unification now / status quo→union / status quo / status quo→indep / indep now / no opinion'),
+    ('approval_lai_overall', '請問您對賴清德總統的整體表現滿意還是不滿意？',   'Are you satisfied with President Lai Ching-te overall performance?',   'approval',    'approve_disapprove', 'Multi-pollster monthly approval tracker');
