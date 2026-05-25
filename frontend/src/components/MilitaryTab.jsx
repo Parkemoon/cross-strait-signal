@@ -963,9 +963,11 @@ export default function MilitaryTab() {
       }}>
         Cross-strait military exercises and drills extracted from MIL_EXERCISE
         articles by the AI pipeline and editorially approved before display.
-        Markers show where the activity took place; the list below includes
-        approved exercises whose location could not be confidently geocoded.
-        Performer pills filter both views.
+        This is NOT a definitive list of all exercises in the area but a good
+        measure of significant events and what is being reported in local
+        media. Markers show where the activity took place; the list below
+        includes approved exercises whose location could not be confidently
+        geocoded. Performer pills filter both views.
       </p>
 
       <ExerciseFilters
