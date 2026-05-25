@@ -298,6 +298,30 @@ Analyse the following article and return a JSON object with this exact structure
       "confidence": 0.85
     }
   ],
+  "polls": [
+    {
+      "pollster_hint": "name of the polling organisation EXACTLY as it appears in the article — Chinese or English, e.g. '美麗島電子報', 'TVBS民調中心', 'NCCU Election Study Center'. Null if the article does not name the pollster.",
+      "fielded_start": "YYYY-MM-DD — first day of fieldwork",
+      "fielded_end": "YYYY-MM-DD or null if single-day fielding",
+      "sample_size": 1071,
+      "methodology_note": "1-line method summary if stated (CATI, online panel, age range, dual-frame, etc.), else null",
+      "questions": [
+        {
+          "question_text_zh": "exact question wording from the article in original language — DO NOT paraphrase",
+          "question_text_en": "English translation of the question",
+          "family_hint": "one of: identity, unification, approval, attitude, vote_intent, issue",
+          "options": [
+            {
+              "label_zh": "option label in original language, e.g. '滿意' or '台灣人'",
+              "label_en": "English label, e.g. 'Satisfied' or 'Taiwanese'",
+              "percentage": 47.3
+            }
+          ]
+        }
+      ],
+      "confidence": 0.85
+    }
+  ],
   "confidence": 0.8
 }
 
@@ -338,6 +362,7 @@ CLASSIFICATION RULES:
 - For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
 - KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
 - MILITARY EXERCISES: Extract any military exercise mentioned in the article — both named exercises (Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, Talisman Sabre, RIMPAC, Strait Thunder 海峽雷霆, Wan An 萬安, etc.) AND unnamed drills explicitly described as conducting live-fire training, readiness drills, joint patrols, amphibious landings, or cyber exercises (e.g. "MND conducted a routine readiness drill in eastern waters on 22 May" qualifies even with no exercise name). Map the actor to performer_side: PLA / 解放軍 / 東部戰區 / 南部戰區 → PRC; MND / 國防部 / 國軍 / 漢光 → ROC; INDOPACOM / US Pacific Fleet / USAF / USN / USMC → US; JSDF / 海上自衛隊 / 航空自衛隊 → JP; multilateral activity involving two or more sides → MULTI with `participants` listing each ISO-style side code. DATE ANCHORING — `start_date` and `end_date` default to the article's PUBLISHED year (given above). When the article says "today", "this week", "on 22 May", or any month/day without a year, use the PUBLISHED year. Only use a different year when the article explicitly cites one (e.g. "the 2024 drill", "Han Kuang 41 last year", "the original 2022 exercise"). Do NOT anchor dates to your training-data baseline — the PUBLISHED date is authoritative for the article's "now". LOCATION HANDLING — Two separate fields with different bars: `location_label` is REQUIRED whenever the article mentions ANY place reference for the exercise — a named base, range, harbour, county, body of water, region, or compass-quadrant description ("eastern Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 / artillery testing centre north-bank position", "Jiupeng base 九鵬基地", "Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place names to English in `location_label`; preserve the original in `description_zh`. The bar for `location_label` is LOW — if you can identify a place in the article, fill it. `latitude` and `longitude` are SEPARATE: only emit numeric coords when you can confidently resolve them from the text (named base with established centroid, named body of water, or coordinates stated explicitly) — otherwise both null. Use false-negatives-preferred discipline for lat/lng only, not for location_label. Return an empty array if no exercise is mentioned. description_en MUST be English (translate if needed); never put Chinese characters in description_en. If no name is given in the article, leave name_zh and name_en as null — do NOT invent a name.
+- POLLS: Extract public-opinion polls of the Taiwanese (or PRC) public on cross-strait, identity, unification, political-approval, or vote-intention questions. PRIMARY SUBJECT bar — only extract when the article is REPORTING ON a poll's results, not when it merely cites a poll number in passing to back a wider argument. The clearest signals are: a named pollster, an explicit fieldwork date range, a sample size, and at least one numeric percentage attached to a question option. If you cannot see ALL FOUR of those signals in the article, return an empty array — false negatives are strongly preferred. SKIP: hypothetical surveys, forecasts/projections, expert-panel surveys, internal party-member polls, single-line passing references to past poll numbers ("a 2022 poll showed..."), and PRC state-media "surveys" with no methodology disclosed. POLLSTER — copy the organisation name VERBATIM from the article into `pollster_hint`; if the article references the poll without naming the pollster, set `pollster_hint` to null. The downstream pipeline resolves the hint to a canonical pollster; do not normalise or translate it yourself. DATE ANCHORING — same rule as exercises: `fielded_start`/`fielded_end` default to the article's PUBLISHED year; only use a different year if the article explicitly states one. QUESTION TEXT — `question_text_zh` MUST be the verbatim wording from the article (this is the analyst's primary signal for matching to an existing canonical question_key). Never paraphrase; if the article only paraphrases the question and does not quote it directly, copy the article's paraphrase as-is. `question_text_en` must be English. OPTIONS — one entry per labelled response in the article (e.g. for an approval poll: 'Satisfied', 'Dissatisfied', 'No opinion'). `label_zh` is the article's original-language label; `label_en` is its English equivalent. `percentage` is the numeric value as a float (47.3, not 0.473 or "47.3%"). Do NOT compute or impute percentages — only extract values explicitly stated. If options sum to less than 100 (because the article omitted "no opinion" or "other"), that is fine — do not fabricate the missing rows. family_hint is your best guess at the question's category and is used as a starting suggestion in the analyst review queue, not as a binding classification. Return an empty array if no poll meeting the bar is reported.
 - Use British English spelling in all English-language output fields (e.g. "analyse" not "analyze", "behaviour" not "behavior", "colour" not "color", "centre" not "center", "organisation" not "organization").
 - CURRENT OFFICIALS: When an article references officials by role title alone (e.g. "the president", "總統", "the premier", "院長", "the foreign minister"), use the CURRENT OFFICIAL ROSTER provided below to identify who currently holds that role. If a name appears that is listed under FORMER OFFICIALS, describe them as "former [role]" — never as currently holding the role. Do not rely on training-data knowledge for current role-holders; the roster below is authoritative.
 - SENTIMENT WORKED EXAMPLES (apply the same logic to all similar cases):
@@ -361,6 +386,107 @@ def generate_dynamic_glossary(content: str, title: str = "") -> str:
         "found in the text. Do not use alternative romanisations:\n"
         + "\n".join(lines)
     )
+
+
+_POLL_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def _load_pollster_lookup(conn):
+    """Build a lowercased {slug | name_zh | name_en → pollster_id} dict.
+    Used to resolve the AI's free-text `pollster_hint` to a FK. Reloaded
+    every pipeline run (six-ish rows, negligible) so a newly-seeded
+    pollster becomes visible without a process restart."""
+    rows = conn.execute("SELECT id, slug, name_zh, name_en FROM pollsters").fetchall()
+    lookup = {}
+    for r in rows:
+        for key in (r['slug'], r['name_zh'], r['name_en']):
+            if key:
+                lookup[key.strip().lower()] = r['id']
+    return lookup
+
+
+def _resolve_pollster_id(hint, lookup):
+    """Three-layer match against the lookup, falling back to the
+    `unknown` pollster when no other match wins:
+      1. Exact lowercased match on slug / name_zh / name_en.
+      2. Lookup name is contained in the hint
+         (e.g. '美麗島電子報今日公布...' contains '美麗島電子報').
+      3. Hint is contained in the lookup name
+         (e.g. 'TVBS' is contained in 'tvbs民調中心').
+    Bidirectional substring matching is bounded by the small fixed
+    pollster table — collisions are not a real risk at this scale.
+
+    Glossary-mediated alias path: if the raw hint contains a glossary
+    key (e.g. the short form '陸委會'), the glossary's English value
+    ('Mainland Affairs Council (MAC)') is tried as a second candidate
+    before falling through to `unknown`. Costs nothing for pollsters
+    not in the glossary; gives every glossary-known acronym free alias
+    resolution without a separate alias table. The short form '陸委會'
+    is not a contiguous substring of the formal '大陸委員會' (because
+    of the 員 in position 4), which is exactly the case this catches."""
+    fallback = lookup.get('unknown')
+    if not hint:
+        return fallback
+    candidates = [hint]
+    for zh, en in _MASTER_GLOSSARY.items():
+        if zh and zh in hint:
+            candidates.append(en)
+    for cand in candidates:
+        h = (cand or '').strip().lower()
+        if not h:
+            continue
+        if h in lookup:
+            return lookup[h]
+        for name, pid in lookup.items():
+            if len(name) >= 2 and name in h:
+                return pid
+        for name, pid in lookup.items():
+            if len(name) >= 2 and h in name:
+                return pid
+    return fallback
+
+
+def _normalise_poll_questions(raw_questions):
+    """Filter the AI's extracted questions to the shape the review queue
+    expects. Drops questions with empty text or no numeric options;
+    coerces percentage strings ('47.3%' or '47.3') to floats. Returns
+    None when nothing usable survives — caller skips the whole poll."""
+    cleaned = []
+    for q in raw_questions or []:
+        text_zh = (q.get('question_text_zh') or '').strip()
+        text_en = (q.get('question_text_en') or '').strip()
+        if not text_zh and not text_en:
+            continue
+        options = []
+        for i, opt in enumerate(q.get('options') or []):
+            label_zh = (opt.get('label_zh') or '').strip()
+            label_en = (opt.get('label_en') or '').strip()
+            pct_raw = opt.get('percentage')
+            if isinstance(pct_raw, str):
+                pct_raw = pct_raw.strip().rstrip('%').strip()
+            try:
+                pct = float(pct_raw)
+            except (TypeError, ValueError):
+                continue
+            if not (0.0 <= pct <= 100.0):
+                continue
+            if not label_zh and not label_en:
+                continue
+            options.append({
+                'label_zh': label_zh or label_en,
+                'label_en': label_en or label_zh,
+                'percentage': pct,
+                'option_order': i,
+            })
+        if not options:
+            continue
+        cleaned.append({
+            'question_text_zh': text_zh or text_en,
+            'question_text_en': text_en or text_zh,
+            'family_hint': (q.get('family_hint') or '').strip().lower() or None,
+            'options': options,
+        })
+    return cleaned or None
 
 
 def analyse_article(title, content, language, source_name, published_at=None):
@@ -457,6 +583,11 @@ def process_unanalysed_articles(limit=10):
 
     success_count = 0
     error_count = 0
+
+    # Loaded once per pipeline run — six rows today, still cheap if the
+    # roster grows. Falls back gracefully if the table is empty (no
+    # polls will resolve, but everything else continues).
+    pollster_lookup = _load_pollster_lookup(conn)
 
     for article in articles:
         title = article['title_original']
@@ -664,6 +795,62 @@ def process_unanalysed_articles(limit=10):
                     desc_en,
                     (ex.get('description_zh') or '').strip() or None,
                     ex.get('confidence', 0.7),
+                ))
+
+            # Insert polls (pending analyst approval). Mirrors the
+            # military_exercises pattern — write a single envelope row per
+            # poll with the AI-extracted question text + percentages held
+            # in pending_results_json. The analyst maps each question to
+            # a canonical question_key during approval and the server
+            # then materialises poll_results rows from the JSON. Question
+            # keys are deliberately analyst-assigned because long-tail AI
+            # miscategorisation would silently corrupt the cross-pollster
+            # trend charts.
+            for poll in analysis.get('polls', []):
+                fielded_start = (poll.get('fielded_start') or '').strip()
+                if not _POLL_DATE_RE.match(fielded_start):
+                    continue
+
+                fielded_end = (poll.get('fielded_end') or '').strip() or None
+                if fielded_end and not _POLL_DATE_RE.match(fielded_end):
+                    fielded_end = None
+
+                questions = _normalise_poll_questions(poll.get('questions'))
+                if not questions:
+                    continue
+
+                pollster_id = _resolve_pollster_id(
+                    poll.get('pollster_hint'), pollster_lookup
+                )
+                if pollster_id is None:
+                    # Roster missing the seeded `unknown` row — should not
+                    # happen if the migration ran, but skip rather than
+                    # crash the article.
+                    continue
+
+                sample_size = poll.get('sample_size')
+                try:
+                    sample_size = int(sample_size) if sample_size is not None else None
+                except (TypeError, ValueError):
+                    sample_size = None
+
+                methodology_note = (poll.get('methodology_note') or '').strip() or None
+
+                conn.execute("""
+                    INSERT INTO polls
+                    (pollster_id, fielded_start, fielded_end, sample_size,
+                     methodology_note, source_article_id, confidence,
+                     approval_status, pending_results_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                """, (
+                    pollster_id,
+                    fielded_start,
+                    fielded_end,
+                    sample_size,
+                    methodology_note,
+                    article['id'],
+                    poll.get('confidence', 0.7),
+                    json.dumps({'questions': questions}, ensure_ascii=False),
                 ))
 
             conn.commit()

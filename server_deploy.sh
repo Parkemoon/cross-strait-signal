@@ -187,21 +187,22 @@ CREATE TABLE IF NOT EXISTS poll_questions (
 CREATE INDEX IF NOT EXISTS idx_poll_questions_family ON poll_questions(family);
 
 CREATE TABLE IF NOT EXISTS polls (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    pollster_id       INTEGER NOT NULL REFERENCES pollsters(id),
-    fielded_start     TEXT NOT NULL,
-    fielded_end       TEXT,
-    sample_size       INTEGER,
-    methodology_note  TEXT,
-    source_url        TEXT,
-    source_article_id INTEGER REFERENCES articles(id),
-    notes             TEXT,
-    confidence        REAL,
-    approval_status   TEXT NOT NULL DEFAULT 'pending',
-    merged_into_id    INTEGER REFERENCES polls(id),
-    reviewed_at       TIMESTAMP,
-    reviewed_by       TEXT,
-    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    pollster_id          INTEGER NOT NULL REFERENCES pollsters(id),
+    fielded_start        TEXT NOT NULL,
+    fielded_end          TEXT,
+    sample_size          INTEGER,
+    methodology_note     TEXT,
+    source_url           TEXT,
+    source_article_id    INTEGER REFERENCES articles(id),
+    notes                TEXT,
+    confidence           REAL,
+    approval_status      TEXT NOT NULL DEFAULT 'pending',
+    pending_results_json TEXT,
+    merged_into_id       INTEGER REFERENCES polls(id),
+    reviewed_at          TIMESTAMP,
+    reviewed_by          TEXT,
+    created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_polls_status_date ON polls(approval_status, fielded_start DESC);
 CREATE INDEX IF NOT EXISTS idx_polls_pollster ON polls(pollster_id, fielded_start DESC);
@@ -227,6 +228,7 @@ INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, 
     ('tvbs',      'TVBS民調中心',             'TVBS Poll Center',                 'blue',          'active',     'monthly',  NULL),
     ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'centrist',      'active',     'monthly',  NULL),
     ('tpof',      '台灣民意基金會',           'Taiwan Public Opinion Foundation', 'green_leaning', 'historical', NULL,       'Chair moved to head TW CEC; no new polls expected'),
+    ('mac',       '大陸委員會',               'Mainland Affairs Council',         'state_official','active',     'quarterly', 'TW executive branch; cross-strait attitudes survey 民眾對當前兩岸關係之看法'),
     ('unknown',   '未識別',                   'Unknown',                          'centrist',      'unknown',    NULL,       'Fallback for AI extractions where pollster could not be identified — analyst sets during approval');
 
 INSERT OR IGNORE INTO poll_questions (question_key, question_text_zh, question_text_en, family, scale_type, description) VALUES
@@ -254,6 +256,15 @@ CREATE TRIGGER IF NOT EXISTS articles_au AFTER UPDATE ON articles BEGIN
     VALUES (new.id, new.title_original, new.title_en, new.content_original, new.content_en);
 END;
 SQL
+
+# Idempotent ALTER for DBs where polls was created before pending_results_json
+# was added (i.e. between commits 78bc88f and this one). SQLite has no
+# `ADD COLUMN IF NOT EXISTS`, so swallow the duplicate-column error and
+# carry on. Safe on freshly-initialised DBs too — CREATE TABLE above
+# already includes the column, so this ALTER simply fails-and-skips.
+sqlite3 db/cross_strait_signal.db \
+    "ALTER TABLE polls ADD COLUMN pending_results_json TEXT" \
+    2>/dev/null || true
 
 echo "--- Building frontend (admin) ---"
 cd frontend
