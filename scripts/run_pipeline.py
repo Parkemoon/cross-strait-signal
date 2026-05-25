@@ -28,6 +28,7 @@ from scraper.scrapers.mnd_incursion_scraper import scrape_mnd_incursions
 from scraper.processors.ai_pipeline import (
     process_unanalysed_articles,
     process_exercise_only_articles,
+    process_poll_only_articles,
 )
 from scraper.processors.social_translator import translate_social_pulse
 
@@ -111,6 +112,14 @@ async def main():
     # adding PR pieces to the main signal feed. Capped at 30/run.
     print("\n--- STEP 3b: Exercise-only extraction (military sources) ---")
     process_exercise_only_articles(days=14, limit=30)
+
+    # Step 3c: Poll-only extraction on TW-side articles the keyword filter
+    # rejected, where the title carries a poll signal (民調/民意調查).
+    # Feeds the polling tracker with Lai-approval / vote-intention / TPOF-
+    # style coverage that lacks a cross-strait keyword angle. Capped at
+    # 30/run.
+    print("\n--- STEP 3c: Poll-only extraction (TW poll-bearing titles) ---")
+    process_poll_only_articles(days=14, limit=30)
 
     # Step 4: Cluster events
     print("\n" + "=" * 60)
