@@ -5,7 +5,10 @@ import {
 } from "recharts";
 import {
   fetchPolls, fetchPollsByQuestion, fetchPollsRoster, fetchPollsTopics,
+  fetchPollCandidates,
 } from "../api";
+import { READ_ONLY } from "../readOnly";
+import PollReviewQueue from "./PollReviewQueue";
 
 // The three flagship trackers pinned at the top of the tab. Everything
 // else (party-ID, war-risk, vote intent, ad-hoc issue polls) is
@@ -18,17 +21,20 @@ const FLAGSHIPS = [
 const FLAGSHIP_KEYS = new Set(FLAGSHIPS.map((f) => f.key));
 
 // Per-question option-order palettes. Hand-coded rather than computed
-// because each scale has its own natural colour story:
-//   * identity_nccu_3pt — green = Taiwanese, red = Chinese, purple = Both,
-//     grey = non-response. Matches the project's broader palette
-//     (party-green for TW identity, party-red for PRC identity).
+// because each scale has its own natural colour story. Index order MUST
+// match the seeded option_order in nccu_esc_seed.json — the chart pivots
+// by position, not by label.
+//   * identity_nccu_3pt — seed order is Taiwanese / Both / Chinese / NR:
+//     green = Taiwanese, purple = Both, red = Chinese, grey = NR.
+//     Matches the project's broader palette (party-green for TW identity,
+//     party-red for PRC identity, purple for the mixed/ambivalent middle).
 //   * unification_nccu_6pt — 6-point scale from "unification ASAP" (red)
 //     to "independence ASAP" (green) through status-quo greys. Mirrors
 //     the published NCCU chart conventions.
 //   * approval_lai_overall — green = satisfied, red = dissatisfied,
 //     grey = no opinion. Standard approval-poll convention.
 const OPTION_PALETTES = {
-  identity_nccu_3pt: ["#16a34a", "#dc2626", "#7c3aed", "#94a3b8"],
+  identity_nccu_3pt: ["#16a34a", "#7c3aed", "#dc2626", "#94a3b8"],
   unification_nccu_6pt: [
     "#dc2626", // 0 unification ASAP
     "#f59e0b", // 1 SQ→unification
@@ -72,7 +78,7 @@ export function pollsterChipColour(bias, slug) {
   return POLLSTER_CHIP_COLOURS[bias] || { bg: "#6b7280", text: "#fff" };
 }
 
-const FAMILY_LABELS = {
+export const FAMILY_LABELS = {
   identity:    "Identity",
   unification: "Unification",
   approval:    "Approval",
@@ -129,7 +135,7 @@ function SectionHeader({ children, right }) {
   );
 }
 
-function PollsterChip({ slug, name, bias }) {
+export function PollsterChip({ slug, name, bias }) {
   const { bg, text } = pollsterChipColour(bias, slug);
   return (
     <span style={{
@@ -502,6 +508,18 @@ export default function PollsTab() {
   const [selectedKey, setSelectedKey] = useState(null);
   const [selectedPayload, setSelectedPayload] = useState(null);
   const [error, setError] = useState(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  // Pending count badge — admin build only. Light call (no JOINs the
+  // public reads don't already do), refreshed on review-modal close.
+  const loadPendingCount = () => {
+    if (READ_ONLY) return;
+    fetchPollCandidates()
+      .then((r) => setPendingCount(r.total_pending || 0))
+      .catch(() => setPendingCount(0));
+  };
+  useEffect(() => { loadPendingCount(); }, []);
 
   // Initial load — fan out the four independent calls in parallel.
   // Each flagship is its own /by-question call so empty flagships
@@ -559,21 +577,44 @@ export default function PollsTab() {
 
   return (
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
-      <header style={{ marginBottom: "8px" }}>
-        <h1 style={{
-          fontFamily: "var(--font-serif)",
-          fontSize: "26px",
-          fontWeight: 400,
-          letterSpacing: "0.01em",
-          margin: 0,
-        }}>
-          Poll Tracker
-        </h1>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px",
-                      color: "var(--text-muted)", marginTop: "4px" }}>
-          Taiwan public opinion on identity, unification, presidential approval, and cross-strait attitudes.
-          {activePollsterCount > 0 && ` · ${activePollsterCount} pollster${activePollsterCount === 1 ? "" : "s"} with data`}
+      <header style={{
+        marginBottom: "8px",
+        display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px",
+      }}>
+        <div>
+          <h1 style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "26px",
+            fontWeight: 400,
+            letterSpacing: "0.01em",
+            margin: 0,
+          }}>
+            Poll Tracker
+          </h1>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px",
+                        color: "var(--text-muted)", marginTop: "4px" }}>
+            Taiwan public opinion on identity, unification, presidential approval, and cross-strait attitudes.
+            {activePollsterCount > 0 && ` · ${activePollsterCount} pollster${activePollsterCount === 1 ? "" : "s"} with data`}
+          </div>
         </div>
+        {!READ_ONLY && (
+          <button onClick={() => setReviewOpen(true)}
+                  title={`${pendingCount} pending`}
+                  style={{
+                    padding: "5px 12px",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "10px",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
+                    background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
+                    color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}>
+            ✎ Review{pendingCount > 0 ? ` (${pendingCount})` : ""}
+          </button>
+        )}
       </header>
 
       {error && (
@@ -626,6 +667,25 @@ export default function PollsTab() {
                       color: "var(--text-muted)" }}>No approved polls yet.</div>
       ) : (
         recentPolls.map((p) => <PollCard key={p.poll_id} poll={p} />)
+      )}
+
+      {reviewOpen && (
+        <PollReviewQueue
+          onClose={() => {
+            setReviewOpen(false);
+            loadPendingCount();
+            // Approving / dismissing may have changed the public reads,
+            // so refresh the recent feed and the flagship payloads that
+            // could newly have a wave.
+            fetchPolls({ limit: 30 }).then((d) => setRecentPolls(d?.polls || [])).catch(() => {});
+            FLAGSHIPS.forEach((f) => {
+              fetchPollsByQuestion(f.key)
+                .then((data) => setFlagshipData((prev) => ({ ...prev, [f.key]: data })))
+                .catch(() => {});
+            });
+          }}
+          onResolveAll={() => setPendingCount(0)}
+        />
       )}
     </main>
   );
