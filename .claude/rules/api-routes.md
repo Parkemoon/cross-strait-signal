@@ -84,17 +84,27 @@ Exercise tracker endpoints:
 
 Used by `MilitaryTab.jsx` for both the incursion KPI strip / ADIZ map and the Exercise Tracker section (map + list + analyst review queue + edit modal).
 
-## `polls.py` — `/api/polls` (Phase 2d, read endpoints)
+## `polls.py` — `/api/polls` (Phase 2d)
 
-Public-safe read routes only in this file; admin endpoints (candidates queue, approve/dismiss/merge, PATCH, manual create) will land in a follow-up commit. All routes apply `approval_status = 'approved'` so pending / dismissed / merged rows stay in the review queue.
+Read routes are public-safe and apply `approval_status = 'approved'`; admin routes (below) are gated by `Depends(require_admin)`. Pending / dismissed / merged rows live entirely behind the admin surface.
 
+Public reads:
 - `GET /api/polls/` — recent approved feed, paginated (`limit`, `offset`). Filters: `pollster` (slug), `family` (question family), `question_key` (canonical key). `question_key` wins over `family` if both supplied. Each poll envelope carries its full `questions[]` array with nested `options[]` — one polls row CAN hold multiple questions (see [[database]] on the multi-question survey envelope), so the frontend gets the whole survey context, not just the filtered question. Sort: `fielded_start DESC, id DESC`.
 - `GET /api/polls/by-question/{question_key}` — cross-pollster time series for the trend charts. Filters: `pollster` (one slug), `start`, `end` (ISO dates on `fielded_start`). Returns canonical question metadata at top level (`question_text_zh/en`, `family`, `scale_type`, `description`) plus a `waves[]` array sorted `fielded_start ASC` (ready for left-to-right plotting). 404 on unknown `question_key`. Each wave carries pollster slug + bias so the frontend can colour per-pollster.
 - `GET /api/polls/roster` — pollster list with `approved_count` per pollster (LEFT JOIN so zero-poll pollsters still appear in the filter dropdown). Sorted by `status` then `name_en`.
 - `GET /api/polls/topics` — question families grouped, each carrying its `poll_questions` entries with `approved_count`, `first_wave`, `last_wave`. Within each family, questions sort by `approved_count DESC`.
+
+Admin / review queue (all `Depends(require_admin)`):
+- `GET /api/polls/candidates` — `approval_status='pending'` rows with `pending_results_json` already deserialised into a `pending_questions[]` array, pollster + source-article context joined in, AND the full `poll_questions` catalogue inlined under `question_keys` so the review UI can populate its dropdown without a second roundtrip. Sorted `created_at DESC, id DESC`.
+- `POST /api/polls/{id}/approve` — body `{questions:[{question_key, text_zh?, text_en?, family?, scale_type?, description?}, …], pollster_slug?, fielded_start?, fielded_end?, sample_size?, methodology_note?, source_url?, notes?, reviewed_by?}`. The `questions[]` array MUST be the same length as the pending blob's questions and order-aligned (resolution `i` materialises question `i`). For each entry: if `question_key` exists it's reused, otherwise `text_zh/text_en/family/scale_type` are required and a new `poll_questions` row is created inline. Server materialises `poll_results` from the pending blob, NULLs `pending_results_json`, and runs the canonical-merge: if an approved twin exists on `(pollster_id, fielded_start)` after the optional envelope overrides apply, this candidate is merged INTO it (response `status='merged_into_existing'`); otherwise other pending rows on the same key are folded into this one. `family` must be one of `identity|unification|approval|attitude|vote_intent|issue`; `scale_type` one of `approve_disapprove|support_oppose|five_point|six_point|choice|numeric`; `question_key` must match `^[a-z0-9][a-z0-9_]*$`.
+- `POST /api/polls/{id}/dismiss?reviewed_by=…` — flips to `dismissed` and NULLs `pending_results_json` (the AI extraction is discarded).
+- `POST /api/polls/{id}/merge` — body `{target_id, reviewed_by?}`. Target must itself be `approved` (same constraint `military.py` enforces — the chain can't dangle into a dismissed/merged target).
+- `PATCH /api/polls/{id}` — envelope-level edits only: `pollster_slug`, `fielded_start`, `fielded_end`, `sample_size`, `methodology_note`, `source_url`, `notes`. `fielded_start` cannot be cleared (NOT NULL); other text fields take empty-string → NULL. Question wording / option percentages are NOT editable here — those live on `poll_results` and changing them after publication would corrupt cached trend charts. Dismiss + manual re-entry instead.
+- `POST /api/polls/` — manual entry fallback. Body mirrors approve's `questions[]` shape but each question ALSO carries its `options[]` directly (no pending staging — the row lands as `approved`). 409 if an approved twin already exists on `(pollster_id, fielded_start)`.
 
 Non-obvious rules:
 - The list endpoint's `question_key` / `family` filter uses an `EXISTS` subquery (not a `JOIN`) so polls aren't multiplied when a poll carries the filtered question — one row per polls envelope, not one per (poll, result).
 - `poll_results` are batch-fetched in ONE follow-up query keyed on the page of poll_ids returned, then pivoted in Python — avoids N+1.
 - `polls.methodology_note` is survey-level (pollster, mode, fielding window), never question-specific. Question wording lives on `poll_questions.question_text_*`. If you need per-pollster wording variants for the same canonical question, that's a future feature (`pollster_question_phrasings` table) — don't bake it into `methodology_note`.
 - Provenance discriminators on returned polls: `source_article_id NOT NULL` = AI extraction; `reviewed_by LIKE 'backfill:%'` = script-seeded (NCCU long series); otherwise manual analyst entry.
+- `question_key` is analyst-assigned at approve time, never AI-extracted — the AI's free-text wording lives in `polls.pending_results_json` until the analyst picks (or creates) a canonical key per question.
