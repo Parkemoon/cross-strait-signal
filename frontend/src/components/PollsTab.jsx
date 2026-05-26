@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { READ_ONLY } from "../readOnly";
 import PollReviewQueue from "./PollReviewQueue";
+import PollEntryModal from "./PollEntryModal";
 
 // The three flagship trackers pinned at the top of the tab. Everything
 // else (party-ID, war-risk, vote intent, ad-hoc issue polls) is
@@ -510,6 +511,21 @@ export default function PollsTab() {
   const [error, setError] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [entryOpen,  setEntryOpen]  = useState(false);
+
+  // After a manual entry / approve / dismiss, the public reads need a
+  // refresh — recent feed + every flagship payload that could newly
+  // have a wave. Shared between PollReviewQueue's onClose and
+  // PollEntryModal's onCreated so the two paths converge on the same
+  // post-write refresh.
+  const refreshPublicReads = () => {
+    fetchPolls({ limit: 30 }).then((d) => setRecentPolls(d?.polls || [])).catch(() => {});
+    FLAGSHIPS.forEach((f) => {
+      fetchPollsByQuestion(f.key)
+        .then((data) => setFlagshipData((prev) => ({ ...prev, [f.key]: data })))
+        .catch(() => {});
+    });
+  };
 
   // Pending count badge — admin build only. Light call (no JOINs the
   // public reads don't already do), refreshed on review-modal close.
@@ -598,22 +614,40 @@ export default function PollsTab() {
           </div>
         </div>
         {!READ_ONLY && (
-          <button onClick={() => setReviewOpen(true)}
-                  title={`${pendingCount} pending`}
-                  style={{
-                    padding: "5px 12px",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "10px",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
-                    background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
-                    color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}>
-            ✎ Review{pendingCount > 0 ? ` (${pendingCount})` : ""}
-          </button>
+          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+            <button onClick={() => setEntryOpen(true)}
+                    title="Add a poll manually (analyst-spotted, outside the AI pipeline)"
+                    style={{
+                      padding: "5px 12px",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "10px",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      border: "1px solid var(--border-color)",
+                      background: "transparent",
+                      color: "var(--text-secondary)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}>
+              + Add poll
+            </button>
+            <button onClick={() => setReviewOpen(true)}
+                    title={`${pendingCount} pending`}
+                    style={{
+                      padding: "5px 12px",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "10px",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
+                      background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
+                      color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}>
+              ✎ Review{pendingCount > 0 ? ` (${pendingCount})` : ""}
+            </button>
+          </div>
         )}
       </header>
 
@@ -674,17 +708,19 @@ export default function PollsTab() {
           onClose={() => {
             setReviewOpen(false);
             loadPendingCount();
-            // Approving / dismissing may have changed the public reads,
-            // so refresh the recent feed and the flagship payloads that
-            // could newly have a wave.
-            fetchPolls({ limit: 30 }).then((d) => setRecentPolls(d?.polls || [])).catch(() => {});
-            FLAGSHIPS.forEach((f) => {
-              fetchPollsByQuestion(f.key)
-                .then((data) => setFlagshipData((prev) => ({ ...prev, [f.key]: data })))
-                .catch(() => {});
-            });
+            refreshPublicReads();
           }}
           onResolveAll={() => setPendingCount(0)}
+        />
+      )}
+
+      {entryOpen && (
+        <PollEntryModal
+          onClose={() => setEntryOpen(false)}
+          onCreated={() => {
+            setEntryOpen(false);
+            refreshPublicReads();
+          }}
         />
       )}
     </main>
