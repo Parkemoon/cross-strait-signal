@@ -15,11 +15,12 @@ import EconomyTab from "./components/EconomyTab";
 import TradeAccessTab from "./components/TradeAccessTab";
 import PeopleTab from "./components/PeopleTab";
 import MilitaryTab from "./components/MilitaryTab";
+import PollsTab from "./components/PollsTab";
 
 export default function App() {
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
-  const [view, setView] = useState("feed"); // "feed" | "review" | "economy" | "trade" | "people" | "military"
+  const [view, setView] = useState("feed"); // "feed" | "review" | "economy" | "trade" | "people" | "military" | "polls"
   const [showAbout, setShowAbout] = useState(false);
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "people" | "military" | "social" | "review"
   const windowWidth = useWindowWidth();
@@ -180,6 +181,24 @@ export default function App() {
               Military
             </button>
           )}
+          {!isMobile && (
+            <button
+              onClick={() => setView(view === "polls" ? "feed" : "polls")}
+              style={{
+                padding: "5px 12px",
+                background: view === "polls" ? "rgba(255,255,255,0.12)" : "transparent",
+                color: view === "polls" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                cursor: "pointer",
+                fontSize: "10px",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              Polls
+            </button>
+          )}
           {!isMobile && !READ_ONLY && (
             <button
               onClick={() => setView(view === "review" ? "feed" : "review")}
@@ -319,7 +338,7 @@ export default function App() {
           `position: sticky` on the sidebar children. */}
       <div style={{
         display: isMobile ? "block" : "grid",
-        gridTemplateColumns: (view === "economy" || view === "trade" || view === "people" || view === "military")
+        gridTemplateColumns: (view === "economy" || view === "trade" || view === "people" || view === "military" || view === "polls")
           ? "clamp(300px, 20vw, 420px) 1fr"
           : "clamp(300px, 20vw, 420px) 1fr 300px",
         minHeight: "calc(100vh - 52px)",
@@ -382,7 +401,7 @@ export default function App() {
         </aside>
 
         {/* Feed / Review / Economy / Trade / People — center column */}
-        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy" || mobileTab === "trade" || mobileTab === "people" || mobileTab === "military") ? "block" : "none") : "block", minWidth: 0 }}>
+        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy" || mobileTab === "trade" || mobileTab === "people" || mobileTab === "military" || mobileTab === "polls") ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : view === "economy" ? (
@@ -393,6 +412,8 @@ export default function App() {
             <PeopleTab />
           ) : view === "military" ? (
             <MilitaryTab />
+          ) : view === "polls" ? (
+            <PollsTab />
           ) : (
             <main style={{
               padding: isMobile ? "16px" : "28px 32px",
