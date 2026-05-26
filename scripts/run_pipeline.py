@@ -110,9 +110,11 @@ async def main():
     # Polls publish weekly at best; running every 6h is wasteful but
     # idempotent (article_exists check) — extract to a separate daily cron
     # if the pipeline runtime becomes a concern.
+    # Run the sync Playwright scrapers in a worker thread — Playwright's
+    # sync API refuses to start inside an active asyncio loop.
     print("\n--- STEP 2L: Pollster direct (Playwright) ---")
-    new_tvbs_polls = scrape_tvbs_polls()
-    new_myformosa_polls = scrape_myformosa_polls()
+    new_tvbs_polls = await asyncio.to_thread(scrape_tvbs_polls)
+    new_myformosa_polls = await asyncio.to_thread(scrape_myformosa_polls)
 
     # Step 3: Analyse unprocessed articles
     total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen
