@@ -299,6 +299,7 @@ export default function App() {
           { id: "trade", label: "Trade" },
           { id: "people", label: "People" },
           { id: "military", label: "Military" },
+          { id: "polls", label: "Polls" },
           { id: "social", label: "Social" },
           ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
         ].map((tab) => (
@@ -311,6 +312,7 @@ export default function App() {
               else if (tab.id === "trade") setView("trade");
               else if (tab.id === "people") setView("people");
               else if (tab.id === "military") setView("military");
+              else if (tab.id === "polls") setView("polls");
               else setView("feed");
             }}
             style={{

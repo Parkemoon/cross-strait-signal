@@ -382,6 +382,24 @@ def create_pollster(body: PollsterCreate):
 # GET /topics — question families with counts
 # ============================================================
 
+@router.get("/questions")
+def polls_questions():
+    """Flat catalogue of every `poll_questions` row — the dropdown source
+    for the manual-entry modal. Cheap, public read; distinct from
+    `/topics` (grouped by family with approved counts) and `/candidates`
+    (admin, returns the catalogue inlined alongside pending poll
+    envelopes). Keep this endpoint dependency-free so the manual-entry
+    modal doesn't need admin auth just to populate a picker."""
+    with db_conn() as conn:
+        rows = conn.execute("""
+            SELECT question_key, question_text_zh, question_text_en,
+                   family, scale_type, description
+            FROM poll_questions
+            ORDER BY family, question_key
+        """).fetchall()
+    return {"question_keys": [dict(r) for r in rows]}
+
+
 @router.get("/topics")
 def polls_topics():
     """Question family overview — populates the topic-browser pill row.
@@ -440,14 +458,32 @@ def _validate_iso_date(value: str, field_name: str) -> str:
     return value
 
 
+def _validate_date_range(start: Optional[str], end: Optional[str]):
+    """Reject a fielded_end strictly before fielded_start. Both arguments
+    must already be valid ISO dates (caller runs `_validate_iso_date`
+    first). Either may be None — same-day polls leave fielded_end NULL.
+    Trend charts pivot on `fielded_end || fielded_start`, so a reversed
+    range plots the wave at the wrong x-axis point."""
+    if not start or not end:
+        return
+    if date.fromisoformat(end) < date.fromisoformat(start):
+        raise HTTPException(
+            400, f"fielded_end {end!r} is before fielded_start {start!r}",
+        )
+
+
 def _resolve_pollster_id(conn, slug: Optional[str]) -> Optional[int]:
-    """Map a pollster slug to its FK id. None when slug is None/empty.
-    404s when the slug is set but unknown — silent fallback to `unknown`
-    is reserved for the AI ingest path, not analyst-driven writes."""
-    if not slug:
+    """Map a pollster slug to its FK id. None when slug is None.
+    400s on empty string (an analyst-driven write must commit to a
+    pollster — silent fallback to `unknown` is reserved for the AI
+    ingest path). 404s on a set-but-unknown slug."""
+    if slug is None:
         return None
+    cleaned = slug.strip().lower()
+    if not cleaned:
+        raise HTTPException(400, "pollster_slug cannot be empty")
     row = conn.execute(
-        "SELECT id FROM pollsters WHERE slug = ?", (slug.strip().lower(),)
+        "SELECT id FROM pollsters WHERE slug = ?", (cleaned,)
     ).fetchone()
     if not row:
         raise HTTPException(404, f"unknown pollster slug: {slug!r}")
@@ -504,6 +540,36 @@ def _resolve_question_id(conn, spec: dict) -> int:
     return cur.lastrowid
 
 
+def _validated_option(opt: dict, question_label: str, idx: int) -> tuple:
+    """Coerce one option dict to (label_zh, label_en, percentage) with the
+    same rules `_insert_manual_results` enforces — label non-empty, pct
+    numeric and in 0–100. Used by both the materialise (AI-extracted) and
+    manual-entry paths so a single contract gates poll_results writes.
+
+    `question_label` is just for error messages — pass the question_key
+    when materialising, the array index from manual entry otherwise."""
+    pct = opt.get("percentage")
+    try:
+        pct = float(pct)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            400,
+            f"{question_label} option {idx}: percentage must be numeric, "
+            f"got {opt.get('percentage')!r}",
+        )
+    if not (0.0 <= pct <= 100.0):
+        raise HTTPException(
+            400, f"{question_label} option {idx}: percentage {pct} outside 0–100",
+        )
+    label_zh = (opt.get("label_zh") or "").strip()
+    label_en = (opt.get("label_en") or "").strip()
+    if not label_zh and not label_en:
+        raise HTTPException(
+            400, f"{question_label} option {idx}: needs at least one of label_zh / label_en",
+        )
+    return label_zh or label_en, label_en or label_zh, pct
+
+
 def _materialise_pending_results(conn, poll_id: int,
                                  pending: dict, question_ids: List[int]):
     """Convert a `pending_results_json` blob to actual `poll_results`
@@ -518,18 +584,18 @@ def _materialise_pending_results(conn, poll_id: int,
             "resolved keys — refusing to materialise mismatched data",
         )
     for q, qid in zip(questions, question_ids):
-        for opt in q.get("options") or []:
+        for i, opt in enumerate(q.get("options") or []):
+            label_zh, label_en, pct = _validated_option(
+                opt, f"question_id={qid}", i,
+            )
             conn.execute(
                 """INSERT INTO poll_results
                    (poll_id, question_id, option_label_zh, option_label_en,
                     option_order, percentage)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (
-                    poll_id, qid,
-                    opt.get("label_zh") or opt.get("label_en") or "",
-                    opt.get("label_en") or opt.get("label_zh"),
-                    opt.get("option_order"),
-                    opt.get("percentage"),
+                    poll_id, qid, label_zh, label_en,
+                    opt.get("option_order", i), pct,
                 ),
             )
 
@@ -538,36 +604,25 @@ def _insert_manual_results(conn, poll_id: int, questions_spec: List[dict],
                            question_ids: List[int]):
     """Variant of the materialise step used by the manual-entry path —
     options come directly from the analyst payload rather than from a
-    pending_results_json blob. Validates each option's percentage is a
-    0–100 float so manual entries can't sneak past the same guard the
-    AI path uses (`_normalise_poll_questions` in ai_pipeline.py)."""
+    pending_results_json blob. Shares `_validated_option` with the
+    materialise path so both write to poll_results under the same
+    contract."""
     for q, qid in zip(questions_spec, question_ids):
         opts = q.get("options") or []
         if not opts:
             raise HTTPException(400, f"question {q.get('question_key')!r} has no options")
         for i, opt in enumerate(opts):
-            pct = opt.get("percentage")
-            try:
-                pct = float(pct)
-            except (TypeError, ValueError):
-                raise HTTPException(400, f"option {i} percentage must be numeric, got {opt.get('percentage')!r}")
-            if not (0.0 <= pct <= 100.0):
-                raise HTTPException(400, f"option {i} percentage {pct} outside 0–100")
-            label_zh = (opt.get("label_zh") or "").strip()
-            label_en = (opt.get("label_en") or "").strip()
-            if not label_zh and not label_en:
-                raise HTTPException(400, f"option {i} needs at least one of label_zh / label_en")
+            label_zh, label_en, pct = _validated_option(
+                opt, f"question {q.get('question_key')!r}", i,
+            )
             conn.execute(
                 """INSERT INTO poll_results
                    (poll_id, question_id, option_label_zh, option_label_en,
                     option_order, percentage)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (
-                    poll_id, qid,
-                    label_zh or label_en,
-                    label_en or label_zh,
-                    opt.get("option_order", i),
-                    pct,
+                    poll_id, qid, label_zh, label_en,
+                    opt.get("option_order", i), pct,
                 ),
             )
 
@@ -821,6 +876,25 @@ def approve_poll(poll_id: int, body: PollApprove):
             v = body.notes.strip()
             set_fields["notes"] = v or None
 
+        # Date-range guard runs after BOTH overrides are resolved — using
+        # the row's existing fielded_end when the analyst didn't override.
+        _validate_date_range(
+            new_fielded_start,
+            set_fields.get("fielded_end", row["fielded_end"]),
+        )
+
+        # Column whitelist for the f-string interpolation below; matches
+        # the keys assembled into set_fields above. Keeps the SQL build
+        # injection-proof even if a future edit accidentally derives a
+        # key from user input.
+        _ALLOWED = {"approval_status", "pollster_id", "fielded_start",
+                    "fielded_end", "sample_size", "methodology_note",
+                    "source_url", "notes", "pending_results_json",
+                    "reviewed_by"}
+        bad = set(set_fields) - _ALLOWED
+        if bad:
+            raise HTTPException(500, f"unexpected approve update keys: {sorted(bad)}")
+
         set_clauses = [f"{k} = :{k}" for k in set_fields] + ["reviewed_at = datetime('now')"]
         params = {**set_fields, "id": poll_id}
         conn.execute(
@@ -901,6 +975,21 @@ def merge_poll(poll_id: int, body: PollMerge):
     if body.target_id == poll_id:
         raise HTTPException(400, "cannot merge a poll into itself")
     with db_conn() as conn:
+        source = conn.execute(
+            "SELECT approval_status FROM polls WHERE id = ?", (poll_id,)
+        ).fetchone()
+        if not source:
+            raise HTTPException(404, f"poll {poll_id} not found")
+        # Source must be in a state where merging makes sense — dismissed
+        # or already-merged rows shouldn't be silently flipped to merged
+        # (their state carries editorial intent the analyst signed off on).
+        if source["approval_status"] not in ("pending", "approved"):
+            raise HTTPException(
+                400,
+                f"poll {poll_id} is {source['approval_status']!r}, "
+                "must be 'pending' or 'approved' to merge",
+            )
+
         target = conn.execute(
             "SELECT id, approval_status FROM polls WHERE id = ?", (body.target_id,)
         ).fetchone()
@@ -912,7 +1001,7 @@ def merge_poll(poll_id: int, body: PollMerge):
                 f"merge target {body.target_id} is {target['approval_status']!r}, "
                 "must be 'approved'",
             )
-        cur = conn.execute("""
+        conn.execute("""
             UPDATE polls
             SET approval_status      = 'merged',
                 merged_into_id       = ?,
@@ -921,8 +1010,6 @@ def merge_poll(poll_id: int, body: PollMerge):
                 reviewed_by          = COALESCE(?, reviewed_by)
             WHERE id = ?
         """, (body.target_id, body.reviewed_by, poll_id))
-        if cur.rowcount == 0:
-            raise HTTPException(404, f"poll {poll_id} not found")
         conn.commit()
     return {"status": "merged", "id": poll_id, "merged_into_id": body.target_id}
 
@@ -976,9 +1063,27 @@ def patch_poll(poll_id: int, patch: PollPatch):
             if k in data and isinstance(data[k], str) and data[k].strip() == "":
                 data[k] = None
 
-        existing = conn.execute("SELECT id FROM polls WHERE id = ?", (poll_id,)).fetchone()
+        existing = conn.execute(
+            "SELECT fielded_start, fielded_end FROM polls WHERE id = ?", (poll_id,)
+        ).fetchone()
         if not existing:
             raise HTTPException(404, f"poll {poll_id} not found")
+
+        # Date-range guard runs against the post-PATCH state — the value
+        # the analyst supplied OR the row's existing one if untouched.
+        _validate_date_range(
+            data.get("fielded_start", existing["fielded_start"]),
+            data.get("fielded_end",   existing["fielded_end"]),
+        )
+
+        # Column whitelist — `data` keys are derived from PollPatch field
+        # names plus the pollster_slug→pollster_id rewrite above, but the
+        # explicit set keeps the f-string interpolation injection-proof.
+        _ALLOWED = {"pollster_id", "fielded_start", "fielded_end",
+                    "sample_size", "methodology_note", "source_url", "notes"}
+        bad = set(data) - _ALLOWED
+        if bad:
+            raise HTTPException(500, f"unexpected patch fields: {sorted(bad)}")
 
         set_clause = ", ".join(f"{k} = :{k}" for k in data)
         params = {**data, "id": poll_id}
@@ -1032,9 +1137,11 @@ def create_poll(body: PollCreate):
     already-approved survey wave."""
     if not body.questions:
         raise HTTPException(400, "questions[] cannot be empty")
-    _validate_iso_date(body.fielded_start.strip(), "fielded_start")
+    start = _validate_iso_date(body.fielded_start.strip(), "fielded_start")
+    end = None
     if body.fielded_end:
-        _validate_iso_date(body.fielded_end.strip(), "fielded_end")
+        end = _validate_iso_date(body.fielded_end.strip(), "fielded_end")
+    _validate_date_range(start, end)
 
     with db_conn() as conn:
         pollster_id = _resolve_pollster_id(conn, body.pollster_slug)

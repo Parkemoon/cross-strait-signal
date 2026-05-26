@@ -4,6 +4,17 @@ set -e
 
 cd /var/www/cross-strait-signal
 
+# Pull then re-exec self so the rest of the script runs from the freshly
+# pulled file on disk — bash's read-ahead behaviour when the script file
+# changes mid-execution is implementation-defined, and a deploy that
+# adds a new schema migration block has to actually execute that block.
+# The DEPLOY_POST_PULL sentinel prevents the re-exec from looping.
+if [ -z "${DEPLOY_POST_PULL:-}" ]; then
+    echo "--- Pulling latest code ---"
+    git pull
+    DEPLOY_POST_PULL=1 exec bash "$0" "$@"
+fi
+
 # Load server secrets (.env) so subsequent steps — notably the admin frontend
 # build — can read them. The set -a / set +a brackets export every variable
 # the .env defines. The admin build inlines REACT_APP_* vars into the JS
@@ -14,9 +25,6 @@ if [ -f .env ]; then
     source .env
     set +a
 fi
-
-echo "--- Pulling latest code ---"
-git pull
 
 # Apply idempotent schema additions. init_db.py runs the full schema.sql,
 # which contains non-idempotent CREATE TABLEs from the original layout (would
@@ -217,7 +225,7 @@ CREATE TABLE IF NOT EXISTS poll_results (
     option_order    INTEGER,
     percentage      REAL NOT NULL,
     margin_error    REAL,
-    UNIQUE(poll_id, question_id, option_label_zh)
+    UNIQUE(poll_id, question_id, option_order)
 );
 CREATE INDEX IF NOT EXISTS idx_poll_results_poll ON poll_results(poll_id);
 CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id);
