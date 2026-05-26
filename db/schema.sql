@@ -528,9 +528,9 @@ CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id
 -- Seed pollster roster
 INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, notes) VALUES
     ('nccu_esc',  '國立政治大學選舉研究中心', 'NCCU Election Study Center',       'academic',      'active',     'biannual', 'Identity + unification trend since 1992'),
-    ('myformosa', '美麗島電子報',             'My-Formosa',                       'green_leaning', 'active',     'monthly',  'Best of the active regulars'),
+    ('myformosa', '美麗島電子報',             'My-Formosa',                       'centrist',      'active',     'monthly',  'Owner expelled from DPP for being too critical; editorial posture no longer green-leaning'),
     ('tvbs',      'TVBS民調中心',             'TVBS Poll Center',                 'blue',          'active',     'monthly',  NULL),
-    ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'centrist',      'active',     'monthly',  NULL),
+    ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'blue_leaning',  'active',     'monthly',  NULL),
     ('tpof',      '台灣民意基金會',           'Taiwan Public Opinion Foundation', 'green_leaning', 'historical', NULL,       'Chair moved to head TW CEC; no new polls expected'),
     -- MAC is a TW executive-branch ministry, not party media — bias=state_official is symmetric
     -- with how PRC state outlets are labelled. The chip colour in PollsTab is side-aware
