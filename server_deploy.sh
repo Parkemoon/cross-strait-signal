@@ -224,12 +224,18 @@ CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id
 
 INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, notes) VALUES
     ('nccu_esc',  '國立政治大學選舉研究中心', 'NCCU Election Study Center',       'academic',      'active',     'biannual', 'Identity + unification trend since 1992'),
-    ('myformosa', '美麗島電子報',             'My-Formosa',                       'green_leaning', 'active',     'monthly',  'Best of the active regulars'),
+    ('myformosa', '美麗島電子報',             'My-Formosa',                       'centrist',      'active',     'monthly',  'Owner expelled from DPP for being too critical; editorial posture no longer green-leaning'),
     ('tvbs',      'TVBS民調中心',             'TVBS Poll Center',                 'blue',          'active',     'monthly',  NULL),
-    ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'centrist',      'active',     'monthly',  NULL),
+    ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'blue_leaning',  'active',     'monthly',  NULL),
     ('tpof',      '台灣民意基金會',           'Taiwan Public Opinion Foundation', 'green_leaning', 'historical', NULL,       'Chair moved to head TW CEC; no new polls expected'),
     ('mac',       '大陸委員會',               'Mainland Affairs Council',         'state_official','active',     'quarterly', 'TW executive branch; cross-strait attitudes survey 民眾對當前兩岸關係之看法'),
     ('unknown',   '未識別',                   'Unknown',                          'centrist',      'unknown',    NULL,       'Fallback for AI extractions where pollster could not be identified — analyst sets during approval');
+
+-- Bias correction (2026-05-26): INSERT OR IGNORE above won't update existing
+-- rows, so apply the updated calls directly. Idempotent — re-running just
+-- sets the same value again.
+UPDATE pollsters SET bias='centrist',     notes='Owner expelled from DPP for being too critical; editorial posture no longer green-leaning' WHERE slug='myformosa';
+UPDATE pollsters SET bias='blue_leaning'                                                                                                     WHERE slug='ettoday';
 
 INSERT OR IGNORE INTO poll_questions (question_key, question_text_zh, question_text_en, family, scale_type, description) VALUES
     ('identity_nccu_3pt',    '請問您認為自己是台灣人、中國人，或者都是？',     'Do you consider yourself Taiwanese, Chinese, or both?',                'identity',    'choice',             'NCCU ESC flagship since 1992'),
