@@ -29,6 +29,9 @@ Two types:
 | `pla_daily_scraper.py` | PLA Daily 解放軍報 (81.cn — HTTP only, not HTTPS) |
 | `weibo_hot_scraper.py` | Weibo Hot Search — top 50 from `weibo.com/ajax/side/hotSearch` JSON API → `social_pulse` |
 | `ptt_scraper.py` | PTT BBS — Military (5 pages), Gossiping (15 pages), HatePolitics (12 pages); requires `over18=1` cookie; depth in `BOARD_PAGES` |
+| `ettoday_poll_scraper.py` | ETtoday ET民調 — httpx + BeautifulSoup against the `/news_search` results page for `keywords=ET民調`. Title-prefix filtered to `ET民調`. Feeds Step 3c via the existing `%民調%` title trigger. |
+| `tvbs_poll_scraper.py` | TVBS 民調中心 — Playwright enumerates `(title, pdf_url)` pairs from the CSR `/poll-center` table, then httpx + pdfplumber extract the first 4 PDF pages (cover + prose summary, skipping cross-tab matrices). Date parsed from the URL's `/YYYY/YYYYMMDD/` segment. |
+| `myformosa_poll_scraper.py` | My-Formosa 美麗島民調 — Playwright drives both list + article pages (article HTML is Big5-encoded). Title-prefix filtered to `美麗島民調`; non-prefixed entries on the topical page are commentary, not poll output. |
 
 ## Non-article scrapers (feed dedicated tables, not `articles`)
 
