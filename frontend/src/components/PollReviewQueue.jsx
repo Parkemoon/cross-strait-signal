@@ -8,7 +8,7 @@ import {
   mergePoll,
   updatePoll,
 } from "../api";
-import { pollsterChipColour, PollsterChip, FAMILY_LABELS } from "./PollsTab";
+import { PollsterChip, FAMILY_LABELS } from "./PollsTab";
 import {
   FAMILIES, SCALE_TYPES, SLUG_RX,
   CREATE_NEW, CREATE_NEW_POLLSTER,
@@ -429,8 +429,6 @@ function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, revi
   const [busy,        setBusy]        = useState(false);
   const [error,       setError]       = useState(null);
   const [mergeTarget, setMergeTarget] = useState("");
-
-  const colour = pollsterChipColour(candidate.pollster_bias, candidate.pollster_slug);
 
   const setResolutionAt = (i, next) => {
     setResolutions((prev) => prev.map((r, idx) => (idx === i ? next : r)));
