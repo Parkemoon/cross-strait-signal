@@ -290,6 +290,56 @@ export async function fetchPollsTopics() {
   return request(`/api/polls/topics`);
 }
 
+// Admin / review queue helpers. Approve payload carries one
+// QuestionResolution per pending question (in pending_results_json
+// order) — caller picks an existing question_key OR supplies new-key
+// creation fields. PATCH / dismiss / merge mirror the exercise tracker
+// shape so the components can be cribbed.
+
+export async function fetchPollCandidates() {
+  return request(`/api/polls/candidates`, { headers: authHeaders() });
+}
+
+export async function approvePoll(id, payload) {
+  return request(`/api/polls/${id}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function dismissPoll(id, reviewedBy) {
+  const query = reviewedBy ? `?reviewed_by=${encodeURIComponent(reviewedBy)}` : "";
+  return request(`/api/polls/${id}/dismiss${query}`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+}
+
+export async function mergePoll(id, targetId, reviewedBy) {
+  return request(`/api/polls/${id}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ target_id: targetId, reviewed_by: reviewedBy }),
+  });
+}
+
+export async function updatePoll(id, patch) {
+  return request(`/api/polls/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function createPoll(body) {
+  return request(`/api/polls/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",
