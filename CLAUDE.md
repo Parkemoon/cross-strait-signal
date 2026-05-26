@@ -130,7 +130,7 @@ Less-obvious categories:
 
 **Urgency levels**: `flash` / `priority` / `routine`
 
-**Source bias labels**: `green`, `green_leaning`, `blue`, `centrist`, `state_official`, `state_nationalist`. Canonical roster in `seed_sources.py`. Source-specific judgement calls worth keeping:
+**Source bias labels**: `green`, `green_leaning`, `centrist`, `blue_leaning`, `blue`, `state_official`, `state_nationalist`. Canonical roster in `seed_sources.py`. Source-specific judgement calls worth keeping:
 - **YDN** is `green_leaning` because it's MND state media under the current DPP executive — reclassify if the government changes.
 - **RTHK** is `state_official` post-NSL.
 - **BBC Chinese** stores only the RSS `<description>` summary — the article page is Next.js CSR and yields no extractable text via BeautifulSoup. Sufficient for keyword filtering + AI analysis; don't waste time rebuilding the content scraper.
