@@ -167,9 +167,9 @@ def _seed_series(conn, pollster_id, series) -> int:
                     (poll_id, question_id, option_label_zh, option_label_en,
                      option_order, percentage)
                 VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(poll_id, question_id, option_label_zh) DO UPDATE SET
+                ON CONFLICT(poll_id, question_id, option_order) DO UPDATE SET
+                    option_label_zh = excluded.option_label_zh,
                     option_label_en = excluded.option_label_en,
-                    option_order    = excluded.option_order,
                     percentage      = excluded.percentage
             """, (poll_id, question_id, opt['label_zh'], opt['label_en'],
                   int(opt['order']), float(pct)))
