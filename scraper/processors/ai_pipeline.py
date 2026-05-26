@@ -362,7 +362,7 @@ CLASSIFICATION RULES:
 - For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
 - KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
 - MILITARY EXERCISES: Extract any military exercise mentioned in the article — both named exercises (Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, Talisman Sabre, RIMPAC, Strait Thunder 海峽雷霆, Wan An 萬安, etc.) AND unnamed drills explicitly described as conducting live-fire training, readiness drills, joint patrols, amphibious landings, or cyber exercises (e.g. "MND conducted a routine readiness drill in eastern waters on 22 May" qualifies even with no exercise name). Map the actor to performer_side: PLA / 解放軍 / 東部戰區 / 南部戰區 → PRC; MND / 國防部 / 國軍 / 漢光 → ROC; INDOPACOM / US Pacific Fleet / USAF / USN / USMC → US; JSDF / 海上自衛隊 / 航空自衛隊 → JP; multilateral activity involving two or more sides → MULTI with `participants` listing each ISO-style side code. DATE ANCHORING — `start_date` and `end_date` default to the article's PUBLISHED year (given above). When the article says "today", "this week", "on 22 May", or any month/day without a year, use the PUBLISHED year. Only use a different year when the article explicitly cites one (e.g. "the 2024 drill", "Han Kuang 41 last year", "the original 2022 exercise"). Do NOT anchor dates to your training-data baseline — the PUBLISHED date is authoritative for the article's "now". LOCATION HANDLING — Two separate fields with different bars: `location_label` is REQUIRED whenever the article mentions ANY place reference for the exercise — a named base, range, harbour, county, body of water, region, or compass-quadrant description ("eastern Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 / artillery testing centre north-bank position", "Jiupeng base 九鵬基地", "Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place names to English in `location_label`; preserve the original in `description_zh`. The bar for `location_label` is LOW — if you can identify a place in the article, fill it. `latitude` and `longitude` are SEPARATE: only emit numeric coords when you can confidently resolve them from the text (named base with established centroid, named body of water, or coordinates stated explicitly) — otherwise both null. Use false-negatives-preferred discipline for lat/lng only, not for location_label. Return an empty array if no exercise is mentioned. description_en MUST be English (translate if needed); never put Chinese characters in description_en. If no name is given in the article, leave name_zh and name_en as null — do NOT invent a name.
-- POLLS: Extract public-opinion polls of the Taiwanese (or PRC) public on TW political, cross-strait, identity, unification, political-approval, attitude, or vote-intention questions. PRIMARY SUBJECT bar — only extract when the article is REPORTING ON a poll's results, not when it merely cites a poll number in passing to back a wider argument. Skip polls of any other public (Israeli, US, Japanese, etc.) even when a TW outlet covers them. The clearest signals are: a named pollster, an explicit fieldwork date range, a sample size, and at least one numeric percentage attached to a question option. If you cannot see ALL FOUR of those signals in the article, return an empty array — false negatives are strongly preferred. SKIP: hypothetical surveys, forecasts/projections, expert-panel surveys, internal party-member polls, candidate-primary selection polls (初選民調 — parties using polls to pick nominees is a process mechanism, not public opinion), single-line passing references to past poll numbers ("a 2022 poll showed..."), and PRC state-media "surveys" with no methodology disclosed. POLLSTER — copy the organisation name VERBATIM from the article into `pollster_hint`; if the article references the poll without naming the pollster, set `pollster_hint` to null. The downstream pipeline resolves the hint to a canonical pollster; do not normalise or translate it yourself. DATE ANCHORING — same rule as exercises: `fielded_start`/`fielded_end` default to the article's PUBLISHED year; only use a different year if the article explicitly states one. QUESTION TEXT — `question_text_zh` MUST be the verbatim wording from the article (this is the analyst's primary signal for matching to an existing canonical question_key). Never paraphrase; if the article only paraphrases the question and does not quote it directly, copy the article's paraphrase as-is. `question_text_en` must be English. OPTIONS — one entry per labelled response in the article (e.g. for an approval poll: 'Satisfied', 'Dissatisfied', 'No opinion'). `label_zh` is the article's original-language label; `label_en` is its English equivalent. `percentage` is the numeric value as a float (47.3, not 0.473 or "47.3%"). Do NOT compute or impute percentages — only extract values explicitly stated. If options sum to less than 100 (because the article omitted "no opinion" or "other"), that is fine — do not fabricate the missing rows. family_hint is your best guess at the question's category and is used as a starting suggestion in the analyst review queue, not as a binding classification. Return an empty array if no poll meeting the bar is reported.
+- POLLS: Extract public-opinion polls of the Taiwanese (or PRC) public on TW political, cross-strait, identity, unification, political-approval, attitude, or vote-intention questions. PRIMARY SUBJECT bar — only extract when the article is REPORTING ON a poll's results, not when it merely cites a poll number in passing to back a wider argument. Skip polls of any other public (Israeli, US, Japanese, etc.) even when a TW outlet covers them. The four-signal gate is POLL-LEVEL not question-level: a poll qualifies when the ARTICLE AS A WHOLE names the pollster, gives a fieldwork date range, gives a sample size, and reports at least one numeric percentage attached to a question option. Once the poll qualifies, you MUST extract every distinct question reported in it — not just the headline one. A single article often carries 2–5 questions from one wave (vote intent + approval + favourability + policy ratings); emit them all into the SAME poll's `questions[]` array, sharing the pollster/sample/fielding properties. False negatives at the poll level (whole poll skipped) are preferred over false positives, but false negatives at the question level (cherry-picking from a qualifying poll) are NOT preferred — be exhaustive. Skip subgroup cross-tabulations (e.g. "among 20-29 year olds X% supported Y", "DPP-identifiers split Z%/W%") and demographic breakdowns of an already-extracted main result. SKIP: hypothetical surveys, forecasts/projections, expert-panel surveys, internal party-member polls, candidate-primary selection polls (初選民調 — parties using polls to pick nominees is a process mechanism, not public opinion), single-line passing references to past poll numbers ("a 2022 poll showed..."), and PRC state-media "surveys" with no methodology disclosed. POLLSTER — copy the organisation name VERBATIM from the article into `pollster_hint`; if the article references the poll without naming the pollster, set `pollster_hint` to null. The downstream pipeline resolves the hint to a canonical pollster; do not normalise or translate it yourself. DATE ANCHORING — same rule as exercises: `fielded_start`/`fielded_end` default to the article's PUBLISHED year; only use a different year if the article explicitly states one. QUESTION TEXT — `question_text_zh` should be the verbatim wording from the article when the article quotes the question directly. When the article reports results in prose without quoting the question (common in headlines: "X leads Y 43% to 37%" without a stated question), you MAY synthesise `question_text_zh` from the prose context (e.g. "2026年嘉義市長選舉支持哪位參選人？"). `question_text_en` must be English. OPTIONS — one entry per labelled response in the article (e.g. for an approval poll: 'Satisfied', 'Dissatisfied', 'No opinion'). `label_zh` is the article's original-language label; `label_en` is its English equivalent. `percentage` is the numeric value as a float (47.3, not 0.473 or "47.3%"). Do NOT compute or impute percentages — only extract values explicitly stated. If options sum to less than 100 (because the article omitted "no opinion" or "other"), that is fine — do not fabricate the missing rows. family_hint is your best guess at the question's category and is used as a starting suggestion in the analyst review queue, not as a binding classification. Return an empty array if no poll meeting the bar is reported.
 - Use British English spelling in all English-language output fields (e.g. "analyse" not "analyze", "behaviour" not "behavior", "colour" not "color", "centre" not "center", "organisation" not "organization").
 - CURRENT OFFICIALS: When an article references officials by role title alone (e.g. "the president", "總統", "the premier", "院長", "the foreign minister"), use the CURRENT OFFICIAL ROSTER provided below to identify who currently holds that role. If a name appears that is listed under FORMER OFFICIALS, describe them as "former [role]" — never as currently holding the role. Do not rely on training-data knowledge for current role-holders; the roster below is authoritative.
 - SENTIMENT WORKED EXAMPLES (apply the same logic to all similar cases):
@@ -489,6 +489,15 @@ def _normalise_poll_questions(raw_questions):
     return cleaned or None
 
 
+# Sources whose article URL IS the pollster's canonical publication URL:
+# TVBS poll PDFs, My-Formosa article pages, ETtoday ET民調 articles. For
+# polls extracted from these articles, `source_url` is auto-populated to
+# the article URL so the analyst doesn't have to paste it during approval.
+# Polls cited inside third-party news articles (CNA, LTN, UDN, etc.) leave
+# source_url NULL — those carry only a written reference, not a URL.
+_POLLSTER_DIRECT_SOURCES = {'TVBS Poll Center', 'My-Formosa', 'ETtoday Polls'}
+
+
 def _insert_poll_row(conn, article_id, poll, lookup):
     """Validate, resolve, and insert one AI-extracted poll as a pending
     row. Returns True iff a row was inserted. Used by both the Tier 1
@@ -521,15 +530,28 @@ def _insert_poll_row(conn, article_id, poll, lookup):
 
     methodology_note = (poll.get('methodology_note') or '').strip() or None
 
+    # Resolve source_url: for pollster-direct sources the article URL IS
+    # the pollster's canonical publication, so use it as source_url. For
+    # everything else, leave NULL — the AI doesn't currently extract URLs
+    # cited inside article bodies.
+    source_url = None
+    src = conn.execute(
+        "SELECT a.url, s.name AS source_name FROM articles a "
+        "JOIN sources s ON s.id = a.source_id WHERE a.id = ?",
+        (article_id,),
+    ).fetchone()
+    if src and src['source_name'] in _POLLSTER_DIRECT_SOURCES:
+        source_url = src['url']
+
     conn.execute("""
         INSERT INTO polls
         (pollster_id, fielded_start, fielded_end, sample_size,
-         methodology_note, source_article_id, confidence,
+         methodology_note, source_url, source_article_id, confidence,
          approval_status, pending_results_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     """, (
         pollster_id, fielded_start, fielded_end, sample_size,
-        methodology_note, article_id, poll.get('confidence', 0.7),
+        methodology_note, source_url, article_id, poll.get('confidence', 0.7),
         json.dumps({'questions': questions}, ensure_ascii=False),
     ))
     return True
@@ -1280,9 +1302,23 @@ unification, approval, attitude, or vote-intention questions. Skip
 polls of any other public (Israeli, US, Japanese, etc.) even when a
 TW outlet covers them. Only extract when the article is REPORTING ON a
 poll, not when it cites a poll number in passing to back a wider point.
-Require ALL FOUR signals: named pollster, explicit fieldwork date,
-sample size, at least one numeric percentage. If any signal is missing,
-return {"polls": []} — false negatives are strongly preferred.
+
+The four-signal gate is POLL-LEVEL not question-level: a poll qualifies
+when the ARTICLE AS A WHOLE names the pollster, gives a fieldwork date,
+gives a sample size, and reports at least one numeric percentage. Once
+the poll qualifies, you MUST extract every distinct question reported
+in it — not just the headline one. Pollster-direct publications (e.g.
+TVBS Poll Center PDFs, My-Formosa releases) typically report 3–8
+questions per wave (vote intent, approval, favourability, policy
+ratings, party-leader satisfaction, etc.) — emit them all into the
+SAME poll's `questions[]` array. Skip ONLY: subgroup cross-tabulations
+(e.g. "among 20-29 year olds X% supported Y", "DPP-identifiers split
+Z%/W%") and demographic breakdowns of an already-extracted main result.
+
+False negatives at the poll level (whole poll skipped) are preferred
+over false positives. False negatives at the question level (only some
+questions extracted from a qualifying poll) are NOT preferred — be
+exhaustive once the poll qualifies.
 
 SKIP: hypothetical surveys, forecasts, expert-panel surveys, internal
 party-member polls, candidate-primary selection polls (初選民調 —
@@ -1299,13 +1335,50 @@ PUBLISHED year (given below). "Today", "this week", "on 22 May", or any
 month/day without a year → use the PUBLISHED year. Only use a different
 year if the article explicitly cites one.
 
-QUESTION TEXT — `question_text_zh` MUST be the verbatim wording from
-the article; never paraphrase. `question_text_en` must be English.
+QUESTION TEXT — `question_text_zh` should be the verbatim wording from
+the article when the article quotes the question directly. When the
+article reports results in prose without quoting the question (common
+in headlines: "X leads Y 43% to 37%" without a stated question), you
+MAY synthesise the question_text_zh from the prose context (e.g.
+"2026年嘉義市長選舉支持哪位參選人？"). Always provide
+`question_text_en` in English.
 
 OPTIONS — one entry per labelled response. `percentage` is a 0-100
 float (47.3, not 0.473 or "47.3%"). Do NOT impute missing percentages.
 If options sum to less than 100 because the article omitted some, leave
 the gap — do not fabricate rows.
+
+EXAMPLE — a TVBS Chiayi poll PDF reporting vote intent + favourability
++ incumbent satisfaction yields ONE poll with THREE questions:
+
+{
+  "polls": [{
+    "pollster_hint": "TVBS民調中心", "fielded_start": "2026-04-24",
+    "fielded_end": "2026-04-30", "sample_size": 948,
+    "methodology_note": "市內電話後四碼隨機抽樣 CATI",
+    "questions": [
+      {"question_text_zh": "2026年嘉義市長選舉，您支持哪位參選人？",
+       "question_text_en": "Who do you support for 2026 Chiayi Mayor?",
+       "family_hint": "vote_intent",
+       "options": [{"label_zh": "王美惠", "label_en": "Wang Mei-hui", "percentage": 43.0},
+                   {"label_zh": "張啟楷", "label_en": "Chang Chi-kai", "percentage": 37.0},
+                   {"label_zh": "未決定", "label_en": "Undecided", "percentage": 20.0}]},
+      {"question_text_zh": "您喜歡王美惠這位參選人嗎？",
+       "question_text_en": "Do you like candidate Wang Mei-hui?",
+       "family_hint": "approval",
+       "options": [{"label_zh": "喜歡", "label_en": "Like", "percentage": 49.0},
+                   {"label_zh": "不喜歡", "label_en": "Dislike", "percentage": 25.0},
+                   {"label_zh": "沒意見", "label_en": "No opinion", "percentage": 26.0}]},
+      {"question_text_zh": "您對市長黃敏惠施政表現的滿意度？",
+       "question_text_en": "Are you satisfied with Mayor Huang Min-hui's performance?",
+       "family_hint": "approval",
+       "options": [{"label_zh": "滿意", "label_en": "Satisfied", "percentage": 79.0},
+                   {"label_zh": "不滿意", "label_en": "Dissatisfied", "percentage": 9.0},
+                   {"label_zh": "沒意見", "label_en": "No opinion", "percentage": 11.0}]}
+    ],
+    "confidence": 0.9
+  }]
+}
 
 Use British English spelling in English fields. Return {"polls": []}
 if no qualifying poll is reported.
