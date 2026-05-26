@@ -45,6 +45,9 @@ from api.database import db_conn
 _VALID_FAMILIES    = {'identity', 'unification', 'approval', 'attitude', 'vote_intent', 'issue'}
 _VALID_SCALE_TYPES = {'approve_disapprove', 'support_oppose', 'five_point',
                       'six_point', 'choice', 'numeric'}
+_VALID_POLLSTER_BIAS   = {'academic', 'green', 'green_leaning', 'centrist',
+                          'blue_leaning', 'blue', 'state_official'}
+_VALID_POLLSTER_STATUS = {'active', 'historical', 'ad_hoc', 'unknown'}
 
 _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -317,6 +320,62 @@ def polls_roster():
         """).fetchall()
 
     return {"pollsters": [dict(r) for r in rows]}
+
+
+# ============================================================
+# POST /pollsters — create a new pollster (admin)
+# ============================================================
+# When the AI's pollster_hint doesn't resolve to any seeded pollster, the
+# review queue lets the analyst create the new row inline rather than
+# falling back to the `unknown` bucket and dropping the attribution. Same
+# control vocabulary as the schema.sql seed (bias / status enums).
+
+class PollsterCreate(BaseModel):
+    slug:         str
+    name_en:      str
+    name_zh:      Optional[str] = None
+    bias:         str
+    status:       Optional[str] = 'active'
+    cadence:      Optional[str] = None
+    methodology:  Optional[str] = None
+    notes:        Optional[str] = None
+    homepage_url: Optional[str] = None
+
+
+@router.post("/pollsters", dependencies=[Depends(require_admin)])
+def create_pollster(body: PollsterCreate):
+    """Insert a new pollster row. 409 on slug conflict — analyst can pick
+    the existing one from the dropdown instead. Validators mirror the
+    enums documented in db/schema.sql so a typo doesn't quietly enter the
+    canonical roster."""
+    slug = body.slug.strip()
+    if not _QUESTION_KEY_RE.match(slug):
+        raise HTTPException(400, f"slug {slug!r} must match {_QUESTION_KEY_RE.pattern}")
+    if body.bias not in _VALID_POLLSTER_BIAS:
+        raise HTTPException(400, f"invalid bias {body.bias!r} (allowed: {sorted(_VALID_POLLSTER_BIAS)})")
+    status = (body.status or 'active').strip()
+    if status not in _VALID_POLLSTER_STATUS:
+        raise HTTPException(400, f"invalid status {status!r} (allowed: {sorted(_VALID_POLLSTER_STATUS)})")
+    name_en = body.name_en.strip()
+    if not name_en:
+        raise HTTPException(400, "name_en is required")
+
+    with db_conn() as conn:
+        existing = conn.execute("SELECT id FROM pollsters WHERE slug = ?", (slug,)).fetchone()
+        if existing:
+            raise HTTPException(409, f"pollster {slug!r} already exists")
+
+        cur = conn.execute("""
+            INSERT INTO pollsters
+                (slug, name_zh, name_en, bias, status, cadence, methodology, notes, homepage_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (slug, (body.name_zh or '').strip() or None, name_en, body.bias, status,
+              (body.cadence or '').strip() or None,
+              (body.methodology or '').strip() or None,
+              (body.notes or '').strip() or None,
+              (body.homepage_url or '').strip() or None))
+        conn.commit()
+        return {"id": cur.lastrowid, "slug": slug}
 
 
 # ============================================================
@@ -594,7 +653,13 @@ def poll_candidates():
 class QuestionResolution(BaseModel):
     # The slug an analyst picks (or creates) per question, in the same
     # order as the entries in `polls.pending_results_json.questions[]`.
-    question_key: str
+    # When skip=True, question_key is ignored and that pending question
+    # is dropped from materialisation — used for subgroup breakdowns or
+    # single-statistic factoids the analyst doesn't want as their own
+    # canonical question (cross-tab voter-of-X subgroups, % undecided
+    # cited in isolation, etc.).
+    question_key: str = ""
+    skip:         bool = False
     # Fields below only required when question_key does not yet exist.
     text_zh:      Optional[str] = None
     text_en:      Optional[str] = None
@@ -712,11 +777,23 @@ def approve_poll(poll_id: int, body: PollApprove):
                 f"got {len(body.questions)}",
             )
 
+        # Drop skipped resolutions and the parallel pending entries.
+        # Approving a poll where every question is skipped would
+        # materialise zero results — analyst meant to dismiss instead.
+        keep_idx = [i for i, q in enumerate(body.questions) if not q.skip]
+        if not keep_idx:
+            raise HTTPException(
+                400,
+                "every question is marked skip — use dismiss instead",
+            )
+        kept_questions = [body.questions[i] for i in keep_idx]
+        kept_pending   = {"questions": [pending["questions"][i] for i in keep_idx]}
+
         # Resolve / create poll_questions rows up front so a halfway-through
         # failure can't leave half the results inserted with the other half
         # un-resolved.
         question_ids = [
-            _resolve_question_id(conn, q.model_dump()) for q in body.questions
+            _resolve_question_id(conn, q.model_dump()) for q in kept_questions
         ]
 
         # Apply remaining envelope overrides. reviewed_at is set via raw
@@ -750,7 +827,7 @@ def approve_poll(poll_id: int, body: PollApprove):
             f"UPDATE polls SET {', '.join(set_clauses)} WHERE id = :id", params,
         )
 
-        _materialise_pending_results(conn, poll_id, pending, question_ids)
+        _materialise_pending_results(conn, poll_id, kept_pending, question_ids)
 
         # 3. Pending-row auto-merge: same pollster + same fielded_start.
         cur = conn.execute("""
