@@ -13,6 +13,9 @@ from scraper.scrapers.fjsen_scraper import scrape_fjsen
 from scraper.scrapers.pla_daily_scraper import scrape_pla_daily
 from scraper.scrapers.ydn_scraper import scrape_ydn
 from scraper.scrapers.ltn_defence_scraper import scrape_ltn_defence
+from scraper.scrapers.ettoday_poll_scraper import scrape_ettoday_polls
+from scraper.scrapers.tvbs_poll_scraper import scrape_tvbs_polls
+from scraper.scrapers.myformosa_poll_scraper import scrape_myformosa_polls
 from scraper.scrapers.weibo_hot_scraper import scrape_weibo_hot
 from scraper.scrapers.ptt_scraper import scrape_ptt
 from scraper.scrapers.mac_economic_scraper import scrape_mac_economic
@@ -56,6 +59,7 @@ async def main():
     new_pla = await scrape_pla_daily()
     new_ydn = await scrape_ydn()
     new_ltn_defence = await scrape_ltn_defence()
+    new_ettoday_polls = await scrape_ettoday_polls()
     await scrape_weibo_hot()
     await scrape_ptt()
 
@@ -101,8 +105,19 @@ async def main():
     print("\n--- STEP 2k: MND PLA Incursions ---")
     await scrape_mnd_incursions()
 
+    # Step 2L: Pollster-direct ingestion (Playwright — ~30s startup each).
+    # TVBS publishes one PDF per release, My-Formosa one article per release.
+    # Polls publish weekly at best; running every 6h is wasteful but
+    # idempotent (article_exists check) — extract to a separate daily cron
+    # if the pipeline runtime becomes a concern.
+    print("\n--- STEP 2L: Pollster direct (Playwright) ---")
+    new_tvbs_polls = scrape_tvbs_polls()
+    new_myformosa_polls = scrape_myformosa_polls()
+
     # Step 3: Analyse unprocessed articles
-    total_new = new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen + new_pla + new_ydn + new_ltn_defence
+    total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen
+                 + new_pla + new_ydn + new_ltn_defence + new_ettoday_polls
+                 + new_tvbs_polls + new_myformosa_polls)
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
     process_unanalysed_articles(limit=500)
 

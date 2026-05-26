@@ -124,6 +124,7 @@ const BIAS_SHORT = {
   green:         "Green camp",
   green_leaning: "Green-leaning",
   blue:          "Blue camp",
+  blue_leaning:  "Blue-leaning",
 };
 
 function buildScopeLabel(filters) {
@@ -455,7 +456,8 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
                         label={
                           b.bias === "green"         ? "Green" :
                           b.bias === "green_leaning" ? "Green-leaning" :
-                          b.bias === "blue"          ? "Blue" : b.bias
+                          b.bias === "blue"          ? "Blue" :
+                          b.bias === "blue_leaning"  ? "Blue-leaning" : b.bias
                         }
                         score={b.avg_score}
                         compact
