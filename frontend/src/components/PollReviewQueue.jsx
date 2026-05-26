@@ -7,51 +7,14 @@ import {
   dismissPoll,
   mergePoll,
   updatePoll,
-  createPollster,
 } from "../api";
 import { pollsterChipColour, PollsterChip, FAMILY_LABELS } from "./PollsTab";
-
-// Server-side validators in api/routes/polls.py — mirror here so the
-// dropdowns and "create new question" form only offer valid choices.
-// Out-of-set picks would 400 at approve time.
-const FAMILIES   = ["identity", "unification", "approval", "attitude", "vote_intent", "issue"];
-const SCALE_TYPES = [
-  "approve_disapprove", "support_oppose", "five_point",
-  "six_point", "choice", "numeric",
-];
-const POLLSTER_BIASES  = [
-  "academic", "green", "green_leaning", "centrist",
-  "blue_leaning", "blue", "state_official",
-];
-const POLLSTER_STATUSES = ["active", "historical", "ad_hoc", "unknown"];
-const QUESTION_KEY_RX = /^[a-z0-9][a-z0-9_]*$/;
-const CREATE_NEW           = "__new__";
-const CREATE_NEW_POLLSTER  = "__new_pollster__";
-
-function fieldStyle() {
-  return {
-    fontFamily: "var(--font-mono)",
-    fontSize: "11px",
-    padding: "4px 6px",
-    border: "1px solid var(--border-color)",
-    background: "var(--bg-primary)",
-    color: "var(--text-primary)",
-    width: "100%",
-    boxSizing: "border-box",
-  };
-}
-
-function labelStyle() {
-  return {
-    fontFamily: "var(--font-mono)",
-    fontSize: "9.5px",
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-    color: "var(--text-muted)",
-    marginBottom: "2px",
-    display: "block",
-  };
-}
+import {
+  FAMILIES, SCALE_TYPES, SLUG_RX,
+  CREATE_NEW, CREATE_NEW_POLLSTER,
+  fieldStyle, labelStyle, groupKeysByFamily,
+  NewPollsterForm,
+} from "./pollFormShared";
 
 function fmtPct(v) {
   if (v === null || v === undefined) return "—";
@@ -87,20 +50,6 @@ function resolutionDraftFor(pendingQuestion) {
     scale_type:   "",
     description:  "",
   };
-}
-
-// Group existing question keys by family for the picker's <optgroup>s.
-function groupKeysByFamily(allKeys) {
-  const groups = {};
-  for (const k of allKeys || []) {
-    const fam = k.family || "issue";
-    if (!groups[fam]) groups[fam] = [];
-    groups[fam].push(k);
-  }
-  for (const list of Object.values(groups)) {
-    list.sort((a, b) => a.question_key.localeCompare(b.question_key));
-  }
-  return groups;
 }
 
 function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolution }) {
@@ -285,103 +234,6 @@ function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolu
   );
 }
 
-function NewPollsterForm({ onCreated, onCancel }) {
-  const [newRow, setNewRow] = useState({
-    slug: "", name_en: "", name_zh: "", bias: "", status: "active",
-  });
-  const [busy, setBusy]   = useState(false);
-  const [error, setError] = useState(null);
-
-  const submit = async () => {
-    const slug = newRow.slug.trim();
-    if (!QUESTION_KEY_RX.test(slug)) {
-      setError(`slug must match ^[a-z0-9][a-z0-9_]*$ (got ${JSON.stringify(slug)})`);
-      return;
-    }
-    if (!newRow.name_en.trim()) { setError("name_en is required"); return; }
-    if (!newRow.bias)           { setError("bias is required"); return; }
-    setBusy(true);
-    setError(null);
-    try {
-      const created = await createPollster({
-        slug,
-        name_en: newRow.name_en.trim(),
-        name_zh: newRow.name_zh.trim() || undefined,
-        bias:    newRow.bias,
-        status:  newRow.status,
-      });
-      onCreated(created.slug, { ...newRow, slug });
-    } catch (e) {
-      setError(e.message || String(e));
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{
-      gridColumn: "1 / span 4",
-      padding: "8px 10px",
-      background: "var(--bg-card)",
-      border: "1px dashed var(--border-color)",
-      marginTop: "2px",
-    }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 1fr", gap: "6px 10px" }}>
-        <div>
-          <label style={labelStyle()}>slug (lower_snake_case)</label>
-          <input style={fieldStyle()} placeholder="e.g. apollo"
-                 value={newRow.slug}
-                 onChange={(e) => setNewRow({ ...newRow, slug: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle()}>Name (English)</label>
-          <input style={fieldStyle()} placeholder="Apollo Survey"
-                 value={newRow.name_en}
-                 onChange={(e) => setNewRow({ ...newRow, name_en: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle()}>Name (Chinese)</label>
-          <input style={fieldStyle()} placeholder="阿波羅民調"
-                 value={newRow.name_zh}
-                 onChange={(e) => setNewRow({ ...newRow, name_zh: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle()}>Bias</label>
-          <select style={fieldStyle()} value={newRow.bias}
-                  onChange={(e) => setNewRow({ ...newRow, bias: e.target.value })}>
-            <option value="">—</option>
-            {POLLSTER_BIASES.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div>
-          <label style={labelStyle()}>Status</label>
-          <select style={fieldStyle()} value={newRow.status}
-                  onChange={(e) => setNewRow({ ...newRow, status: e.target.value })}>
-            {POLLSTER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
-      {error && (
-        <div style={{ color: "var(--accent-red)", fontFamily: "var(--font-mono)",
-                      fontSize: "10px", marginTop: "6px" }}>{error}</div>
-      )}
-      <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
-        <button disabled={busy} onClick={submit} style={{
-          padding: "4px 10px", fontFamily: "var(--font-mono)", fontSize: "10px",
-          letterSpacing: "0.06em", textTransform: "uppercase",
-          background: "var(--text-primary)", color: "var(--bg-primary)",
-          border: "none", cursor: busy ? "not-allowed" : "pointer",
-        }}>Create pollster</button>
-        <button disabled={busy} onClick={onCancel} style={{
-          padding: "4px 10px", fontFamily: "var(--font-mono)", fontSize: "10px",
-          letterSpacing: "0.06em", textTransform: "uppercase",
-          background: "transparent", color: "var(--text-secondary)",
-          border: "1px solid var(--border-color)", cursor: "pointer",
-        }}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
 function EnvelopeFields({ draft, setDraft, rosterPollsters, onPollsterCreated }) {
   const pollsters = rosterPollsters || [];
   const [showCreate, setShowCreate] = useState(false);
@@ -528,7 +380,7 @@ function validateResolutions(resolutions) {
     if (!r.question_key) return `Question ${i + 1}: pick a question_key.`;
     if (r.question_key === CREATE_NEW) {
       const key = (r._newKey || "").trim();
-      if (!QUESTION_KEY_RX.test(key)) {
+      if (!SLUG_RX.test(key)) {
         return `Question ${i + 1}: new key must match ^[a-z0-9][a-z0-9_]*$ (got ${JSON.stringify(key)}).`;
       }
       if (!r.family)     return `Question ${i + 1}: family required for new key.`;
