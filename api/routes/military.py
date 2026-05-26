@@ -771,6 +771,20 @@ def patch_exercise(exercise_id: int, patch: ExercisePatch):
         if date_field in data and isinstance(data[date_field], str) and data[date_field].strip():
             _validate_iso_date(data[date_field].strip(), date_field)
 
+    # Date-range guard — reject end_date strictly before start_date.
+    # Only enforce when BOTH are present in the PATCH and non-empty;
+    # cross-row checking (PATCH end against existing start) is left to
+    # the analyst because exercise dates are loose by nature (some rows
+    # have only one bound).
+    def _date_field(name):
+        v = data.get(name)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+        return None
+    s, e = _date_field("start_date"), _date_field("end_date")
+    if s and e and date.fromisoformat(e) < date.fromisoformat(s):
+        raise HTTPException(400, f"end_date {e!r} is before start_date {s!r}")
+
     # Bbox-check lat/lng if either is being set to a number. We reject
     # rather than silently null — the AI path's defensive null is for
     # hallucinations; here we have an analyst who would prefer a clear

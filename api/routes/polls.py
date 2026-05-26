@@ -757,7 +757,8 @@ def approve_poll(poll_id: int, body: PollApprove):
          the survivor's poll_results now)."""
     with db_conn() as conn:
         row = conn.execute(
-            "SELECT pollster_id, fielded_start, pending_results_json, approval_status "
+            "SELECT pollster_id, fielded_start, fielded_end, "
+            "pending_results_json, approval_status "
             "FROM polls WHERE id = ?",
             (poll_id,),
         ).fetchone()
