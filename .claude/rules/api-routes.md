@@ -80,7 +80,7 @@ Exercise tracker endpoints:
 - `POST /api/military/exercises/{id}/approve` (admin) — flips status. Auto-merges other same-`canonical_name` pending rows into this one (one click clears a whole exercise group).
 - `POST /api/military/exercises/{id}/dismiss` (admin)
 - `POST /api/military/exercises/{id}/merge` (admin) — explicit merge with `merged_into_id`.
-- `PATCH /api/military/exercises/{id}` (admin) — analyst edits. Sends only changed fields (the frontend builds a minimal patch via `buildExercisePatch`). Always recomputes `canonical_name` from the final `name_en`. Coordinates bbox-validated to 8–35°N / 105–135°E — out-of-bbox PATCHes return 400 (vs the AI ingest path which silently nulls — at the analyst layer we'd rather argue). If the patch explicitly touched `location_label`, the (label → lat/lng) pair is auto-recorded into `military_locations_auto.json` for future AI extractions.
+- `PATCH /api/military/exercises/{id}` (admin) — analyst edits. Sends only changed fields (the frontend builds a minimal patch via `buildExercisePatch`). Always recomputes `canonical_name` from the final `name_en`. Coordinates bbox-validated to 8–35°N / 105–135°E — out-of-bbox PATCHes return 400 (vs the AI ingest path which silently nulls — at the analyst layer we'd rather argue). If the patch explicitly touched `location_label`, the (label → lat/lng) pair is auto-recorded into `military_locations_auto.json` for future AI extractions. Also rejects `end_date < start_date` (the same date-range guard polls applies — symmetric across the two editorial-gated trackers).
 
 Used by `MilitaryTab.jsx` for both the incursion KPI strip / ADIZ map and the Exercise Tracker section (map + list + analyst review queue + edit modal).
 
