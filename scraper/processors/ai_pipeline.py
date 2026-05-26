@@ -395,13 +395,30 @@ def _load_pollster_lookup(conn):
     """Build a lowercased {slug | name_zh | name_en → pollster_id} dict.
     Used to resolve the AI's free-text `pollster_hint` to a FK. Reloaded
     every pipeline run (six-ish rows, negligible) so a newly-seeded
-    pollster becomes visible without a process restart."""
+    pollster becomes visible without a process restart.
+
+    Also validates `_POLLSTER_DIRECT_SOURCES` against the live `sources`
+    table — that constant carries display names from seed_sources.py
+    that drive source_url auto-population; a rename would silently
+    break the auto-populate logic. We log a warning rather than
+    raising so the pipeline keeps moving (the auto-populate is a
+    convenience, not load-bearing)."""
     rows = conn.execute("SELECT id, slug, name_zh, name_en FROM pollsters").fetchall()
     lookup = {}
     for r in rows:
         for key in (r['slug'], r['name_zh'], r['name_en']):
             if key:
                 lookup[key.strip().lower()] = r['id']
+
+    known_source_names = {
+        r['name'] for r in conn.execute("SELECT name FROM sources").fetchall()
+    }
+    missing = _POLLSTER_DIRECT_SOURCES - known_source_names
+    if missing:
+        print(f"  WARN: _POLLSTER_DIRECT_SOURCES references unknown source names "
+              f"{sorted(missing)} — rename in seed_sources.py? source_url "
+              f"auto-populate will silently no-op for these.")
+
     return lookup
 
 
@@ -503,11 +520,15 @@ def _insert_poll_row(conn, article_id, poll, lookup):
     row. Returns True iff a row was inserted. Used by both the Tier 1
     main loop and the poll-only Step 3c pass — keep both callers thin.
 
-    Skips silently on: malformed fielded_start (must be YYYY-MM-DD), no
-    usable questions after _normalise_poll_questions, or a missing
-    `unknown` fallback pollster (which should never happen post-seed)."""
+    Drops are logged with article_id + reason so analysts auditing
+    pipeline runs can identify which extractions never made it into the
+    review queue. Possible reasons: malformed fielded_start, no usable
+    questions after _normalise_poll_questions, or a missing `unknown`
+    fallback pollster (which should never happen post-seed)."""
     fielded_start = (poll.get('fielded_start') or '').strip()
     if not _POLL_DATE_RE.match(fielded_start):
+        print(f"    poll dropped (article {article_id}): "
+              f"fielded_start {fielded_start!r} not YYYY-MM-DD")
         return False
 
     fielded_end = (poll.get('fielded_end') or '').strip() or None
@@ -516,10 +537,15 @@ def _insert_poll_row(conn, article_id, poll, lookup):
 
     questions = _normalise_poll_questions(poll.get('questions'))
     if not questions:
+        print(f"    poll dropped (article {article_id}): "
+              f"no usable questions after normalisation "
+              f"(pollster_hint={poll.get('pollster_hint')!r})")
         return False
 
     pollster_id = _resolve_pollster_id(poll.get('pollster_hint'), lookup)
     if pollster_id is None:
+        print(f"    poll dropped (article {article_id}): "
+              f"no `unknown` pollster in seed — run seed_sources.py")
         return False
 
     sample_size = poll.get('sample_size')

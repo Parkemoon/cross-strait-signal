@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   createPoll,
   fetchPollsRoster,
-  fetchPollCandidates,
+  fetchPollQuestions,
 } from "../api";
 import { FAMILY_LABELS } from "./PollsTab";
 import {
@@ -334,14 +334,12 @@ export default function PollEntryModal({ onClose, onCreated, reviewedBy }) {
   const [error, setError]               = useState(null);
 
   // Roster for the pollster dropdown + question_key catalogue for the
-  // per-question picker. The candidates endpoint already returns the
-  // full question_keys catalogue inlined, so we reuse it here instead
-  // of adding a new /questions endpoint.
+  // per-question picker. Two independent reads, both cheap and public.
   useEffect(() => {
     fetchPollsRoster()
       .then((r) => setRoster(r.pollsters || []))
       .catch(() => setRoster([]));
-    fetchPollCandidates()
+    fetchPollQuestions()
       .then((r) => setAllKeys(r.question_keys || []))
       .catch(() => setAllKeys([]));
   }, []);

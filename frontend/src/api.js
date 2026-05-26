@@ -298,6 +298,14 @@ export async function fetchPollsTopics() {
   return request(`/api/polls/topics`);
 }
 
+// Flat catalogue of poll_questions — public, cheap. The manual-entry
+// modal uses this for the question_key picker rather than hitting the
+// admin /candidates endpoint (which does much more work just to inline
+// the same catalogue).
+export async function fetchPollQuestions() {
+  return request(`/api/polls/questions`);
+}
+
 // Admin / review queue helpers. Approve payload carries one
 // QuestionResolution per pending question (in pending_results_json
 // order) — caller picks an existing question_key OR supplies new-key

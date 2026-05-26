@@ -520,7 +520,11 @@ CREATE TABLE IF NOT EXISTS poll_results (
     option_order    INTEGER,                 -- display order (low → high or source order)
     percentage      REAL NOT NULL,
     margin_error    REAL,
-    UNIQUE(poll_id, question_id, option_label_zh)
+    -- UNIQUE on option_order (not label_zh) — two options can legitimately
+    -- share a Chinese label but disambiguate via English (or vice versa);
+    -- option_order is the canonical per-question position the chart pivots
+    -- on and the natural duplicate key.
+    UNIQUE(poll_id, question_id, option_order)
 );
 CREATE INDEX IF NOT EXISTS idx_poll_results_poll ON poll_results(poll_id);
 CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id);

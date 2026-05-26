@@ -17,6 +17,10 @@ SQLite with FTS5 full-text search.
 
 `api/database.py` exports `get_db()` — returns a `sqlite3.Connection` with `row_factory = sqlite3.Row`. All API routes follow the same pattern: call `get_db()`, run queries, call `conn.close()` manually (no context manager). `scraper/utils/db.py` provides the same for the pipeline side.
 
+Both factories enable two PRAGMAs on every connection:
+- `foreign_keys = ON` — activates ON DELETE CASCADE (e.g. on `poll_results.poll_id`). SQLite's default is OFF; without this every FK clause is documentation-only.
+- `busy_timeout = 30000` — writers wait up to 30s for the lock instead of erroring with `database is locked` when two pipeline writers contend (e.g. Step 2L Playwright scrapers overlapping with Step 3c poll-only extraction).
+
 ## Cross-table conventions worth remembering
 
 - **articles.analyst_approved** defaults to 0; the article is hidden from the public feed until it flips to 1 (Approve button or review-queue confirm/override). Three analyst translation overrides: `title_en_override`, `summary_en_override`, `key_quote_override` — when set they take precedence over the AI translation in the frontend.
