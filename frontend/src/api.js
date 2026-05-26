@@ -286,6 +286,14 @@ export async function fetchPollsRoster() {
   return request(`/api/polls/roster`);
 }
 
+export async function createPollster(body) {
+  return request(`/api/polls/pollsters`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+}
+
 export async function fetchPollsTopics() {
   return request(`/api/polls/topics`);
 }

@@ -7,6 +7,7 @@ import {
   dismissPoll,
   mergePoll,
   updatePoll,
+  createPollster,
 } from "../api";
 import { pollsterChipColour, PollsterChip, FAMILY_LABELS } from "./PollsTab";
 
@@ -18,8 +19,14 @@ const SCALE_TYPES = [
   "approve_disapprove", "support_oppose", "five_point",
   "six_point", "choice", "numeric",
 ];
+const POLLSTER_BIASES  = [
+  "academic", "green", "green_leaning", "centrist",
+  "blue_leaning", "blue", "state_official",
+];
+const POLLSTER_STATUSES = ["active", "historical", "ad_hoc", "unknown"];
 const QUESTION_KEY_RX = /^[a-z0-9][a-z0-9_]*$/;
-const CREATE_NEW = "__new__";
+const CREATE_NEW           = "__new__";
+const CREATE_NEW_POLLSTER  = "__new_pollster__";
 
 function fieldStyle() {
   return {
@@ -99,6 +106,7 @@ function groupKeysByFamily(allKeys) {
 function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolution }) {
   const grouped = useMemo(() => groupKeysByFamily(allKeys), [allKeys]);
   const isCreatingNew = resolution.question_key === CREATE_NEW;
+  const isSkipped     = !!resolution._skip;
   const options = pendingQuestion.options || [];
 
   return (
@@ -107,18 +115,36 @@ function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolu
       padding: "10px 12px",
       marginBottom: "8px",
       background: "var(--bg-primary)",
+      opacity: isSkipped ? 0.45 : 1,
     }}>
       {/* AI-extracted question wording — read-only, just for analyst
           to audit what they're about to commit. */}
       <div style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: "9.5px",
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        color: "var(--text-muted)",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
         marginBottom: "4px",
       }}>
-        Question {idx + 1} — AI extraction
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "9.5px",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--text-muted)",
+        }}>
+          Question {idx + 1} — AI extraction{isSkipped ? " (skipped)" : ""}
+        </span>
+        <button
+          onClick={() => setResolution({ ...resolution, _skip: !isSkipped })}
+          style={{
+            padding: "2px 8px", fontFamily: "var(--font-mono)",
+            fontSize: "9px", letterSpacing: "0.06em", textTransform: "uppercase",
+            background: "transparent",
+            color: isSkipped ? "var(--text-primary)" : "var(--text-muted)",
+            border: "1px solid var(--border-color)",
+            cursor: "pointer",
+          }}
+        >
+          {isSkipped ? "Restore" : "Skip"}
+        </button>
       </div>
       {pendingQuestion.question_text_zh && (
         <div style={{
@@ -160,6 +186,7 @@ function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolu
       </div>
 
       {/* question_key picker. <optgroup> per family + "create new" sentinel. */}
+      {!isSkipped && (<>
       <label style={labelStyle()}>Map to canonical question</label>
       <select
         style={fieldStyle()}
@@ -178,8 +205,9 @@ function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolu
           </optgroup>
         ))}
       </select>
+      </>)}
 
-      {isCreatingNew && (
+      {!isSkipped && isCreatingNew && (
         <div style={{
           marginTop: "8px",
           padding: "8px 10px",
@@ -257,8 +285,117 @@ function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolu
   );
 }
 
-function EnvelopeFields({ draft, setDraft, rosterPollsters }) {
+function NewPollsterForm({ onCreated, onCancel }) {
+  const [newRow, setNewRow] = useState({
+    slug: "", name_en: "", name_zh: "", bias: "", status: "active",
+  });
+  const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async () => {
+    const slug = newRow.slug.trim();
+    if (!QUESTION_KEY_RX.test(slug)) {
+      setError(`slug must match ^[a-z0-9][a-z0-9_]*$ (got ${JSON.stringify(slug)})`);
+      return;
+    }
+    if (!newRow.name_en.trim()) { setError("name_en is required"); return; }
+    if (!newRow.bias)           { setError("bias is required"); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      const created = await createPollster({
+        slug,
+        name_en: newRow.name_en.trim(),
+        name_zh: newRow.name_zh.trim() || undefined,
+        bias:    newRow.bias,
+        status:  newRow.status,
+      });
+      onCreated(created.slug, { ...newRow, slug });
+    } catch (e) {
+      setError(e.message || String(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{
+      gridColumn: "1 / span 4",
+      padding: "8px 10px",
+      background: "var(--bg-card)",
+      border: "1px dashed var(--border-color)",
+      marginTop: "2px",
+    }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 1fr", gap: "6px 10px" }}>
+        <div>
+          <label style={labelStyle()}>slug (lower_snake_case)</label>
+          <input style={fieldStyle()} placeholder="e.g. apollo"
+                 value={newRow.slug}
+                 onChange={(e) => setNewRow({ ...newRow, slug: e.target.value })} />
+        </div>
+        <div>
+          <label style={labelStyle()}>Name (English)</label>
+          <input style={fieldStyle()} placeholder="Apollo Survey"
+                 value={newRow.name_en}
+                 onChange={(e) => setNewRow({ ...newRow, name_en: e.target.value })} />
+        </div>
+        <div>
+          <label style={labelStyle()}>Name (Chinese)</label>
+          <input style={fieldStyle()} placeholder="阿波羅民調"
+                 value={newRow.name_zh}
+                 onChange={(e) => setNewRow({ ...newRow, name_zh: e.target.value })} />
+        </div>
+        <div>
+          <label style={labelStyle()}>Bias</label>
+          <select style={fieldStyle()} value={newRow.bias}
+                  onChange={(e) => setNewRow({ ...newRow, bias: e.target.value })}>
+            <option value="">—</option>
+            {POLLSTER_BIASES.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle()}>Status</label>
+          <select style={fieldStyle()} value={newRow.status}
+                  onChange={(e) => setNewRow({ ...newRow, status: e.target.value })}>
+            {POLLSTER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      {error && (
+        <div style={{ color: "var(--accent-red)", fontFamily: "var(--font-mono)",
+                      fontSize: "10px", marginTop: "6px" }}>{error}</div>
+      )}
+      <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
+        <button disabled={busy} onClick={submit} style={{
+          padding: "4px 10px", fontFamily: "var(--font-mono)", fontSize: "10px",
+          letterSpacing: "0.06em", textTransform: "uppercase",
+          background: "var(--text-primary)", color: "var(--bg-primary)",
+          border: "none", cursor: busy ? "not-allowed" : "pointer",
+        }}>Create pollster</button>
+        <button disabled={busy} onClick={onCancel} style={{
+          padding: "4px 10px", fontFamily: "var(--font-mono)", fontSize: "10px",
+          letterSpacing: "0.06em", textTransform: "uppercase",
+          background: "transparent", color: "var(--text-secondary)",
+          border: "1px solid var(--border-color)", cursor: "pointer",
+        }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function EnvelopeFields({ draft, setDraft, rosterPollsters, onPollsterCreated }) {
   const pollsters = rosterPollsters || [];
+  const [showCreate, setShowCreate] = useState(false);
+
+  const handlePollsterChange = (val) => {
+    if (val === CREATE_NEW_POLLSTER) {
+      setShowCreate(true);
+      // Don't change draft.pollster_slug yet — the inline form will set
+      // it on successful create. Keep the current selection visible.
+      return;
+    }
+    setDraft({ ...draft, pollster_slug: val });
+  };
+
   return (
     <div style={{
       display: "grid",
@@ -271,7 +408,7 @@ function EnvelopeFields({ draft, setDraft, rosterPollsters }) {
         <select
           style={fieldStyle()}
           value={draft.pollster_slug}
-          onChange={(e) => setDraft({ ...draft, pollster_slug: e.target.value })}
+          onChange={(e) => handlePollsterChange(e.target.value)}
         >
           {!pollsters.find((p) => p.slug === draft.pollster_slug) && draft.pollster_slug && (
             <option value={draft.pollster_slug}>{draft.pollster_slug} (current)</option>
@@ -281,8 +418,29 @@ function EnvelopeFields({ draft, setDraft, rosterPollsters }) {
               {p.name_en || p.name_zh || p.slug} ({p.bias})
             </option>
           ))}
+          <option value={CREATE_NEW_POLLSTER}>+ Create new pollster…</option>
         </select>
       </div>
+      {showCreate && (
+        <NewPollsterForm
+          onCreated={(slug, row) => {
+            // Parent owns the roster — push the new row up and adopt the
+            // new slug as the current selection. Server returns the
+            // canonical slug (trimmed); use that, not the raw input.
+            onPollsterCreated?.({
+              slug,
+              name_en: row.name_en,
+              name_zh: row.name_zh || null,
+              bias:    row.bias,
+              status:  row.status,
+              approved_count: 0,
+            });
+            setDraft({ ...draft, pollster_slug: slug });
+            setShowCreate(false);
+          }}
+          onCancel={() => setShowCreate(false)}
+        />
+      )}
       <div>
         <label style={labelStyle()}>Fielded start</label>
         <input
@@ -361,8 +519,12 @@ function buildEnvelopeOverrides(draft, candidate) {
 // Validate resolutions before hitting the network — same checks the
 // server runs, surfaced inline so the analyst doesn't round-trip a 400.
 function validateResolutions(resolutions) {
+  if (!resolutions.some((r) => !r._skip)) {
+    return "Every question is skipped — use Dismiss instead.";
+  }
   for (let i = 0; i < resolutions.length; i++) {
     const r = resolutions[i];
+    if (r._skip) continue;
     if (!r.question_key) return `Question ${i + 1}: pick a question_key.`;
     if (r.question_key === CREATE_NEW) {
       const key = (r._newKey || "").trim();
@@ -381,7 +543,13 @@ function validateResolutions(resolutions) {
 
 // Server-side approve body: order-aligned with pending_questions[].
 function buildApproveBody(resolutions, envelopeOverrides, reviewedBy) {
+  // Server expects an order-aligned entry for every pending question;
+  // skipped ones come through with skip=true and an empty question_key,
+  // which the server then drops from materialisation.
   const questions = resolutions.map((r) => {
+    if (r._skip) {
+      return { question_key: "", skip: true };
+    }
     if (r.question_key === CREATE_NEW) {
       return {
         question_key: (r._newKey || "").trim(),
@@ -401,7 +569,7 @@ function buildApproveBody(resolutions, envelopeOverrides, reviewedBy) {
   };
 }
 
-function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, reviewedBy, onResolve, onApproveDone }) {
+function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, reviewedBy, onResolve, onApproveDone, onPollsterCreated }) {
   const [envelope,    setEnvelope]    = useState(() => envelopeDraftFrom(candidate));
   const [resolutions, setResolutions] = useState(() =>
     (candidate.pending_questions || []).map(resolutionDraftFor)
@@ -510,7 +678,9 @@ function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, revi
         </div>
       </div>
 
-      <EnvelopeFields draft={envelope} setDraft={setEnvelope} rosterPollsters={rosterPollsters} />
+      <EnvelopeFields draft={envelope} setDraft={setEnvelope}
+                      rosterPollsters={rosterPollsters}
+                      onPollsterCreated={onPollsterCreated} />
 
       {(candidate.pending_questions || []).map((pq, i) => (
         <QuestionResolver
@@ -687,6 +857,7 @@ export default function PollReviewQueue({ onClose, onResolveAll, reviewedBy }) {
                 reviewedBy={reviewedBy}
                 onResolve={onResolve}
                 onApproveDone={loadCandidates}
+                onPollsterCreated={(p) => setRoster((prev) => [...prev, p])}
               />
             ))
           )}
