@@ -1382,6 +1382,24 @@ float (47.3, not 0.473 or "47.3%"). Do NOT impute missing percentages.
 If options sum to less than 100 because the article omitted some, leave
 the gap — do not fabricate rows.
 
+AGGREGATE-VS-INTENSITY: when an article reports a top-line aggregate
+followed by an intensity breakdown in parentheses — the standard
+My-Formosa / TVBS pattern "有45.7%滿意（其中15.9%很滿意、29.8%還算
+滿意），44.9%不滿意（其中26.0%很不滿意、18.9%有點不滿意），未明確
+回答有9.4%" — extract ONLY the top-line aggregate (3 options: 滿意 /
+不滿意 / 未明確回答), NOT the 4-or-5-option intensity breakdown.
+The aggregated form is what's directly comparable across waves and
+across pollsters; the intensity breakdown is incidental
+journalistic detail. This rule applies to satisfied/dissatisfied,
+trust/distrust, favourable/unfavourable, and good/bad question
+families. EXCEPTION: when the article reports ONLY the intensity
+breakdown without a top-line aggregate, extract the breakdown
+verbatim — don't synthesise an aggregate. Genuine multi-point
+Likert questions (e.g. "agree/disagree" with five points) and
+multi-option position scales (e.g. the 統獨 7-step scale) keep all
+their options — the aggregate rule only collapses intensity
+modifiers ("very / somewhat") within a binary dimension.
+
 EXAMPLE — a TVBS Chiayi poll PDF reporting vote intent + favourability
 + incumbent satisfaction yields ONE poll with THREE questions:
 
