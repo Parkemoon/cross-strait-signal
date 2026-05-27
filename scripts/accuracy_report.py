@@ -204,7 +204,11 @@ def _format_markdown(m, days):
     lines.append("")
     lines.append(f"Snapshot over the last {days} days. The analyst engaged with "
                  f"{touched:,} articles, approving {m['total']:,} and dismissing "
-                 f"{m['dismissed_total']:,} ({dismiss_pct:.1f}%).")
+                 f"{m['dismissed_total']:,} ({dismiss_pct:.1f}%). This is post-filter "
+                 "volume — the directional keyword pre-filter rejects ~80% of raw "
+                 "scraped articles upstream, before any API calls — so this figure "
+                 "represents the cross-strait-relevant subset, not total scraping "
+                 "throughput.")
     lines.append("")
     lines.append("### Override rates on approved articles")
     lines.append("")
@@ -222,8 +226,10 @@ def _format_markdown(m, days):
     lines.append(f"| Key-quote translation | {_pct(m['quote_n'], m['total']):.1f}% | {m['quote_n']} |")
     lines.append("")
     open_n = m["flagged_n"] - m["resolved_n"]
-    lines.append(f"Tier 1 / Tier 2 escalation review disagreement: {m['flagged_n']} "
-                 f"flagged in window, {m['resolved_n']} resolved, {open_n} open.")
+    state = "all currently resolved" if open_n == 0 else f"{open_n} still open"
+    lines.append(f"Tier 1 and Tier 2 disagree on **{_pct(m['flagged_n'], m['total']):.1f}% "
+                 f"of approved articles** ({m['flagged_n']} of {m['total']:,} in window); "
+                 f"{state}.")
     lines.append("")
     lines.append("### Where the analyst reclassifies TO")
     lines.append("")
