@@ -37,15 +37,20 @@ from scraper.utils.db import get_connection
 def _fetch_metrics(conn, days):
     """Return a dict of metric values for the given window.
 
-    Override fields are filtered with a `!= ai.<field>` inequality —
-    crucial because the admin UI auto-populates `topic_override` and
-    `sentiment_override` with the AI's current value when the analyst
-    opens a note form. ~99% of stored overrides match the AI exactly
-    and are not real disagreements. Translation overrides (free-text)
-    don't have this no-op problem.
+    Override counting note: stored topic_override / sentiment_override
+    values are always equal to ai_analysis.<field> after the write,
+    because `notes.py` and `review.py` propagate the override into
+    ai_analysis at save time. So an inequality check (override !=
+    ai.<field>) catches zero real overrides — only audit-trail
+    anomalies where ai_analysis drifted post-write. The UI also only
+    transmits override fields when the analyst explicitly chose
+    "override" (ReviewQueue.js:51) or typed into the dropdown
+    (ArticleCard.jsx:207-208 starts the state empty). So every stored
+    non-empty override is a real reclassification by the analyst —
+    count them directly.
 
-    Translation overrides also filter `!= ai.<field>` for completeness
-    (small effect — analysts occasionally save a no-op edit)."""
+    Translation overrides are also counted directly (they're free
+    text, set only when the analyst typed something)."""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
 
     # Approved-and-finalised denominator (analyst-touched, not in review queue).
@@ -66,20 +71,28 @@ def _fetch_metrics(conn, days):
 
     overrides = conn.execute(f"""
         SELECT
-          SUM(CASE WHEN n.topic_override IS NOT NULL AND n.topic_override != ''
-                    AND n.topic_override != ai.topic_primary THEN 1 ELSE 0 END) AS topic_n,
-          SUM(CASE WHEN n.sentiment_override IS NOT NULL AND n.sentiment_override != ''
-                    AND n.sentiment_override != ai.sentiment THEN 1 ELSE 0 END) AS sentiment_n,
-          SUM(CASE WHEN a.title_en_override IS NOT NULL AND a.title_en_override != ''
-                    AND a.title_en_override != a.title_en THEN 1 ELSE 0 END) AS title_n,
-          SUM(CASE WHEN a.summary_en_override IS NOT NULL AND a.summary_en_override != ''
-                    AND a.summary_en_override != ai.summary_en THEN 1 ELSE 0 END) AS summary_n,
-          SUM(CASE WHEN a.key_quote_override IS NOT NULL AND a.key_quote_override != ''
-                    AND a.key_quote_override != ai.key_quote_en THEN 1 ELSE 0 END) AS quote_n,
+          SUM(CASE WHEN n.topic_override IS NOT NULL AND n.topic_override != '' THEN 1 ELSE 0 END) AS topic_n,
+          SUM(CASE WHEN n.sentiment_override IS NOT NULL AND n.sentiment_override != '' THEN 1 ELSE 0 END) AS sentiment_n,
+          SUM(CASE WHEN a.title_en_override IS NOT NULL AND a.title_en_override != '' THEN 1 ELSE 0 END) AS title_n,
+          SUM(CASE WHEN a.summary_en_override IS NOT NULL AND a.summary_en_override != '' THEN 1 ELSE 0 END) AS summary_n,
+          SUM(CASE WHEN a.key_quote_override IS NOT NULL AND a.key_quote_override != '' THEN 1 ELSE 0 END) AS quote_n,
           SUM(CASE WHEN ai.needs_human_review = 1 THEN 1 ELSE 0 END) AS flagged_n,
           SUM(CASE WHEN ai.needs_human_review = 1 AND ai.review_resolved = 1 THEN 1 ELSE 0 END) AS resolved_n
         {base}
     """, (cutoff,)).fetchone()
+
+    # Override target distribution: what category does the analyst
+    # reclassify articles INTO most often? Reveals where the AI misses
+    # framings — clustering on US_PRC / US_TAIWAN / POL_TONGDU / HK_MAC
+    # in practice. Only counts overrides within the window (joined via
+    # the same base so the same approved/processed filters apply).
+    override_targets = conn.execute(f"""
+        SELECT n.topic_override AS target, COUNT(*) AS n
+        {base}
+          AND n.topic_override IS NOT NULL AND n.topic_override != ''
+        GROUP BY n.topic_override
+        ORDER BY n DESC
+    """, (cutoff,)).fetchall()
 
     # Complementary signal: dismissal rate. is_hidden=1 means the analyst
     # rejected the article outright. This is the more common form of
@@ -123,6 +136,7 @@ def _fetch_metrics(conn, days):
         "flagged_n": overrides["flagged_n"] or 0,
         "resolved_n": overrides["resolved_n"] or 0,
         "by_topic": [dict(r) for r in by_topic],
+        "override_targets": [dict(r) for r in override_targets],
     }
 
 
@@ -142,22 +156,17 @@ def _format_console(m, days):
     lines.append(f"Articles approved: {m['total']:,}")
     lines.append(f"Articles dismissed: {m['dismissed_total']:,} ({dismiss_pct:.1f}% of touched)")
     lines.append("")
-    lines.append("CAVEAT: explicit topic/sentiment overrides are rare in practice — the")
-    lines.append("analyst more often dismisses an article than relabels it. These rates")
-    lines.append("are a lower bound on analyst-AI disagreement, not a measure of model")
-    lines.append("quality. Per-topic dismissal rate (below) is the more informative signal.")
-    lines.append("")
-    lines.append("EXPLICIT OVERRIDES (analyst changed a stored value)")
-    lines.append(f"  Topic relabel:          {m['topic_n']} of {m['total']:,} approved "
-                 f"({_pct(m['topic_n'], m['total']):.2f}%)")
-    lines.append(f"  Sentiment relabel:      {m['sentiment_n']} of {m['total']:,} "
-                 f"({_pct(m['sentiment_n'], m['total']):.2f}%)")
-    lines.append(f"  Title translation:      {m['title_n']} of {m['total']:,} "
+    lines.append("OVERRIDE RATES (analyst changed the AI's call)")
+    lines.append(f"  Topic relabel:          {m['topic_n']:>4} of {m['total']:,} approved "
+                 f"({_pct(m['topic_n'], m['total']):.1f}%)")
+    lines.append(f"  Sentiment relabel:      {m['sentiment_n']:>4} of {m['total']:,} "
+                 f"({_pct(m['sentiment_n'], m['total']):.1f}%)")
+    lines.append(f"  Title translation:      {m['title_n']:>4} of {m['total']:,} "
                  f"({_pct(m['title_n'], m['total']):.1f}%)")
-    lines.append(f"  Summary translation:    {m['summary_n']} of {m['total']:,} "
+    lines.append(f"  Summary translation:    {m['summary_n']:>4} of {m['total']:,} "
                  f"({_pct(m['summary_n'], m['total']):.1f}%)")
-    lines.append(f"  Key-quote translation:  {m['quote_n']} of {m['total']:,} "
-                 f"({_pct(m['quote_n'], m['total']):.2f}%)")
+    lines.append(f"  Key-quote translation:  {m['quote_n']:>4} of {m['total']:,} "
+                 f"({_pct(m['quote_n'], m['total']):.1f}%)")
     lines.append("")
     lines.append("HUMAN REVIEW QUEUE (Tier 1 vs Tier 2 disagreement)")
     open_n = m["flagged_n"] - m["resolved_n"]
@@ -166,6 +175,13 @@ def _format_console(m, days):
     lines.append(f"  Resolved:               {m['resolved_n']} "
                  f"({_pct(m['resolved_n'], m['flagged_n']):.0f}% of flagged)")
     lines.append(f"  Open:                   {open_n}")
+    lines.append("")
+    lines.append("WHERE THE ANALYST RECLASSIFIES TO (most common override targets)")
+    lines.append("Reveals where the AI misses framings. Only categories with ≥3 overrides shown.")
+    for row in m["override_targets"]:
+        if row["n"] < 3:
+            continue
+        lines.append(f"  {row['target']:<22} {row['n']:>4}")
     lines.append("")
     lines.append("PER-TOPIC DISMISSAL RATE (categories with ≥20 analyst-touched articles)")
     lines.append(f"  {'topic':<22} {'approved':>9}  {'dismissed':>10}  {'dismiss %':>10}")
@@ -190,26 +206,37 @@ def _format_markdown(m, days):
                  f"{touched:,} articles, approving {m['total']:,} and dismissing "
                  f"{m['dismissed_total']:,} ({dismiss_pct:.1f}%).")
     lines.append("")
-    lines.append("**Caveat to read first.** Explicit topic/sentiment relabels are rare "
-                 "in practice — the analyst more often dismisses an article than "
-                 "relabels it. The override rates below are a lower bound on "
-                 "analyst-AI disagreement, not a measure of model accuracy. The "
-                 "per-topic **dismissal rate** is the more informative signal because "
-                 "it captures the dominant correction action.")
+    lines.append("### Override rates on approved articles")
     lines.append("")
-    lines.append("### Explicit overrides on approved articles")
+    lines.append("Every stored override is a real analyst reclassification — the admin "
+                 "UI only transmits override fields when the analyst explicitly chose "
+                 "to override (review-queue path) or typed into the dropdown "
+                 "(article-card path).")
     lines.append("")
     lines.append("| Field                 | Override rate | Count |")
     lines.append("|-----------------------|---------------|-------|")
-    lines.append(f"| Topic relabel         | {_pct(m['topic_n'], m['total']):.2f}% | {m['topic_n']} |")
-    lines.append(f"| Sentiment relabel     | {_pct(m['sentiment_n'], m['total']):.2f}% | {m['sentiment_n']} |")
+    lines.append(f"| Topic relabel         | {_pct(m['topic_n'], m['total']):.1f}% | {m['topic_n']} |")
+    lines.append(f"| Sentiment relabel     | {_pct(m['sentiment_n'], m['total']):.1f}% | {m['sentiment_n']} |")
     lines.append(f"| Title translation     | {_pct(m['title_n'], m['total']):.1f}% | {m['title_n']} |")
     lines.append(f"| Summary translation   | {_pct(m['summary_n'], m['total']):.1f}% | {m['summary_n']} |")
-    lines.append(f"| Key-quote translation | {_pct(m['quote_n'], m['total']):.2f}% | {m['quote_n']} |")
+    lines.append(f"| Key-quote translation | {_pct(m['quote_n'], m['total']):.1f}% | {m['quote_n']} |")
     lines.append("")
     open_n = m["flagged_n"] - m["resolved_n"]
     lines.append(f"Tier 1 / Tier 2 escalation review disagreement: {m['flagged_n']} "
                  f"flagged in window, {m['resolved_n']} resolved, {open_n} open.")
+    lines.append("")
+    lines.append("### Where the analyst reclassifies TO")
+    lines.append("")
+    lines.append("Categories the analyst most often promotes articles INTO. Reveals "
+                 "where the AI misses the framing on first pass. Only targets with ≥3 "
+                 "overrides shown.")
+    lines.append("")
+    lines.append("| Target topic | Count |")
+    lines.append("|--------------|-------|")
+    for row in m["override_targets"]:
+        if row["n"] < 3:
+            continue
+        lines.append(f"| {row['target']} | {row['n']} |")
     lines.append("")
     lines.append("### Per-topic dismissal rate")
     lines.append("")
