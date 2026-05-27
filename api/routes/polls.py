@@ -756,12 +756,16 @@ def approve_poll(poll_id: int, body: PollApprove):
          it. Their `pending_results_json` is NULLed (the data lives on
          the survivor's poll_results now).
 
-    Richness guard: refuses the approve (409) if any pending peer on the
-    same key carries MORE extracted questions than this row. Without
-    this, approving a 1-question news-rehash before the full release
-    page silently NULLs the richer peer's pending_results_json in step
-    2 — happened to the 2026-05 My-Formosa wave, where a 1-question UDN
-    rehash swallowed the 15-question release."""
+    Richness guards (symmetric across both merge paths): refuse the
+    approve (409) if merging would NULL a richer extraction.
+      - Step 1: refuses when this pending row has more questions than
+        the approved twin's materialised poll_results (rare — analyst
+        manual-entry colliding with later AI extraction).
+      - Step 2: refuses when any pending peer on the same key carries
+        more extracted questions than this row (common — news rehash
+        landing in the queue before the full release page).
+    Bit the 2026-05 My-Formosa wave (step 2 path: a 1-question UDN
+    rehash swallowed the 15-question release page)."""
     with db_conn() as conn:
         row = conn.execute(
             "SELECT pollster_id, fielded_start, fielded_end, "
@@ -789,7 +793,13 @@ def approve_poll(poll_id: int, body: PollApprove):
         if body.fielded_start is not None:
             new_fielded_start = _validate_iso_date(body.fielded_start.strip(), "fielded_start")
 
-        # 1. Already-approved twin? Merge into it.
+        # 1. Already-approved twin? Merge into it — unless THIS row is
+        #    richer than the twin, in which case the merge would NULL
+        #    THIS's pending_results_json and lose the extra questions
+        #    forever (same failure mode as the step 2 richness guard
+        #    below, different code path). Common scenario: an analyst
+        #    manual-entered an approved row with 3 questions, then the
+        #    AI later scraped the full release with 15.
         twin = conn.execute("""
             SELECT id FROM polls
             WHERE approval_status = 'approved'
@@ -801,6 +811,27 @@ def approve_poll(poll_id: int, body: PollApprove):
               "fielded_start": new_fielded_start,
               "id": poll_id}).fetchone()
         if twin:
+            this_pending = None
+            if row["pending_results_json"]:
+                try:
+                    this_pending = json.loads(row["pending_results_json"])
+                except (TypeError, ValueError):
+                    raise HTTPException(500, f"poll {poll_id} pending_results_json is corrupt")
+            this_q_count = len((this_pending or {}).get("questions") or [])
+            twin_q_count = conn.execute(
+                "SELECT COUNT(DISTINCT question_id) FROM poll_results WHERE poll_id = ?",
+                (twin["id"],),
+            ).fetchone()[0]
+            if this_q_count > twin_q_count:
+                raise HTTPException(
+                    409,
+                    f"poll {poll_id} has {this_q_count} pending question(s) but "
+                    f"the approved twin (poll {twin['id']}) only carries "
+                    f"{twin_q_count}. Merging this row into the twin would NULL "
+                    f"the richer extraction. Dismiss poll {twin['id']} first if "
+                    "you want the richer wave to become canonical, then approve "
+                    "this row.",
+                )
             conn.execute("""
                 UPDATE polls
                 SET approval_status = 'merged',
