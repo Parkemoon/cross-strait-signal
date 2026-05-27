@@ -8,6 +8,14 @@ from dotenv import load_dotenv
 from scraper.processors.keyword_filter import check_relevance
 
 
+# Article body slice fed to every Gemini prompt. Must be at least as large
+# as the scraper-side content cap (25_000 in the poll scrapers) so Tier 1
+# and Tier 2 review the same evidence — otherwise the escalation reviewer
+# can disagree with Tier 1 simply because it sees less of the article,
+# which would falsely trip the human review queue.
+MAX_PROMPT_CONTENT_CHARS = 25000
+
+
 # Used by the exercise tracker to collapse name variants the AI produces
 # for the same activity. Three layers:
 #   1. "Exercise No. 42" → "42" so "Han Kuang Exercise No. 42" matches
@@ -596,7 +604,7 @@ PUBLISHED: {published_at or 'unknown'}
 TITLE: {title}
 
 FULL TEXT:
-{content[:5000]}"""
+{content[:MAX_PROMPT_CONTENT_CHARS]}"""
 
     response = client.models.generate_content(
         model="gemini-3.1-flash-lite",
@@ -929,7 +937,7 @@ def process_unanalysed_articles(limit=10):
 
                     escalation_glossary = generate_dynamic_glossary(article['content_original'], title)
                     review = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model="gemini-3.5-flash",
                         contents=f"""{ANALYSIS_SYSTEM_PROMPT}
 
 {_OFFICIALS_BLOCK}{escalation_glossary}
@@ -940,7 +948,7 @@ PUBLISHED: {article['published_at'] or 'unknown'}
 TITLE: {title}
 
 FULL TEXT:
-{article['content_original'][:5000]}""",
+{article['content_original'][:MAX_PROMPT_CONTENT_CHARS]}""",
                         config={
                             "response_mime_type": "application/json",
                             "max_output_tokens": 8000,
@@ -974,7 +982,7 @@ FULL TEXT:
                         analysis['sentiment'], analysis['sentiment_score'],
                         analysis['sentiment_reasoning'],
                         analysis['is_escalation_signal'], analysis.get('escalation_note'),
-                        'gemini-2.5-flash (review)', article['id']
+                        'gemini-3.5-flash (review)', article['id']
                     ))
                     conn.commit()
 
@@ -1428,14 +1436,14 @@ PUBLISHED: {article['published_at'] or 'unknown'}
 TITLE: {article['title_original']}
 
 FULL TEXT:
-{(article['content_original'] or '')[:5000]}"""
+{(article['content_original'] or '')[:MAX_PROMPT_CONTENT_CHARS]}"""
 
     resp = client.models.generate_content(
-        model="gemini-3.1-flash-lite",
+        model="gemini-3.5-flash",
         contents=prompt,
         config={
             "response_mime_type": "application/json",
-            "max_output_tokens": 4000,
+            "max_output_tokens": 16000,
             "temperature": 0.1,
             "thinking_config": {"thinking_level": "medium"},
         },
