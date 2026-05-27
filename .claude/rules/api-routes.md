@@ -45,6 +45,8 @@ Confirm and override both set `analyst_approved=1` on the article (auto-approve)
 
 CRUD for analyst notes with AI override support.
 
+**Known race condition (low frequency, deferred):** when `topic_override` or `sentiment_override` is set on POST/PUT, the route unconditionally writes the value to `ai_analysis.topic_primary` / `ai_analysis.sentiment` (notes.py:41–55, review.py:70–80). The admin UI auto-populates these fields with the AI's current value on form open, so if Tier 2 escalation review updates `ai_analysis.sentiment` between form-open and form-save, the analyst's stale "no-op" submission silently reverts Tier 2's call. ~99% of stored `topic_override` / `sentiment_override` values in `analyst_notes` exactly match `ai_analysis` at insert time, confirming the auto-populate pattern. `scripts/accuracy_report.py` filters these out with `!= ai.<field>` checks. A real fix requires either optimistic concurrency control (expected-old field on the API) or frontend dirty-tracking on the override dropdowns — neither in scope yet.
+
 ## `social.py` — `/api/social/`
 
 Returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h. `PATCH /api/social/{id}/translation` saves analyst translation override.
