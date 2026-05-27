@@ -1407,6 +1407,18 @@ multi-candidate vote-intention questions, and ranking questions.
 These have more than two underlying positions; the option count is
 the question's content, not modifier intensity.
 
+CANONICAL NO-OPINION LABEL: when the article reports a no-opinion /
+undeclared / didn't-answer bucket (typically 未明確回答 in Chinese
+prose, sometimes 沒意見 / 不知道 / 未表態 / 無意見), emit it as:
+  label_zh: "未明確回答"
+  label_en: "No response"
+Do NOT use variants like "No opinion", "No opinion/Other", "No
+opinion/No answer", "Unspecified", "Don't know" — those break the
+cross-wave trend chart by appearing as separate series. Only
+exception: vote-intent / candidate-selection questions where
+"Undecided" / 未決定 is the conventional bucket — use that label
+verbatim for those questions only.
+
 EXAMPLE — a TVBS Chiayi poll PDF reporting vote intent + favourability
 + incumbent satisfaction yields ONE poll with THREE questions:
 
