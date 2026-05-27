@@ -121,7 +121,7 @@ async def scrape_ettoday_polls():
             conn.execute("""
                 INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (source['id'], href, title, content[:10000], 'zh-tw', published_at))
+            """, (source['id'], href, title, content[:25000], 'zh-tw', published_at))
             new_count += 1
 
     conn.commit()

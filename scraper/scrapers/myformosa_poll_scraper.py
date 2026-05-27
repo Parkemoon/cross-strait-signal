@@ -124,7 +124,7 @@ def scrape_myformosa_polls():
                 conn.execute("""
                     INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (source['id'], entry['url'], entry['title'], content[:10000],
+                """, (source['id'], entry['url'], entry['title'], content[:25000],
                       'zh-tw', published_at))
                 new_count += 1
         finally:

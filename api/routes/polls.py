@@ -754,7 +754,14 @@ def approve_poll(poll_id: int, body: PollApprove):
       2. Otherwise, the candidate is approved and OTHER pending rows
          with the same `(pollster_id, fielded_start)` are folded into
          it. Their `pending_results_json` is NULLed (the data lives on
-         the survivor's poll_results now)."""
+         the survivor's poll_results now).
+
+    Richness guard: refuses the approve (409) if any pending peer on the
+    same key carries MORE extracted questions than this row. Without
+    this, approving a 1-question news-rehash before the full release
+    page silently NULLs the richer peer's pending_results_json in step
+    2 — happened to the 2026-05 My-Formosa wave, where a 1-question UDN
+    rehash swallowed the 15-question release."""
     with db_conn() as conn:
         row = conn.execute(
             "SELECT pollster_id, fielded_start, fielded_end, "
@@ -823,6 +830,42 @@ def approve_poll(poll_id: int, body: PollApprove):
                 400,
                 f"poll {poll_id} has no pending_results_json to materialise — "
                 "use the manual-entry endpoint to add results from scratch",
+            )
+
+        # Richness guard: refuse to approve if a pending peer on the same
+        # (pollster_id, fielded_start) carries more extracted questions.
+        # The auto-merge in step 3 would NULL the richer peer's
+        # pending_results_json, losing question coverage forever.
+        this_q_count = len(pending["questions"])
+        peers = conn.execute("""
+            SELECT id, pending_results_json
+            FROM polls
+            WHERE approval_status = 'pending'
+              AND pollster_id     = :pollster_id
+              AND fielded_start   = :fielded_start
+              AND id              != :id
+              AND pending_results_json IS NOT NULL
+        """, {"pollster_id":   new_pollster_id,
+              "fielded_start": new_fielded_start,
+              "id":            poll_id}).fetchall()
+        richer = []
+        for peer in peers:
+            try:
+                peer_data = json.loads(peer["pending_results_json"])
+            except (TypeError, ValueError):
+                continue
+            peer_q = len(peer_data.get("questions") or [])
+            if peer_q > this_q_count:
+                richer.append((peer["id"], peer_q))
+        if richer:
+            details = ", ".join(f"poll {pid} ({pq} questions)" for pid, pq in richer)
+            raise HTTPException(
+                409,
+                f"poll {poll_id} has {this_q_count} pending question(s) but "
+                f"richer pending peer(s) exist on the same key: {details}. "
+                "Approving this row would NULL the richer extraction in the "
+                "auto-merge step. Approve the richer peer instead — this row "
+                "will be folded into it.",
             )
 
         expected = len(pending["questions"])
