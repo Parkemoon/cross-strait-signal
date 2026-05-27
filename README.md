@@ -18,14 +18,18 @@ and run through a three-tier AI pipeline behind a human editorial gate.
 - Holds every article behind an analyst-approval gate. Nothing reaches the public feed until a human has confirmed the AI's call (or corrected it).
 - Surfaces a poll tracker covering Taiwan's main pollsters with canonical question_keys for cross-pollster trend charts (Lai approval, 統獨 position, KMT chair trust, etc.).
 - Publishes a public read-only build and a separate admin build — write controls don't exist in the public bundle.
+- Re-scrapes every six hours via cron; the dashboard always reflects the most recent pipeline run, with new approved articles typically reaching the public feed within hours of original publication.
 
 ## Why it exists
 
-There is no accessible, bilingual tool that combines Chinese-language
-primary sources with structured analytical output. English-language
-coverage of PRC-Taiwan dynamics is slower, less detailed, and stripped
-of the linguistic nuance that signals policy shifts. The standard
-alternative is hiring a Mandarin-reading analyst.
+Built for analysts, journalists, and researchers who need to read
+Chinese-language primary sources on cross-strait dynamics but lack
+the time or the language. There is no accessible, bilingual tool
+that combines Chinese-language primary sources with structured
+analytical output. English-language coverage of PRC-Taiwan dynamics
+is slower, less detailed, and stripped of the linguistic nuance
+that signals policy shifts. The standard alternative is hiring a
+Mandarin-reading analyst.
 
 This system processes Chinese government, military, and partisan media
 in minutes, extracts structured intelligence, and flags escalation
@@ -66,6 +70,15 @@ source on how it portrays the PRC. Taiwan-US military cooperation is
 scored neutral-to-hostile (from the cross-strait frame), not
 cooperative. KMT visits to the mainland score cooperative regardless
 of how a Taiwanese viewer feels about them.
+
+`mixed` is the label for articles that genuinely carry both clearly
+hostile and clearly cooperative framing — a PRC editorial threatening
+Taiwan militarily but simultaneously praising specific cross-strait
+cultural exchanges, for example. The numeric score in `mixed` cases
+sits near zero, reflecting cancellation rather than absence of
+framing. It exists as a distinct label so a downstream analyst can
+flag these for closer reading rather than treating them as neutral
+factual reporting.
 
 Every directional score must include a `sentiment_reasoning` line
 quoting the specific phrase or framing that drove it — both as an
@@ -128,7 +141,11 @@ is refreshed manually.
      2025-11-28 → 2026-05-27. Re-run to refresh. -->
 
 Snapshot over the last 180 days. The analyst engaged with 7,710
-articles, approving 6,001 and dismissing 1,709 (22.2%).
+articles, approving 6,001 and dismissing 1,709 (22.2%). This is
+post-filter volume — the directional keyword pre-filter rejects
+~80% of raw scraped articles upstream, before any API calls — so
+the 7,710 figure represents the cross-strait-relevant subset, not
+total scraping throughput.
 
 Every stored override is a real analyst reclassification — the admin
 UI only transmits override fields when the analyst explicitly chose
@@ -145,8 +162,9 @@ to override (review-queue path) or typed into the dropdown
 | Summary translation   | 8.0%          | 483   |
 | Key-quote translation | 0.4%          | 25    |
 
-Tier 1 / Tier 2 escalation review disagreement: 114 flagged, 114
-resolved, 0 open.
+Tier 1 and Tier 2 disagree on **1.9% of approved articles** (114 of
+6,001 in window). All currently resolved; the queue runs caught up
+in practice.
 
 **Where the analyst reclassifies TO** — categories the analyst most
 often promotes articles INTO. Reveals where the AI misses the
