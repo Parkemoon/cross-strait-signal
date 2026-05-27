@@ -1414,10 +1414,28 @@ prose, sometimes 沒意見 / 不知道 / 未表態 / 無意見), emit it as:
   label_en: "No response"
 Do NOT use variants like "No opinion", "No opinion/Other", "No
 opinion/No answer", "Unspecified", "Don't know" — those break the
-cross-wave trend chart by appearing as separate series. Only
-exception: vote-intent / candidate-selection questions where
-"Undecided" / 未決定 is the conventional bucket — use that label
-verbatim for those questions only.
+cross-wave trend chart by appearing as separate series.
+
+VOTE-INTENT / CANDIDATE-SELECTION questions follow a different
+canonical convention because they distinguish "didn't pick a
+candidate" from "won't vote at all":
+  - Candidate names: VERBATIM from the article, WITHOUT party
+    prefix or party-parenthetical. Emit "李四川" not "國民黨李四川";
+    emit "Su Chiao-hui" not "DPP Su Tsao-hui" or "Su Chiao-hui (DPP)".
+    Party affiliation is a separate property of the pollster wave,
+    not of the candidate-name string.
+  - Residual buckets — collapse all of {不知道, 尚未決定, 未明確回答,
+    無明確意見, "Don't know", "No clear answer", "No clear opinion"}
+    to one canonical:
+      label_zh: "尚未決定"
+      label_en: "Undecided"
+  - "Won't vote / spoiled ballot" is a SEPARATE residual category and
+    must stay distinct. Canonical:
+      label_zh: "不投票或投廢票"
+      label_en: "Won't vote / Spoiled ballot"
+    Collapse phrasing variants ("不投票/投廢票", "Not vote or spoiled
+    ballot", "No vote or spoiled ballot", "Will not vote/Spoiled
+    ballot") to this canonical.
 
 EXAMPLE — a TVBS Chiayi poll PDF reporting vote intent + favourability
 + incumbent satisfaction yields ONE poll with THREE questions:
