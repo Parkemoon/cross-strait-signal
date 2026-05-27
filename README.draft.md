@@ -130,25 +130,54 @@ is refreshed manually.
 Snapshot over the last 180 days. The analyst engaged with 7,710
 articles, approving 6,001 and dismissing 1,709 (22.2%).
 
-**Caveat to read first.** Explicit topic / sentiment relabels are
-rare in practice — the analyst more often dismisses an article than
-relabels it. The override rates below are a lower bound on
-analyst-AI disagreement, not a measure of model accuracy. The
-per-topic **dismissal rate** is the more informative signal because
-it captures the dominant correction action.
+Every stored override is a real analyst reclassification — the admin
+UI only transmits override fields when the analyst explicitly chose
+to override (review-queue path) or typed into the dropdown
+(article-card path).
 
-**Explicit overrides on approved articles:**
+**Override rates on approved articles:**
 
 | Field                 | Override rate | Count |
 |-----------------------|---------------|-------|
-| Topic relabel         | 0.05%         | 3     |
-| Sentiment relabel     | 0.10%         | 6     |
-| Title translation     | 8.5%          | 510   |
-| Summary translation   | 7.9%          | 472   |
-| Key-quote translation | 0.42%         | 25    |
+| Topic relabel         | 6.1%          | 366   |
+| Sentiment relabel     | 8.3%          | 496   |
+| Title translation     | 8.7%          | 523   |
+| Summary translation   | 8.0%          | 483   |
+| Key-quote translation | 0.4%          | 25    |
 
 Tier 1 / Tier 2 escalation review disagreement: 114 flagged, 114
 resolved, 0 open.
+
+**Where the analyst reclassifies TO** — categories the analyst most
+often promotes articles INTO. Reveals where the AI misses the
+framing on first pass.
+
+| Target topic | Reclassifications |
+|--------------|-------------------|
+| US_PRC | 114 |
+| POL_TONGDU | 75 |
+| US_TAIWAN | 60 |
+| HK_MAC | 22 |
+| LEGAL_GREY | 10 |
+| INT_ORG | 10 |
+| DIP_STATEMENT | 9 |
+| POL_DOMESTIC_TW | 8 |
+| CULTURE | 8 |
+| HUMANITARIAN | 7 |
+| CYBER | 7 |
+| MIL_HARDWARE | 6 |
+| POL_DOMESTIC_PRC | 5 |
+| DIP_VISIT | 5 |
+
+The model systematically under-identifies US-related framings
+(114 + 60 = 174 reclassifications into US_PRC / US_TAIWAN, a third
+of all topic overrides). The pattern: articles about Washington-
+Beijing tech sanctions or Taiwan arms sales often get classified
+into MIL_POLICY, ECON_TRADE, or POL_DOMESTIC_PRC before the analyst
+moves them. Same direction for HK_MAC (22 reclassifications into
+that label, against a current population of 27 articles in the
+category — almost every HK_MAC article in the system is there
+because the analyst put it there).
 
 **Per-topic dismissal rate** — of articles the analyst touched in
 each category, what fraction was dismissed? High dismissal = model
@@ -184,21 +213,20 @@ articles in window are omitted.
 | ENERGY | 17 | 6 | 26.1% |
 | SPORT | 11 | 11 | 50.0% |
 
-Three findings worth reading honestly:
+Two findings worth reading honestly:
 
-- **High-volume categories the model handles cleanly:** PARTY_VISIT
-  (6.0% dismissal), POL_TONGDU (10.0%), DIP_STATEMENT (12.5%),
-  MIL_POLICY (14.4%). When the keyword filter accepts an article
-  classified into one of these, the analyst almost always keeps it.
-- **Categories where the model surfaces noise:** CULTURE (40.6%),
-  POL_DOMESTIC_TW (38.0%), SCI_TECH (35.3%), HK_MAC (35.3%),
-  ECON_TRADE (32.1%). The keyword pre-filter accepts these but the
-  cross-strait angle often turns out weak on read. The analyst
-  layer is doing meaningful filtering here.
-- **Translation correction is the real human work** — 8.5% of
-  approved articles needed a title fix, 7.9% a summary fix. That's
-  the load-bearing analyst contribution at the per-article level
-  (vs. relabelling, which essentially never happens).
+- **The model systematically under-identifies US-related framing
+  and HK_MAC.** The override-target distribution above is dominated
+  by US_PRC (114), US_TAIWAN (60), and HK_MAC (22). The analyst
+  layer is doing real semantic correction here, not just noise
+  filtering.
+- **The dismissal rate identifies a different failure mode** —
+  categories like CULTURE (40.6%), POL_DOMESTIC_TW (38.0%),
+  SCI_TECH (35.3%), and ECON_TRADE (32.1%) get accepted by the
+  keyword filter but the cross-strait angle is often weak on read,
+  so the analyst dismisses ~1 in 3. Categories with hard signals
+  (PARTY_VISIT, INT_ORG, CYBER, US-relations) get dismissed <10%
+  of the time.
 
 Re-run `python scripts/accuracy_report.py` for a fresh snapshot, or
 `--markdown` to regenerate this block.
@@ -250,12 +278,19 @@ of how much they affect the editorial product.
   The keyword pre-filter accepts these articles but the cross-strait
   angle is often weak on read. Read what survives the analyst, not
   the raw topic feed.
-- **Topic / sentiment labels are essentially never relabelled** (3
-  topic relabels and 6 sentiment relabels in 6,001 approved articles).
-  This is *not* evidence that the model is perfect — it means the
-  analyst dismisses ambiguous articles rather than correcting their
-  labels. The override-based agreement metric is a floor, not a
-  ceiling.
+- **US-relations framing is a known model weakness.** US_PRC and
+  US_TAIWAN together account for ~30% of all topic overrides — the
+  AI's first pass routinely misses that an article is primarily
+  about Washington-Beijing posture and the analyst has to reclassify.
+  Similar story for HK_MAC. The accuracy section above quantifies
+  this explicitly.
+- **The original AI classification is lost on override.** When the
+  analyst overrides a topic, `ai_analysis.topic_primary` is
+  overwritten in place — the pre-override value isn't audit-logged.
+  This means we can only measure "the analyst overrode" rates, not
+  per-category accuracy ("the AI got DIP_STATEMENT right 95% of the
+  time"). Adding audit logging would unlock per-category accuracy
+  measurement — not currently in scope.
 - **Source bias correlates with sentiment by construction.** Green
   sources rate PRC moves more hostilely than centrist ones; PRC state
   media rates Taiwan moves more hostilely under DPP than under KMT
