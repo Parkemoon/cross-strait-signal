@@ -1,0 +1,59 @@
+{
+  "_comment": "Canonical labels for poll_results. Run scripts/canonicalise_poll_labels.py to apply. Each rule defines a scope (question_keys to include or exclude) and a list of (from_zh, from_en) → (to_zh, to_en) mappings. Both from_zh and from_en, if present, must match for the rule to fire. Edit this file when adding a new pollster, a new question_key, or when a new wave introduces a label variant that should canonicalise. The script is idempotent — running it twice on canonical data is a no-op.",
+
+  "rules": [
+    {
+      "description": "No-opinion canonicalisation across non-NCCU, non-vote-intent questions. NCCU's long series uses 無反應 / 'Non response' by historical convention and is deliberately excluded so its trend chart stays consistent with its own seeded data. Vote-intent polls are excluded because they have their own residual semantics (see the vote_intent rule below).",
+      "scope": {
+        "exclude_question_keys": [
+          "identity_nccu_3pt",
+          "unification_nccu_6pt",
+          "2026_chiayi_mayor",
+          "2026_new_taipei_mayor",
+          "2026_taipei_mayor"
+        ]
+      },
+      "mappings": [
+        {"from_en": "No opinion",            "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "No opinion/Other",      "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "No opinion/No answer",  "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "No opinion / Other",    "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "No opinion / No answer","to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "Unspecified",           "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "No answer",             "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "No response/Other",     "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_en": "No response / Other",   "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_zh": "沒意見",                 "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_zh": "不知道",                 "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_zh": "無意見",                 "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_zh": "未表態",                 "to_zh": "未明確回答", "to_en": "No response"},
+        {"from_zh": "未回答",                 "to_zh": "未明確回答", "to_en": "No response"}
+      ]
+    },
+
+    {
+      "description": "Vote-intent canonicalisation: strip party prefixes from candidate names, fix romanisation slips, unify residual buckets. The 'haven't picked a candidate' cluster (Don't know / No clear answer / Undecided / etc.) collapses to '尚未決定' / 'Undecided'. The 'won't vote / spoiled ballot' bucket is kept SEPARATE because it carries distinct signal (abstention vs indecision) and the My-Formosa-style polls that report both should retain the distinction.",
+      "scope": {
+        "question_keys": [
+          "2026_chiayi_mayor",
+          "2026_new_taipei_mayor",
+          "2026_taipei_mayor"
+        ]
+      },
+      "mappings": [
+        {"from_zh": "國民黨李四川",  "from_en": "KMT Lee Shu-chuan",  "to_zh": "李四川", "to_en": "Lee Shu-chuan"},
+        {"from_zh": "民進黨蘇巧慧",  "from_en": "DPP Su Tsao-hui",    "to_zh": "蘇巧慧", "to_en": "Su Chiao-hui"},
+        {"from_en": "Su Tsao-hui",                                   "to_zh": "蘇巧慧", "to_en": "Su Chiao-hui"},
+        {"from_en": "Chang Chi-kai (Taiwan People's Party (TPP))",   "to_zh": "張啟楷", "to_en": "Chang Chi-kai"},
+
+        {"from_zh": "不投票/投廢票",  "from_en": "Will not vote/Spoiled ballot",  "to_zh": "不投票或投廢票", "to_en": "Won't vote / Spoiled ballot"},
+        {"from_zh": "不投票或投廢票", "from_en": "Not vote or spoiled ballot",   "to_zh": "不投票或投廢票", "to_en": "Won't vote / Spoiled ballot"},
+        {"from_zh": "不投票或投廢票", "from_en": "No vote or spoiled ballot",    "to_zh": "不投票或投廢票", "to_en": "Won't vote / Spoiled ballot"},
+
+        {"from_zh": "不知道",         "from_en": "Don't know",       "to_zh": "尚未決定", "to_en": "Undecided"},
+        {"from_zh": "未明確回答",     "from_en": "No clear answer",  "to_zh": "尚未決定", "to_en": "Undecided"},
+        {"from_zh": "無明確意見",     "from_en": "No clear opinion", "to_zh": "尚未決定", "to_en": "Undecided"}
+      ]
+    }
+  ]
+}
