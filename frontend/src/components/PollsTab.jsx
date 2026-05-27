@@ -54,11 +54,10 @@ const FALLBACK_PALETTE = [
 // Pollster bias → chip colour. Mirrors SourceBadge's BIAS_COLORS so
 // chips on the Polls tab read the same way as source badges on the
 // feed. `academic` is NCCU's bias and is intentionally non-political
-// (slate); `state_official` is SIDE-AWARE — slug='mac' is TW executive
-// branch (green under the current DPP exec) while any other slug with
-// state_official bias is presumed PRC-side (red). When a PRC state
-// pollster is added we'll need a side column on the pollsters table,
-// but until then a slug-based branch is enough.
+// (slate); `state_official` is SIDE-AWARE via `pollsters.place` — a
+// TW state ministry (MAC, MoFA, etc.) gets DPP green under the
+// current exec; a PRC state outlet gets red. Place comes from the
+// /api/polls/roster response.
 const POLLSTER_CHIP_COLOURS = {
   academic:          { bg: "#475569", text: "#fff" },        // slate
   state_nationalist: { bg: "#b91c1c", text: "#fff" },
@@ -70,11 +69,14 @@ const POLLSTER_CHIP_COLOURS = {
   unknown:           { bg: "#cbd5e1", text: "#1f2937" },
 };
 
-export function pollsterChipColour(bias, slug) {
+export function pollsterChipColour(bias, place) {
   if (bias === "state_official") {
-    return slug === "mac"
-      ? { bg: "#15803d", text: "#fff" }   // TW exec under DPP — DPP green
-      : { bg: "#dc2626", text: "#fff" };  // PRC state — red (future-proofing)
+    // TW exec under DPP → DPP green; PRC state → red. Default green
+    // when place is missing (legacy data; all current state_official
+    // pollsters are TW-side per the seed roster).
+    return place === "PRC"
+      ? { bg: "#dc2626", text: "#fff" }
+      : { bg: "#15803d", text: "#fff" };
   }
   return POLLSTER_CHIP_COLOURS[bias] || { bg: "#6b7280", text: "#fff" };
 }
@@ -136,8 +138,8 @@ function SectionHeader({ children, right }) {
   );
 }
 
-export function PollsterChip({ slug, name, bias }) {
-  const { bg, text } = pollsterChipColour(bias, slug);
+export function PollsterChip({ slug, name, bias, place }) {
+  const { bg, text } = pollsterChipColour(bias, place);
   return (
     <span style={{
       display: "inline-block",
@@ -229,7 +231,7 @@ function pivotByQuestion(payload) {
     opts.forEach((o, idx) => {
       const colour = isCrossPollster
         // Cross-pollster: pollster identity drives colour, option drives line style.
-        ? pollsterChipColour(p.bias, p.slug).bg
+        ? pollsterChipColour(p.bias, p.place).bg
         : (palette[o.order] || palette[idx] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length]);
       series.push({
         dataKey: `${p.slug}__${o.label}`,
@@ -447,7 +449,7 @@ function PollCard({ poll }) {
     }}>
       <header style={{ display: "flex", gap: "10px", flexWrap: "wrap",
                        alignItems: "baseline", marginBottom: "10px" }}>
-        <PollsterChip slug={poll.pollster_slug} name={poll.pollster_name_en} bias={poll.pollster_bias} />
+        <PollsterChip slug={poll.pollster_slug} name={poll.pollster_name_en} bias={poll.pollster_bias} place={poll.pollster_place} />
         <ProvenanceChip poll={poll} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px",
                        color: "var(--text-primary)" }}>

@@ -20,6 +20,9 @@ export const POLLSTER_BIASES = [
   "blue_leaning", "blue", "state_official",
 ];
 export const POLLSTER_STATUSES = ["active", "historical", "ad_hoc", "unknown"];
+// Matches _VALID_POLLSTER_PLACE on the API. Used to side-disambiguate
+// state_official chips (TW exec → DPP green, PRC state → red).
+export const POLLSTER_PLACES = ["TW", "PRC", "HK", "MO", "SG", "JP", "US", "UK", "INTL"];
 
 // Identifier shape — same regex gates pollster slug AND question_key
 // creation server-side (^[a-z0-9][a-z0-9_]*$).
@@ -78,7 +81,7 @@ export function groupKeysByFamily(allKeys) {
 // containing grid changes.
 export function NewPollsterForm({ onCreated, onCancel, gridColumn = "1 / span 4" }) {
   const [row, setRow] = useState({
-    slug: "", name_en: "", name_zh: "", bias: "", status: "active",
+    slug: "", name_en: "", name_zh: "", bias: "", place: "TW", status: "active",
   });
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
@@ -99,6 +102,7 @@ export function NewPollsterForm({ onCreated, onCancel, gridColumn = "1 / span 4"
         name_en: row.name_en.trim(),
         name_zh: row.name_zh.trim() || undefined,
         bias:    row.bias,
+        place:   row.place,
         status:  row.status,
       });
       onCreated(created.slug, { ...row, slug });
@@ -116,7 +120,7 @@ export function NewPollsterForm({ onCreated, onCancel, gridColumn = "1 / span 4"
       border: "1px dashed var(--border-color)",
       marginTop: "2px",
     }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 1fr", gap: "6px 10px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 2fr 1fr 0.8fr 0.8fr", gap: "6px 10px" }}>
         <div>
           <label style={labelStyle()}>slug (lower_snake_case)</label>
           <input style={fieldStyle()} placeholder="e.g. apollo"
@@ -141,6 +145,13 @@ export function NewPollsterForm({ onCreated, onCancel, gridColumn = "1 / span 4"
                   onChange={(e) => setRow({ ...row, bias: e.target.value })}>
             <option value="">—</option>
             {POLLSTER_BIASES.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle()}>Place</label>
+          <select style={fieldStyle()} value={row.place}
+                  onChange={(e) => setRow({ ...row, place: e.target.value })}>
+            {POLLSTER_PLACES.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
         <div>

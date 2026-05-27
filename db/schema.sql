@@ -462,6 +462,7 @@ CREATE TABLE IF NOT EXISTS pollsters (
     name_zh      TEXT NOT NULL,
     name_en      TEXT NOT NULL,
     bias         TEXT NOT NULL,              -- 'academic'|'green'|'green_leaning'|'centrist'|'blue_leaning'|'blue'|'state_official'
+    place        TEXT NOT NULL DEFAULT 'TW', -- 'PRC'|'TW'|'HK'|'SG'|etc. Used to side-disambiguate `state_official` — TW state pollster gets DPP-green chip, PRC state pollster gets red chip.
     status       TEXT NOT NULL DEFAULT 'active',  -- 'active'|'historical'|'ad_hoc'|'unknown'
     cadence      TEXT,                       -- 'monthly'|'biannual'|'ad_hoc'|NULL
     methodology  TEXT,                       -- default method (CATI, online panel, etc.)
@@ -529,20 +530,20 @@ CREATE TABLE IF NOT EXISTS poll_results (
 CREATE INDEX IF NOT EXISTS idx_poll_results_poll ON poll_results(poll_id);
 CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id);
 
--- Seed pollster roster
+-- Seed pollster roster — `place` defaults to 'TW' on insert, set explicitly only for non-TW additions
 INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, notes) VALUES
     ('nccu_esc',  '國立政治大學選舉研究中心', 'NCCU Election Study Center',       'academic',      'active',     'biannual', 'Identity + unification trend since 1992'),
     ('myformosa', '美麗島電子報',             'My-Formosa',                       'centrist',      'active',     'monthly',  'Owner expelled from DPP for being too critical; editorial posture no longer green-leaning'),
     ('tvbs',      'TVBS民調中心',             'TVBS Poll Center',                 'blue',          'active',     'monthly',  NULL),
     ('ettoday',   'ETtoday民調雲',            'ETtoday Survey Cloud',             'blue_leaning',  'active',     'monthly',  NULL),
     ('tpof',      '台灣民意基金會',           'Taiwan Public Opinion Foundation', 'green_leaning', 'historical', NULL,       'Chair moved to head TW CEC; no new polls expected'),
-    -- MAC is a TW executive-branch ministry, not party media — bias=state_official is symmetric
-    -- with how PRC state outlets are labelled. The chip colour in PollsTab is side-aware
-    -- (TW state → DPP green under current exec, PRC state → red) since state_official can
-    -- attach to either side. Short forms (陸委會/陆委会) resolve via _MASTER_GLOSSARY in
+    -- MAC + MoFA are TW executive-branch ministries (bias=state_official). The chip colour
+    -- in PollsTab reads pollsters.place to disambiguate: TW state → DPP green under current
+    -- exec, PRC state → red. Short forms (陸委會/陆委会) resolve via _MASTER_GLOSSARY in
     -- _resolve_pollster_id without needing an aliases column.
-    ('mac',       '大陸委員會',               'Mainland Affairs Council',         'state_official','active',     'quarterly', 'TW executive branch; cross-strait attitudes survey 民眾對當前兩岸關係之看法'),
-    ('unknown',   '未識別',                   'Unknown',                          'centrist',      'unknown',    NULL,       'Fallback for AI extractions where pollster could not be identified — analyst sets during approval');
+    ('mac',         '大陸委員會',         'Mainland Affairs Council',                  'state_official','active','quarterly', 'TW executive branch; cross-strait attitudes survey 民眾對當前兩岸關係之看法'),
+    ('mofa_taiwan', '中華民國外交部',     'Ministry of Foreign Affairs, ROC (Taiwan)', 'state_official','active', NULL,       'TW executive branch; ad-hoc polls on foreign-policy attitudes'),
+    ('unknown',     '未識別',             'Unknown',                                   'centrist',     'unknown', NULL,       'Fallback for AI extractions where pollster could not be identified — analyst sets during approval');
 
 -- Seed canonical question keys for the three hero series
 INSERT OR IGNORE INTO poll_questions (question_key, question_text_zh, question_text_en, family, scale_type, description) VALUES
