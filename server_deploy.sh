@@ -280,6 +280,14 @@ sqlite3 db/cross_strait_signal.db \
     "ALTER TABLE polls ADD COLUMN pending_results_json TEXT" \
     2>/dev/null || true
 
+# Idempotent ALTER for pollsters.place — added so `state_official` chips can
+# side-disambiguate (TW exec ministries get DPP green, PRC state outlets get
+# red). Defaults to 'TW' since every pollster in the seed roster is TW-side;
+# explicit place='PRC' on future PRC-state pollster inserts.
+sqlite3 db/cross_strait_signal.db \
+    "ALTER TABLE pollsters ADD COLUMN place TEXT NOT NULL DEFAULT 'TW'" \
+    2>/dev/null || true
+
 echo "--- Building frontend (admin) ---"
 cd frontend
 # Pass ADMIN_TOKEN through to the admin bundle so write endpoints can be

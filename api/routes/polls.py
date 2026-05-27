@@ -48,6 +48,9 @@ _VALID_SCALE_TYPES = {'approve_disapprove', 'support_oppose', 'five_point',
 _VALID_POLLSTER_BIAS   = {'academic', 'green', 'green_leaning', 'centrist',
                           'blue_leaning', 'blue', 'state_official'}
 _VALID_POLLSTER_STATUS = {'active', 'historical', 'ad_hoc', 'unknown'}
+# pollsters.place — used to side-disambiguate state_official chip colour in
+# PollsTab.jsx. Matches the wider sources.place convention.
+_VALID_POLLSTER_PLACE  = {'TW', 'PRC', 'HK', 'MO', 'SG', 'JP', 'US', 'UK', 'INTL'}
 
 _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -69,6 +72,7 @@ _POLL_PUBLIC_COLS = """
     ps.name_zh        AS pollster_name_zh,
     ps.name_en        AS pollster_name_en,
     ps.bias           AS pollster_bias,
+    ps.place          AS pollster_place,
     ps.status         AS pollster_status,
     p.fielded_start   AS fielded_start,
     p.fielded_end     AS fielded_end,
@@ -245,6 +249,7 @@ def polls_by_question(
                 ps.slug           AS pollster_slug,
                 ps.name_en        AS pollster_name_en,
                 ps.bias           AS pollster_bias,
+                ps.place          AS pollster_place,
                 p.fielded_start   AS fielded_start,
                 p.fielded_end     AS fielded_end,
                 p.sample_size     AS sample_size,
@@ -271,6 +276,7 @@ def polls_by_question(
                 "pollster_slug":    r["pollster_slug"],
                 "pollster_name_en": r["pollster_name_en"],
                 "pollster_bias":    r["pollster_bias"],
+                "pollster_place":   r["pollster_place"],
                 "fielded_start":    r["fielded_start"],
                 "fielded_end":      r["fielded_end"],
                 "sample_size":      r["sample_size"],
@@ -309,7 +315,7 @@ def polls_roster():
     with db_conn() as conn:
         rows = conn.execute("""
             SELECT
-                ps.slug, ps.name_zh, ps.name_en, ps.bias, ps.status,
+                ps.slug, ps.name_zh, ps.name_en, ps.bias, ps.place, ps.status,
                 ps.cadence, ps.methodology, ps.notes, ps.homepage_url,
                 COUNT(p.id) AS approved_count
             FROM pollsters ps
@@ -335,6 +341,7 @@ class PollsterCreate(BaseModel):
     name_en:      str
     name_zh:      Optional[str] = None
     bias:         str
+    place:        Optional[str] = 'TW'   # 'TW' default since the seed roster is TW-only
     status:       Optional[str] = 'active'
     cadence:      Optional[str] = None
     methodology:  Optional[str] = None
@@ -356,6 +363,9 @@ def create_pollster(body: PollsterCreate):
     status = (body.status or 'active').strip()
     if status not in _VALID_POLLSTER_STATUS:
         raise HTTPException(400, f"invalid status {status!r} (allowed: {sorted(_VALID_POLLSTER_STATUS)})")
+    place = (body.place or 'TW').strip()
+    if place not in _VALID_POLLSTER_PLACE:
+        raise HTTPException(400, f"invalid place {place!r} (allowed: {sorted(_VALID_POLLSTER_PLACE)})")
     name_en = body.name_en.strip()
     if not name_en:
         raise HTTPException(400, "name_en is required")
@@ -367,9 +377,9 @@ def create_pollster(body: PollsterCreate):
 
         cur = conn.execute("""
             INSERT INTO pollsters
-                (slug, name_zh, name_en, bias, status, cadence, methodology, notes, homepage_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (slug, (body.name_zh or '').strip() or None, name_en, body.bias, status,
+                (slug, name_zh, name_en, bias, place, status, cadence, methodology, notes, homepage_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (slug, (body.name_zh or '').strip() or None, name_en, body.bias, place, status,
               (body.cadence or '').strip() or None,
               (body.methodology or '').strip() or None,
               (body.notes or '').strip() or None,
@@ -652,6 +662,7 @@ def poll_candidates():
                 ps.name_zh        AS pollster_name_zh,
                 ps.name_en        AS pollster_name_en,
                 ps.bias           AS pollster_bias,
+                ps.place          AS pollster_place,
                 ps.status         AS pollster_status,
                 a.url             AS article_url,
                 a.title_original  AS article_title,

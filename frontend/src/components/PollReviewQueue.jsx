@@ -508,6 +508,7 @@ function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, revi
             slug={candidate.pollster_slug}
             name={candidate.pollster_name_en || candidate.pollster_name_zh || candidate.pollster_slug}
             bias={candidate.pollster_bias}
+            place={candidate.pollster_place}
           />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
             {candidate.fielded_start}{candidate.fielded_end && candidate.fielded_end !== candidate.fielded_start
