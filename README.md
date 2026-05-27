@@ -1,542 +1,353 @@
 # Cross-Strait Signal
 
-An open-source intelligence dashboard monitoring PRC-Taiwan cross-strait dynamics through automated bilingual Chinese-language media analysis.
+An open-source intelligence dashboard monitoring PRC-Taiwan cross-strait
+dynamics through automated bilingual Chinese-language media analysis.
+~30 active sources from both sides of the strait, scraped continuously
+and run through a three-tier AI pipeline behind a human editorial gate.
 
----
-
-Cross-Strait Signal scrapes Chinese-language news sources from both sides of the Taiwan Strait, processes them through a multi-tier AI pipeline, and serves results through a React dashboard backed by a FastAPI API. The system is designed to surface hostile and cooperative signals from both sides — rather than framing cross-strait interactions as uni-directional.
-
-**Live instance:** `https://strait-signal.net`  
-**GitHub:** `https://github.com/Parkemoon/cross-strait-signal`
+**Live instance:** https://strait-signal.net
+**GitHub:** https://github.com/Parkemoon/cross-strait-signal
 
 ---
 
 ## What it does
 
-- Scrapes ~30 active sources across PRC, Taiwan, Hong Kong, Singapore, and the UK — including RSS feeds and bespoke HTML scrapers for sites without usable feeds (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN, LTN Defence, UDN sections)
-- Directional relevance filtering — PRC/HK/SG sources checked for Taiwan mentions; Taiwan sources checked for PRC/mainland/HK mentions — before any API calls are made, saving ~80% of processing costs
-- Three-tier AI analysis: Google Gemini 3.1 Flash Lite for initial processing → Gemini 2.5 Flash for escalation review → human review queue for model disagreements
-- Structured analytical output per article: topic classification (28 categories), sentiment scoring (−1.0 to +1.0), sentiment reasoning (one-sentence audit trail quoting the specific phrase that drove the score), urgency grading, escalation signal detection, named entity extraction, and Chinese→English translation
-- Current-officials roster injected into every prompt — Wikidata-sourced, covering ~28 positions across Taiwan, US, PRC, and Japan — prevents the model from attributing roles to former officeholders based on stale training data
-- Full editorial approval gate — every article is held from the public feed until the analyst explicitly approves it, ensuring no AI translation errors or misclassifications reach readers
-- Inline translation editing on headline, summary, and key quote — corrected fields highlighted amber to distinguish human-verified text from raw AI output
-- Human review queue flags articles where the two AI models disagree on sentiment, topic, or escalation status — translation editing available within the queue, auto-approves on resolution
-- Analyst commentary layer allows human override of AI classifications at any point
-- Source bias tracking — each source tagged with editorial alignment (green / green_leaning / blue / centrist / state_official / state_nationalist)
-- Social Pulse panel — Weibo hot search top 50 (cross-strait items highlighted) and PTT BBS trending posts, with AI translation and inline analyst correction; lives in a persistent right-hand column
-- Key Figures panel — curated roster of 10 senior PRC and Taiwan officials; AI extracts attributed quotes and actions per figure as pending candidates, requiring analyst approval before display to prevent misattribution
-- Filter-scoped Strait Watch gauges — selecting a topic, source place, urgency, or entity scopes the sidebar sentiment gauges to that filter, with a ghost dot showing the global baseline for comparison
-- **Economy tab** — TW-vs-PRC trade indicators with multi-reporter verification: MAC (TW), PRC Customs via UN Comtrade, and Hong Kong CSD direct. The reporting gap itself is the analytical signal — PRC's imports from Taiwan run ~80–125% above what MAC reports as exports to the PRC, widening from 80% in 2017 to 124% in 2024. Investment-by-industry charts cover both directions (PRC→TW since 2009, TW→PRC since 1991, with the ~50× outbound asymmetry visible)
-- **Trade Access tab** — what each side actually allows the other to ship in. BOFT bans + ECFA active/suspended + MoF PRC suspension waves + curated PRC bans on TW agricultural exports. Includes CIFER snapshot tracker (PRC's food-exporter suspension portal, scraped monthly via Playwright)
-- **People tab** — bidirectional cross-strait residency and flow. PRC-in-Taiwan via NIA residence/settlement permits + spouse stock, Taiwanese-in-PRC via curated 台胞证 / census / settler-floor data (PRC bureaus don't expose machine-readable endpoints, so this side is hand-maintained). Includes the asymmetric data-availability blurb explaining the 1992 籍貫 cutoff
-- **Military tab** — PLA incursion tracker (MND daily briefing + PLATracker backfill from 2020-09) with KPI strip, daily bars, six-sector ADIZ heatmap, and a custom-projected Taiwan Strait map. Plus the **Exercise Tracker** (Phase 2b.2) — interactive Leaflet map of cross-strait exercises and drills, extracted by Tier 1 from MIL_EXERCISE articles and editorially approved before display. Analyst review queue collapses same-name duplicates via canonical-key auto-merge; an edit modal lets analysts fix typos, coordinates, or dismiss false positives on already-approved rows
-- React dashboard with dark/light theme, priority signals section, filterable article feed, event clustering, Key Figures panel, Social Pulse column, and review queue UI — fully responsive with mobile tab navigation
-- Two-build deployment: public read-only build (`strait-signal.net`) hides all write controls at build time; admin build (`admin.strait-signal.net`) exposes the full editorial interface
-- REST API with filtering by topic, sentiment, source place (PRC / Taiwan / HK/Macao / International), urgency, escalation status, and bilingual full-text search
-
----
+- Reads Chinese-language primary sources from PRC, Taiwan, Hong Kong, Singapore, and the UK — RSS feeds and bespoke HTML scrapers for sites without usable feeds.
+- Classifies each article along three axes (topic, sentiment, urgency), extracts named entities and attributed quotes, and produces an English summary plus translation of the key quote.
+- Tracks parallel structured datasets that contextualise the news feed: bilateral trade with multi-reporter verification, trade-access asymmetry (what each side allows the other to ship), bidirectional residency stocks and flows, PLA incursion counts, and a cross-strait military exercise tracker.
+- Holds every article behind an analyst-approval gate. Nothing reaches the public feed until a human has confirmed the AI's call (or corrected it).
+- Surfaces a poll tracker covering Taiwan's main pollsters with canonical question_keys for cross-pollster trend charts (Lai approval, 統獨 position, KMT chair trust, etc.).
+- Publishes a public read-only build and a separate admin build — write controls don't exist in the public bundle.
 
 ## Why it exists
 
-There is no accessible, bilingual tool for tracking cross-strait signals that combines Chinese-language primary sources with structured analytical output. English-language coverage of PRC-Taiwan dynamics is slower, less detailed, and often stripped of the linguistic nuance that signals policy shifts.
+There is no accessible, bilingual tool that combines Chinese-language
+primary sources with structured analytical output. English-language
+coverage of PRC-Taiwan dynamics is slower, less detailed, and stripped
+of the linguistic nuance that signals policy shifts. The standard
+alternative is hiring a Mandarin-reading analyst.
 
-This tool processes Chinese government and military media in minutes, extracts structured intelligence, and flags escalation signals — work that would take a monolingual analyst hours. The AI layer accelerates analysis; native Mandarin reading ability verifies it.
+This system processes Chinese government, military, and partisan media
+in minutes, extracts structured intelligence, and flags escalation
+signals — work that would take a monolingual analyst hours. The AI
+layer accelerates analysis; native Mandarin reading by the operator
+verifies it before publication.
 
----
+The sentiment axis is deliberately **bidirectional**. Destabilising
+moves from either side score equally — PLA exercises and DPP
+sovereignty rhetoric register on the same instrument. This is not a
+"China bad, Taiwan good" dashboard; it's an attempt to measure
+cross-strait friction without picking a side.
 
-## Architecture
+## Methodology
 
-```
-Sources (PRC + Taiwan + HK + Singapore + UK, Chinese-language priority)
-├── RSS scraper (Xinhua, People's Daily, China News Service, Global Times, The Paper,
-│               CNA sections, LTN sections, CT sections via RSSHub,
-│               RTHK Greater China, Ming Pao sections, Zaobao, BBC Chinese)
-├── HTML scrapers (TAO, MFA, Guancha, Haixia Daobao, PLA Daily, YDN,
-│                 LTN Defence, UDN sections)
-├── Social scrapers (Weibo hot search JSON API, PTT BBS boards)
-│
-Keyword Pre-filter (directional — no API calls on irrelevant articles)
-├── PRC/HK/SG sources: must mention Taiwan/ROC territory to proceed
-├── TW sources: must mention PRC/mainland/HK/Macau to proceed
-│
-Three-Tier AI Analysis Pipeline (articles only)
-├── Tier 1: Gemini 3.1 Flash Lite — topic, sentiment, entities, urgency
-│           + side-extract: key figure statements (pending) + military
-│             exercise candidates from MIL_EXERCISE articles (pending)
-├── Tier 2: Gemini 2.5 Flash — escalation review for flagged articles
-├── Tier 3: Human review queue — model disagreement resolution
-│            (translation editing + auto-approve on resolution)
-│
-Glossary injection (pre-analysis): glossary.json terms injected as CRITICAL TERMINOLOGY MAPPING
-Officials roster injection (pre-analysis): current_officials.json (~28 roles, TW/US/PRC/JP) injected as authoritative reference; prevents officeholder hallucinations from stale training data
-Entity canonical normalisation (post-analysis): entity_canonical.json normalises extracted name_en fields
-Sentiment consistency check (post-extraction): flags label/score band mismatches and directional claims with no quoted evidence to the human review queue
-│
-Editorial Approval Gate
-└── All articles held from public feed until analyst explicitly approves
-│
-Parallel Data Pipelines (no AI analysis — feed dedicated tables and tabs)
-├── Social Pulse — Gemini 3.1 Flash Lite batch-translates Weibo / PTT titles
-├── Economic Indicators — MAC 7887 (TW trade), UN Comtrade (PRC Customs),
-│   MAC 7459 (TW-HK dual reporter), MAC 7888 (TW-vs-PRC macro), HK CSD direct
-│   → /api/economy/*  (verification dimension: same flow, different reporters)
-├── Investment by Industry — MAC 7478 (PRC→TW) + MAC 7473 (TW→PRC)
-│   → /api/economy/investment-by-industry
-├── Trade Access — BOFT bans, ECFA correspondence, MoF suspension waves,
-│   curated PRC bans, monthly CIFER snapshot (Playwright)
-│   → /api/trade-access/*
-├── Cross-Strait Population — TW NIA permits + curated PRC-side data
-│   → /api/economy/people-records
-└── PLA Incursions — Taiwan MND daily 共軍動態 briefing (sectors, vessels,
-    coast-guard) + one-shot PLATracker CSV backfill (ADIZ-entry count only,
-    2020-09 → 2026-04) → /api/military/incursions, /api/military/zones
-│
-Storage: SQLite with full-text search (FTS5)
-│
-FastAPI Backend (selected — full list at /docs)
-├── Articles & analysis
-│   ├── GET    /api/articles                — filtered feed; ?include_pending=true for admin
-│   ├── GET    /api/articles/{id}           — single article with full details
-│   ├── POST   /api/articles/{id}/approve   — mark article analyst-approved
-│   └── PATCH  /api/articles/{id}/translation — override headline, summary, key quote
-├── Stats & key figures
-│   ├── GET    /api/stats                   — dashboard summary, scoped aggregations + global baselines
-│   ├── GET    /api/stats/entities          — entity leaderboard
-│   ├── GET    /api/stats/key-figures(/candidates)
-│   ├── POST   /api/stats/key-figures/statements/{id}/approve  (and /dismiss)
-│   └── POST   /api/notes                   — analyst commentary
-├── Social
-│   ├── GET    /api/social/                 — Weibo top 50 + PTT trending
-│   └── PATCH  /api/social/{id}/translation — analyst translation correction
-├── Economy & people
-│   ├── GET    /api/economy/series(/meta)   — time-series + indicator catalog
-│   ├── GET    /api/economy/verification    — paired reporter gaps (3 kinds)
-│   ├── GET    /api/economy/investment-by-industry?direction=…
-│   └── GET    /api/economy/people-records  — bidirectional residency + flows
-├── Trade access
-│   ├── GET    /api/trade-access/items?direction=…&status=…
-│   ├── GET    /api/trade-access/summary    — asymmetry counts + suspension waves
-│   └── GET    /api/trade-access/cifer-snapshot — monthly Playwright snapshot
-├── Military
-│   ├── GET    /api/military/incursions(/monthly|/summary)
-│   ├── GET    /api/military/zones          — ADIZ sector heatmap
-│   ├── GET    /api/military/exercises(/summary)        — approved exercises
-│   ├── GET    /api/military/exercises/candidates       — admin: pending queue
-│   ├── POST   /api/military/exercises/{id}/(approve|dismiss|merge)
-│   └── PATCH  /api/military/exercises/{id}             — analyst edit
-├── Review
-│   ├── GET    /review/queue                — articles pending human review
-│   ├── POST   /review/{id}/resolve         — confirm / override / dismiss
-│   └── GET    /review/stats                — pending/resolved + pending_approval
-└── GET /docs                              — interactive API documentation
-│
-React Dashboard
-├── Signal Feed — filterable article list with event clustering; filter by PRC / Taiwan / HK/Macao / International
-├── Priority Signals (flash/priority urgency articles)
-├── Key Figures panel (10 curated officials, portraits, latest approved statement, curation modal)
-├── Social Pulse column (Weibo cross-strait items + PTT trending, persistent right-hand column)
-├── Strait Watch gauges (overall + PRC / TW / HK/Macao / International + by political camp)
-├── Sentiment trend chart and topic breakdown chart (Recharts)
-├── Inline editorial overrides (sentiment, topic, score on any article card)
-├── Inline translation editing (headline, summary, key quote — amber highlight on override)
-├── Editorial approval gate (pending articles shown with amber border + approve/dismiss buttons)
-├── Analyst commentary per article
-├── Review Queue (human review UI with translation editing + confirm/override/dismiss)
-├── Economy tab (TW-vs-PRC indicators, verification panels, investment by industry)
-├── Trade Access tab (asymmetry headline, suspension waves, status-coloured table)
-├── People tab (bidirectional residency, policy timeline, paired visitor flows)
-├── Military tab (PLA incursion KPIs + ADIZ heatmap + Strait map; Exercise Tracker with Leaflet map, list, analyst review queue, edit modal)
-└── Dark/light theme toggle
-```
+### Topic taxonomy
 
----
+28 categories spanning military activity (`MIL_EXERCISE`,
+`MIL_MOVEMENT`, `MIL_HARDWARE`, `MIL_POLICY`, `ARMS_SALES`,
+`LEGAL_GREY`), diplomacy and political contact (`DIP_STATEMENT`,
+`DIP_VISIT`, `DIP_SANCTIONS`, `PARTY_VISIT`, `INT_ORG`), the
+US-PRC-Taiwan triangle (`US_PRC`, `US_TAIWAN`), economic and
+technological flows (`ECON_TRADE`, `ECON_INVEST`, `ENERGY`,
+`SCI_TECH`), domestic politics (`POL_DOMESTIC_TW`, `POL_DOMESTIC_PRC`,
+`POL_TONGDU`), information and cyber operations (`INFO_WARFARE`,
+`CYBER`), and a handful of less-obvious categories (`HK_MAC`,
+`CULTURE`, `SPORT`, `TRANSPORT`, `HUMANITARIAN`). Boundaries at the
+edges are fuzzy by design — see Limitations.
 
-## Tech Stack
+### Sentiment axis
 
-| Layer | Technology |
-|-------|-----------|
-| Backend API | FastAPI (Python) |
-| Database | SQLite |
-| AI Pipeline | Google Gemini 3.1 Flash Lite + 2.5 Flash |
-| Scraping | feedparser, BeautifulSoup, httpx |
-| Frontend | React 19, Recharts |
-| RSS proxy | RSSHub (self-hosted Docker) |
-| Web Server | Nginx (reverse proxy + static serving) |
-| Process Manager | systemd |
-| Hosting | Ionos VPS S+, Ubuntu 24.04 |
+`hostile` / `cooperative` / `neutral` / `mixed` plus a numeric score
+from −1.0 (most hostile) to +1.0 (most cooperative). Measures how
+positively or negatively the article frames the **opposing side of
+the strait** — not geopolitical "stability" in the abstract. A PRC
+source covering Taiwan is rated on how it portrays Taiwan; a Taiwan
+source on how it portrays the PRC. Taiwan-US military cooperation is
+scored neutral-to-hostile (from the cross-strait frame), not
+cooperative. KMT visits to the mainland score cooperative regardless
+of how a Taiwanese viewer feels about them.
 
----
+Every directional score must include a `sentiment_reasoning` line
+quoting the specific phrase or framing that drove it — both as an
+audit trail for the analyst and as a constraint that prevents the
+model from emitting a score without textual evidence.
 
-## Source List
+### Source bias
 
-### Bias Labels
+Each source is hand-labelled with one of seven bias categories. The
+labels reflect editorial reality, not political diplomacy.
 
 | Label | Meaning |
 |-------|---------|
 | `green` | Explicitly pro-independence editorial line |
-| `green_leaning` | State-controlled under DPP-led government |
-| `blue` | Consistent KMT-aligned editorial line |
+| `green_leaning` | State-controlled under the current DPP government |
 | `centrist` | Editorially independent |
+| `blue_leaning` | KMT-sympathetic but not party-aligned |
+| `blue` | Consistent KMT-aligned editorial line |
 | `state_official` | PRC state media or government organ |
 | `state_nationalist` | PRC nationalist commentary |
 
-### Active Sources
+The bias label is *not* used to weight or filter content. It exists
+so a reader can interpret a hostile score from CNA differently than
+the same score from Global Times. Source bias correlates with
+sentiment by construction — that correlation is part of the signal,
+not a flaw to be normalised away.
 
-**Taiwan**
+### Model strategy
+
+Three tiers:
+
+1. **Tier 1 — Gemini 3.1 Flash Lite.** Classifies every article that
+   passes the directional keyword pre-filter. Outputs topic,
+   sentiment, urgency, entities, key quote, summary. Side-extracts
+   poll questions, military exercise candidates, and key figure
+   statements where applicable. Temperature 0.1, medium thinking.
+2. **Tier 2 — Gemini 3.5 Flash.** Re-reviews articles Tier 1 flagged
+   as escalation signals or `flash` urgency. The two tiers'
+   sentiment, topic, and escalation calls are compared.
+3. **Tier 3 — human review queue.** Articles where Tier 1 and Tier 2
+   disagree are held off the public feed until the analyst resolves
+   them.
+
+The keyword pre-filter is directional: PRC/HK/SG sources must mention
+Taiwan to proceed; Taiwan sources must mention PRC/HK/Macau. Articles
+the filter rejects never reach the AI API, which cuts ~80% of
+processing cost.
+
+Glossary injection (pre-analysis) and entity canonical normalisation
+(post-analysis) handle two failure modes that the bare model gets
+wrong: romanising Chinese names in Wade-Giles vs Hanyu Pinyin
+depending on the entity's jurisdiction, and attributing roles to
+former officeholders based on stale training data. The Wikidata-sourced
+current officials roster covers ~28 positions across TW/US/PRC/JP and
+is refreshed manually.
+
+### Accuracy
+
+<!-- Generated by scripts/accuracy_report.py — last 180 days,
+     2025-11-28 → 2026-05-27. Re-run to refresh. -->
+
+Snapshot over the last 180 days. The analyst engaged with 7,710
+articles, approving 6,001 and dismissing 1,709 (22.2%).
+
+Every stored override is a real analyst reclassification — the admin
+UI only transmits override fields when the analyst explicitly chose
+to override (review-queue path) or typed into the dropdown
+(article-card path).
+
+**Override rates on approved articles:**
+
+| Field                 | Override rate | Count |
+|-----------------------|---------------|-------|
+| Topic relabel         | 6.1%          | 366   |
+| Sentiment relabel     | 8.3%          | 496   |
+| Title translation     | 8.7%          | 523   |
+| Summary translation   | 8.0%          | 483   |
+| Key-quote translation | 0.4%          | 25    |
+
+Tier 1 / Tier 2 escalation review disagreement: 114 flagged, 114
+resolved, 0 open.
+
+**Where the analyst reclassifies TO** — categories the analyst most
+often promotes articles INTO. Reveals where the AI misses the
+framing on first pass.
+
+| Target topic | Reclassifications |
+|--------------|-------------------|
+| US_PRC | 114 |
+| POL_TONGDU | 75 |
+| US_TAIWAN | 60 |
+| HK_MAC | 22 |
+| LEGAL_GREY | 10 |
+| INT_ORG | 10 |
+| DIP_STATEMENT | 9 |
+| POL_DOMESTIC_TW | 8 |
+| CULTURE | 8 |
+| HUMANITARIAN | 7 |
+| CYBER | 7 |
+| MIL_HARDWARE | 6 |
+| POL_DOMESTIC_PRC | 5 |
+| DIP_VISIT | 5 |
+
+The model systematically under-identifies US-related framings
+(114 + 60 = 174 reclassifications into US_PRC / US_TAIWAN, a third
+of all topic overrides). The pattern: articles about Washington-
+Beijing tech sanctions or Taiwan arms sales often get classified
+into MIL_POLICY, ECON_TRADE, or POL_DOMESTIC_PRC before the analyst
+moves them. Same direction for HK_MAC (22 reclassifications into
+that label, against a current population of 27 articles in the
+category — almost every HK_MAC article in the system is there
+because the analyst put it there).
+
+**Per-topic dismissal rate** — of articles the analyst touched in
+each category, what fraction was dismissed? High dismissal = model
+surfacing weakly-relevant articles. Categories with <20 touched
+articles in window are omitted.
+
+| Topic | Approved | Dismissed | Dismiss % |
+|-------|----------|-----------|-----------|
+| POL_DOMESTIC_TW | 1184 | 726 | 38.0% |
+| DIP_STATEMENT | 844 | 121 | 12.5% |
+| MIL_POLICY | 576 | 97 | 14.4% |
+| POL_TONGDU | 461 | 51 | 10.0% |
+| ECON_TRADE | 343 | 162 | 32.1% |
+| PARTY_VISIT | 378 | 24 | 6.0% |
+| DIP_VISIT | 320 | 56 | 14.9% |
+| CULTURE | 211 | 144 | 40.6% |
+| US_PRC | 235 | 18 | 7.1% |
+| US_TAIWAN | 222 | 16 | 6.7% |
+| SCI_TECH | 141 | 77 | 35.3% |
+| MIL_EXERCISE | 161 | 23 | 12.5% |
+| MIL_MOVEMENT | 141 | 13 | 8.4% |
+| INT_ORG | 125 | 7 | 5.3% |
+| POL_DOMESTIC_PRC | 92 | 38 | 29.2% |
+| TRANSPORT | 99 | 26 | 20.8% |
+| ARMS_SALES | 111 | 13 | 10.5% |
+| INFO_WARFARE | 87 | 21 | 19.4% |
+| ECON_INVEST | 33 | 29 | 46.8% |
+| CYBER | 50 | 3 | 5.7% |
+| MIL_HARDWARE | 46 | 6 | 11.5% |
+| LEGAL_GREY | 46 | 4 | 8.0% |
+| HUMANITARIAN | 44 | 2 | 4.3% |
+| HK_MAC | 22 | 12 | 35.3% |
+| ENERGY | 17 | 6 | 26.1% |
+| SPORT | 11 | 11 | 50.0% |
+
+Two findings worth reading honestly:
+
+- **The model systematically under-identifies US-related framing
+  and HK_MAC.** The override-target distribution above is dominated
+  by US_PRC (114), US_TAIWAN (60), and HK_MAC (22). The analyst
+  layer is doing real semantic correction here, not just noise
+  filtering.
+- **The dismissal rate identifies a different failure mode** —
+  categories like CULTURE (40.6%), POL_DOMESTIC_TW (38.0%),
+  SCI_TECH (35.3%), and ECON_TRADE (32.1%) get accepted by the
+  keyword filter but the cross-strait angle is often weak on read,
+  so the analyst dismisses ~1 in 3. Categories with hard signals
+  (PARTY_VISIT, INT_ORG, CYBER, US-relations) get dismissed <10%
+  of the time.
+
+Re-run `python scripts/accuracy_report.py` for a fresh snapshot, or
+`--markdown` to regenerate this block.
+
+## Sources
+
+### Active Taiwan-side sources
 
 | Source | Bias | Method |
 |--------|------|--------|
-| LTN Politics (自由時報政治) | green | RSS |
-| LTN World (自由時報國際) | green | RSS |
-| LTN Business (自由時報財經) | green | RSS |
-| LTN Defence (自由軍武頻道) | green | HTML scraper |
-| CNA Politics (中央社政治) | green_leaning | RSS |
-| CNA Mainland (中央社兩岸) | green_leaning | RSS |
-| CNA International (中央社國際) | green_leaning | RSS |
-| CNA Finance (中央社財經) | green_leaning | RSS |
-| CT Cross-Strait (中時兩岸) | blue | RSS (RSSHub) |
-| CT Politics (中時政治) | blue | RSS (RSSHub) |
-| CT Military (中時軍事) | blue | RSS (RSSHub) |
-| CT Opinion (中時言論) | blue | RSS (RSSHub) |
-| UDN Cross-Strait (聯合報兩岸) | blue | HTML scraper |
-| UDN Breaking (聯合報要聞) | blue | HTML scraper |
-| UDN International (聯合報全球) | blue | HTML scraper |
-| UDN Business (聯合報産経) | blue | HTML scraper |
+| LTN (自由時報) — Politics / World / Business / Defence | green | RSS + HTML |
+| CNA (中央社) — Politics / Mainland / International / Finance | green_leaning | RSS |
 | YDN (青年日報) | green_leaning | HTML scraper |
+| CT (中時) — Cross-Strait / Politics / Military / Opinion | blue | RSS (via RSSHub) |
+| UDN (聯合報) — Cross-Strait / Breaking / International / Business | blue | HTML scraper |
 
-**PRC**
+### Active PRC and HK sources
 
 | Source | Bias | Method |
 |--------|------|--------|
-| Xinhua Chinese (新华社) | state_official | RSS |
-| People's Daily Politics (人民日报台湾) | state_official | RSS (RSSHub) |
+| Xinhua (新华社) | state_official | RSS |
+| People's Daily (人民日报台湾) | state_official | RSS via RSSHub |
 | China News Service (中国新闻网) | state_official | RSS |
-| Global Times (环球时报台海) | state_nationalist | RSS (RSSHub) |
-| The Paper (澎湃新聞) | state_official | RSS (RSSHub) |
-| PRC MFA Spokesperson (外交部发言人) | state_official | HTML scraper |
-| Taiwan Affairs Office (国台办) | state_official | HTML scraper |
+| TAO (国台办) | state_official | HTML scraper |
+| MFA (外交部) | state_official | HTML scraper |
+| PLA Daily (解放军报) | state_official | HTML scraper |
+| Global Times (环球时报台海) | state_nationalist | RSS via RSSHub |
 | Guancha (观察者网) | state_nationalist | HTML scraper |
-| Haixia Daobao (海峽導報) | state_official | HTML scraper |
-| PLA Daily (解放軍報) | state_official | HTML scraper |
-
-**Hong Kong**
-
-| Source | Bias | Method |
-|--------|------|--------|
-| RTHK Greater China (香港電台大灣區) | state_official | RSS |
-| Ming Pao Cross-Strait (明報兩岸) | centrist | RSS |
-| Ming Pao Editorial (明報社評) | centrist | RSS |
-| Ming Pao Opinion (明報觀點) | centrist | RSS |
-
-**International**
-
-| Source | Bias | Method |
-|--------|------|--------|
-| Zaobao Cross-Strait (联合早报中港台) | centrist | RSS (RSSHub) |
-| BBC Chinese (BBC中文) | centrist | RSS |
-
-**Social (not in article pipeline)**
-
-| Source | Method |
-|--------|--------|
-| Weibo Hot Search (微博热搜) | JSON API |
-| PTT Military / Gossiping / HatePolitics | HTML scraper |
-
-### Deactivated
-
-- **Guangming Daily (光明日報)** — anyfeeder proxy dead, rarely cross-strait relevant
-
----
-
-## Topic Taxonomy
-
-| Code | Description |
-|------|-------------|
-| `MIL_EXERCISE` | PLA drills, live-fire exercises, joint exercises near Taiwan |
-| `MIL_MOVEMENT` | Troop deployments, naval transits, ADIZ incursions |
-| `MIL_HARDWARE` | Weapons systems, procurement, specific platform news |
-| `MIL_POLICY` | Defence budgets, doctrine, white papers, conscription, MND statements |
-| `DIP_STATEMENT` | MFA remarks, TAO statements, official warnings |
-| `DIP_VISIT` | Leader travel, delegation visits, ally engagement (state-level) |
-| `DIP_SANCTIONS` | Trade restrictions, entity listings, diplomatic downgrades |
-| `PARTY_VISIT` | KMT/opposition visits to PRC (distinct from state-level DIP_VISIT) |
-| `ARMS_SALES` | US or third-party arms transfers, export licence decisions, delivery milestones |
-| `ECON_TRADE` | Cross-strait trade, supply chain, ECFA |
-| `ECON_INVEST` | FDI flows, business restrictions, tech sector |
-| `ENERGY` | Energy security — LNG, nuclear policy, shipping lane economics, infrastructure vulnerability |
-| `SCI_TECH` | Science and technology — semiconductors, chip supply chains, export controls as tech policy, AI competition, scientific exchanges |
-| `POL_DOMESTIC_TW` | Taiwan elections, party dynamics, domestic politics (subject = Taiwan) |
-| `POL_DOMESTIC_PRC` | PRC internal politics, leadership, domestic governance |
-| `POL_TONGDU` | 統獨 spectrum — unification/independence dynamics (bidirectional) |
-| `INFO_WARFARE` | Disinformation, cognitive warfare, narrative manipulation |
-| `CYBER` | Cyber operations, hacking, digital espionage, infrastructure intrusions |
-| `LEGAL_GREY` | Coast guard activity, sand dredging, cable incidents |
-| `HUMANITARIAN` | People-to-people exchange, humanitarian issues |
-| `TRANSPORT` | Cross-strait transport links, aviation, shipping |
-| `INT_ORG` | Taiwan's participation in international organisations |
-| `US_PRC` | US-China relations as primary subject — Washington-Beijing diplomacy, tech/trade sanctions |
-| `US_TAIWAN` | US-Taiwan relations — political support, congressional legislation, US officials |
-| `HK_MAC` | Hong Kong and Macao with cross-strait relevance — "one country, two systems" credibility |
-| `CULTURE` | Cross-strait cultural exchange and soft power |
-| `SPORT` | Sporting events with cross-strait political dimensions |
-| `NOT_RELEVANT` | Article does not meet cross-strait relevance threshold |
-
-`POL_TONGDU` (統獨) rather than `POL_UNIFICATION` — the bidirectional framing reflects that both independence moves and unification rhetoric shift the status quo.
-
----
-
-## Sentiment Axis
-
-| Score | Label | Meaning |
-|-------|-------|---------|
-| −1.0 to −0.3 | Hostile | Article frames the other side negatively — threatening, antagonistic, confrontational |
-| −0.3 to +0.3 | Neutral | Factual reporting without strong positive or negative framing of the other side |
-| +0.3 to +1.0 | Cooperative | Warm, engaging framing — shared identity, dialogue, trade, people-to-people ties |
-
-Sentiment measures **how the source frames the opposing side of the strait**, not geopolitical stability. For PRC sources: how does the article portray Taiwan? For Taiwan sources: how does it portray the PRC? The axis is **bidirectional** — a PRC outlet publishing a hostile piece about Lai Ching-te and a Taiwan outlet publishing a hostile piece about PLA exercises both score negative. Taiwan-US military cooperation does not score as cross-strait cooperative.
-
-A Taiwanese politician opposing formal Taiwan independence scores **neutral** — this is a mainstream within-Taiwan position with no consensus against it, not a cross-strait stance. By contrast, a PRC official invoking anti-independence language to deny ROC sovereignty scores **hostile** — it asserts framing over Taiwan's right to choose. Every non-neutral score is accompanied by a one-sentence `sentiment_reasoning` field quoting the specific phrase that drove the classification, visible in the admin interface.
-
----
-
-## Model Strategy
-
-The pipeline uses Google Gemini 3.1 Flash Lite as the default processing engine (cost-effective, strong Chinese-language performance) with Gemini 2.5 Flash for escalation review on flagged articles. DeepSeek was evaluated and rejected due to documented political censorship on cross-strait topics — it consistently refused to analyse or misclassified content involving Taiwan independence, PLA exercises, and cross-strait political dynamics.
-
----
-
-## Setup
-
-```bash
-git clone https://github.com/Parkemoon/cross-strait-signal.git
-cd cross-strait-signal
-python -m venv venv
-venv\Scripts\activate          # Windows
-# source venv/bin/activate     # Mac/Linux
-pip install -r requirements.txt
-```
-
-Create a `.env` file in the project root:
-
-```
-GEMINI_API_KEY=your_gemini_key_here
-```
-
-Initialise the database and seed sources:
-
-```bash
-python scripts/init_db.py
-python scripts/seed_sources.py
-```
-
-Run the full pipeline (scrape + analyse):
-
-```bash
-python scripts/run_pipeline.py
-```
-
-Start the API server and React dashboard:
-
-```bash
-# Terminal 1 — API
-python -m uvicorn api.main:app --reload --port 8000
-
-# Terminal 2 — Frontend
-cd frontend
-npm start
-```
-
-API docs available at `http://localhost:8000/docs`  
-Dashboard available at `http://localhost:3000`
-
----
-
-## Deployment
-
-### RSSHub
-
-Several sources (People's Daily, Global Times, The Paper, Zaobao, RTHK, China Times sections) are fetched via a self-hosted RSSHub instance. Run it as a Docker container with Chromium bundled (required for China Times):
-
-```bash
-docker run -d --name rsshub --restart always -p 1200:1200 diygod/rsshub:chromium-bundled
-```
-
-### Server Setup
-
-```bash
-cd /var/www
-git clone https://github.com/Parkemoon/cross-strait-signal.git
-cd cross-strait-signal
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cd frontend && npm install && npm run build && cd ..
-python scripts/init_db.py
-python scripts/seed_sources.py
-```
-
-### systemd Service
-
-```ini
-# /etc/systemd/system/cross-strait-signal.service
-[Unit]
-Description=Cross-Strait Signal API
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/var/www/cross-strait-signal
-Environment=PATH=/var/www/cross-strait-signal/venv/bin
-ExecStart=/var/www/cross-strait-signal/venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Nginx Config
-
-Two server blocks — one per domain, both proxying to the same FastAPI backend.
-
-**Public** (`/etc/nginx/sites-available/cross-strait-signal-public`):
-```nginx
-server {
-    listen 80;
-    server_name strait-signal.net www.strait-signal.net;
-
-    root /var/www/cross-strait-signal/frontend/build-public;
-    index index.html;
-
-    location / { try_files $uri $uri/ /index.html; }
-
-    location /api/ {
-        limit_except GET { deny all; }
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-**Admin** (`/etc/nginx/sites-available/cross-strait-signal-admin`):
-```nginx
-server {
-    listen 80;
-    server_name admin.strait-signal.net;
-
-    auth_basic "Cross-Strait Signal";
-    auth_basic_user_file /etc/nginx/.htpasswd;
-
-    root /var/www/cross-strait-signal/frontend/build;
-    index index.html;
-
-    location / { try_files $uri $uri/ /index.html; }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    location /review/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-    }
-}
-```
-
-### Cron Schedule
-
-```bash
-# Main pipeline runs every 6 hours
-0 */6 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
-
-# CIFER snapshot (Playwright, monthly — not in main pipeline because of the headless Chromium launch cost)
-0 3 1 * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python -m scraper.scrapers.cifer_snapshot_scraper >> /var/log/cifer-snapshot.log 2>&1
-```
-
-### Deploy Workflow
-
-```bash
-# Local — commit, push, then SSH to server
-git push
-ssh root@<your-server>
-cd /var/www/cross-strait-signal && ./server_deploy.sh
-```
-
-`server_deploy.sh` runs `git pull`, builds both frontend versions (`npm run build` for admin, `npm run build:public` for public), and restarts the service.
-
----
-
-## Design Principles
-
-- **Chinese-language sources are primary.** English versions of Chinese outlets break stories later and with less analytical depth.
-- **Bias labels reflect editorial reality, not diplomatic hedging.** CNA is `green_leaning` (state-controlled under DPP), not centrist. UDN is `blue` (consistent editorial line), not merely blue-leaning.
-- **The sentiment axis is bidirectional.** Destabilising actions from either side register on the same scale.
-- **POL_TONGDU not POL_UNIFICATION.** The 統獨 spectrum runs in both directions.
-- **Human judgment overrides AI.** The review queue, inline overrides, and translation editing exist because AI classification and translation of politically sensitive content requires editorial judgment.
-- **Every article requires analyst approval.** Nothing reaches the public dashboard without explicit sign-off. AI-flagged articles are additionally routed through the review queue before approval.
-
----
-
-## Roadmap
-
-- [x] Multi-source bilingual scraping (RSS + HTML)
-- [x] Directional keyword pre-filter (saves ~80% API costs)
-- [x] Three-tier AI analysis pipeline with human review queue
-- [x] Source bias taxonomy (green / blue / state_official / state_nationalist)
-- [x] FastAPI backend with filtering and full-text search
-- [x] Analyst commentary and classification override
-- [x] React dashboard with dark/light theme
-- [x] Priority signals section and review queue UI
-- [x] Sentiment trend visualisation
-- [x] Topic breakdown chart
-- [x] Event clustering (Jaccard similarity, 48-hour window)
-- [x] Automated scheduling (cron, twice daily)
-- [x] VPS deployment
-- [x] UDN HTML scraper (4 sections)
-- [x] Provincial PRC media sources (海峽導報, 解放軍報, 观察者网)
-- [x] LTN Defence scraper
-- [x] YDN (ROC MND newspaper) scraper
-- [x] Source badges colour-coded by political bias
-- [x] Social media signal layer (Weibo hot search + PTT trending)
-- [x] Key Figures panel with manual curation workflow (attributed quotes/actions, analyst approval)
-- [x] Public read-only dashboard (`strait-signal.net`) — write controls hidden at build time
-- [x] Domain name + SSL (`strait-signal.net` / `admin.strait-signal.net`, Cloudflare proxy)
-- [x] Mobile-responsive layout with tab navigation
-- [x] Editorial approval gate — all articles held from public feed until analyst sign-off
-- [x] Inline translation editing (headline, summary, key quote) with amber override indicator
-- [x] China Times sections via self-hosted RSSHub (chromium-bundled)
-- [x] HK sources — RTHK Greater China, Ming Pao (Cross-Strait, Editorial, Opinion)
-- [x] International Chinese-language sources — BBC Chinese, Zaobao
-- [x] Filter-scoped Strait Watch sentiment gauges (scope chip, ghost baseline dots, entity/topic/place/urgency filtering)
-- [x] Entity name merge CLI (`scripts/merge_entities.py` — fuzzy clustering, interactive merge, free-text canonical)
-- [x] Wikidata-driven officials roster with auto-refresh script (`scripts/refresh_officials.py`) — ~28 positions across TW/US/PRC/JP, injected into every prompt to prevent officeholder hallucinations
-- [x] Sentiment audit trail (`sentiment_reasoning`) — one-sentence quoted evidence per non-neutral score, displayed in admin interface
-- [x] Sentiment consistency validation — label/score band mismatches and unsupported directional claims auto-flagged to human review queue
-- [x] **Economy tab** — TW-vs-PRC trade with multi-reporter verification (MAC + UN Comtrade + HK CSD direct); the reporter gap is the analytical signal
-- [x] **Investment-by-industry** — both directions, with industry colour-coding and the ~50× outbound asymmetry visible
-- [x] **Trade Access tab** — BOFT bans + ECFA active/suspended + MoF PRC suspension waves + curated PRC bans, plus the monthly CIFER snapshot scraper (Playwright)
-- [x] **People tab** — bidirectional cross-strait residency: TW NIA permits + spouse stock + curated PRC-side data (台胞证 / census / settler floor) — with the 1992 籍貫 cutoff documented inline
-- [x] **PLA Incursion tracker** — Taiwan MND daily 共軍動態 scraper + PLATracker historical CSV backfill (2020-09 → 2026-04); KPI strip, daily bars, six-sector ADIZ heatmap, custom Taiwan Strait SVG map
-- [x] **Exercise Tracker** — Leaflet map + list of cross-strait exercises and drills, AI-extracted from MIL_EXERCISE articles, with an analyst review queue, canonical-key auto-merge, and edit modal for approved rows
-- [ ] Maps for geocoded entities (entity table already carries lat/lng schema fields)
-- [ ] Poll tracker — TW domestic polling (presidential approval, cross-strait attitude)
-- [ ] Incursion × exercise cross-reference — apply the verification angle to military data (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?)
-- [ ] Monthly-aggregated sentiment endpoint (revisit when 12+ months of data exists)
-- [ ] ADS-B / AIS data integration (Phase 3)
-
----
+| Haixia Daobao (海峡导报) | state_nationalist | HTML scraper |
+| The Paper (澎湃新闻) | state_official | RSS |
+| RTHK Greater China (after NSL) | state_official | RSS |
+| Ming Pao | centrist | RSS |
+| Zaobao (Singapore) | centrist | RSS |
+| BBC Chinese | centrist | RSS (summary only — body is Next.js CSR) |
+
+YDN is labelled `green_leaning` because it is MND state media under
+the current DPP executive. The label tracks the government, not the
+publisher — reclassify if the executive changes party. Same logic
+applied to RTHK after the National Security Law.
+
+## Limitations
+
+What the system can't do, or does badly. Listed in descending order
+of how much they affect the editorial product.
+
+- **High-noise categories** include `CULTURE`, `POL_DOMESTIC_TW`,
+  `SCI_TECH`, `HK_MAC`, and `ECON_TRADE` — the analyst dismisses
+  30–40% of articles in these categories rather than approving them.
+  The keyword pre-filter accepts these articles but the cross-strait
+  angle is often weak on read. Read what survives the analyst, not
+  the raw topic feed.
+- **US-relations framing is a known model weakness.** US_PRC and
+  US_TAIWAN together account for ~30% of all topic overrides — the
+  AI's first pass routinely misses that an article is primarily
+  about Washington-Beijing posture and the analyst has to reclassify.
+  Similar story for HK_MAC. The accuracy section above quantifies
+  this explicitly.
+- **The original AI classification is lost on override.** When the
+  analyst overrides a topic, `ai_analysis.topic_primary` is
+  overwritten in place — the pre-override value isn't audit-logged.
+  This means we can only measure "the analyst overrode" rates, not
+  per-category accuracy ("the AI got DIP_STATEMENT right 95% of the
+  time"). Adding audit logging would unlock per-category accuracy
+  measurement — not currently in scope.
+- **Source bias correlates with sentiment by construction.** Green
+  sources rate PRC moves more hostilely than centrist ones; PRC state
+  media rates Taiwan moves more hostilely under DPP than under KMT
+  governments. This is part of the signal, not a flaw — but a reader
+  comparing absolute scores across sources without bias-controlling
+  is reading noise.
+- **TW-in-PRC residency data is hand-curated.** PRC bureaus do not
+  publish machine-readable endpoints for 台胞证 issuance, census
+  cross-tabs, or settler floor stocks. The data on People tab is
+  manually compiled from the published bureaus' PDF/HTML snapshots
+  and lags 6–12 months. PRC-in-Taiwan data is automated (NIA APIs).
+- **No Cantonese sources.** Hong Kong coverage relies on Chinese-
+  language outlets (RTHK, Ming Pao). Cantonese-only commentary is
+  not represented.
+- **Officials roster covers ~28 positions.** Lower-level officeholder
+  hallucinations are possible; the model may attribute a role to a
+  former occupant when the article references someone outside the
+  roster. Wikidata refresh is manual (`scripts/refresh_officials.py`)
+  — typically run after elections and cabinet reshuffles.
+- **BBC Chinese body content is unavailable.** Article pages are
+  Next.js client-side rendered; BeautifulSoup yields no text. Only
+  the RSS `<description>` summary is stored — sufficient for keyword
+  filtering and a usable AI classification, but not for a full read.
+- **Topic boundaries fuzzy at the edges.** POL_TONGDU vs CULTURE vs
+  HK_MAC overlap on identity-charged cultural exchange articles.
+  ARMS_SALES vs MIL_HARDWARE vs MIL_POLICY overlap on weapons-platform
+  procurement debates. The analyst override is the load-bearing
+  resolution layer.
+- **Translation accuracy depends on a hand-curated glossary.**
+  ~600 terms covering politicians, military assets, institutions in
+  both Simplified and Traditional Chinese. Niche policy terminology
+  outside the glossary is romanised by the model with no human-curated
+  authority — usually correct, occasionally wrong on first use of an
+  obscure organisation.
+- **Pollster-direct scrapers are 25,000-char capped.** Long-form
+  releases above that (rare; My-Formosa monthlies are 18k) get truncated.
+  The cap was 10,000 until 2026-05; releases above 10k chars were
+  silently losing back-half questions for months until that bug was
+  diagnosed and fixed. Fix shipped 2026-05-27.
 
 ## Author
 
-Ed Moon — bilingual English-Mandarin analyst, former Supervising Editor at TaiwanPlus.  
+Ed Moon — bilingual English-Mandarin analyst, former Supervising
+Editor at TaiwanPlus. I read Mandarin; the AI accelerates the
+reading, I verify the output. Feedback and corrections welcome via
+issues.
+
 Substack: [The East and Back](https://theeastandback.substack.com)
+
+## Licence
+
+[GPL-3.0](LICENSE)
 
 ---
 
-## License
-
-[GPL-3.0](LICENSE)
+→ See [`docs/architecture.md`](docs/architecture.md) for the full
+data-flow diagram, API surface, and DB schema overview.
+→ See [`docs/deployment.md`](docs/deployment.md) for setup,
+infrastructure, and operational notes (systemd, Nginx, cron, RSSHub).
+→ See [`CHANGELOG.md`](CHANGELOG.md) for the development history.
