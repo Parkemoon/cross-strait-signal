@@ -28,6 +28,7 @@ internalising before editing:
      `poll_results` rows from that blob and NULLs the column.
 """
 import json
+import os
 import re
 from datetime import date
 from typing import List, Optional
@@ -59,6 +60,57 @@ _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # `approval_lai_overall`) — analysts free to extend but the slug must be
 # safe to embed in URL path segments and SQL parameter names.
 _QUESTION_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_]*$")
+
+# Party identity for a poll option → canonical colour palette (resolved in the
+# frontend partyColours.js). IND = independent / non-aligned. Validated at the
+# API edge; the per-option `colour_override` hex is the escape hatch beyond this.
+_VALID_PARTIES = {'DPP', 'KMT', 'TPP', 'NPP', 'TSP', 'GPT', 'NP', 'PFP', 'CUPP', 'IND'}
+_HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+# Person → party lookup from the curated key_figures roster, loaded once at
+# import (mirrors how economy.py loads its sidecars). Auto-colours the ~10
+# national figures (Lai etc.) on trend charts without an explicit
+# poll_option_parties row. Keyed on lower-cased name/alias; the Step 3d
+# canonicaliser keeps poll option labels aligned with these names.
+_KEY_FIGURES_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..",
+    "scraper", "processors", "key_figures.json",
+)
+
+
+def _load_figure_party() -> dict:
+    try:
+        with open(_KEY_FIGURES_PATH, encoding="utf-8") as f:
+            figures = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    out: dict = {}
+    for fig in figures:
+        party = (fig.get("party") or "").strip()
+        if not party:
+            continue
+        for alias in [fig.get("name_zh"), fig.get("name_en"), *(fig.get("aliases") or [])]:
+            if alias:
+                out[alias.strip().lower()] = party
+    return out
+
+
+_FIGURE_PARTY = _load_figure_party()
+
+
+def _option_party(label_zh: Optional[str], label_en: Optional[str],
+                  explicit_party: Optional[str]) -> Optional[str]:
+    """Resolve an option's party: explicit poll_option_parties assignment wins,
+    else fall back to the key_figures person→party map by name/alias."""
+    if explicit_party:
+        return explicit_party
+    for lab in (label_zh, label_en):
+        if lab:
+            party = _FIGURE_PARTY.get(lab.strip().lower())
+            if party:
+                return party
+    return None
+
 
 router = APIRouter(prefix="/api/polls", tags=["polls"])
 
@@ -257,10 +309,13 @@ def polls_by_question(
                 pr.option_label_en AS label_en,
                 pr.option_order   AS option_order,
                 pr.percentage     AS percentage,
-                pr.margin_error   AS margin_error
+                pr.margin_error   AS margin_error,
+                op.party          AS opt_party,
+                op.colour_override AS opt_colour
             FROM polls p
             JOIN pollsters ps ON ps.id = p.pollster_id
             JOIN poll_results pr ON pr.poll_id = p.id
+            LEFT JOIN poll_option_parties op ON op.option_label_zh = pr.option_label_zh
             WHERE {' AND '.join(clauses)}
             ORDER BY p.fielded_start ASC, p.id, pr.option_order
         """
@@ -288,6 +343,8 @@ def polls_by_question(
             "option_order": r["option_order"],
             "percentage":   r["percentage"],
             "margin_error": r["margin_error"],
+            "party":           _option_party(r["label_zh"], r["label_en"], r["opt_party"]),
+            "colour_override": r["opt_colour"],
         })
 
     return {
@@ -386,6 +443,76 @@ def create_pollster(body: PollsterCreate):
               (body.homepage_url or '').strip() or None))
         conn.commit()
         return {"id": cur.lastrowid, "slug": slug}
+
+
+# ============================================================
+# Option party / colour assignments (admin)
+# ============================================================
+# Drives candidate/party trend-line colour. `party` maps to the canonical
+# palette in frontend partyColours.js; `colour_override` is a direct hex that
+# wins (independents, palette clashes). Person→party for the curated
+# key_figures roster resolves automatically in /by-question, so rows here are
+# needed only for party-NAME labels and off-roster candidates.
+
+class OptionPartyUpsert(BaseModel):
+    option_label_zh: str
+    party:           Optional[str] = None
+    colour_override: Optional[str] = None
+    reviewed_by:     Optional[str] = None
+
+
+@router.get("/option-parties", dependencies=[Depends(require_admin)])
+def list_option_parties():
+    """All explicit option→party/colour assignments. The key_figures-derived
+    party (auto-resolved in /by-question) is NOT listed here — only rows an
+    analyst has set — so the colour picker shows what's been pinned vs. auto."""
+    with db_conn() as conn:
+        rows = conn.execute(
+            "SELECT option_label_zh, party, colour_override, updated_at, updated_by "
+            "FROM poll_option_parties ORDER BY party, option_label_zh"
+        ).fetchall()
+    return {"assignments": [dict(r) for r in rows]}
+
+
+@router.put("/option-parties", dependencies=[Depends(require_admin)])
+def upsert_option_party(body: OptionPartyUpsert):
+    """Upsert one option→party/colour assignment, keyed on option_label_zh.
+    Clearing BOTH party and colour_override deletes the row (revert to
+    auto/positional). party validated against the enum; colour_override against
+    '#RRGGBB'."""
+    label = (body.option_label_zh or "").strip()
+    if not label:
+        raise HTTPException(400, "option_label_zh is required")
+    party = ((body.party or "").strip().upper()) or None
+    colour = ((body.colour_override or "").strip()) or None
+    if party and party not in _VALID_PARTIES:
+        raise HTTPException(400, f"invalid party {party!r} (allowed: {sorted(_VALID_PARTIES)})")
+    if colour and not _HEX_RE.match(colour):
+        raise HTTPException(400, f"colour_override {colour!r} must match {_HEX_RE.pattern}")
+
+    with db_conn() as conn:
+        if not party and not colour:
+            conn.execute("DELETE FROM poll_option_parties WHERE option_label_zh = ?", (label,))
+            conn.commit()
+            return {"option_label_zh": label, "deleted": True}
+        conn.execute("""
+            INSERT OR REPLACE INTO poll_option_parties
+                (option_label_zh, party, colour_override, updated_at, updated_by)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)
+        """, (label, party, colour, (body.reviewed_by or "").strip() or None))
+        conn.commit()
+    return {"option_label_zh": label, "party": party, "colour_override": colour}
+
+
+@router.delete("/option-parties/{label_zh:path}", dependencies=[Depends(require_admin)])
+def delete_option_party(label_zh: str):
+    """Remove an assignment — the option reverts to key_figures auto-resolution
+    or the positional palette."""
+    label = (label_zh or "").strip()
+    with db_conn() as conn:
+        cur = conn.execute("DELETE FROM poll_option_parties WHERE option_label_zh = ?", (label,))
+        conn.commit()
+    return {"option_label_zh": label, "deleted": cur.rowcount > 0}
 
 
 # ============================================================

@@ -356,6 +356,28 @@ export async function createPoll(body) {
   });
 }
 
+// Option → party/colour assignments driving candidate/party trend-line colour.
+// `setOptionParty` upserts (clearing both party + colour_override deletes the
+// row server-side). Keyed on the canonical option_label_zh.
+export async function fetchOptionParties() {
+  return request(`/api/polls/option-parties`, { headers: authHeaders() });
+}
+
+export async function setOptionParty(body) {
+  return request(`/api/polls/option-parties`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteOptionParty(labelZh) {
+  return request(`/api/polls/option-parties/${encodeURIComponent(labelZh)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",
