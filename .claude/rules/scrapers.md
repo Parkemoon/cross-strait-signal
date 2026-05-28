@@ -48,6 +48,19 @@ Two types:
 | `cifer_snapshot_scraper.py` | `cifer_snapshots` | Playwright, monthly cron — NOT in `run_pipeline.py` |
 | `tw_nia_population_scraper.py` | `cross_strait_population` | TW NIA 167829 (居留/定居 permits) + 13503 (大陸/港澳配偶) |
 | `mnd_incursion_scraper.py` | `pla_incursions` | Taiwan MND daily 共軍動態 briefing — see PLA Incursions below |
+| `mac_poll_scraper.py` | `polls` / `poll_results` | MAC 即時民調 「民眾對兩岸相關議題之看法」 — deterministic 配布表 PDF parse, inserted **approved** (no Step 3c AI pass). See MAC Polls below. Runs as Step 2L. |
+
+## MAC Polls (`mac_poll_scraper.py`)
+
+MAC (大陸委員會) commissions Ipsos 即時民調 cross-strait-attitude surveys (~quarterly) and publishes each release on its 最新消息 site as a `News_Content.aspx` page carrying three PDFs — 新聞稿 (press release), 結果摘要 (summary), and 配布表 (full distribution table). Only the **配布表** has machine-readable per-option percentages, so it is the only one parsed.
+
+Unlike TVBS/My-Formosa/ETtoday (prose articles → Step 3c AI extraction), MAC publishes clean structured tables, so this scraper parses deterministically with pdfplumber and writes straight to `polls`/`poll_results` as `approved` (`reviewed_by='scraper:mac_poll'`) — the same trusted-structured-source pattern as the NCCU seed backfill. No article is staged; the count is NOT added to `total_new`.
+
+- **Question → canonical key** mapping is config-driven in `scraper/processors/mac_poll_questions.json`, keyed on a distinctive whitespace-free substring of each question. Re-runs of the recurring battery auto-map; unrecognised questions are flagged and **skipped, never guessed** (preserving the "keys are analyst-assigned, never AI-guessed" invariant). Add a JSON entry when MAC introduces a new recurring question — no code change.
+- **Storage** follows the aggregate-vs-intensity rule (`.claude/rules/ai-pipeline.md`): binary-with-intensity questions store the 3-option aggregate (positive/negative/no-opinion) — MAC prints that aggregate row directly beneath the 4-point breakdown, so it is read, not re-summed. Multi-option questions (e.g. `who_undermines_strait_peace`) preserve every option. No-opinion buckets are stored as the canonical `未明確回答` / "No response".
+- **Discovery**: MAC's listing mixes polls with statements/condolences, so poll releases are identified by the **presence of a 配布表 attachment** (only poll releases carry one), not by title keywords. Idempotent on `(pollster_id, source_url)` where `source_url` is the stable `News_Content.aspx` page URL (the UUID PDF URLs are not relied on for dedup).
+- **Table-shape parse note**: question lines start `N. ` (digit-dot-**space**); percentage rows like `1.1%` start digit-dot-digit, so the `\s` after the dot disambiguates. The parse stops at the `基本資料` demographics page. Binary tables are 3-row with `None` in the aggregate row's intensity columns; multi-option tables are 2-row.
+- **Manual single-release ingest**: `python -m scraper.scrapers.mac_poll_scraper <News_Content_url>`.
 
 ## Economic Indicators
 

@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import os
+import subprocess
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -16,6 +17,7 @@ from scraper.scrapers.ltn_defence_scraper import scrape_ltn_defence
 from scraper.scrapers.ettoday_poll_scraper import scrape_ettoday_polls
 from scraper.scrapers.tvbs_poll_scraper import scrape_tvbs_polls
 from scraper.scrapers.myformosa_poll_scraper import scrape_myformosa_polls
+from scraper.scrapers.mac_poll_scraper import scrape_mac_polls
 from scraper.scrapers.weibo_hot_scraper import scrape_weibo_hot
 from scraper.scrapers.ptt_scraper import scrape_ptt
 from scraper.scrapers.mac_economic_scraper import scrape_mac_economic
@@ -116,6 +118,13 @@ async def main():
     new_tvbs_polls = await asyncio.to_thread(scrape_tvbs_polls)
     new_myformosa_polls = await asyncio.to_thread(scrape_myformosa_polls)
 
+    # MAC publishes structured 配布表 PDFs that we parse deterministically
+    # straight into polls/poll_results as approved (no Step 3c AI pass, no
+    # article staged, so its count is NOT in total_new) — discovery filters
+    # the 最新消息 listing on the presence of a 配布表 attachment, which only
+    # poll releases carry.
+    await asyncio.to_thread(scrape_mac_polls)
+
     # Step 3: Analyse unprocessed articles
     total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen
                  + new_pla + new_ydn + new_ltn_defence + new_ettoday_polls
@@ -137,6 +146,25 @@ async def main():
     # 30/run.
     print("\n--- STEP 3c: Poll-only extraction (TW poll-bearing titles) ---")
     process_poll_only_articles(days=14, limit=30)
+
+    # Step 3d: Canonicalise poll-result option labels (drift-catcher). The
+    # AI extraction prompt is the first line of defence (CANONICAL NO-OPINION
+    # + VOTE-INTENT blocks); this re-collapses any variant labels that slipped
+    # through this tick. Idempotent — a no-op when nothing drifted. Run as a
+    # subprocess (the script wraps argparse); surface its row-count to the log.
+    print("\n--- STEP 3d: Canonicalise poll labels ---")
+    canon_script = os.path.join(os.path.dirname(__file__), 'canonicalise_poll_labels.py')
+    try:
+        result = subprocess.run(
+            [sys.executable, canon_script, '--apply'],
+            capture_output=True, text=True, timeout=120)
+        for line in result.stdout.splitlines():
+            if 'pdated' in line:  # "Updated N row(s)" / per-rule "updated N"
+                print(f"  {line.strip()}")
+        if result.returncode != 0:
+            print(f"  canonicaliser exited {result.returncode}: {result.stderr[-500:]}")
+    except Exception as e:
+        print(f"  canonicaliser failed — {e}")
 
     # Step 4: Cluster events
     print("\n" + "=" * 60)

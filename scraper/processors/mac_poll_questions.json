@@ -1,0 +1,88 @@
+{
+  "_doc": "MAC 即時民調 question -> canonical question_key mapping for scraper/scrapers/mac_poll_scraper.py. 'match' is a distinctive whitespace-free substring of the question text (matched against the PDF question with all whitespace stripped). 'kind' is informational only; the scraper auto-detects binary-vs-multi from the table shape. For binary questions the stored 3-option aggregate uses positive_en/negative_en for the directional labels (zh comes from the PDF header) and the canonical 未明確回答 / 'No response' for the no-opinion bucket. For multi-option questions, options_en maps each non-no-opinion zh label to English. Unrecognised questions are flagged and skipped, never guessed. Add an entry here when MAC introduces a new recurring question; no code change needed.",
+  "questions": [
+    {
+      "match": "將台灣看作地方政府",
+      "question_key": "support_one_country_two_systems",
+      "family": "attitude",
+      "scale_type": "support_oppose",
+      "kind": "binary",
+      "text_en": "Do you approve of the CCP's 'One Country, Two Systems' proposal, which would treat Taiwan as a local/special administrative government under CCP rule and end the existence of the Republic of China?",
+      "positive_en": "Approve",
+      "negative_en": "Disapprove"
+    },
+    {
+      "match": "失去自由民主也沒有關係",
+      "question_key": "accept_unification_lose_freedom",
+      "family": "attitude",
+      "scale_type": "support_oppose",
+      "kind": "binary",
+      "text_en": "Do you agree it would be acceptable to accept China's 'One Country, Two Systems' / 'peaceful unification' even if it means Communist Party rule and the loss of freedom and democracy?",
+      "positive_en": "Agree",
+      "negative_en": "Disagree"
+    },
+    {
+      "match": "阻撓我總統專機",
+      "question_key": "endorse_prc_blocking_presidential_visit",
+      "family": "attitude",
+      "scale_type": "support_oppose",
+      "kind": "binary",
+      "text_en": "Do you approve of the CCP's recent obstruction of the ROC president's chartered flight to a diplomatic ally?",
+      "positive_en": "Approve",
+      "negative_en": "Disapprove"
+    },
+    {
+      "match": "是台灣還是中共在破壞台海和平",
+      "question_key": "who_undermines_strait_peace",
+      "family": "attitude",
+      "scale_type": "choice",
+      "kind": "multi",
+      "text_en": "In your view, is it Taiwan or the CCP that is undermining peace in the Taiwan Strait?",
+      "options_en": {
+        "台灣": "Taiwan",
+        "中共": "The CCP",
+        "兩者都是": "Both"
+      }
+    },
+    {
+      "match": "維持台海和平穩定現狀",
+      "question_key": "support_maintain_status_quo",
+      "family": "attitude",
+      "scale_type": "support_oppose",
+      "kind": "binary",
+      "text_en": "Do you support the view that Taiwan's top priority now is maintaining the cross-strait status quo of peace and stability?",
+      "positive_en": "Support",
+      "negative_en": "Oppose"
+    },
+    {
+      "match": "互不隸屬",
+      "question_key": "mutual_non_subordination",
+      "family": "attitude",
+      "scale_type": "support_oppose",
+      "kind": "binary",
+      "text_en": "Do you agree that the Republic of China and the People's Republic of China are not subordinate to each other?",
+      "positive_en": "Agree",
+      "negative_en": "Disagree"
+    },
+    {
+      "match": "2300萬人民共同決定",
+      "question_key": "taiwan_future_self_determination",
+      "family": "attitude",
+      "scale_type": "support_oppose",
+      "kind": "binary",
+      "text_en": "Do you support the view that Taiwan's future must be decided collectively by its 23 million people?",
+      "positive_en": "Support",
+      "negative_en": "Oppose"
+    },
+    {
+      "match": "增加國防預算",
+      "question_key": "support_increase_defence_budget",
+      "family": "attitude",
+      "scale_type": "support_oppose",
+      "kind": "binary",
+      "text_en": "Given the CCP's continued ~7% annual defence-spending growth, do you support the government increasing the defence budget to strengthen Taiwan's self-defence?",
+      "positive_en": "Support",
+      "negative_en": "Oppose"
+    }
+  ]
+}
