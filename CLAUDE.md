@@ -151,7 +151,7 @@ Less-obvious categories:
 
 **Sentiment colour convention**: negative = hostile = purple (`#7c3aed`), positive = cooperative = amber (`#f59e0b`), neutral (±0.3) = grey (`#6b7280`). Purple/amber chosen to avoid conflict with source bias colours (PRC red, DPP green). Applies to gauges, `SentimentBadge`, chart tooltips, and any future sentiment indicators.
 
-**Key figure party colours**: PRC → red (`#dc2626`), DPP → green (`#16a34a`), KMT → blue (`#1d4ed8`), TPP → teal (`#14B8A6`). Set via `party` field in `key_figures.json`; `figureAccent()` in `KeyFigures.jsx` resolves it.
+**Party colours (canonical, Wikipedia-derived)**: single source of truth is `frontend/src/partyColours.js` (`PARTY_COLOURS`), shared by Key Figures (`figureAccent()`) and the poll trend charts. DPP `#1B9431` · KMT `#000099` · TPP `#28C7C7` · NPP `#FFE31A` · TSP `#A73F24` · GPT (Green Party) `#3AB483` · NP (New Party) `#FFD700` · PFP `#FF6310` · CUPP `#253686` · IND (independent) `#6b7280`. `PRC` `#dc2626` is retained for PRC-side figures / state-pollster chips / CCP series (not a party row in the picker). Poll-chart options resolve a party via `poll_option_parties` (analyst-assigned, keyed on `option_label_zh`) → key_figures `party` fallback → positional palette; a per-option `colour_override` hex wins. Key figures set `party` in `key_figures.json`.
 
 ## Important behaviours
 

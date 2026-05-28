@@ -230,6 +230,28 @@ CREATE TABLE IF NOT EXISTS poll_results (
 CREATE INDEX IF NOT EXISTS idx_poll_results_poll ON poll_results(poll_id);
 CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id);
 
+-- Analyst-assigned party/colour identity for poll options (keyed by canonical
+-- option_label_zh). party → palette in frontend partyColours.js; colour_override
+-- ('#RRGGBB') wins. Person→party for the key_figures roster resolves at query
+-- time in polls.py, so only party-name labels + off-roster candidates need rows.
+CREATE TABLE IF NOT EXISTS poll_option_parties (
+    option_label_zh TEXT PRIMARY KEY,
+    party           TEXT,
+    colour_override TEXT,
+    updated_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_by      TEXT
+);
+INSERT OR IGNORE INTO poll_option_parties (option_label_zh, party, updated_by) VALUES
+    ('民主進步黨', 'DPP',  'seed'), ('民進黨', 'DPP', 'seed'),
+    ('中國國民黨', 'KMT',  'seed'), ('國民黨', 'KMT', 'seed'),
+    ('台灣民眾黨', 'TPP',  'seed'), ('民眾黨', 'TPP', 'seed'),
+    ('時代力量',   'NPP',  'seed'),
+    ('台灣基進',   'TSP',  'seed'),
+    ('台灣綠黨',   'GPT',  'seed'), ('綠黨', 'GPT', 'seed'),
+    ('新黨',       'NP',   'seed'),
+    ('親民黨',     'PFP',  'seed'),
+    ('中華統一促進黨', 'CUPP', 'seed'), ('統促黨', 'CUPP', 'seed');
+
 INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, notes) VALUES
     ('nccu_esc',  '國立政治大學選舉研究中心', 'NCCU Election Study Center',       'academic',      'active',     'biannual', 'Identity + unification trend since 1992'),
     ('myformosa', '美麗島電子報',             'My-Formosa',                       'centrist',      'active',     'monthly',  'Owner expelled from DPP for being too critical; editorial posture no longer green-leaning'),

@@ -8,8 +8,10 @@ import {
   fetchPollCandidates,
 } from "../api";
 import { READ_ONLY } from "../readOnly";
+import { partyColour } from "../partyColours";
 import PollReviewQueue from "./PollReviewQueue";
 import PollEntryModal from "./PollEntryModal";
+import PollColourModal from "./PollColourModal";
 
 // The three flagship trackers pinned at the top of the tab. Everything
 // else (party-ID, war-risk, vote intent, ad-hoc issue polls) is
@@ -200,7 +202,7 @@ function pivotByQuestion(payload) {
   // list and the chart legend ordering.
   const pollsterOrder = [];
   const seenPollsters = new Set();
-  const optionTuples = {}; // pollster_slug → Map(label_en → {order, pollster_bias})
+  const optionTuples = {}; // pollster_slug → Map(label_en → {order, label, party, colour_override})
   for (const wave of payload.waves) {
     if (!seenPollsters.has(wave.pollster_slug)) {
       seenPollsters.add(wave.pollster_slug);
@@ -208,6 +210,7 @@ function pivotByQuestion(payload) {
         slug: wave.pollster_slug,
         name: wave.pollster_name_en,
         bias: wave.pollster_bias,
+        place: wave.pollster_place,
       });
     }
     if (!optionTuples[wave.pollster_slug]) optionTuples[wave.pollster_slug] = new Map();
@@ -217,6 +220,8 @@ function pivotByQuestion(payload) {
         optionTuples[wave.pollster_slug].set(key, {
           order: opt.option_order ?? 0,
           label: key,
+          party: opt.party || null,
+          colour_override: opt.colour_override || null,
         });
       }
     }
@@ -225,24 +230,48 @@ function pivotByQuestion(payload) {
   const isCrossPollster = pollsterOrder.length > 1;
   const palette = OPTION_PALETTES[payload.question_key] || FALLBACK_PALETTE;
 
+  // Party mode: when ANY option carries a party/colour identity, party drives
+  // the line colour and the pollster becomes the dash encoding (so the same
+  // candidate shares a hue across pollsters). Otherwise keep the legacy scheme
+  // (single-pollster → positional palette; cross-pollster → pollster bias).
+  const optionColour = (o) => o.colour_override || partyColour(o.party);
+  let partyMode = false;
+  for (const slug of Object.keys(optionTuples)) {
+    for (const o of optionTuples[slug].values()) {
+      if (optionColour(o)) { partyMode = true; break; }
+    }
+    if (partyMode) break;
+  }
+  const pollsterDash = (i) =>
+    i === 0 ? undefined : i === 1 ? "4 3" : i === 2 ? "1 2" : "6 2 1 2";
+
   const series = [];
-  for (const p of pollsterOrder) {
+  pollsterOrder.forEach((p, pIdx) => {
     const opts = Array.from(optionTuples[p.slug].values()).sort((a, b) => a.order - b.order);
     opts.forEach((o, idx) => {
-      const colour = isCrossPollster
-        // Cross-pollster: pollster identity drives colour, option drives line style.
-        ? pollsterChipColour(p.bias, p.place).bg
-        : (palette[o.order] || palette[idx] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length]);
+      const positional = palette[o.order] || palette[idx] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length];
+      let colour, dash, legendName;
+      if (partyMode) {
+        // Party drives colour; options without a party fall back to positional
+        // so they stay distinct. Pollster → dash on cross-pollster overlays.
+        colour = optionColour(o) || positional;
+        dash = isCrossPollster ? pollsterDash(pIdx) : undefined;
+        legendName = isCrossPollster ? `${o.label} — ${p.name}` : o.label;
+      } else {
+        colour = isCrossPollster ? pollsterChipColour(p.bias, p.place).bg : positional;
+        dash = isCrossPollster && idx > 0 ? (idx === 1 ? "4 3" : "1 2") : undefined;
+        legendName = isCrossPollster ? `${p.name}: ${o.label}` : o.label;
+      }
       series.push({
         dataKey: `${p.slug}__${o.label}`,
-        legendName: isCrossPollster ? `${p.name}: ${o.label}` : o.label,
+        legendName,
         stroke: colour,
-        strokeDasharray: isCrossPollster && idx > 0 ? (idx === 1 ? "4 3" : "1 2") : undefined,
+        strokeDasharray: dash,
         pollster: p,
         option: o.label,
       });
     });
-  }
+  });
 
   // Pivot waves → time-keyed rows, anchored on fielded_end (falling back
   // to fielded_start) so annual series like NCCU plot at the year-final
@@ -268,7 +297,7 @@ function pivotByQuestion(payload) {
   return { data, series, pollsterCount: pollsterOrder.length };
 }
 
-function PollTrendChart({ payload, height = 240 }) {
+function PollTrendChart({ payload, height = 240, onOpenColours }) {
   const { data, series, pollsterCount } = useMemo(() => pivotByQuestion(payload), [payload]);
 
   if (!payload) {
@@ -293,6 +322,22 @@ function PollTrendChart({ payload, height = 240 }) {
   }
 
   return (
+    <div style={{ position: "relative" }}>
+      {!READ_ONLY && onOpenColours && (
+        <button
+          onClick={() => onOpenColours(payload)}
+          title="Assign party / candidate colours to this chart's options"
+          style={{
+            position: "absolute", top: 0, right: 0, zIndex: 2,
+            padding: "3px 8px", fontFamily: "var(--font-mono)", fontSize: "9px",
+            letterSpacing: "0.06em", textTransform: "uppercase",
+            border: "1px solid var(--border-color)", background: "var(--bg-card)",
+            color: "var(--text-muted)", cursor: "pointer",
+          }}
+        >
+          Colours
+        </button>
+      )}
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 10, right: 24, left: 0, bottom: 4 }}>
         <CartesianGrid stroke="var(--border-color)" strokeDasharray="3 3" />
@@ -341,10 +386,11 @@ function PollTrendChart({ payload, height = 240 }) {
         ))}
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
-function FlagshipStrip({ flagship, payload }) {
+function FlagshipStrip({ flagship, payload, onOpenColours }) {
   // Right-rail shows live state when data exists (wave count + latest
   // date) and falls back to the static source attribution when empty —
   // so the attribution never duplicates the subtitle below.
@@ -367,7 +413,7 @@ function FlagshipStrip({ flagship, payload }) {
       }}>
         {flagship.source}
       </div>
-      <PollTrendChart payload={payload} height={260} />
+      <PollTrendChart payload={payload} height={260} onOpenColours={onOpenColours} />
     </section>
   );
 }
@@ -514,6 +560,18 @@ export default function PollsTab() {
   const [pendingCount, setPendingCount] = useState(0);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [entryOpen,  setEntryOpen]  = useState(false);
+  const [colourPayload, setColourPayload] = useState(null); // chart payload whose colours are being edited
+
+  // After saving colour assignments, refetch just the affected question so
+  // the chart re-renders with the new party colours. Updates the flagship
+  // store and/or the on-demand payload depending on where the key lives.
+  const refreshQuestion = (key) => {
+    if (!key) return;
+    fetchPollsByQuestion(key).then((data) => {
+      if (FLAGSHIP_KEYS.has(key)) setFlagshipData((prev) => ({ ...prev, [key]: data }));
+      setSelectedPayload((cur) => (cur && cur.question_key === key ? data : cur));
+    }).catch(() => {});
+  };
 
   // After a manual entry / approve / dismiss, the public reads need a
   // refresh — recent feed + every flagship payload that could newly
@@ -665,7 +723,8 @@ export default function PollsTab() {
           options visible). See [[feedback-analyst-charts]] for the rule
           against composite/summary lines on analyst charts. */}
       {FLAGSHIPS.map((f) => (
-        <FlagshipStrip key={f.key} flagship={f} payload={flagshipData[f.key]} />
+        <FlagshipStrip key={f.key} flagship={f} payload={flagshipData[f.key]}
+                       onOpenColours={setColourPayload} />
       ))}
 
       {/* Topic pill row — other canonical questions with data. Click →
@@ -686,7 +745,7 @@ export default function PollsTab() {
           >
             {selectedPayload?.question_text_en || selectedKey}
           </SectionHeader>
-          <PollTrendChart payload={selectedPayload} height={300} />
+          <PollTrendChart payload={selectedPayload} height={300} onOpenColours={setColourPayload} />
         </section>
       )}
 
@@ -722,6 +781,18 @@ export default function PollsTab() {
           onCreated={() => {
             setEntryOpen(false);
             refreshPublicReads();
+          }}
+        />
+      )}
+
+      {colourPayload && (
+        <PollColourModal
+          payload={colourPayload}
+          onClose={() => setColourPayload(null)}
+          onSaved={() => {
+            const key = colourPayload.question_key;
+            setColourPayload(null);
+            refreshQuestion(key);
           }}
         />
       )}

@@ -7,11 +7,10 @@ import {
 } from "../api";
 import SourceBadge from "./SourceBadge";
 import { READ_ONLY } from "../readOnly";
-
-const PARTY_ACCENT = { PRC: "#dc2626", DPP: "#16a34a", KMT: "#1d4ed8", TPP: "#14B8A6" };
+import { PARTY_COLOURS } from "../partyColours";
 
 function figureAccent(figure) {
-  return PARTY_ACCENT[figure.party] || PARTY_ACCENT[figure.side] || "#6b7280";
+  return PARTY_COLOURS[figure.party] || PARTY_COLOURS[figure.side] || "#6b7280";
 }
 
 function formatDate(ts) {

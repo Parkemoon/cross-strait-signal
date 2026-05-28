@@ -530,6 +530,36 @@ CREATE TABLE IF NOT EXISTS poll_results (
 CREATE INDEX IF NOT EXISTS idx_poll_results_poll ON poll_results(poll_id);
 CREATE INDEX IF NOT EXISTS idx_poll_results_question ON poll_results(question_id);
 
+-- Analyst-assigned colour identity for a poll option, keyed by the canonical
+-- Chinese label (option_label_zh). Lets candidate/party trend lines carry the
+-- right party colour instead of a positional palette. `party` resolves to the
+-- canonical palette in the frontend (partyColours.js); `colour_override` is a
+-- direct '#RRGGBB' escape hatch for independents / palette clashes (wins over
+-- party). A row with both NULL is meaningless — the write path deletes instead.
+-- Person→party for the curated key_figures roster is resolved at query time in
+-- polls.py, so only party-NAME labels and off-roster candidates need a row here.
+CREATE TABLE IF NOT EXISTS poll_option_parties (
+    option_label_zh TEXT PRIMARY KEY,
+    party           TEXT,            -- DPP|KMT|TPP|NPP|TSP|GPT|NP|PFP|CUPP|IND
+    colour_override TEXT,            -- '#RRGGBB'; wins over party when set
+    updated_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_by      TEXT
+);
+
+-- Seed the unambiguous party-NAME labels (candidate names are not seeded —
+-- they resolve via key_figures or the analyst picker). INSERT OR IGNORE so
+-- analyst edits always win on re-run.
+INSERT OR IGNORE INTO poll_option_parties (option_label_zh, party, updated_by) VALUES
+    ('民主進步黨', 'DPP',  'seed'), ('民進黨', 'DPP', 'seed'),
+    ('中國國民黨', 'KMT',  'seed'), ('國民黨', 'KMT', 'seed'),
+    ('台灣民眾黨', 'TPP',  'seed'), ('民眾黨', 'TPP', 'seed'),
+    ('時代力量',   'NPP',  'seed'),
+    ('台灣基進',   'TSP',  'seed'),
+    ('台灣綠黨',   'GPT',  'seed'), ('綠黨', 'GPT', 'seed'),
+    ('新黨',       'NP',   'seed'),
+    ('親民黨',     'PFP',  'seed'),
+    ('中華統一促進黨', 'CUPP', 'seed'), ('統促黨', 'CUPP', 'seed');
+
 -- Seed pollster roster — `place` defaults to 'TW' on insert, set explicitly only for non-TW additions
 INSERT OR IGNORE INTO pollsters (slug, name_zh, name_en, bias, status, cadence, notes) VALUES
     ('nccu_esc',  '國立政治大學選舉研究中心', 'NCCU Election Study Center',       'academic',      'active',     'biannual', 'Identity + unification trend since 1992'),
