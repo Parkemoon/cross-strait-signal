@@ -49,6 +49,7 @@ _HEADERS = {
 }
 _NOOP_ZH = '未明確回答'
 _NOOP_EN = 'No response'
+_NOOP_TOKENS = ('不知道', '無意見', '沒意見', '未表態', '拒答')
 
 # A 配布表 attachment block looks like:
 #   <div class="hd">...<a title="...配布表">...</a></div>
@@ -177,12 +178,11 @@ def _options_from_table(tbl, mapentry):
         ]
     pcts = tbl[1]
     opts_en = mapentry.get('options_en', {})
-    last = len(header) - 1
     out = []
     for i, (lab, pct) in enumerate(zip(header, pcts)):
         if pct is None:
             continue
-        if i == last:  # 不知道/無意見
+        if lab and any(tok in lab for tok in _NOOP_TOKENS):  # 不知道/無意見 column
             out.append((_NOOP_ZH, _NOOP_EN, _pct(pct), i))
         else:
             out.append((lab, opts_en.get(lab, lab), _pct(pct), i))
