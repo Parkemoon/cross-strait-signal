@@ -46,7 +46,7 @@ python scripts/run_pipeline.py
 - `scripts/refresh_officials.py` — Wikidata SPARQL pull for ~28 officeholder positions across TW/US/PRC/JP. Output is `scraper/processors/current_officials.json` — review the diff, then commit and deploy. Runtime ~80s. Positions config: `scripts/officials_positions.json` (hand-curated QIDs). Manual gap-fill at `scraper/processors/current_officials_manual.json` (manual wins on conflict). `current_officials.json` is generated; don't hand-edit it. Run after elections, cabinet reshuffles, or when officeholder hallucinations are spotted.
 - `scripts/merge_entities.py --dry-run` (then `--type person --threshold 0.9`) — interactive near-duplicate entity name merge. Flags: `--type`, `--days` (default 90), `--threshold` (default 0.85), `--min-mentions` (default 2), `--dry-run`. False positives to watch for: historically distinct place variants (Beiping ≠ Beijing), different people sharing a surname initial.
 - `scripts/seed_nccu_polls.py` — backfills the NCCU ESC long trend series (1992–2025 identity; unification deferred until cleaner data) into `polls` + `poll_results` as `approved`. Data lives in `scraper/processors/nccu_esc_seed.json` — transcribed from NCCU's labelled trend chart PNG with per-year sum-to-100% cross-validation; sample sizes from the NCCU methodology PDF. Idempotent on `(pollster_id, fielded_start, reviewed_by='backfill:seed_nccu_polls')`. Re-run after adding new waves to the JSON.
-- `scripts/canonicalise_poll_labels.py` (then `--apply`) — collapses option_label variants in `poll_results` to canonical strings. Rules live in `scraper/processors/poll_labels_canonical.json` (per-scope mapping list — `from_zh` / `from_en` match, `to_zh` / `to_en` write). Two seeded rules: (a) no-opinion normalisation across non-NCCU non-vote-intent keys → `未明確回答` / "No response"; (b) vote-intent normalisation (strip party prefixes, fix Su Chiao-hui romanisation, collapse "haven't decided" residuals to `尚未決定` / "Undecided", keep "won't vote" as a separate `不投票或投廢票` / "Won't vote / Spoiled ballot" bucket). Idempotent (skips rows already canonical). Run after a poll-review queue session if you suspect new variants landed, or periodically as drift-catching belt-and-suspenders against the AI extraction prompt's CANONICAL NO-OPINION rule. Edit the JSON to add new mappings; no code change needed.
+- `scripts/canonicalise_poll_labels.py` (then `--apply`) — collapses option_label variants in `poll_results` to canonical strings. Rules live in `scraper/processors/poll_labels_canonical.json` (per-scope mapping list — `from_zh` / `from_en` match, `to_zh` / `to_en` write). Two seeded rules: (a) no-opinion normalisation across non-NCCU non-vote-intent keys → `未明確回答` / "No response"; (b) vote-intent normalisation (strip party prefixes, fix Su Chiao-hui romanisation, collapse "haven't decided" residuals to `尚未決定` / "Undecided", keep "won't vote" as a separate `不投票或投廢票` / "Won't vote / Spoiled ballot" bucket). Idempotent (skips rows already canonical). **Now also runs automatically as pipeline Step 3d** (`run_pipeline.py` invokes it with `--apply` after Step 3c), so drift self-heals every 6h — manual runs are only needed for ad-hoc checks or after editing the JSON. Edit the JSON to add new mappings; no code change needed.
 
 ### Frontend builds
 ```bash
@@ -96,6 +96,17 @@ Poll-only pass (Step 3c):
     written) → polls + pending_results_json (questions/options blob held
     until analyst assigns question_keys) → /api/polls/* (analyst review
     queue, then cross-pollster trend charts)
+
+MAC poll pass (Step 2L):
+    MAC 即時民調 配布表 PDFs (structured tables, not prose) → deterministic
+    pdfplumber parse → polls + poll_results as APPROVED (no AI, no review
+    queue) with config-driven canonical question_keys → /api/polls/*.
+    See .claude/rules/scrapers.md → MAC Polls.
+
+Poll-label canonicalise (Step 3d):
+    scripts/canonicalise_poll_labels.py --apply runs after Step 3c as an
+    idempotent drift-catcher, re-collapsing any variant option labels that
+    slipped past the AI extraction prompt's canonical-label rules.
 ```
 
 Event clustering (`scripts/cluster_events.py`) groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
