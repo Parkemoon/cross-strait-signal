@@ -418,27 +418,38 @@ function FlagshipStrip({ flagship, payload, onOpenColours }) {
   );
 }
 
-function TopicPills({ topics, selectedKey, onSelect }) {
-  // Flatten + filter — pills only show questions that are NOT pinned
-  // flagships. We also hide questions with zero approved polls so the
-  // pill row doesn't advertise dead-end clicks.
-  const pills = useMemo(() => {
-    if (!topics?.families) return [];
-    const out = [];
-    for (const fam of topics.families) {
-      for (const q of fam.questions) {
-        if (FLAGSHIP_KEYS.has(q.question_key)) continue;
-        if ((q.approved_count || 0) === 0) continue;
-        out.push({ ...q, family: fam.family });
-      }
-    }
-    // Sort by approved_count DESC across families so the most-used
-    // trackers surface first; the family label is shown on the pill.
-    out.sort((a, b) => (b.approved_count - a.approved_count) || a.question_key.localeCompare(b.question_key));
-    return out;
-  }, [topics]);
+// Group the /topics payload into the families shown in the "Other
+// Trackers" selector: drop pinned flagships and zero-data questions, sort
+// each family's questions most-used-first, and order the families by the
+// canonical FAMILY_LABELS sequence (stable, not by volatile counts).
+// Returned shape: [{ family, label, questions: [...] }]. Pure so PollsTab
+// can both render it and resolve a family's top question for auto-open.
+const FAMILY_ORDER = Object.keys(FAMILY_LABELS);
 
-  if (pills.length === 0) {
+function buildOtherFamilies(topics) {
+  if (!topics?.families) return [];
+  const out = [];
+  for (const fam of topics.families) {
+    const questions = (fam.questions || [])
+      .filter((q) => !FLAGSHIP_KEYS.has(q.question_key) && (q.approved_count || 0) > 0)
+      .sort((a, b) => (b.approved_count - a.approved_count) || a.question_key.localeCompare(b.question_key));
+    if (questions.length === 0) continue;
+    out.push({ family: fam.family, label: FAMILY_LABELS[fam.family] || fam.family, questions });
+  }
+  out.sort((a, b) => {
+    const ia = FAMILY_ORDER.indexOf(a.family);
+    const ib = FAMILY_ORDER.indexOf(b.family);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  return out;
+}
+
+// Two-tier selector for the "Other Trackers" section. Tier 1 is a compact
+// family dropdown (scales as 2026 vote-intent races flood the list); tier 2
+// is a pill row of that family's questions. Picking a family auto-opens its
+// top question (handled in PollsTab), so tier 2 doubles as the active marker.
+function OtherTrackers({ families, selectedFamily, selectedKey, onSelectFamily, onSelectQuestion }) {
+  if (families.length === 0) {
     return (
       <div style={{
         padding: "12px 0",
@@ -451,36 +462,71 @@ function TopicPills({ topics, selectedKey, onSelect }) {
     );
   }
 
+  const activeFamily = families.find((f) => f.family === selectedFamily) || null;
+
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", padding: "4px 0 12px 0" }}>
-      {pills.map((p) => {
-        const active = p.question_key === selectedKey;
-        return (
-          <button
-            key={p.question_key}
-            onClick={() => onSelect(p.question_key)}
-            style={{
-              padding: "5px 10px",
-              fontFamily: "var(--font-mono)",
-              fontSize: "10px",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              background: active ? "var(--accent)" : "var(--bg-card)",
-              color: active ? "#fff" : "var(--text-primary)",
-              border: "1px solid var(--border-color)",
-              cursor: "pointer",
-              display: "inline-flex",
-              gap: "8px",
-              alignItems: "baseline",
-            }}
-            title={p.question_text_en}
-          >
-            <span style={{ opacity: 0.65 }}>{FAMILY_LABELS[p.family] || p.family}</span>
-            <span>{p.question_key}</span>
-            <span style={{ opacity: 0.55 }}>· {p.approved_count}</span>
-          </button>
-        );
-      })}
+    <div style={{ padding: "4px 0 12px 0" }}>
+      {/* Tier 1 — family dropdown */}
+      <select
+        value={selectedFamily || ""}
+        onChange={(e) => onSelectFamily(e.target.value || null)}
+        style={{
+          padding: "6px 10px",
+          fontFamily: "var(--font-mono)",
+          fontSize: "11px",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          background: "var(--bg-card)",
+          color: "var(--text-primary)",
+          border: "1px solid var(--border-color)",
+          cursor: "pointer",
+          minWidth: "240px",
+        }}
+      >
+        <option value="">— Select category —</option>
+        {families.map((f) => (
+          <option key={f.family} value={f.family}>
+            {f.label} ({f.questions.length})
+          </option>
+        ))}
+      </select>
+
+      {/* Tier 2 — questions within the chosen family. Family context is
+          established by the dropdown, so pills show the readable question
+          text (truncated, full text on hover) rather than the bare key. */}
+      {activeFamily && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
+          {activeFamily.questions.map((q) => {
+            const active = q.question_key === selectedKey;
+            const label = q.question_text_en || q.question_key;
+            const shown = label.length > 52 ? `${label.slice(0, 51)}…` : label;
+            return (
+              <button
+                key={q.question_key}
+                onClick={() => onSelectQuestion(q.question_key)}
+                title={q.question_text_en || q.question_key}
+                style={{
+                  padding: "5px 10px",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  letterSpacing: "0.04em",
+                  background: active ? "var(--accent)" : "var(--bg-card)",
+                  color: active ? "#fff" : "var(--text-primary)",
+                  border: "1px solid var(--border-color)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  gap: "8px",
+                  alignItems: "baseline",
+                  textAlign: "left",
+                }}
+              >
+                <span>{shown}</span>
+                <span style={{ opacity: 0.55 }}>· {q.approved_count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -554,6 +600,7 @@ export default function PollsTab() {
   const [topicsData, setTopicsData] = useState(null);
   const [recentPolls, setRecentPolls] = useState(null);
   const [rosterData, setRosterData] = useState(null);
+  const [selectedFamily, setSelectedFamily] = useState(null);
   const [selectedKey, setSelectedKey] = useState(null);
   const [selectedPayload, setSelectedPayload] = useState(null);
   const [error, setError] = useState(null);
@@ -644,6 +691,20 @@ export default function PollsTab() {
     return () => { cancelled = true; };
   }, [selectedKey]);
 
+  // "Other Trackers" families (flagships + zero-data questions stripped).
+  // Drives both the tier-1 dropdown and top-question resolution for auto-open.
+  const otherFamilies = useMemo(() => buildOtherFamilies(topicsData), [topicsData]);
+
+  // Picking a family auto-opens its most-used question (questions are
+  // pre-sorted most-used-first in buildOtherFamilies). Clearing the family
+  // (— Select category —) drops the chart too.
+  const selectFamily = (family) => {
+    setSelectedFamily(family);
+    if (!family) { setSelectedKey(null); return; }
+    const fam = otherFamilies.find((f) => f.family === family);
+    setSelectedKey(fam?.questions[0]?.question_key ?? null);
+  };
+
   // Headline counts for the section right-rail.
   const totalApprovedPolls = recentPolls?.length ?? 0;
   const activePollsterCount = useMemo(
@@ -727,12 +788,20 @@ export default function PollsTab() {
                        onOpenColours={setColourPayload} />
       ))}
 
-      {/* Topic pill row — other canonical questions with data. Click →
-          fetches the question's full /by-question payload and renders
-          a 4th chart strip below. */}
-      <SectionHeader right="Click to expand">Other Trackers</SectionHeader>
-      <TopicPills topics={topicsData} selectedKey={selectedKey} onSelect={(k) =>
-        setSelectedKey((cur) => (cur === k ? null : k))} />
+      {/* Other Trackers — two-tier: a category dropdown, then question pills
+          within that category. Picking a category auto-opens its top
+          question; picking a question fetches its /by-question payload and
+          renders a 4th chart strip below. */}
+      <SectionHeader right={otherFamilies.length
+        ? `${otherFamilies.length} categor${otherFamilies.length === 1 ? "y" : "ies"}`
+        : ""}>Other Trackers</SectionHeader>
+      <OtherTrackers
+        families={otherFamilies}
+        selectedFamily={selectedFamily}
+        selectedKey={selectedKey}
+        onSelectFamily={selectFamily}
+        onSelectQuestion={setSelectedKey}
+      />
 
       {selectedKey && (
         <section style={{ marginBottom: "32px" }}>
