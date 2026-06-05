@@ -381,9 +381,9 @@ export default function App() {
             onSourceClick={(dbPrefix) => { setFilters((f) => ({ ...f, source_name: dbPrefix })); setPage(1); }}
             onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
             onBiasClick={(bias) => { setFilters((f) => ({ ...f, bias })); setPage(1); }}
-            onOpenEconomy={() => {
-              setView("economy");
-              if (isMobile) setMobileTab("economy");
+            onOpenTab={(nextView) => {
+              setView(nextView);
+              if (isMobile) setMobileTab(nextView);
             }}
             onClearScopingFilters={() => {
               setFilters((f) => {
