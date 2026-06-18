@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-17T23:18:28Z",
+  "generated_at": "2026-06-18T16:35:31Z",
   "current": [
     {
       "role": "President of Taiwan (ROC)",
@@ -42,14 +42,6 @@
       "since": "2024-02-01"
     },
     {
-      "role": "Chairperson of the Kuomintang (KMT)",
-      "country": "TW",
-      "name_en": "Cheng Li-wun",
-      "name_zh": "鄭麗文",
-      "party": "Democratic Progressive Party",
-      "since": "2025-11-01"
-    },
-    {
       "role": "Chairperson of the Democratic Progressive Party (DPP)",
       "country": "TW",
       "name_en": "Lai Ching-te",
@@ -64,14 +56,6 @@
       "name_zh": "黃國昌",
       "party": "Taiwan People's Party",
       "since": "2025-01-01"
-    },
-    {
-      "role": "President of the United States",
-      "country": "US",
-      "name_en": "Donald Trump",
-      "name_zh": "唐納·川普",
-      "party": "Republican Party",
-      "since": "2025-01-20"
     },
     {
       "role": "Vice President of the United States",
@@ -216,6 +200,24 @@
       "name_zh": "關口昌一",
       "party": "Liberal Democratic Party",
       "since": "2024-11-11"
+    },
+    {
+      "role": "President of the United States",
+      "country": "US",
+      "name_en": "Donald Trump",
+      "name_zh": "唐納·川普",
+      "party": "Republican Party",
+      "since": "2025-01-20",
+      "_note": "Wikidata returned vandalism ('Phil Baker', since 2018) as of 2026-06 refresh. Remove when Wikidata is corrected."
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Cheng Li-wun",
+      "name_zh": "鄭麗文",
+      "party": "Kuomintang",
+      "since": "2025-11-01",
+      "_note": "Name is correct from Wikidata, but P102 returns her former DPP membership for 'party'. Remove if Wikidata party is corrected to KMT."
     },
     {
       "role": "Minister of National Defense of Taiwan (ROC)",
@@ -370,7 +372,7 @@
       "country": "TW",
       "name_en": "Yu Shyi-kun",
       "name_zh": "游錫堃",
-      "party": "independent politician",
+      "party": "Democratic Progressive Party",
       "term": "2020-02-01 to 2024-01-31"
     },
     {
@@ -492,22 +494,6 @@
       "name_zh": "乔·拜登",
       "party": "Democratic Party",
       "term": "2021-01-20 to 2025-01-20"
-    },
-    {
-      "role": "President of the United States",
-      "country": "US",
-      "name_en": "Donald Trump",
-      "name_zh": "唐納·川普",
-      "party": "Republican Party",
-      "term": "2017-01-20 to 2021-01-20"
-    },
-    {
-      "role": "President of the United States",
-      "country": "US",
-      "name_en": "Barack Obama",
-      "name_zh": "贝拉克·奥巴马",
-      "party": "Democratic Party",
-      "term": "2009-01-20 to 2017-01-20"
     },
     {
       "role": "Vice President of the United States",
@@ -914,7 +900,7 @@
       "country": "JP",
       "name_en": "Toshimitsu Motegi",
       "name_zh": "茂木敏充",
-      "party": "Liberal Democratic Party",
+      "party": "Japan New Party",
       "term": "2019-09-11 to 2021-11-04"
     },
     {
