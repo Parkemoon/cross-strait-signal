@@ -2,6 +2,24 @@
   "_comment": "Manual gap-fill for roles Wikidata doesn't track promptly. Entries here win over Wikidata output on (role, country) conflict. Update when refresh_officials.py starts returning correct results for a role — then remove that role from here.",
   "current": [
     {
+      "role": "President of the United States",
+      "country": "US",
+      "name_en": "Donald Trump",
+      "name_zh": "唐納·川普",
+      "party": "Republican Party",
+      "since": "2025-01-20",
+      "_note": "Wikidata returned vandalism ('Phil Baker', since 2018) as of 2026-06 refresh. Remove when Wikidata is corrected."
+    },
+    {
+      "role": "Chairperson of the Kuomintang (KMT)",
+      "country": "TW",
+      "name_en": "Cheng Li-wun",
+      "name_zh": "鄭麗文",
+      "party": "Kuomintang",
+      "since": "2025-11-01",
+      "_note": "Name is correct from Wikidata, but P102 returns her former DPP membership for 'party'. Remove if Wikidata party is corrected to KMT."
+    },
+    {
       "role": "Minister of National Defense of Taiwan (ROC)",
       "role_zh": "中華民國國防部長",
       "country": "TW",
