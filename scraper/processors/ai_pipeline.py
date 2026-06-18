@@ -1360,6 +1360,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "medium"},
         },
     )
+    log_usage("diplomacy_only", "gemini-3.1-flash-lite", resp, article_id=article['id'])
     text = resp.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1]
