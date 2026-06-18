@@ -8,7 +8,7 @@ paths:
 ## Three-tier AI pipeline (`ai_pipeline.py`)
 
 - **Tier 1**: Gemini 3.1 Flash Lite — classifies all pre-filtered articles (batch limit: 500); `temperature=0.1`, `thinking_level=medium`.
-- **Tier 2**: Gemini 2.5 Flash — re-reviews only escalation-flagged articles; same temperature.
+- **Tier 2**: Gemini 3.5 Flash — re-reviews only escalation-flagged articles; same temperature.
 - **Tier 3**: Human review queue — articles where Tier 1 and Tier 2 disagree; stay hidden from dashboard until resolved.
 - **Age filter**: `process_unanalysed_articles` only processes articles with `published_at >= datetime('now', '-180 days')` — old DB backlog never reaches the AI pipeline.
 
