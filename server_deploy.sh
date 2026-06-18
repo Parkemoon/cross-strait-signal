@@ -272,6 +272,33 @@ INSERT OR IGNORE INTO poll_questions (question_key, question_text_zh, question_t
     ('unification_nccu_6pt', '請問您認為台灣和大陸的關係應該是什麼？',         'What should the relationship between Taiwan and mainland China be?',   'unification', 'six_point',          'NCCU ESC 6-point scale: unification now / status quo→union / status quo / status quo→indep / indep now / no opinion'),
     ('approval_lai_overall', '請問您對賴清德總統的整體表現滿意還是不滿意？',   'Are you satisfied with President Lai Ching-te overall performance?',   'approval',    'approve_disapprove', 'Multi-pollster monthly approval tracker');
 
+-- Diplomacy Tracker (Phase 2c) — third-country stance on Taiwan / cross-strait.
+-- See db/schema.sql for full column semantics. Editorial-gate pattern.
+CREATE TABLE IF NOT EXISTS diplomacy_statements (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id        INTEGER NOT NULL REFERENCES articles(id),
+    country_iso       TEXT NOT NULL,
+    country_name      TEXT,
+    speaker           TEXT,
+    authority_tier    TEXT NOT NULL,
+    stance            REAL NOT NULL,
+    stance_label      TEXT,
+    statement_en      TEXT,
+    statement_zh      TEXT,
+    stated_date       TEXT,
+    source_side       TEXT,
+    confidence        REAL,
+    approval_status   TEXT NOT NULL DEFAULT 'pending',
+    merged_into_id    INTEGER REFERENCES diplomacy_statements(id),
+    reviewed_at       TIMESTAMP,
+    reviewed_by       TEXT,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_diplo_status_date ON diplomacy_statements(approval_status, stated_date DESC);
+CREATE INDEX IF NOT EXISTS idx_diplo_country     ON diplomacy_statements(country_iso, approval_status);
+CREATE INDEX IF NOT EXISTS idx_diplo_article     ON diplomacy_statements(article_id);
+CREATE INDEX IF NOT EXISTS idx_diplo_tier        ON diplomacy_statements(authority_tier, approval_status);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run

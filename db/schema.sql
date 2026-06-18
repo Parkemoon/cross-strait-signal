@@ -580,3 +580,56 @@ INSERT OR IGNORE INTO poll_questions (question_key, question_text_zh, question_t
     ('identity_nccu_3pt',    '請問您認為自己是台灣人、中國人，或者都是？',     'Do you consider yourself Taiwanese, Chinese, or both?',                'identity',    'choice',             'NCCU ESC flagship since 1992'),
     ('unification_nccu_6pt', '請問您認為台灣和大陸的關係應該是什麼？',         'What should the relationship between Taiwan and mainland China be?',   'unification', 'six_point',          'NCCU ESC 6-point scale: unification now / status quo→union / status quo / status quo→indep / indep now / no opinion'),
     ('approval_lai_overall', '請問您對賴清德總統的整體表現滿意還是不滿意？',   'Are you satisfied with President Lai Ching-te overall performance?',   'approval',    'approve_disapprove', 'Multi-pollster monthly approval tracker');
+
+-- ============================================================
+-- DIPLOMACY TRACKER (Phase 2c — third-country stance on Taiwan)
+-- ============================================================
+-- A SEPARATE axis from the core cross-strait sentiment. The dashboard's
+-- sentiment measures how an article frames the OPPOSING side of the strait
+-- and DELIBERATELY discards third-party interactions (ai_pipeline prompt
+-- rule "third-party interactions are NOT cross-strait signals"). This table
+-- captures exactly that discarded signal: where THIRD countries (not PRC,
+-- not ROC) stand on the Taiwan / cross-strait / one-China question.
+--
+-- `stance` runs −1.0 (pro-Beijing / one-China / reunification) .. +1.0
+-- (pro-Taipei / supports Taiwan). NOT the same green/amber as the core
+-- sentiment instrument — this one is conventional pro-Taipei/pro-Beijing.
+--
+-- `authority_tier` is the crux of the two-layer map: the country FILL is
+-- driven by OFFICIAL tiers only (government, head_of_state) = honest
+-- national posture; every other tier renders as a PIN on top. A green
+-- legislator pin on a red one-China country (e.g. a senate delegation in
+-- Taipei while the government holds the line) is the headline feature.
+--
+-- `source_side` records which reporting side carried the statement (TW /
+-- PRC / INTL) — held for a future TW-lens vs PRC-lens split (the
+-- verification angle applied WITHIN a country); single combined view today.
+--
+-- Editorial-gate pattern, identical to military_exercises / polls:
+-- AI-extracted candidates land 'pending' and are hidden until analyst
+-- review. Mis-stating a country's official posture is a credibility-ender.
+
+CREATE TABLE IF NOT EXISTS diplomacy_statements (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id        INTEGER NOT NULL REFERENCES articles(id),
+    country_iso       TEXT NOT NULL,          -- ISO 3166-1 alpha-2, uppercase ('US','JP','CZ'); 'EU' for the bloc
+    country_name      TEXT,                   -- canonical English display name
+    speaker           TEXT,                   -- person / body named (e.g. 'President Petr Pavel', 'Senate delegation')
+    authority_tier    TEXT NOT NULL,          -- 'government'|'head_of_state'|'ruling_party'|'legislator'|'subnational'|'former_official'|'other'
+    stance            REAL NOT NULL,          -- -1.0 (pro-Beijing) .. +1.0 (pro-Taipei)
+    stance_label      TEXT,                   -- 'pro_beijing'|'leaning_beijing'|'neutral'|'leaning_taipei'|'pro_taipei'
+    statement_en      TEXT,                   -- English (translated if needed)
+    statement_zh      TEXT,                   -- verbatim original-language snippet
+    stated_date       TEXT,                   -- 'YYYY-MM-DD' (anchored to the article's published year)
+    source_side       TEXT,                   -- reporting side: 'TW'|'PRC'|'INTL' (future lens split)
+    confidence        REAL,
+    approval_status   TEXT NOT NULL DEFAULT 'pending',  -- 'pending'|'approved'|'dismissed'|'merged'
+    merged_into_id    INTEGER REFERENCES diplomacy_statements(id),
+    reviewed_at       TIMESTAMP,
+    reviewed_by       TEXT,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_diplo_status_date ON diplomacy_statements(approval_status, stated_date DESC);
+CREATE INDEX IF NOT EXISTS idx_diplo_country     ON diplomacy_statements(country_iso, approval_status);
+CREATE INDEX IF NOT EXISTS idx_diplo_article     ON diplomacy_statements(article_id);
+CREATE INDEX IF NOT EXISTS idx_diplo_tier        ON diplomacy_statements(authority_tier, approval_status);
