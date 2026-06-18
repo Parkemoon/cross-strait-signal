@@ -1294,9 +1294,13 @@ FULL TEXT:
         text = text.split("\n", 1)[1]
         text = text.rsplit("```", 1)[0]
     try:
-        return (json.loads(text) or {}).get('military_exercises', []) or []
+        parsed = json.loads(text)
     except json.JSONDecodeError:
         return []
+    # Accept a bare JSON array as well as the {"military_exercises": [...]} envelope.
+    if isinstance(parsed, list):
+        return parsed
+    return (parsed or {}).get('military_exercises', []) or []
 
 
 _DIPLOMACY_ONLY_PROMPT = """You are extracting THIRD-COUNTRY positions on Taiwan / the cross-strait (Taiwan Strait) question from a news article.
@@ -1727,9 +1731,13 @@ FULL TEXT:
         text = text.split("\n", 1)[1]
         text = text.rsplit("```", 1)[0]
     try:
-        return (json.loads(text) or {}).get('polls', []) or []
+        parsed = json.loads(text)
     except json.JSONDecodeError:
         return []
+    # Accept a bare JSON array as well as the {"polls": [...]} envelope.
+    if isinstance(parsed, list):
+        return parsed
+    return (parsed or {}).get('polls', []) or []
 
 
 # Title-pattern trigger keywords. Kept as a tuple so the query builder
