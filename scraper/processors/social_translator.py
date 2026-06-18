@@ -18,6 +18,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 from google import genai
 from scraper.utils.db import get_connection
+from scraper.utils.usage_log import log_usage
 
 _GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
 with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
@@ -94,6 +95,7 @@ def translate_social_pulse(batch_size=20):
                 contents=prompt,
                 config={"thinking_config": {"thinking_level": "low"}},
             )
+            log_usage("social", "gemini-3.1-flash-lite", response)
             raw = response.text.strip()
 
             # Strip markdown code blocks if present
