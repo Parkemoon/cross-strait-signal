@@ -72,7 +72,7 @@ The project venv at `venv/` may be near-empty on Windows. Use `/c/Users/Ed/venv/
     → Tier 1 AI: Gemini 3.1 Flash Lite (topic, sentiment, entities, urgency)
         ↳ side-extract: military exercise candidates from MIL_EXERCISE
                         articles → military_exercises (status=pending)
-    → Tier 2 AI: Gemini 2.5 Flash (escalation review, conditional)
+    → Tier 2 AI: Gemini 3.5 Flash (escalation review, conditional)
     → Tier 3: Human review queue (model disagreements — translation editing + auto-approve on resolve)
     → Editorial approval gate (analyst_approved=0 until sign-off; hidden from public feed)
     → SQLite + FTS5 → FastAPI → React dashboard
