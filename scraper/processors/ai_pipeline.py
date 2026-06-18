@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from scraper.processors.keyword_filter import check_relevance
+from scraper.utils.usage_log import log_usage
 
 
 # Article body slice fed to every Gemini prompt. Must be at least as large
@@ -755,6 +756,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "medium"},
         }
     )
+    log_usage("tier1", "gemini-3.1-flash-lite", response)
 
     try:
         return json.loads(response.text)
@@ -1106,6 +1108,7 @@ FULL TEXT:
                             "temperature": 0.1
                         }
                     )
+                    log_usage("tier2", "gemini-3.5-flash", review, article_id=article['id'])
                     review_analysis = json.loads(review.text)
 
                     # Update analysis dict with Flash's assessment
@@ -1289,6 +1292,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "medium"},
         },
     )
+    log_usage("exercise_only", "gemini-3.1-flash-lite", resp, article_id=article['id'])
     text = resp.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1]
@@ -1726,6 +1730,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "medium"},
         },
     )
+    log_usage("poll_only", "gemini-3.5-flash", resp, article_id=article['id'])
     text = resp.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1]
