@@ -1357,9 +1357,14 @@ FULL TEXT:
         text = text.split("\n", 1)[1]
         text = text.rsplit("```", 1)[0]
     try:
-        return (json.loads(text) or {}).get('diplomacy_statements', []) or []
+        parsed = json.loads(text)
     except json.JSONDecodeError:
         return []
+    # The model occasionally returns a bare JSON array instead of the
+    # {"diplomacy_statements": [...]} envelope — accept both.
+    if isinstance(parsed, list):
+        return parsed
+    return (parsed or {}).get('diplomacy_statements', []) or []
 
 
 def _insert_exercise_row(conn, article_id, ex):
