@@ -208,6 +208,8 @@ __marimo__/
 
 # Databases
 db/*.db
+cross_strait.db
+db/*.bak*
 
 # Frontend build outputs
 frontend/build-public/
