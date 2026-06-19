@@ -161,6 +161,30 @@ _VALID_AUTHORITY_TIERS = {
 }
 _ISO2_RE = re.compile(r'^[A-Z]{2}$')
 
+# International organisations / alliances the model sometimes emits as if they
+# were countries (ICAO under an invented 'UN' code, UN agencies, NATO, …).
+# This axis is third-COUNTRY stance, so orgs are dropped — the ONE deliberate
+# exception is the EU, tracked as a bloc via the 'EU' roster code. Matched on
+# the emitted name; a code denylist (exclude_iso, e.g. 'UN') is the backstop
+# for rows that carry an org code but no telltale name.
+_ORG_NAME_RE = re.compile(
+    r'(organi[sz]ation|united nations|civil aviation|world health|'
+    r'world trade|world bank|monetary fund|criminal court|interpol|'
+    r'\b(ICAO|UNESCO|UNICEF|UNFCCC|WHO|WTO|WHA|IMF|NATO|ASEAN|OECD|OPEC)\b)',
+    re.IGNORECASE,
+)
+_EU_ALLOW_RE = re.compile(r'european union|\bEU\b', re.IGNORECASE)
+
+
+def _looks_like_org(name):
+    """True if the emitted entity name reads as an international organisation
+    or alliance (not a state). The EU is exempt — we track it as a bloc."""
+    if not name:
+        return False
+    if _EU_ALLOW_RE.search(name):
+        return False
+    return bool(_ORG_NAME_RE.search(name))
+
 
 def _resolve_country_iso(name, iso):
     """Map an AI-emitted (country name, ISO code) pair to a canonical
@@ -168,10 +192,16 @@ def _resolve_country_iso(name, iso):
     plausible codes outside our curated roster so long-tail countries still
     reach the review queue), then falls back to alias lookup on the name.
     Returns (None, None) for the excluded cross-strait principals
-    (CN/TW/HK/MO) or when nothing resolves."""
+    (CN/TW/HK/MO), international organisations (orgs aren't states — EU bloc
+    excepted), or when nothing resolves."""
     iso_to_name = _COUNTRY_LOOKUP.get('iso_to_name', {})
     alias_to_iso = _COUNTRY_LOOKUP.get('alias_to_iso', {})
     exclude = set(_COUNTRY_LOOKUP.get('exclude_iso', []))
+
+    # Drop international orgs before anything else — they otherwise sail
+    # through the "plausible 2-letter code" acceptance below.
+    if _looks_like_org(name):
+        return None, None
 
     code = (str(iso).strip().upper() if iso else '')
     if code:
