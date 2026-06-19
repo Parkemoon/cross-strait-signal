@@ -47,6 +47,8 @@ python scripts/run_pipeline.py
 - `scripts/merge_entities.py --dry-run` (then `--type person --threshold 0.9`) — interactive near-duplicate entity name merge. Flags: `--type`, `--days` (default 90), `--threshold` (default 0.85), `--min-mentions` (default 2), `--dry-run`. False positives to watch for: historically distinct place variants (Beiping ≠ Beijing), different people sharing a surname initial.
 - `scripts/seed_nccu_polls.py` — backfills the NCCU ESC long trend series (1992–2025 identity; unification deferred until cleaner data) into `polls` + `poll_results` as `approved`. Data lives in `scraper/processors/nccu_esc_seed.json` — transcribed from NCCU's labelled trend chart PNG with per-year sum-to-100% cross-validation; sample sizes from the NCCU methodology PDF. Idempotent on `(pollster_id, fielded_start, reviewed_by='backfill:seed_nccu_polls')`. Re-run after adding new waves to the JSON.
 - `scripts/canonicalise_poll_labels.py` (then `--apply`) — collapses option_label variants in `poll_results` to canonical strings. Rules live in `scraper/processors/poll_labels_canonical.json` (per-scope mapping list — `from_zh` / `from_en` match, `to_zh` / `to_en` write). Two seeded rules: (a) no-opinion normalisation across non-NCCU non-vote-intent keys → `未明確回答` / "No response"; (b) vote-intent normalisation (strip party prefixes, fix Su Chiao-hui romanisation, collapse "haven't decided" residuals to `尚未決定` / "Undecided", keep "won't vote" as a separate `不投票或投廢票` / "Won't vote / Spoiled ballot" bucket). Idempotent (skips rows already canonical). **Now also runs automatically as pipeline Step 3d** (`run_pipeline.py` invokes it with `--apply` after Step 3c), so drift self-heals every 6h — manual runs are only needed for ad-hoc checks or after editing the JSON. Edit the JSON to add new mappings; no code change needed.
+- `scripts/backfill_diplomacy_statements.py --days 90 --limit 300` — back-populates `diplomacy_statements` (Phase 2c) from already-analysed articles. Shares `_insert_diplomacy_row` with the live Tier-1 pass (so org-exclusion + validation are identical). Flags: `--days`, `--limit`, `--topics`, `--all-topics`, `--db` (target another worktree's DB, e.g. prod), `--dry-run`. Rows land `pending` for the analyst review queue; safe to re-run.
+- `scripts/build_world_geojson.py` — builds the Diplomacy map basemap `frontend/public/geo/world-110m.geojson` from Natural Earth 1:110m admin0 (trims to `iso_a2`/`name`/`lx`/`ly` label points, drops Antarctica). Output is committed; re-run only to refresh the basemap.
 
 ### Frontend builds
 ```bash
@@ -71,6 +73,9 @@ The project venv at `venv/` may be near-empty on Windows. Use `/c/Users/Ed/venv/
     → Tier 1 AI: Gemini 3.1 Flash Lite (topic, sentiment, entities, urgency)
         ↳ side-extract: military exercise candidates from MIL_EXERCISE
                         articles → military_exercises (status=pending)
+        ↳ side-extract: third-country diplomatic stances on Taiwan →
+                        diplomacy_statements (status=pending; intl orgs
+                        excluded, EU bloc kept) → /api/diplomacy/*
     → Tier 2 AI: Gemini 3.5 Flash (escalation review, conditional)
     → Tier 3: Human review queue (model disagreements — translation editing + auto-approve on resolve)
     → Editorial approval gate (analyst_approved=0 until sign-off; hidden from public feed)
