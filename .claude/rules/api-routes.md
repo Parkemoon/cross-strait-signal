@@ -123,3 +123,22 @@ Non-obvious rules:
 - `polls.methodology_note` is survey-level (pollster, mode, fielding window), never question-specific. Question wording lives on `poll_questions.question_text_*`. If you need per-pollster wording variants for the same canonical question, that's a future feature (`pollster_question_phrasings` table) — don't bake it into `methodology_note`.
 - Provenance discriminators on returned polls: `source_article_id NOT NULL` = AI extraction; `reviewed_by LIKE 'backfill:%'` = script-seeded (NCCU long series); otherwise manual analyst entry.
 - `question_key` is analyst-assigned at approve time, never AI-extracted — the AI's free-text wording lives in `polls.pending_results_json` until the analyst picks (or creates) a canonical key per question.
+
+## `diplomacy.py` — `/api/diplomacy` (Phase 2c)
+
+Third-country stance on Taiwan / cross-strait — a separate axis from the core sentiment instrument. Read routes are public-safe (`approval_status='approved'` + the relaxed `_VISIBLE_ARTICLE` predicate the exercise routes use); admin routes are `Depends(require_admin)`. Pending / dismissed / merged rows live entirely behind the admin surface.
+
+Public reads:
+- `GET /api/diplomacy/map?stale_days=730` — choropleth payload, one entry per country. **FILL = the AGGREGATE (mean) stance of a country's official-tier (government/head_of_state) statements in the window** — NOT latest-only, so one stray PRC-source paraphrase can't define a major power (the US "Epic Fury" case). Each country also carries `pins_count`/`pins_stance`/`pins_label` (count + aggregate of its non-official voices, driving the map's voices-pin layer) and `divergent` (a non-official voice crossing neutral from the official fill — the headline feature, e.g. Denmark's one-China govt fill vs a pro-Taipei legislator pin). Countries with only non-official voices get `fill: null`. `official_count` exposes the fill's sample size; the latest official's tier/date is a freshness hint (full statements via `/statements`).
+- `GET /api/diplomacy/summary?stale_days=730` — KPI strip: `countries_tracked`, `by_band` (fill-band histogram incl. `none`), `divergent_count`, `latest`.
+- `GET /api/diplomacy/statements` — pin/list detail. Params `days` (or `start`/`end`), `country`, `tier`, `side`, `official_only`, `limit`. Window on the effective date (`stated_date` ?? article `published_at`). The frontend's selected-country panel fetches with `days=730` so the shown official set EXACTLY matches the `/map` aggregate (the "average of N" count and the list must agree).
+
+Admin (all `Depends(require_admin)`):
+- `GET /api/diplomacy/candidates` — pending rows grouped by country (`{groups:[{country_iso,country_name,count,statements:[…]}],total}`), no VISIBLE filter (analysts review before the article itself is approved).
+- `GET /api/diplomacy/candidates/count` — cheap `{pending:N}` for the review-button badge (avoids downloading the full candidates payload, thousands of rows).
+- `POST /api/diplomacy/{id}/approve` — flips to approved. NO auto-merge (no mechanical canonical key, unlike exercises/polls); duplicate collapsing is the explicit `/merge` or approve-best + dismiss-dupes.
+- `POST /api/diplomacy/{id}/dismiss`
+- `POST /api/diplomacy/{id}/merge` — body `{target_id, reviewed_by?}`; target must be `approved` (same constraint military/polls enforce).
+- `PATCH /api/diplomacy/{id}` — analyst edits, only changed fields. `stance_label` always recomputed from the final `stance`; `authority_tier`/`source_side` validated against enums; `stance` clamped to [−1,1]; `stated_date` must be ISO `YYYY-MM-DD`. `country_iso` cannot be cleared.
+
+Used by `DiplomacyTab.jsx` (choropleth + KPI strip + stance-sorted country list + drill-in detail), `DiplomacyMap.jsx` (fill + voices pins), and `DiplomacyReviewQueue.jsx` (collapsible-by-country candidate triage).
