@@ -214,6 +214,9 @@ db/*.bak*
 # Frontend build outputs
 frontend/build-public/
 
+# Session handoff log — internal continuity notes, not repo content
+SESSION_LOG.md
+
 # Claude Code per-developer config (hooks, settings, etc.)
 # Ignore everything directly under .claude/, then un-ignore project-shared content
 .claude/*
