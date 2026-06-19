@@ -385,3 +385,68 @@ export async function correctSocialTranslation(id, titleEnOverride) {
     body: JSON.stringify({ title_en_override: titleEnOverride }),
   });
 }
+
+// Diplomacy Tracker (Phase 2c) — third-country stance on the Taiwan /
+// cross-strait question. `/map` drives the choropleth (per-country official
+// FILL + pin/divergent metadata); `/summary` is the KPI strip; `/statements`
+// is the pin/list detail. Admin routes mirror the exercise/poll review shape.
+
+export async function fetchDiplomacyMap(params = {}) {
+  const query = new URLSearchParams();
+  if (params.stale_days) query.append("stale_days", params.stale_days);
+  return request(`/api/diplomacy/map${query.toString() ? `?${query}` : ""}`);
+}
+
+export async function fetchDiplomacySummary(params = {}) {
+  const query = new URLSearchParams();
+  if (params.stale_days) query.append("stale_days", params.stale_days);
+  return request(`/api/diplomacy/summary${query.toString() ? `?${query}` : ""}`);
+}
+
+export async function fetchDiplomacyStatements(params = {}) {
+  const query = new URLSearchParams();
+  ["days", "start", "end", "country", "tier", "side", "official_only", "limit"].forEach((k) => {
+    if (params[k] !== undefined && params[k] !== "" && params[k] !== null && params[k] !== false) {
+      query.append(k, params[k]);
+    }
+  });
+  return request(`/api/diplomacy/statements?${query}`);
+}
+
+export async function fetchDiplomacyCandidates() {
+  return request(`/api/diplomacy/candidates`, { headers: authHeaders() });
+}
+
+export async function fetchDiplomacyCandidatesCount() {
+  return request(`/api/diplomacy/candidates/count`, { headers: authHeaders() });
+}
+
+export async function approveDiplomacyStatement(id) {
+  return request(`/api/diplomacy/${id}/approve`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+}
+
+export async function dismissDiplomacyStatement(id) {
+  return request(`/api/diplomacy/${id}/dismiss`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+}
+
+export async function mergeDiplomacyStatement(id, targetId, reviewedBy) {
+  return request(`/api/diplomacy/${id}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ target_id: targetId, reviewed_by: reviewedBy }),
+  });
+}
+
+export async function updateDiplomacyStatement(id, patch) {
+  return request(`/api/diplomacy/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(patch),
+  });
+}
