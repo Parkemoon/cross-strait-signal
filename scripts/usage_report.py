@@ -11,10 +11,12 @@ Usage:
 
 Cost column is only shown for models whose price is filled into PRICES
 below — VERIFY current Google Gemini pricing before trusting the figures.
-Token totals are always exact. Thinking ("thoughts") tokens are billed at
-the output rate; cached input tokens are a discounted subset of prompt
-tokens (this report bills them at the full input rate, so the estimate is
-a slight UPPER bound until you wire the cached discount in).
+Token totals are always exact. Billing model (Standard tier, USD):
+thinking ("thoughts") tokens bill at the OUTPUT rate; cached input tokens
+are a discounted subset of prompt tokens and bill at the cache-read rate,
+so the report charges (prompt − cached) at the input rate + cached at the
+cache rate + (output + thoughts) at the output rate. (Implicit caching has
+no separate storage fee, so storage is not modelled.)
 """
 import os
 import sys
@@ -27,20 +29,24 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 DEFAULT_LOG = os.environ.get("GEMINI_USAGE_LOG", "/var/log/gemini-usage.jsonl")
 
-# Fill in current per-1M-token prices (in your billing currency) to get a
-# cost column. Leave as None to show tokens only. Verify against Google's
-# current Gemini price sheet — these change.
+# Per-1M-token prices, USD, Standard tier (Google Gemini price sheet, verified
+# 2026-06-19). `out_per_1m` covers thinking tokens too; `cache_per_1m` is the
+# discounted cache-read rate for the cached subset of prompt tokens. Verify
+# against Google's current sheet before trusting figures — these change.
 PRICES = {
-    "gemini-3.1-flash-lite": {"in_per_1m": None, "out_per_1m": None},
-    "gemini-3.5-flash":      {"in_per_1m": None, "out_per_1m": None},
+    "gemini-3.1-flash-lite": {"in_per_1m": 0.25, "out_per_1m": 1.50, "cache_per_1m": 0.025},
+    "gemini-3.5-flash":      {"in_per_1m": 1.50, "out_per_1m": 9.00, "cache_per_1m": 0.15},
 }
 
 
-def _cost(model, prompt, output, thoughts):
+def _cost(model, prompt, cached, output, thoughts):
     p = PRICES.get(model)
-    if not p or p.get("in_per_1m") is None or p.get("out_per_1m") is None:
+    if not p or any(p.get(k) is None for k in ("in_per_1m", "out_per_1m", "cache_per_1m")):
         return None
-    return (prompt / 1e6) * p["in_per_1m"] + ((output + thoughts) / 1e6) * p["out_per_1m"]
+    uncached = max(0, prompt - cached)
+    return ((uncached / 1e6) * p["in_per_1m"]
+            + (cached / 1e6) * p["cache_per_1m"]
+            + ((output + thoughts) / 1e6) * p["out_per_1m"])
 
 
 def main():
@@ -100,7 +106,7 @@ def main():
     for key in sorted(agg, key=lambda k: agg[k]["total"], reverse=True):
         a = agg[key]
         # cost only computable per-model
-        c = _cost(key, a["prompt"], a["output"], a["thoughts"]) if args.by == "model" else None
+        c = _cost(key, a["prompt"], a["cached"], a["output"], a["thoughts"]) if args.by == "model" else None
         cstr = f"{c:>10.2f}" if c is not None else f"{'—':>10}"
         if c is not None:
             cost_known = True
