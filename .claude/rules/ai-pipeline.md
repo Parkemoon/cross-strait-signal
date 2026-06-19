@@ -80,6 +80,10 @@ Only `title + content[:2000]` is checked — full content is not used, to preven
 
 Separate lightweight pipeline for social data — does NOT go through the article AI pipeline. Batch-translates `social_pulse` rows where `title_en IS NULL` using Gemini 3.1 Flash Lite (`thinking_level=low`). Runs as Step 2b in `run_pipeline.py` after the social scrapers.
 
+## Token usage logging (`scraper/utils/usage_log.py`)
+
+Every Gemini call routes its `usage_metadata` through `log_usage(stage, model, response, article_id=None)`, which appends one JSON line per call (prompt / cached / thoughts / output / total tokens) to `$GEMINI_USAGE_LOG` (default `/var/log/gemini-usage.jsonl`). Calls are tagged by stage — the article-AI sites (`tier1`, `tier2`, `exercise_only`, `poll_only`, `diplomacy_only`) plus the social translator (`social`). Append-only, no schema; the logger swallows all errors so instrumentation can never break the pipeline. Aggregate with `scripts/usage_report.py` (`--days`, `--by stage|model|day`). Use it to attribute the bill by stage before tuning cost (context caching / `MAX_PROMPT_CONTENT_CHARS` / thinking level).
+
 ## Don't reference `test_ai.py`
 
 `test_ai.py` is a legacy prototype script — do not use it as a reference. It uses a stale prompt with old topic codes (`POL_UNIFICATION`, `POL_DOMESTIC`) and old sentiment values (`escalatory`/`conciliatory`) that no longer match the DB schema or the real pipeline in `ai_pipeline.py`.
