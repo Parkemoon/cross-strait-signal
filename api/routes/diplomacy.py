@@ -149,12 +149,18 @@ def country_map(
     stale_days: int = Query(730, ge=30, le=3650,
                             description="Only consider statements within this window for fill/pins."),
 ):
-    """Per-country view for the choropleth. FILL = the latest official-tier
-    (government / head_of_state) approved statement within `stale_days` =
-    honest national posture; countries with only non-official statements get
-    `fill: null` but still carry pins. `divergent` flags the headline
-    feature: a non-official voice whose stance opposes the official fill
-    (e.g. a supportive legislator delegation under a one-China government)."""
+    """Per-country view for the choropleth. FILL = the AGGREGATE (mean) stance
+    of a country's official-tier (government / head_of_state) approved
+    statements within `stale_days` = honest national posture, robust to a
+    single stray row; `official_count` exposes the sample size and the latest
+    official's tier/date is a freshness hint (full statements come from
+    /statements). Countries with only non-official statements get `fill: null`
+    but still carry voices. Each country also reports `pins_count` /
+    `pins_stance` / `pins_label` — the count and aggregate stance of its
+    non-official voices, which drive the map's voices-pin layer. `divergent`
+    flags the headline feature: a non-official voice whose stance opposes the
+    official fill (e.g. a supportive legislator delegation under a one-China
+    government)."""
     cutoff = (date.today() - timedelta(days=stale_days - 1)).isoformat()
     sql = f"""
         SELECT {_PUBLIC_COLS}
@@ -181,29 +187,45 @@ def country_map(
     for iso, stmts in by_country.items():
         official = [s for s in stmts if s["authority_tier"] in _OFFICIAL_TIERS]
         pins = [s for s in stmts if s["authority_tier"] not in _OFFICIAL_TIERS]
-        fill = official[0] if official else None
 
+        # FILL = the AGGREGATE (mean) stance of the country's official-tier
+        # statements in the window, so one stray row (e.g. a PRC-source
+        # paraphrase of a third country) can't define a major power on its
+        # own. The latest official is kept as the representative quote;
+        # `official_count` exposes how many statements back the average.
+        fill = None
+        if official:
+            agg = sum(s["stance"] for s in official) / len(official)
+            rep = official[0]  # latest official — drives the "last updated" hint
+            fill = {
+                "stance":         round(agg, 3),
+                "stance_label":   _stance_label(agg),
+                "official_count": len(official),
+                "authority_tier": rep["authority_tier"],
+                "effective_date": rep["effective_date"],
+            }
+
+        # Divergence: a non-official voice pulling across neutral from the
+        # aggregate official posture.
         divergent = False
         if fill and fill["stance"] <= -_NEUTRAL_BAND:
             divergent = any(s["stance"] >= _NEUTRAL_BAND for s in pins)
         elif fill and fill["stance"] >= _NEUTRAL_BAND:
             divergent = any(s["stance"] <= -_NEUTRAL_BAND for s in pins)
 
+        # Aggregate of the non-official voices — drives the colour of the
+        # voices-pin layer (so a green pin can sit on a red fill = divergence).
+        pins_mean = (sum(s["stance"] for s in pins) / len(pins)) if pins else None
+
         countries.append({
             "country_iso":  iso,
-            "country_name": fill["country_name"] if fill else stmts[0]["country_name"],
-            "fill": {
-                "stance":         fill["stance"],
-                "stance_label":   fill["stance_label"],
-                "speaker":        fill["speaker"],
-                "authority_tier": fill["authority_tier"],
-                "statement_en":   fill["statement_en"],
-                "effective_date": fill["effective_date"],
-                "article":        fill["article"],
-            } if fill else None,
-            "pins_count":  len(pins),
-            "total_count": len(stmts),
-            "divergent":   divergent,
+            "country_name": stmts[0]["country_name"],
+            "fill":         fill,
+            "pins_count":   len(pins),
+            "pins_stance":  round(pins_mean, 3) if pins_mean is not None else None,
+            "pins_label":   _stance_label(pins_mean) if pins_mean is not None else None,
+            "total_count":  len(stmts),
+            "divergent":    divergent,
         })
 
     countries.sort(key=lambda c: c["country_iso"])
@@ -288,6 +310,17 @@ def candidates():
         ],
         "total": len(rows),
     }
+
+
+@router.get("/candidates/count", dependencies=[Depends(require_admin)])
+def candidates_count():
+    """Cheap pending count for the review-button badge — avoids downloading
+    the full /candidates payload (thousands of rows) just to show a number."""
+    with db_conn() as conn:
+        n = conn.execute(
+            "SELECT COUNT(*) FROM diplomacy_statements WHERE approval_status = 'pending'"
+        ).fetchone()[0]
+    return {"pending": n}
 
 
 @router.post("/{statement_id}/approve", dependencies=[Depends(require_admin)])

@@ -1,6 +1,6 @@
 {
   "_comment": "Country name -> ISO 3166-1 alpha-2 resolver for the Diplomacy Tracker side-extract. The AI emits both a country English name and an ISO code; _resolve_country_iso() trusts a valid 2-letter ISO, else falls back to alias_to_iso. exclude_iso drops the two cross-strait principals — statements BY China or Taiwan are the core sentiment axis, not this third-country instrument. 'EU' is a non-ISO pseudo-code for the European Union bloc. Roster is curated for cross-strait relevance (major powers, Indo-Pacific neighbours, EU members, Taiwan's diplomatic allies + recent switchers); an unknown-but-plausible 2-letter ISO from the AI is accepted as-is so long-tail countries still land in the review queue. Add aliases freely — en aliases lowercase, zh aliases verbatim (both Traditional + Simplified).",
-  "exclude_iso": ["CN", "TW", "HK", "MO"],
+  "exclude_iso": ["CN", "TW", "HK", "MO", "UN"],
   "iso_to_name": {
     "US": "United States",
     "JP": "Japan",
