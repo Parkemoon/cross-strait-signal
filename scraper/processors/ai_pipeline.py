@@ -312,10 +312,19 @@ def _normalise_entity_name(entity):
     if not zh_name:
         return entity
 
+    # Tier 1: exact match wins outright, before the prefix tiers — otherwise an
+    # earlier, longer key shadows it (bare 解放軍 would match 解放軍海軍 via the
+    # prefix tiers and resolve to "PLAN" instead of "PLA").
+    if len(zh_name) >= 2 and zh_name in _CANONICAL_ENTITIES:
+        entity['name_en'] = _CANONICAL_ENTITIES[zh_name]
+        return entity
+
+    # Tiers 2-3: prefix relationships — the extracted name is a longer form of a
+    # canonical key, or the AI returned a shorter form than the canonical key.
     for zh, en in _CANONICAL_ENTITIES.items():
         if len(zh) < 2:
             continue
-        if zh == zh_name or zh_name.startswith(zh) or zh.startswith(zh_name):
+        if zh_name.startswith(zh) or zh.startswith(zh_name):
             entity['name_en'] = en
             return entity
 
