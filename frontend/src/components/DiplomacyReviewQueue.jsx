@@ -42,7 +42,10 @@ function labelStyle() {
 
 // Editable draft shape — mirrors StatementPatch in api/routes/diplomacy.py.
 // Empty string = the form's "absent" sentinel; the PATCH path normalises back.
-function diplomacyDraftFrom(row) {
+// Exported (with isDiplomacyDraftDirty / buildDiplomacyPatch / DiplomacyFieldsGrid)
+// so DiplomacyEditModal can reuse the exact same edit UI on approved rows —
+// the same lockstep ExerciseReviewQueue keeps with ExerciseEditModal.
+export function diplomacyDraftFrom(row) {
   return {
     country_iso:    row.country_iso || "",
     country_name:   row.country_name || "",
@@ -63,13 +66,13 @@ function fieldChanged(k, v, row) {
   return (v || "") !== (row[k] || "");
 }
 
-function isDraftDirty(draft, row) {
+export function isDiplomacyDraftDirty(draft, row) {
   return Object.entries(draft).some(([k, v]) => fieldChanged(k, v, row));
 }
 
 // Minimal PATCH body — only changed fields, so the server's per-field
 // validators (tier/side enums, ISO date, stance clamp) only run on edits.
-function buildDiplomacyPatch(draft, row) {
+export function buildDiplomacyPatch(draft, row) {
   const p = {};
   for (const [k, v] of Object.entries(draft)) {
     if (!fieldChanged(k, v, row)) continue;
@@ -79,7 +82,7 @@ function buildDiplomacyPatch(draft, row) {
   return p;
 }
 
-function DiplomacyFieldsGrid({ draft, setDraft }) {
+export function DiplomacyFieldsGrid({ draft, setDraft }) {
   const band = stanceBand(draft.stance);
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
   return (
@@ -142,7 +145,7 @@ function CandidateCard({ candidate, onResolve }) {
   const [draft, setDraft] = useState(() => diplomacyDraftFrom(candidate));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const dirty = isDraftDirty(draft, candidate);
+  const dirty = isDiplomacyDraftDirty(draft, candidate);
 
   const act = async (action) => {
     setBusy(true); setError(null);
