@@ -105,6 +105,9 @@ CREATE INDEX idx_analysis_topic       ON ai_analysis(topic_primary);
 CREATE INDEX idx_analysis_sentiment   ON ai_analysis(sentiment);
 CREATE INDEX idx_analysis_urgency     ON ai_analysis(urgency);
 CREATE INDEX idx_analysis_escalation  ON ai_analysis(is_escalation_signal);
+-- article_id is an unindexed FK; the diplomacy/exercise/stats routes LEFT JOIN
+-- ai_analysis ON article_id, which full-scans without this (20s on /diplomacy/summary).
+CREATE INDEX IF NOT EXISTS idx_analysis_article ON ai_analysis(article_id);
 CREATE INDEX idx_entities_type        ON entities(entity_type);
 CREATE INDEX idx_entities_name        ON entities(entity_name);
 CREATE INDEX idx_keywords_category    ON keywords_matched(keyword_category);
