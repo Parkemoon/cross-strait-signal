@@ -299,6 +299,12 @@ CREATE INDEX IF NOT EXISTS idx_diplo_country     ON diplomacy_statements(country
 CREATE INDEX IF NOT EXISTS idx_diplo_article     ON diplomacy_statements(article_id);
 CREATE INDEX IF NOT EXISTS idx_diplo_tier        ON diplomacy_statements(authority_tier, approval_status);
 
+-- ai_analysis.article_id is an unindexed FK. Routes that LEFT JOIN ai_analysis
+-- ON article_id (diplomacy /map+/summary+/statements, exercises, stats) full-scan
+-- the 12k-row table per outer row — /diplomacy/summary hit 20s once the
+-- diplomacy backlog was approved. This index turns the scan into a lookup.
+CREATE INDEX IF NOT EXISTS idx_analysis_article ON ai_analysis(article_id);
+
 -- FTS5 sync triggers. The articles_fts virtual table existed without triggers,
 -- so historical inserts never made it into the index. The /api/articles search
 -- now hits articles_fts directly. After applying these triggers, run
