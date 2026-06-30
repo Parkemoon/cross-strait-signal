@@ -9,6 +9,7 @@ import DiplomacyMap, {
   BAND_COLOUR, BAND_LABEL, BAND_ORDER, TIER_LABEL,
 } from "./DiplomacyMap";
 import DiplomacyReviewQueue from "./DiplomacyReviewQueue";
+import DiplomacyEditModal from "./DiplomacyEditModal";
 import { READ_ONLY } from "../readOnly";
 
 const OFFICIAL_TIERS = new Set(["government", "head_of_state"]);
@@ -156,12 +157,13 @@ function CountryRow({ country, selected, onSelect }) {
 }
 
 // One statement line — stance chip + attribution + quote + source. Shared by
-// the official-set and non-official-voice lists below.
-function StatementRow({ s }) {
+// the official-set and non-official-voice lists below. When `onEdit` is passed
+// (admin only) a ✎ opens the post-approval edit modal for this exact row.
+function StatementRow({ s, onEdit }) {
   return (
     <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
       <div style={{ flexShrink: 0, marginTop: "2px" }}><StanceChip label={s.stance_label} /></div>
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--text-secondary)" }}>
           {s.speaker || "—"} · {TIER_LABEL[s.authority_tier] || s.authority_tier} · {s.effective_date}
         </div>
@@ -175,13 +177,24 @@ function StatementRow({ s }) {
           </a>
         )}
       </div>
+      {onEdit && (
+        <button onClick={() => onEdit(s)} title="Edit this statement"
+          style={{
+            flexShrink: 0, alignSelf: "flex-start", background: "none",
+            border: "1px solid var(--border-color)", color: "var(--text-muted)",
+            cursor: "pointer", fontSize: "10px", lineHeight: 1, padding: "3px 6px",
+            fontFamily: "var(--font-mono)",
+          }}>
+          ✎
+        </button>
+      )}
     </div>
   );
 }
 
 // A titled statement list with loading / empty states. `loading` true while
 // the fetch is in flight.
-function StatementList({ title, accent, items, loading }) {
+function StatementList({ title, accent, items, loading, onEdit }) {
   return (
     <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px dotted var(--border-color)" }}>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px" }}>
@@ -193,7 +206,7 @@ function StatementList({ title, accent, items, loading }) {
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>None on record.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {items.map((s) => <StatementRow key={s.id} s={s} />)}
+          {items.map((s) => <StatementRow key={s.id} s={s} onEdit={onEdit} />)}
         </div>
       )}
     </div>
@@ -204,7 +217,7 @@ function StatementList({ title, accent, items, loading }) {
 // 730-day window the map aggregate uses, so the "Official statements" list IS
 // exactly the set averaged into the fill — click in and see every story
 // behind the colour. Non-official voices carry the divergence headline.
-function SelectedDetail({ iso, country }) {
+function SelectedDetail({ iso, country, onEdit, refreshNonce }) {
   const [statements, setStatements] = useState(null);
   useEffect(() => {
     if (!iso) return undefined;
@@ -214,7 +227,7 @@ function SelectedDetail({ iso, country }) {
       .then((r) => { if (alive) setStatements(r.rows || []); })
       .catch(() => { if (alive) setStatements([]); });
     return () => { alive = false; };
-  }, [iso]);
+  }, [iso, refreshNonce]);
 
   if (!country) return null;
   const fill = country.fill;
@@ -239,13 +252,14 @@ function SelectedDetail({ iso, country }) {
       </div>
 
       {fill && (
-        <StatementList title="Official statements (averaged)" items={official} loading={loading} />
+        <StatementList title="Official statements (averaged)" items={official} loading={loading} onEdit={onEdit} />
       )}
       <StatementList
         title="Non-official voices"
         accent={country.divergent ? <span style={{ color: "#b8860b" }}>◆ Divergence · </span> : null}
         items={nonOfficial}
         loading={loading}
+        onEdit={onEdit}
       />
     </div>
   );
@@ -259,6 +273,8 @@ export default function DiplomacyTab() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [showPins, setShowPins] = useState(true);
+  const [editing, setEditing] = useState(null);   // approved statement being edited (admin)
+  const [detailNonce, setDetailNonce] = useState(0); // bump to refetch the drill-in after an edit
 
   const reloadMap = () => {
     Promise.all([fetchDiplomacyMap({ stale_days: 730 }), fetchDiplomacySummary({ stale_days: 730 })])
@@ -398,7 +414,14 @@ export default function DiplomacyTab() {
         </div>
       </div>
 
-      {selectedCountry && <SelectedDetail iso={selectedIso} country={selectedCountry} />}
+      {selectedCountry && (
+        <SelectedDetail
+          iso={selectedIso}
+          country={selectedCountry}
+          onEdit={READ_ONLY ? undefined : setEditing}
+          refreshNonce={detailNonce}
+        />
+      )}
 
       <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "16px", lineHeight: 1.5 }}>
         Basemap: Natural Earth 1:110m (public domain) via CartoDB Positron tiles
@@ -416,6 +439,15 @@ export default function DiplomacyTab() {
         <DiplomacyReviewQueue
           onClose={() => { setReviewOpen(false); reloadMap(); loadPendingCount(); }}
           onResolveAll={() => setPendingCount(0)}
+        />
+      )}
+
+      {editing && (
+        <DiplomacyEditModal
+          statement={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); reloadMap(); setDetailNonce((n) => n + 1); }}
+          onDismissed={() => { setEditing(null); reloadMap(); setDetailNonce((n) => n + 1); }}
         />
       )}
     </main>
