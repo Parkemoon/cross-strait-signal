@@ -1,5 +1,6 @@
 // Bias → background colour mapping
-// PRC: red shades  |  TW green: green shades  |  TW blue: blue shades  |  centrist: grey
+// PRC: red shades  |  TW green: green shades  |  TW blue: blue shades
+// centrist: grey  |  china_centrist: muted rose (moderate but Beijing-leaning)
 const BIAS_COLORS = {
   state_nationalist: { bg: "#b91c1c", text: "#fff" },   // deep red
   state_official:    { bg: "#dc2626", text: "#fff" },   // red
@@ -8,6 +9,7 @@ const BIAS_COLORS = {
   blue:              { bg: "#1d4ed8", text: "#fff" },   // blue
   blue_leaning:      { bg: "#93c5fd", text: "#1e3a5f" },// light blue, dark text
   centrist:          { bg: "#6b7280", text: "#fff" },   // grey
+  china_centrist:    { bg: "#a86a6a", text: "#fff" },   // muted rose — Beijing-leaning centrist
 };
 
 const SOURCE_ABBREV = {
@@ -46,6 +48,7 @@ const SOURCE_ABBREV = {
   "PLA Daily":              "PLA",
   "PRC MFA Spokesperson":   "MFA",
   "Taiwan Affairs Office":  "TAO",
+  "China Taiwan Net":       "CTN",
   // PRC — state_nationalist
   "Global Times":  "GT",
   "Guancha":       "GC",

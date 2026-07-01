@@ -51,6 +51,7 @@ const BIAS_COLORS = {
   blue:              "#1d4ed8",
   blue_leaning:      "#93c5fd",
   centrist:          "#6b7280",
+  china_centrist:    "#a86a6a",
 };
 
 // Maps publication display name → DB source name prefix for API filtering
@@ -67,6 +68,7 @@ const SOURCE_FILTER = {
   "The Paper":          "The Paper",
   "MFA Spokesperson":   "PRC MFA",
   "Taiwan Affairs Office": "Taiwan Affairs Office",
+  "China Taiwan Net":   "China Taiwan Net",
   "Guancha":            "Guancha",
   "Haixia Daobao":      "Haixia Daobao",
   "PLA Daily":          "PLA Daily",
@@ -125,6 +127,7 @@ const BIAS_SHORT = {
   green_leaning: "Green-leaning",
   blue:          "Blue camp",
   blue_leaning:  "Blue-leaning",
+  china_centrist:"China-centrist",
 };
 
 function buildScopeLabel(filters) {

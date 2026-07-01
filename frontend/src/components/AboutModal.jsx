@@ -3,6 +3,7 @@ const BIAS_ROWS = [
   { label: "green_leaning",     color: "#4ade80", text: "#14532d",  desc: "State-controlled under DPP-led government (e.g. CNA, YDN)" },
   { label: "blue",              color: "#1d4ed8", text: "#fff",     desc: "Consistent KMT-aligned editorial line (e.g. UDN)" },
   { label: "centrist",          color: "#6b7280", text: "#fff",     desc: "Editorially independent, either local or international (e.g. Zaobao)" },
+  { label: "china_centrist",    color: "#a86a6a", text: "#fff",     desc: "Editorially moderate but Beijing-accommodating (e.g. Ming Pao)" },
   { label: "state_official",    color: "#dc2626", text: "#fff",     desc: "PRC state media or government organ (e.g. Xinhua, MFA, TAO)" },
   { label: "state_nationalist", color: "#b91c1c", text: "#fff",     desc: "PRC nationalist commentary (e.g. Global Times, Guancha)" },
 ];

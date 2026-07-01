@@ -150,9 +150,10 @@ Less-obvious categories:
 
 **Urgency levels**: `flash` / `priority` / `routine`
 
-**Source bias labels**: `green`, `green_leaning`, `centrist`, `blue_leaning`, `blue`, `state_official`, `state_nationalist`. Canonical roster in `seed_sources.py`. Source-specific judgement calls worth keeping:
+**Source bias labels**: `green`, `green_leaning`, `centrist`, `china_centrist`, `blue_leaning`, `blue`, `state_official`, `state_nationalist`. Canonical roster in `seed_sources.py`. Source-specific judgement calls worth keeping:
 - **YDN** is `green_leaning` because it's MND state media under the current DPP executive — reclassify if the government changes.
 - **RTHK** is `state_official` post-NSL.
+- **Ming Pao** is `china_centrist` (muted-rose badge), not plain `centrist` — editorially moderate but Beijing-accommodating, distinct from genuinely neutral internationals (BBC, Zaobao). `china_centrist` is a China-leaning centrist band, not a PRC state organ; **China Taiwan Net** (中国台湾网, the TAO news portal) is a full `state_official`.
 - **BBC Chinese** stores only the RSS `<description>` summary — the article page is Next.js CSR and yields no extractable text via BeautifulSoup. Sufficient for keyword filtering + AI analysis; don't waste time rebuilding the content scraper.
 
 **Romanisation**: Wade-Giles/Tongyong for Taiwanese entities (people, places, organisations); Hanyu Pinyin for PRC entities. Never leave a Chinese name untranslated — apply the appropriate system if no established romanisation exists.
