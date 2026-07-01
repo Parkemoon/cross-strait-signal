@@ -200,7 +200,7 @@ export default function App() {
               Polls
             </button>
           )}
-          {!isMobile && !READ_ONLY && (
+          {!isMobile && (
             <button
               onClick={() => setView(view === "diplomacy" ? "feed" : "diplomacy")}
               style={{
@@ -319,7 +319,7 @@ export default function App() {
           { id: "people", label: "People" },
           { id: "military", label: "Military" },
           { id: "polls", label: "Polls" },
-          ...(!READ_ONLY ? [{ id: "diplomacy", label: "Diplomacy" }] : []),
+          { id: "diplomacy", label: "Diplomacy" },
           { id: "social", label: "Social" },
           ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
         ].map((tab) => (
