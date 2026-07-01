@@ -58,6 +58,7 @@ function ReviewCard({ item, onResolved }) {
     green_leaning: "#52be80",
     blue: "#2980b9",
     blue_leaning: "#5dade2",
+    china_centrist: "#a86a6a",
     state_official: "#8e44ad",
     state_nationalist: "#c0392b",
   }[item.bias] || "var(--text-muted)";

@@ -112,6 +112,7 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
         <option value="green_leaning">Green-leaning</option>
         <option value="blue">Blue</option>
         <option value="centrist">Centrist</option>
+        <option value="china_centrist">Centrist (China-leaning)</option>
         <option value="state_official">State (official)</option>
         <option value="state_nationalist">State (nationalist)</option>
       </select>

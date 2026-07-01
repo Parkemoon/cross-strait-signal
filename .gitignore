@@ -140,6 +140,8 @@ celerybeat.pid
 .venv
 env/
 venv/
+# staging worktree's venv is a symlink to the prod venv (not a real dir)
+venv
 ENV/
 env.bak/
 venv.bak/
