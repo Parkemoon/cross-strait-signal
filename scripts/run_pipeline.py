@@ -10,6 +10,7 @@ from scraper.scrapers.rss_scraper import scrape_all_rss_sources
 from scraper.scrapers.mfa_scraper import scrape_mfa_spokesperson
 from scraper.scrapers.udn_scraper import scrape_all_udn_sources
 from scraper.scrapers.guancha_scraper import scrape_guancha
+from scraper.scrapers.taiwan_cn_scraper import scrape_taiwan_cn
 from scraper.scrapers.fjsen_scraper import scrape_fjsen
 from scraper.scrapers.pla_daily_scraper import scrape_pla_daily
 from scraper.scrapers.ydn_scraper import scrape_ydn
@@ -57,6 +58,7 @@ async def main():
     new_tao = await scrape_tao()
     new_udn = await scrape_all_udn_sources()
     new_guancha = await scrape_guancha()
+    new_taiwan_cn = await scrape_taiwan_cn()
     new_fjsen = await scrape_fjsen()
     new_pla = await scrape_pla_daily()
     new_ydn = await scrape_ydn()
@@ -126,8 +128,8 @@ async def main():
     await asyncio.to_thread(scrape_mac_polls)
 
     # Step 3: Analyse unprocessed articles
-    total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_fjsen
-                 + new_pla + new_ydn + new_ltn_defence + new_ettoday_polls
+    total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_taiwan_cn
+                 + new_fjsen + new_pla + new_ydn + new_ltn_defence + new_ettoday_polls
                  + new_tvbs_polls + new_myformosa_polls)
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
     process_unanalysed_articles(limit=500)
