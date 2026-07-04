@@ -1,6 +1,6 @@
 import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import sys
 import os
 
@@ -8,6 +8,9 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection, article_exists
+
+# UDN list-page timestamps are Asia/Taipei local time (UTC+8, no DST).
+_TAIPEI = timezone(timedelta(hours=8))
 
 
 BASE_URL = 'https://udn.com'
@@ -77,7 +80,9 @@ async def scrape_udn(source):
             if time_tag:
                 time_text = time_tag.get_text(strip=True)
                 try:
-                    published_at = datetime.strptime(time_text, '%Y-%m-%d %H:%M').isoformat()
+                    published_at = (datetime.strptime(time_text, '%Y-%m-%d %H:%M')
+                                    .replace(tzinfo=_TAIPEI)
+                                    .astimezone(timezone.utc).isoformat())
                 except ValueError:
                     pass
 

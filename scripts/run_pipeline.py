@@ -2,6 +2,7 @@ import asyncio
 import sys
 import os
 import subprocess
+import traceback
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -43,71 +44,102 @@ sys.path.insert(0, os.path.dirname(__file__))
 from cluster_events import cluster_recent_articles
 
 
+_FAILURES = []
+
+
+def _run(label, fn, default=0):
+    """Run a sync pipeline step, isolating its failure so the rest of the run —
+    crucially the downstream AI-analysis and clustering steps — still executes.
+    One flaky source must never abort the whole 6-hourly pipeline."""
+    try:
+        return fn()
+    except Exception as e:
+        traceback.print_exc()
+        print(f"  [pipeline] step '{label}' FAILED: {type(e).__name__}: {e}")
+        _FAILURES.append(label)
+        return default
+
+
+async def _arun(label, coro, default=0):
+    """Async counterpart of _run. Pass the coroutine itself, e.g.
+    ``await _arun('rss', scrape_all_rss_sources())``."""
+    try:
+        return await coro
+    except Exception as e:
+        traceback.print_exc()
+        print(f"  [pipeline] step '{label}' FAILED: {type(e).__name__}: {e}")
+        _FAILURES.append(label)
+        return default
+
+
 async def main():
     print("=" * 60)
     print("CROSS-STRAIT SIGNAL — Pipeline Run")
     print("=" * 60)
 
+    # Every scraper call is wrapped so a single source failing (transient 5xx,
+    # markup change, timeout) can't abort the run before Steps 3-4.
+
     # Step 1: Scrape RSS sources
     print("\n--- STEP 1: Scraping RSS sources ---")
-    new_rss = await scrape_all_rss_sources()
+    new_rss = await _arun('rss', scrape_all_rss_sources())
 
     # Step 2: Scrape HTML sources
     print("\n--- STEP 2: Scraping HTML sources ---")
-    new_mfa = await scrape_mfa_spokesperson()
-    new_tao = await scrape_tao()
-    new_udn = await scrape_all_udn_sources()
-    new_guancha = await scrape_guancha()
-    new_taiwan_cn = await scrape_taiwan_cn()
-    new_fjsen = await scrape_fjsen()
-    new_pla = await scrape_pla_daily()
-    new_ydn = await scrape_ydn()
-    new_ltn_defence = await scrape_ltn_defence()
-    new_ettoday_polls = await scrape_ettoday_polls()
-    await scrape_weibo_hot()
-    await scrape_ptt()
+    new_mfa = await _arun('mfa', scrape_mfa_spokesperson())
+    new_tao = await _arun('tao', scrape_tao())
+    new_udn = await _arun('udn', scrape_all_udn_sources())
+    new_guancha = await _arun('guancha', scrape_guancha())
+    new_taiwan_cn = await _arun('taiwan_cn', scrape_taiwan_cn())
+    new_fjsen = await _arun('fjsen', scrape_fjsen())
+    new_pla = await _arun('pla_daily', scrape_pla_daily())
+    new_ydn = await _arun('ydn', scrape_ydn())
+    new_ltn_defence = await _arun('ltn_defence', scrape_ltn_defence())
+    new_ettoday_polls = await _arun('ettoday_polls', scrape_ettoday_polls())
+    await _arun('weibo_hot', scrape_weibo_hot())
+    await _arun('ptt', scrape_ptt())
 
     # Step 2b: Translate social pulse items
     print("\n--- STEP 2b: Social Pulse Translation ---")
-    translate_social_pulse()
+    _run('social_translate', translate_social_pulse, default=None)
 
     # Step 2c: MAC cross-strait economic indicators (monthly publication, idempotent)
     print("\n--- STEP 2c: MAC Economic Indicators ---")
-    scrape_mac_economic()
+    _run('mac_economic', scrape_mac_economic)
 
     # Step 2d: UN Comtrade — PRC-reported trade with Taiwan (independent verification source)
     print("\n--- STEP 2d: UN Comtrade ---")
-    scrape_comtrade()
+    _run('comtrade', scrape_comtrade)
 
     # Step 2e: MAC dataset 7459 — TW-HK trade with HK Customs cross-check
     print("\n--- STEP 2e: TW-HK Trade (dual reporter) ---")
-    scrape_mac_hk_trade()
+    _run('mac_hk_trade', scrape_mac_hk_trade)
 
     # Step 2f: MAC dataset 7888 — TW vs PRC macro indicators (GDP, CPI, FX)
     print("\n--- STEP 2f: TW vs PRC Macro Indicators ---")
-    scrape_mac_macro()
+    _run('mac_macro', scrape_mac_macro)
 
     # Step 2g: Cross-strait trade access (BOFT ban lists + ECFA + PRC suspensions)
     print("\n--- STEP 2g: Trade Access ---")
-    scrape_trade_access()
+    _run('trade_access', scrape_trade_access)
 
     # Step 2h: MAC 7478 + 7473 — cross-strait investment by industry (both directions)
     print("\n--- STEP 2h: Investment by Industry (PRC → TW) ---")
-    scrape_mac_invest_industry_inbound()
+    _run('invest_inbound', scrape_mac_invest_industry_inbound)
     print("\n--- STEP 2h: Investment by Industry (TW → PRC) ---")
-    scrape_mac_invest_industry_outbound()
+    _run('invest_outbound', scrape_mac_invest_industry_outbound)
 
     # Step 2i: HK Census & Statistics Dept — TW-HK trade as a third reporter
     print("\n--- STEP 2i: HK CSD Trade Verification ---")
-    scrape_hk_census()
+    _run('hk_census', scrape_hk_census)
 
     # Step 2j: TW NIA — PRC + HK/Macao citizens resident in Taiwan
     print("\n--- STEP 2j: TW NIA Population ---")
-    scrape_tw_nia_population()
+    _run('tw_nia_population', scrape_tw_nia_population)
 
     # Step 2k: MND daily PLA aircraft/vessel activity counts
     print("\n--- STEP 2k: MND PLA Incursions ---")
-    await scrape_mnd_incursions()
+    await _arun('mnd_incursions', scrape_mnd_incursions())
 
     # Step 2L: Pollster-direct ingestion (Playwright — ~30s startup each).
     # TVBS publishes one PDF per release, My-Formosa one article per release.
@@ -117,29 +149,29 @@ async def main():
     # Run the sync Playwright scrapers in a worker thread — Playwright's
     # sync API refuses to start inside an active asyncio loop.
     print("\n--- STEP 2L: Pollster direct (Playwright) ---")
-    new_tvbs_polls = await asyncio.to_thread(scrape_tvbs_polls)
-    new_myformosa_polls = await asyncio.to_thread(scrape_myformosa_polls)
+    new_tvbs_polls = await _arun('tvbs_polls', asyncio.to_thread(scrape_tvbs_polls))
+    new_myformosa_polls = await _arun('myformosa_polls', asyncio.to_thread(scrape_myformosa_polls))
 
     # MAC publishes structured 配布表 PDFs that we parse deterministically
     # straight into polls/poll_results as approved (no Step 3c AI pass, no
     # article staged, so its count is NOT in total_new) — discovery filters
     # the 最新消息 listing on the presence of a 配布表 attachment, which only
     # poll releases carry.
-    await asyncio.to_thread(scrape_mac_polls)
+    await _arun('mac_polls', asyncio.to_thread(scrape_mac_polls))
 
     # Step 3: Analyse unprocessed articles
     total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_taiwan_cn
                  + new_fjsen + new_pla + new_ydn + new_ltn_defence + new_ettoday_polls
                  + new_tvbs_polls + new_myformosa_polls)
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
-    process_unanalysed_articles(limit=500)
+    _run('ai_analysis', lambda: process_unanalysed_articles(limit=500), default=None)
 
     # Step 3b: Exercise-only extraction on articles the keyword pre-filter
     # rejected (no ai_analysis row) from the YDN military-source whitelist.
     # Feeds the exercise tracker with ROC domestic drill content without
     # adding PR pieces to the main signal feed. Capped at 30/run.
     print("\n--- STEP 3b: Exercise-only extraction (military sources) ---")
-    process_exercise_only_articles(days=14, limit=30)
+    _run('exercise_only', lambda: process_exercise_only_articles(days=14, limit=30), default=None)
 
     # Step 3c: Poll-only extraction on TW-side articles the keyword filter
     # rejected, where the title carries a poll signal (民調/民意調查).
@@ -147,7 +179,7 @@ async def main():
     # style coverage that lacks a cross-strait keyword angle. Capped at
     # 30/run.
     print("\n--- STEP 3c: Poll-only extraction (TW poll-bearing titles) ---")
-    process_poll_only_articles(days=14, limit=30)
+    _run('poll_only', lambda: process_poll_only_articles(days=14, limit=30), default=None)
 
     # Step 3d: Canonicalise poll-result option labels (drift-catcher). The
     # AI extraction prompt is the first line of defence (CANONICAL NO-OPINION
@@ -171,12 +203,18 @@ async def main():
     # Step 4: Cluster events
     print("\n" + "=" * 60)
     print("--- STEP 4: Event Clustering ---")
-    cluster_recent_articles(hours=48)
+    _run('clustering', lambda: cluster_recent_articles(hours=48), default=None)
 
     print("\n" + "=" * 60)
     print("Pipeline complete.")
+    if _FAILURES:
+        print(f"⚠ {len(_FAILURES)} step(s) failed this run: {', '.join(_FAILURES)}")
     print("=" * 60)
+    return _FAILURES
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    failures = asyncio.run(main())
+    # Non-zero exit so cron / log monitoring can see a degraded run even though
+    # the pipeline pushed through the surviving steps.
+    sys.exit(1 if failures else 0)

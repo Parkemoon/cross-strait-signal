@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/notes", tags=["notes"])
 # Columns on analyst_notes that PUT /notes/{id} is allowed to update. Anything
 # outside this set is rejected by the API even if a future Pydantic field gets
 # accidentally exposed as a column name.
-_NOTE_UPDATE_COLUMNS = {"note_text", "sentiment_override", "topic_override"}
+_NOTE_UPDATE_COLUMNS = {"note_text", "sentiment_override", "topic_override", "score_override"}
 
 
 class NoteCreate(BaseModel):
@@ -34,9 +34,10 @@ def create_note(note: NoteCreate):
     """Add analyst commentary to an article."""
     with db_conn() as conn:
         cursor = conn.execute("""
-            INSERT INTO analyst_notes (article_id, note_text, sentiment_override, topic_override)
-            VALUES (?, ?, ?, ?)
-        """, (note.article_id, note.note_text, note.sentiment_override, note.topic_override))
+            INSERT INTO analyst_notes (article_id, note_text, sentiment_override, topic_override, score_override)
+            VALUES (?, ?, ?, ?, ?)
+        """, (note.article_id, note.note_text, note.sentiment_override,
+              note.topic_override, note.score_override))
 
         if note.sentiment_override:
             conn.execute(
@@ -85,6 +86,7 @@ def update_note(note_id: int, note: NoteUpdate):
             "note_text": note.note_text,
             "sentiment_override": note.sentiment_override,
             "topic_override": note.topic_override,
+            "score_override": note.score_override,
         }
         updates = {
             col: val for col, val in candidate_updates.items()

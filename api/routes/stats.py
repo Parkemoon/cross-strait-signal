@@ -84,7 +84,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         SELECT AVG(ai.sentiment_score)
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
     """, (f'-{days} days',)).fetchone()
 
@@ -102,7 +102,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY 1
     """, (f'-{days} days',)).fetchall()
@@ -112,7 +112,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         SELECT ai.topic_primary, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY ai.topic_primary
         ORDER BY count DESC
@@ -123,7 +123,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         SELECT ai.sentiment, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY ai.sentiment
         ORDER BY count DESC
@@ -135,7 +135,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         JOIN sources s ON a.source_id = s.id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY s.id
         ORDER BY count DESC
@@ -144,7 +144,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
     # Escalation signals — always global, 24h window
     escalation_rows = conn.execute(f"""
         SELECT a.id, a.url, a.title_original, a.title_en, a.language,
-               a.published_at, a.content_original, a.analyst_approved,
+               a.published_at, a.analyst_approved,
                a.title_en_override, a.summary_en_override, a.key_quote_override,
                ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
                ai.urgency, ai.summary_en, ai.key_quote, ai.key_quote_en,
@@ -157,19 +157,26 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         JOIN sources s ON a.source_id = s.id
         WHERE ai.is_escalation_signal = 1
           AND {VISIBLE}
-          AND a.published_at >= datetime('now', '-1 day')
+          AND a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', '-1 day')
         ORDER BY a.published_at DESC
     """).fetchall()
 
-    escalations = []
-    for row in escalation_rows:
-        article = dict(row)
-        entities = conn.execute("""
-            SELECT entity_name, entity_name_en, entity_type, entity_role, location_name
-            FROM entities WHERE article_id = ?
-        """, (article['id'],)).fetchall()
-        article['entities'] = [dict(e) for e in entities]
-        escalations.append(article)
+    escalations = [dict(row) for row in escalation_rows]
+    if escalations:
+        # One batched entities query for all escalation articles (was N+1).
+        ids = [a['id'] for a in escalations]
+        placeholders = ",".join("?" * len(ids))
+        entity_rows = conn.execute(f"""
+            SELECT article_id, entity_name, entity_name_en, entity_type,
+                   entity_role, location_name
+            FROM entities WHERE article_id IN ({placeholders})
+        """, ids).fetchall()
+        by_article = {}
+        for er in entity_rows:
+            e = dict(er)
+            by_article.setdefault(e.pop('article_id'), []).append(e)
+        for article in escalations:
+            article['entities'] = by_article.get(article['id'], [])
 
     # Top entities — always global
     top_entities = conn.execute(f"""
@@ -177,7 +184,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         FROM entities e
         JOIN articles a ON e.article_id = a.id
         JOIN ai_analysis ai ON ai.article_id = a.id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY LOWER(e.entity_name_en), e.entity_type
         ORDER BY mentions DESC
@@ -192,7 +199,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             SELECT COUNT(*) FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
         """, (f'-{days} days', *filter_params)).fetchone()[0]
@@ -202,7 +209,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
         """, (f'-{days} days', *filter_params)).fetchone()
@@ -212,7 +219,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
             GROUP BY 1
@@ -223,7 +230,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               AND s.bias IN ('green', 'green_leaning', 'blue')
               {filter_extra}
@@ -236,7 +243,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
             GROUP BY date(a.published_at)
@@ -249,7 +256,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         total = conn.execute(f"""
             SELECT COUNT(*) FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
         """, (f'-{days} days',)).fetchone()[0]
 
@@ -260,7 +267,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               AND s.bias IN ('green', 'green_leaning', 'blue')
             GROUP BY s.bias
@@ -271,7 +278,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
                    COUNT(*) as article_count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
-            WHERE a.published_at >= datetime('now', ?)
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
             GROUP BY date(a.published_at)
             ORDER BY date
@@ -312,7 +319,7 @@ def entity_search(
     # NOTE: Must include analyst_approved=1 so the public entity leaderboard
     # does not leak entities extracted from unapproved articles. Mirrors the
     # VISIBLE constant in dashboard_stats().
-    where_clause = """WHERE a.published_at >= datetime('now', ?)
+    where_clause = """WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
         AND a.is_hidden = 0
         AND a.analyst_approved = 1
         AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"""
@@ -391,7 +398,7 @@ def key_figures():
     return {"figures": results}
 
 
-@router.get("/key-figures/candidates")
+@router.get("/key-figures/candidates", dependencies=[Depends(require_admin)])
 def key_figure_candidates():
     """Pending statements awaiting analyst approval, grouped by figure_id."""
     with db_conn() as conn:
