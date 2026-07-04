@@ -59,8 +59,21 @@ to a single production deploy.
 - **Exercise Tracker** — Leaflet map + list of cross-strait exercises and drills, AI-extracted from MIL_EXERCISE articles, with analyst review queue, canonical-key auto-merge, and edit modal
 - **Poll tracker** — Taiwan domestic pollster ingestion (My-Formosa, ETtoday, TVBS, NCCU long series); cross-pollster trend charts per canonical question_key
 
+### Hardening & fixes (2026-07-04, multi-agent code review)
+
+Full remediation from a multi-agent review; work order + per-item status in `CODE_REVIEW_2026-07-03.md`.
+
+- **Access control** — admin-only reads gated server-side via a new non-raising `is_admin` dependency: `include_pending`, single-article + cluster visibility (with real 404s, not 200+error bodies), and `GET /api/stats/key-figures/candidates` no longer leak unapproved rows to anonymous callers. Tokens compared with `hmac.compare_digest`.
+- **Entity canonicalisation** — bare `中國`/`台灣` were resolving to "Kuomintang (KMT)"/"TPP" via prefix-collision; added exact canonical entries and back-filled **2,749** existing rows (`renormalise_entities.py --apply`).
+- **Pipeline resilience** — transient Gemini errors (429/5xx/timeout) now retry next run instead of tombstoning articles as processed; explicit JSON-null guards; `run_pipeline.py` isolates each step so one bad source can't abort AI analysis + clustering.
+- **Data integrity** — `cluster_events` no longer tears apart clusters straddling the 48h window edge; `published_at` window filters use `strftime` `T`-format (a `datetime('now')` string mis-compare was over-including ~a day); weekly digest sends before archiving (no false "emailed" rows); MND KPI leap-day 500 fixed; `schema.sql` re-synced (`review_reason`/`reviewed_at`).
+- **Scrapers** — RSS content no longer clobbered by an untrimmed generic selector; PTT pagination walks all pages; YDN/UDN timestamps stored UTC-correct (were 8h off); trade-access `banned`-list crash + propylene HS code (2901.22).
+- **Prompt / cost** — officials roster trimmed to static-current + article-matched-former (~14.5k→3.1k chars/call); `poll_only`/`exercise_only` dropped to `thinking_level=low`; Tier-2 escalation review skips the extraction arrays; poll example labels made canonical.
+- **Performance / hygiene** — `entities(article_id)` index; removed committed scratch files, a dead route, and 6 dead `api.js` exports.
+
 ## In progress / planned
 
+- Deferred code-review items (bigger/structural) tracked in `CODE_REVIEW_2026-07-03.md`: poll/exercise `scanned_at` marker columns (§3.1, biggest remaining cost win), Gemini Batch API (§3.5), versioned migrations (§4.2), unified review-queue mechanism (§4.3), shared scraper/DB/LLM util modules (§4.6–4.9).
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
 - Incursion × exercise cross-reference — apply the verification angle to military data (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?)
 - Monthly-aggregated sentiment endpoint (revisit when 12+ months of data exists)
