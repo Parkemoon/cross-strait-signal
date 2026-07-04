@@ -214,6 +214,26 @@ def main():
         former.extend(manual.get("former", []))
         print(f"\nMerged {len(manual.get('current', []))} current + {len(manual.get('former', []))} former from manual file.")
 
+    # Guard against a Wikidata outage silently gutting the roster: sparql_query()
+    # returns [] on any error, so a rate-limited run can resolve almost no
+    # office-holders and would otherwise overwrite a healthy file with a near-
+    # empty one (which the AI pipeline then trusts). Refuse if the new roster is
+    # far smaller than the existing one.
+    prev_current = 0
+    if os.path.exists(OUTPUT_PATH):
+        try:
+            with open(OUTPUT_PATH, encoding="utf-8") as f:
+                prev_current = len(json.load(f).get("current", []))
+        except Exception:
+            prev_current = 0
+    floor = max(10, int(prev_current * 0.6))
+    if len(current) < floor:
+        print(f"\nABORT: only {len(current)} current office-holders resolved "
+              f"(expected >= {floor}). This looks like a Wikidata outage or "
+              f"rate-limit — NOT overwriting {OUTPUT_PATH}. Re-run when Wikidata "
+              f"is healthy.", file=sys.stderr)
+        sys.exit(1)
+
     output = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "current": current,

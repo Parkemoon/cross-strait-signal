@@ -1,10 +1,16 @@
 import math
 from collections import defaultdict
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from pydantic import BaseModel
 from api.database import db_conn
-from api.auth import require_admin
+from api.auth import is_admin, require_admin
+
+# Strict public-visibility predicate — matches the list endpoint's clauses.
+_PUBLIC_VISIBLE = (
+    "a.is_hidden = 0 AND a.analyst_approved = 1 "
+    "AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
+)
 
 
 def _sanitize_floats(d: dict) -> dict:
@@ -45,9 +51,13 @@ def list_articles(
     search: Optional[str] = Query(None, description="Search in titles and content"),
     include_pending: bool = Query(False, description="Admin: include unapproved articles"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100)
+    page_size: int = Query(20, ge=1, le=100),
+    admin: bool = Depends(is_admin),
 ):
     """List articles with their AI analysis. Supports filtering and search."""
+    # include_pending is admin-only: without a valid X-Admin-Token the pending
+    # backlog stays hidden regardless of the query param.
+    include_pending = include_pending and admin
     with db_conn() as conn:
         # Build the query dynamically based on filters
         where_clauses = []
@@ -130,7 +140,6 @@ def list_articles(
                 a.title_en_override,
                 a.language,
                 a.published_at,
-                a.content_original,
                 a.analyst_approved,
                 ai.topic_primary,
                 ai.topic_secondary,
@@ -194,7 +203,7 @@ def list_articles(
         }
 
 @router.get("/{article_id}/cluster")
-def get_article_cluster(article_id: int):
+def get_article_cluster(article_id: int, admin: bool = Depends(is_admin)):
     """Get all articles in the same event cluster as this article."""
     with db_conn() as conn:
         row = conn.execute(
@@ -207,7 +216,8 @@ def get_article_cluster(article_id: int):
 
         cluster_id = row['event_cluster_id']
 
-        rows = conn.execute("""
+        visibility = "" if admin else f" AND {_PUBLIC_VISIBLE}"
+        rows = conn.execute(f"""
             SELECT
                 a.id, a.title_original, a.title_en, a.url, a.published_at,
                 ai.sentiment, ai.sentiment_score, ai.summary_en, ai.topic_primary,
@@ -216,17 +226,18 @@ def get_article_cluster(article_id: int):
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
             WHERE a.event_cluster_id = ?
-              AND a.id != ?
+              AND a.id != ?{visibility}
             ORDER BY a.published_at ASC
         """, (cluster_id, article_id)).fetchall()
 
         return {"cluster": [dict(r) for r in rows]}
 
 @router.get("/{article_id}")
-def get_article(article_id: int):
+def get_article(article_id: int, admin: bool = Depends(is_admin)):
     """Get a single article with full analysis details."""
     with db_conn() as conn:
-        row = conn.execute("""
+        visibility = "" if admin else f" AND {_PUBLIC_VISIBLE}"
+        row = conn.execute(f"""
             SELECT
                 a.*,
                 ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
@@ -238,11 +249,11 @@ def get_article(article_id: int):
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
-            WHERE a.id = ?
+            WHERE a.id = ?{visibility}
         """, (article_id,)).fetchone()
 
         if not row:
-            return {"error": "Article not found"}
+            raise HTTPException(status_code=404, detail="Article not found")
 
         article = _sanitize_floats(dict(row))
 

@@ -52,7 +52,8 @@
 
         {"from_zh": "不知道",         "from_en": "Don't know",       "to_zh": "尚未決定", "to_en": "Undecided"},
         {"from_zh": "未明確回答",     "from_en": "No clear answer",  "to_zh": "尚未決定", "to_en": "Undecided"},
-        {"from_zh": "無明確意見",     "from_en": "No clear opinion", "to_zh": "尚未決定", "to_en": "Undecided"}
+        {"from_zh": "無明確意見",     "from_en": "No clear opinion", "to_zh": "尚未決定", "to_en": "Undecided"},
+        {"from_zh": "未決定",                                        "to_zh": "尚未決定", "to_en": "Undecided"}
       ]
     }
   ]
