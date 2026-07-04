@@ -44,3 +44,10 @@ Both factories enable two PRAGMAs on every connection:
 
 1. Append a `CREATE … IF NOT EXISTS` block to the inline migration in `server_deploy.sh`.
 2. Add the same statement to `db/schema.sql` (with `IF NOT EXISTS`) so fresh init still works.
+3. Adding a **column** to an existing table needs an idempotent `ALTER TABLE … ADD COLUMN` in `server_deploy.sh` (SQLite has no `ADD COLUMN IF NOT EXISTS`, so the pattern is `… 2>/dev/null || true`) **and** the column in `db/schema.sql` for fresh init. The migration heredoc opens with `.timeout 30000` so a lock held by a concurrent 6-hourly pipeline tick doesn't make a migration fail-and-skip.
+
+Keep `db/schema.sql` in sync with the live DB even for columns the pipeline added directly — `review_reason` / `reviewed_at` on `ai_analysis` had drifted out of `schema.sql` (present in the live DB, missing from the file), which would crash a fresh init on the first review-flag; added back 2026-07-04.
+
+## Date-window comparisons on `published_at`
+
+`published_at` is stored as `T`-separated ISO strings (`2026-07-03T01:38:00+00:00`). Compare windows with `strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)`, **never** `datetime('now', ?)` — the latter produces a space-separated string, and because `'T'` (0x54) > `' '` (0x20) the lexical TEXT comparison silently widens the cutoff to the boundary day's midnight (measured ~5% row over-inclusion on a 7-day window). Routes that normalise the column instead (`date(a.published_at)` / `WHERE date(...) >=`) are also fine. Fixed in `stats.py`, `cluster_events.py`, `merge_entities.py` on 2026-07-04; `military.py` / `diplomacy.py` already used `date(...)`.

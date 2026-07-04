@@ -8,9 +8,12 @@ paths:
 ## Three-tier AI pipeline (`ai_pipeline.py`)
 
 - **Tier 1**: Gemini 3.1 Flash Lite — classifies all pre-filtered articles (batch limit: 500); `temperature=0.1`, `thinking_level=medium`.
-- **Tier 2**: Gemini 3.5 Flash — re-reviews only escalation-flagged articles; same temperature.
+- **Tier 2**: Gemini 3.5 Flash — re-reviews only escalation-flagged articles; same temperature. The Tier-2 prompt reuses `ANALYSIS_SYSTEM_PROMPT` (so sentiment is judged by identical rules — no drift), but appends `_ESCALATION_REVIEW_DIRECTIVE` telling the model to populate only the sentiment/escalation/topic/confidence fields and return empty extraction arrays (it re-judges, it doesn't re-extract). The caller reads back only those fields.
 - **Tier 3**: Human review queue — articles where Tier 1 and Tier 2 disagree; stay hidden from dashboard until resolved.
 - **Age filter**: `process_unanalysed_articles` only processes articles with `published_at >= datetime('now', '-180 days')` — old DB backlog never reaches the AI pipeline.
+- **Thinking levels**: Tier 1 + `diplomacy_only` are `medium`; the template-following `exercise_only` + `poll_only` passes are `low` (thinking tokens bill at the output rate and dwarfed the useful output at `medium`). `social` translation is `low`.
+- **Officials roster injection**: the CURRENT roster (`_OFFICIALS_CURRENT_BLOCK`, ~29 rows) is static and injected into every Tier-1/Tier-2 prompt (kept in the cacheable prefix); the ~99 FORMER officials are filtered per-article by name presence (`_officials_former_block`, same idea as the dynamic glossary) instead of shipping the whole list every call.
+- **Transient-error handling**: the Tier-1 per-article `except` uses `_is_transient_error` — rate-limit (429), 5xx, and network/timeout errors leave `ai_processed=0` (rolled back, retried next run) instead of tombstoning the article as `ai_processed=1`. Only genuine parse/validation failures tombstone (so a pathological article can't retry forever). There is no automatic backoff/retry within a run.
 
 ## Dynamic glossary injection (`glossary.json`)
 
@@ -18,7 +21,11 @@ Loaded once at module level. Before each API call, both the article title and bo
 
 ## Entity canonical normalisation (`entity_canonical.json`)
 
-Applied *after* AI extraction to normalise `name_en` on entity rows already written to the DB. Distinct from `glossary.json` (which is injected into the prompt *before* analysis). Covers parties, PLA branches, theater commands, and institutions in addition to named individuals. Keys ≥ 2 characters use substring matching, so `解放軍` catches the longer form `中國人民解放軍海軍`. When adding a person to `glossary.json`, add the same entry to `entity_canonical.json` too — otherwise the AI may translate their name correctly but store it under a non-canonical romanisation in the entities table.
+Applied *after* AI extraction to normalise `name_en` on entity rows already written to the DB. Distinct from `glossary.json` (which is injected into the prompt *before* analysis). Covers parties, PLA branches, theater commands, and institutions in addition to named individuals. Matching is tiered (`_normalise_entity_name`): **exact match wins first**, then bidirectional prefix (`解放軍` catches the longer form `中國人民解放軍海軍`, and vice-versa) — keys must be ≥ 2 chars.
+
+- The exact-first tier is load-bearing: bare `中國` / `台灣` have **explicit exact entries** (`中國`/`中国`→China, `台灣`/`臺灣`/`台湾`→Taiwan) because otherwise the prefix tier collides them with the first dict key that starts with them (`中國國民黨`→KMT, `台灣民眾黨`→TPP) and mislabels the corpus's two most common entities. If you add a short place/org name, add its exact entry too or check for prefix collisions.
+- Editing this JSON only affects **future** extractions. To fix rows already in the DB, run `scripts/renormalise_entities.py --apply` (exact-match only, safe). This was run on 2026-07-04 to repair ~2,749 mislabelled 中國/台灣 rows.
+- When adding a person to `glossary.json`, add the same entry here too — otherwise the AI may translate their name correctly but store it under a non-canonical romanisation in the entities table.
 
 ## Key figure statement extraction (`key_figures.json`)
 
