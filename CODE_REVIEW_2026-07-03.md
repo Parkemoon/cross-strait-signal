@@ -14,6 +14,45 @@ BOTH to `db/schema.sql` and the idempotent migration block in `server_deploy.sh`
 
 ---
 
+## Implementation status (applied 2026-07-04)
+
+**Applied in this commit:** §0 (security/visibility); all of §1.1–1.12; all of
+§2.1–2.9; §3.2, §3.3 (safe subset — see below), §3.4, §3.6, §3.7b; §4.1 (index in
+schema.sql + deploy migration block, plus a `.timeout` on the deploy heredoc); and
+the §5 items — removed `mfa_debug.html`/`python`/root `cross_strait.db`/`.pytest_cache`,
+dropped the dead `/api/economy/series/meta` route and 6 dead `api.js` exports,
+flattened the `App.js` tab chain, and added a min-count guard to `refresh_officials.py`.
+`pytest` 42/42 green; public frontend bundle compiles.
+
+**Partial / deviations:**
+- **§3.3** applied conservatively: the Tier-2 escalation review keeps the shared
+  `ANALYSIS_SYSTEM_PROMPT` scoring rules (so Tier-1/Tier-2 still judge sentiment
+  identically — no drift risk to production output) but now (a) injects the small
+  CURRENT roster + article-matched FORMER officials instead of the full 14.5k-char
+  block, and (b) appends a REVIEW-MODE directive telling the model to skip the
+  extraction arrays (cuts most output tokens). A full standalone lean prompt is
+  **not** done — it would change analytical output and needs a staging A/B.
+
+**Deferred (need production DDL/DML or a staging-first structural change):**
+- **§3.1** (poll/exercise `scanned_at` marker columns) — new columns + backfill;
+  the single biggest cost win but requires a schema change + live-DB migration.
+- **§1.2 back-fill, §3.6 back-fill** — the code/JSON fixes are in, but repairing
+  the already-written rows needs DML on the prod DB: run
+  `scripts/renormalise_entities.py --apply` (fixes 中國/台灣 history) and
+  `scripts/canonicalise_poll_labels.py --apply` (folds any 未決定 rows).
+- **§4.1 index creation on the live DB** — added to schema + deploy block; the
+  actual `CREATE INDEX` runs on next `./deploy.sh` (not executed here).
+- **§3.5** (Batch API), **§3.7a** (diplomacy-rule dedup — touches Tier-1 prompt),
+  **§4.2/4.3/4.6/4.7/4.8/4.9** (migration framework, review-queue unification,
+  shared modules), **§4.10** (auth fail-closed), and the `.env` SMTP-dup / notes
+  PUT-DELETE / mac_poll shape-assert notes — all left as-is; see their sections.
+
+**Deploy note (unchanged):** the admin bundle must be rebuilt with
+`REACT_APP_ADMIN_TOKEN` set, or the admin feed loses pending articles and the
+curate queue 401s (the new §0 gates enforce the token server-side).
+
+---
+
 ## §0 — Already applied (this commit) — do NOT redo
 
 - `api/auth.py`: added `is_admin()` dependency (non-raising admin check for GETs with an
