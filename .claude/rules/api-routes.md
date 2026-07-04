@@ -15,7 +15,10 @@ Filter params: `topic`, `sentiment`, `source_place`, `source_name`, `bias`, `urg
 - `source_name` is prefix-matched against `s.name` (so `"LTN"` matches all LTN feeds).
 - `bias` is exact match on `s.bias`.
 - `source_place` maps: `PRC`/`TW` → exact `s.place` match; `hk` → `s.place IN ('HK', 'MO')`; `intl` → `s.place NOT IN ('PRC', 'TW', 'HK', 'MO')`. Never hardcode places beyond these four.
-- `include_pending=true` skips the `analyst_approved=1` filter — admin build always sends it, public build never does.
+- `include_pending=true` skips the `analyst_approved=1` filter, but is **admin-gated server-side**: `list_articles` takes `admin: bool = Depends(is_admin)` and does `include_pending = include_pending and admin`, so an anonymous caller passing the param still only gets approved rows. The admin build sends the token via `authHeaders()`; the public build sends nothing.
+  - `is_admin` (in `api/auth.py`) is the **non-raising** sibling of `require_admin`: returns `True` when a valid `X-Admin-Token` is presented OR when `ADMIN_TOKEN` is unset (legacy nginx-only mode). It never 401s, so public reads just get the non-admin view. Use it (not `require_admin`) on GET routes that have an admin-only superset. Both now compare tokens with `hmac.compare_digest`.
+- `GET /api/articles/{id}` and `GET /api/articles/{id}/cluster` also take `Depends(is_admin)` and apply the strict `_PUBLIC_VISIBLE` predicate for non-admin callers, so hidden/unapproved articles (and cluster siblings) can't be pulled by ID enumeration. `GET /{id}` raises `HTTPException(404)` on a miss — not a `{"error": ...}` body with HTTP 200.
+- The list SELECT deliberately omits `content_original` (dead payload — the feed renders titles/summaries; full text comes from `GET /{id}`).
 - `POST /api/articles/{id}/approve` sets `analyst_approved=1`.
 - `PATCH /api/articles/{id}/translation` updates `title_en_override`, `summary_en_override`, `key_quote_override`.
 
@@ -29,11 +32,13 @@ a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.
 
 Scoping filters are centralised in `_build_filter_clause(topic, source_place, urgency, escalation_only, entity, source_name, bias)` — add new article-level filters there, not inline. When active, sentiment aggregations scope to those filters while topics/sources/entities/escalation signals stay global. The response always includes `global_avg_sentiment_score` and `global_sentiment_by_place` for ghost-dot comparison in the sidebar. `sentiment_by_place` normalises raw `s.place` values into four display buckets (PRC/TW/HK/INTL) via a `PLACE_BUCKET` SQL CASE expression — never group by raw `s.place` in this query or you'll get duplicate rows for UK, SG, etc.
 
-Escalation signals use a 24h window.
+Date-window filters compare `published_at` (stored as `T`-separated ISO strings, e.g. `2026-07-03T01:38:00+00:00`) against `strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)`, **not** `datetime('now', ?)`. `datetime('now')` returns a space-separated string that lexically mis-compares against the `T` form (`'T'` > `' '`), silently widening the cutoff to the boundary day's midnight. Use the `strftime` form for every `published_at` window in this file.
+
+Escalation signals use a 24h window; the block fetches per-article entities in ONE batched `WHERE article_id IN (...)` query, not per-row.
 
 Key Figures endpoints:
 - `GET /api/stats/key-figures` — approved statements only
-- `GET /api/stats/key-figures/candidates` — pending grouped by figure
+- `GET /api/stats/key-figures/candidates` (**admin** — `Depends(require_admin)`) — pending grouped by figure. Exposes un-reviewed AI-extracted statements, so it stays gated like every other `/candidates` route.
 - `POST /api/stats/key-figures/statements/{id}/approve`
 - `POST /api/stats/key-figures/statements/{id}/dismiss`
 
