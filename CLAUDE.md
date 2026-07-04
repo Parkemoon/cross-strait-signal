@@ -43,7 +43,7 @@ python scripts/run_pipeline.py
 
 ### Maintenance scripts
 - `scripts/backfill_key_figure_statements.py --days 30 --limit 200` — re-runs Tier 1 only on articles where a key figure entity was already detected.
-- `scripts/refresh_officials.py` — Wikidata SPARQL pull for ~28 officeholder positions across TW/US/PRC/JP. Output is `scraper/processors/current_officials.json` — review the diff, then commit and deploy. Runtime ~80s. Positions config: `scripts/officials_positions.json` (hand-curated QIDs). Manual gap-fill at `scraper/processors/current_officials_manual.json` (manual wins on conflict). `current_officials.json` is generated; don't hand-edit it. Run after elections, cabinet reshuffles, or when officeholder hallucinations are spotted.
+- `scripts/refresh_officials.py` — Wikidata SPARQL pull for ~28 officeholder positions across TW/US/PRC/JP. Output is `scraper/processors/current_officials.json` — review the diff, then commit and deploy. Runtime ~80s. Positions config: `scripts/officials_positions.json` (hand-curated QIDs). Manual gap-fill at `scraper/processors/current_officials_manual.json` (manual wins on conflict). `current_officials.json` is generated; don't hand-edit it. Run after elections, cabinet reshuffles, or when officeholder hallucinations are spotted. Aborts (exit 1, no write) if it resolves far fewer current office-holders than the existing file — guards against a Wikidata outage silently gutting the roster.
 - `scripts/merge_entities.py --dry-run` (then `--type person --threshold 0.9`) — interactive near-duplicate entity name merge. Flags: `--type`, `--days` (default 90), `--threshold` (default 0.85), `--min-mentions` (default 2), `--dry-run`. False positives to watch for: historically distinct place variants (Beiping ≠ Beijing), different people sharing a surname initial.
 - `scripts/renormalise_entities.py` (dry-run by default; `--apply` to write) — re-applies `entity_canonical.json` to **existing** `entities` rows by **exact** Chinese-name match, rewriting `entity_name_en`. `_normalise_entity_name` only runs at extraction time, so editing the canonical JSON never touches rows already in the DB — run this after adding entries to back-fill history. Exact-match only on purpose (the pipeline's prefix logic would corrupt title-prepended rows, e.g. `國防部長顧立雄` → "Ministry of National Defense"); the trade-off is it won't fold genuine sub-forms (`解放軍海軍` under `解放軍`). Flags: `--scope all|backlog|approved` (default `all`), `--type` (e.g. `person`), `--db` (target another worktree's DB, e.g. prod), `--canon`, `--limit`. Idempotent. Companion to `merge_entities.py` (which clusters near-duplicate *English* spellings on approved rows only); this is the canonical-driven counterpart.
 - `scripts/seed_nccu_polls.py` — backfills the NCCU ESC long trend series (1992–2025 identity; unification deferred until cleaner data) into `polls` + `poll_results` as `approved`. Data lives in `scraper/processors/nccu_esc_seed.json` — transcribed from NCCU's labelled trend chart PNG with per-year sum-to-100% cross-validation; sample sizes from the NCCU methodology PDF. Idempotent on `(pollster_id, fielded_start, reviewed_by='backfill:seed_nccu_polls')`. Re-run after adding new waves to the JSON.
@@ -124,7 +124,7 @@ Event clustering (`scripts/cluster_events.py`) groups related articles within a 
 Requires `.env` in project root:
 ```
 GEMINI_API_KEY=your_key_here
-ADMIN_TOKEN=...                # for admin frontend build
+ADMIN_TOKEN=...                # gates write endpoints AND admin-only reads (is_admin); also inlined into the admin frontend build
 ```
 
 ## Key domain concepts
@@ -166,6 +166,7 @@ Less-obvious categories:
 
 - **All articles require analyst approval** (`analyst_approved=1`) before appearing on the public feed. New articles start at `analyst_approved=0`. Approve via the article card or via review-queue confirm/override (which auto-approves).
 - Articles with `needs_human_review=1` and unresolved status are **additionally hidden** until the review queue is resolved.
+- **Admin-only reads are gated server-side** when `ADMIN_TOKEN` is set: the non-raising `is_admin` dependency means `include_pending`, single-article + cluster visibility, and the `/candidates` queues only return unapproved rows to a valid `X-Admin-Token` (the public build sends none). Falls back to legacy nginx-only mode when `ADMIN_TOKEN` is unset. Detail in `.claude/rules/api-routes.md`.
 - Chinese-language sources are treated as primary — they break stories earlier.
 - Bias labels reflect editorial reality and should not be softened (e.g. CNA is `green_leaning`, not neutral).
 - The human review queue and inline analyst overrides exist because political classification requires editorial judgment — AI output is a starting point, not the final word.
