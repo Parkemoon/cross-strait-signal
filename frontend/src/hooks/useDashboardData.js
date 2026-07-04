@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchArticles, fetchStats, fetchReviewStats } from "../api";
 import { READ_ONLY } from "../readOnly";
 
@@ -18,9 +18,13 @@ export function useDashboardData(filters, page) {
   const [stats, setStats] = useState(null);
   const [reviewPending, setReviewPending] = useState(0);
   const [pendingApproval, setPendingApproval] = useState(0);
+  // Monotonic request id — filters can change per keystroke (no debounce), so a
+  // slow earlier response must not clobber a newer one (or clear its spinner).
+  const articlesReq = useRef(0);
 
   useEffect(() => {
     setLoading(true);
+    const myReq = ++articlesReq.current;
     const params = { ...filters, page, page_size: 20 };
     if (!READ_ONLY) params.include_pending = true;
     Object.keys(params).forEach(
@@ -28,22 +32,28 @@ export function useDashboardData(filters, page) {
     );
     fetchArticles(params)
       .then((data) => {
+        if (myReq !== articlesReq.current) return; // superseded by a newer load
         setArticles(data.articles || []);
         setTotal(data.total || 0);
       })
       .catch((err) => {
+        if (myReq !== articlesReq.current) return;
         console.error("Failed to load articles:", err);
         setArticles([]);
         setTotal(0);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (myReq === articlesReq.current) setLoading(false);
+      });
   }, [filters, page]);
 
-  // Only the scoping filters affect stats — sentiment/search/source_name
-  // are article-list-only filters (see api.js SCOPING_KEYS).
-  const { topic, source_place, urgency, escalation_only, entity } = filters;
+  // Only the scoping filters affect stats — sentiment/search are article-list-
+  // only filters. bias + source_name ARE scoping filters (see api.js
+  // SCOPING_KEYS and StatsSidebar's bias/source click handlers), so they must
+  // be threaded here too or the sidebar charts stay unscoped after those clicks.
+  const { topic, source_place, urgency, escalation_only, entity, bias, source_name } = filters;
   useEffect(() => {
-    fetchStats(30, { topic, source_place, urgency, escalation_only, entity })
+    fetchStats(30, { topic, source_place, urgency, escalation_only, entity, bias, source_name })
       .then(setStats)
       .catch((err) => console.error("Failed to load stats:", err));
     fetchReviewStats()
@@ -52,7 +62,7 @@ export function useDashboardData(filters, page) {
         setPendingApproval(d?.pending_approval || 0);
       })
       .catch(() => {});
-  }, [topic, source_place, urgency, escalation_only, entity]);
+  }, [topic, source_place, urgency, escalation_only, entity, bias, source_name]);
 
   return {
     articles,

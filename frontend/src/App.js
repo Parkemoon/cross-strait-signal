@@ -327,14 +327,10 @@ export default function App() {
             key={tab.id}
             onClick={() => {
               setMobileTab(tab.id);
-              if (tab.id === "review") setView("review");
-              else if (tab.id === "economy") setView("economy");
-              else if (tab.id === "trade") setView("trade");
-              else if (tab.id === "people") setView("people");
-              else if (tab.id === "military") setView("military");
-              else if (tab.id === "polls") setView("polls");
-              else if (tab.id === "diplomacy") setView("diplomacy");
-              else setView("feed");
+              // feed/stats/social all share the "feed" view on mobile; every
+              // other tab maps to a view of the same id.
+              const FEED_TABS = ["feed", "stats", "social"];
+              setView(FEED_TABS.includes(tab.id) ? "feed" : tab.id);
             }}
             style={{
               flex: 1,
@@ -483,7 +479,14 @@ export default function App() {
                 {/* Filters */}
                 <FilterBar
                   filters={filters}
-                  setFilters={setFilters}
+                  // Reset to page 1 on any filter change — otherwise a filter
+                  // applied while on page N requests page N of the new (smaller)
+                  // result set and shows "no results" despite matches. Mirrors
+                  // what every sidebar filter callback already does.
+                  setFilters={(updater) => {
+                    setFilters(updater);
+                    setPage(1);
+                  }}
                   topEntities={stats?.top_entities}
                 />
 

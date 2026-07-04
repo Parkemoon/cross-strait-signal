@@ -1,6 +1,6 @@
 import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import sys
 import os
 
@@ -9,15 +9,22 @@ from scraper.utils.db import get_connection, article_exists
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
+# YDN publishes its time[datetime] attribute in Asia/Taipei local time
+# (UTC+8, no DST). Everything downstream stores UTC-aware ISO strings.
+_TAIPEI = timezone(timedelta(hours=8))
+
 # YDN uses /tw/ prefix for all pages — must use full /tw/ path
 LIST_URL = 'https://www.ydn.com.tw/tw/home/'
 BASE_URL = 'https://www.ydn.com.tw'
 
 
 def parse_date(dt_str):
-    """Parse ISO-like datetime string from time[datetime] attribute: '2026-04-06 18:21'"""
+    """Parse the time[datetime] attribute ('2026-04-06 18:21'), which YDN
+    publishes in Asia/Taipei local time, and return a UTC-aware ISO string so
+    it sorts and compares correctly against every other source's published_at."""
     try:
-        return datetime.strptime(dt_str.strip(), '%Y-%m-%d %H:%M').replace(tzinfo=timezone.utc).isoformat()
+        naive = datetime.strptime(dt_str.strip(), '%Y-%m-%d %H:%M')
+        return naive.replace(tzinfo=_TAIPEI).astimezone(timezone.utc).isoformat()
     except ValueError:
         return datetime.now(timezone.utc).isoformat()
 
