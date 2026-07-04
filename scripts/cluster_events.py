@@ -102,7 +102,7 @@ def cluster_recent_articles(hours=48):
                a.published_at, a.source_id, a.event_cluster_id
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND a.ai_processed = 1
         ORDER BY a.published_at ASC
     """, (f'-{hours} hours',)).fetchall()
@@ -147,17 +147,32 @@ def cluster_recent_articles(hours=48):
     from collections import Counter
     cluster_counts = Counter(clusters.values())
 
+    # Map each in-window article to the cluster id it already has in the DB, so
+    # we can tell a genuine singleton from an article whose cluster partners have
+    # merely aged out of the window.
+    existing_by_id = {a['id']: a['event_cluster_id'] for a in articles}
+
     # Update database
     updated = 0
     clustered = 0
     for article_id, cluster_id in clusters.items():
         size = cluster_counts[cluster_id]
-        conn.execute(
-            "UPDATE articles SET event_cluster_id = ?, cluster_size = ? WHERE id = ?",
-            (cluster_id if size > 1 else None, size, article_id)
-        )
         if size > 1:
+            conn.execute(
+                "UPDATE articles SET event_cluster_id = ?, cluster_size = ? WHERE id = ?",
+                (cluster_id, size, article_id)
+            )
             clustered += 1
+        elif existing_by_id.get(article_id) is None:
+            # A genuine singleton this run that wasn't already clustered — safe
+            # to leave un-clustered.
+            conn.execute(
+                "UPDATE articles SET event_cluster_id = NULL, cluster_size = 1 WHERE id = ?",
+                (article_id,)
+            )
+        # else: singleton in THIS window but already part of a cluster whose
+        # other members have aged out — leave its existing cluster intact rather
+        # than NULLing it and tearing the still-valid cross-window story apart.
         updated += 1
 
     conn.commit()

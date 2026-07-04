@@ -109,7 +109,10 @@ export function SentimentTrendChart({ data, days }) {
 
   const formatted = data.map((d) => ({
     date: d.date?.slice(5),
-    score: parseFloat(d.avg_score?.toFixed(3)),
+    // A day with articles but no scores yields avg_score: null; keep it null
+    // (a gap in the line) rather than letting ?.toFixed → undefined → NaN
+    // propagate into the chart and the "NaN" tooltip.
+    score: d.avg_score == null ? null : Number(d.avg_score.toFixed(3)),
     count: d.article_count,
   }));
 

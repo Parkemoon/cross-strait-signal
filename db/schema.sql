@@ -65,6 +65,8 @@ CREATE TABLE ai_analysis (
     -- Human review
     needs_human_review BOOLEAN DEFAULT 0,        -- flagged for analyst review
     review_resolved    BOOLEAN DEFAULT 0,        -- review completed
+    review_reason      TEXT,                     -- why it was flagged (pipeline writes this; review API reads it)
+    reviewed_at        TIMESTAMP,                -- when an analyst resolved the review
     is_hidden          BOOLEAN DEFAULT 0,        -- hidden from public feed pending review
     -- Metadata
     model_used      TEXT NOT NULL DEFAULT 'gemini-3.1-flash-lite',
@@ -110,6 +112,10 @@ CREATE INDEX idx_analysis_escalation  ON ai_analysis(is_escalation_signal);
 CREATE INDEX IF NOT EXISTS idx_analysis_article ON ai_analysis(article_id);
 CREATE INDEX idx_entities_type        ON entities(entity_type);
 CREATE INDEX idx_entities_name        ON entities(entity_name);
+-- entities.article_id is a hot FK: the article-feed EXISTS filter and the
+-- per-page `WHERE article_id IN (...)` fetch full-scan the (~97k row) table
+-- without this — the same class of regression idx_analysis_article fixed.
+CREATE INDEX IF NOT EXISTS idx_entities_article ON entities(article_id);
 CREATE INDEX idx_keywords_category    ON keywords_matched(keyword_category);
 
 -- ============================================================

@@ -259,7 +259,7 @@ def watchlist(conn, start, end):
         LEFT JOIN poll_results pr ON pr.poll_id = p.id
         WHERE p.approval_status = 'approved'
           AND COALESCE(p.fielded_end, p.fielded_start) >= ?
-          AND COALESCE(p.fielded_end, p.fielded_start) < ?
+          AND COALESCE(p.fielded_end, p.fielded_start) <= ?
         GROUP BY p.id ORDER BY p.fielded_start DESC
         """,
         (start[:10], end[:10]),
@@ -442,20 +442,35 @@ def main():
     }
     markdown, html = render(data, start, end)
 
-    if not args.no_archive:
-        archive(conn, end, start, end, markdown, html, args.to or os.environ.get("DIGEST_TO"))
-    conn.close()
-
     subject = f"Cross-Strait Signal — Weekly Brief ({start[:10]} → {end[:10]})"
+
+    # Attempt delivery FIRST, then archive, so the weekly_digests row's
+    # emailed_to reflects what actually happened. Previously we archived
+    # (recording emailed_to) BEFORE sending, so an SMTP failure both crashed the
+    # run after the DB write AND left a row falsely claiming the digest was sent.
+    send_error = None
+    emailed_to = None
     if args.no_email:
         print(markdown)
-        return
+    else:
+        to = args.to or os.environ.get("DIGEST_TO")
+        if not to:
+            conn.close()
+            sys.exit("No recipient: set DIGEST_TO in .env or pass --to")
+        try:
+            send_email(subject, markdown, html, to)
+            emailed_to = to
+            print(f"Sent digest to {to} ({start[:10]} → {end[:10]}).")
+        except Exception as e:
+            send_error = e
+            print(f"Digest send FAILED: {type(e).__name__}: {e}", file=sys.stderr)
 
-    to = args.to or os.environ.get("DIGEST_TO")
-    if not to:
-        sys.exit("No recipient: set DIGEST_TO in .env or pass --to")
-    send_email(subject, markdown, html, to)
-    print(f"Sent digest to {to} ({start[:10]} → {end[:10]}).")
+    if not args.no_archive:
+        archive(conn, end, start, end, markdown, html, emailed_to)
+    conn.close()
+
+    if send_error is not None:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

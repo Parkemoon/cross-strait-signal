@@ -465,7 +465,11 @@ function Heatmap({ rows }) {
         ))}
         {cells.map((d, i) => {
           if (d < start || d > end) return null;
-          const iso = d.toISOString().slice(0, 10);
+          // Key by LOCAL calendar date, not toISOString() (which converts the
+          // local-midnight Date to UTC and, for any UTC+ viewer like Taipei,
+          // yields the previous day — shifting every cell's data by one day and
+          // dropping today). The API's row dates are plain 'YYYY-MM-DD' strings.
+          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           const row = byDate.get(iso);
           const v = row?.aircraft_intruded;
           const col = Math.floor(i / 7);

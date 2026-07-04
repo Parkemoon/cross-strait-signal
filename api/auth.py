@@ -13,12 +13,27 @@ Production rollout:
   4. The public read-only build does not need the token because it only issues
      GET requests, and nginx blocks writes there anyway.
 """
+import hmac
 import os
 from fastapi import Header, HTTPException, status
 
 
 def _admin_token() -> str:
     return os.environ.get("ADMIN_TOKEN", "").strip()
+
+
+def is_admin(x_admin_token: str = Header(default="")) -> bool:
+    """FastAPI dependency for read routes with an admin-only superset.
+
+    True when the caller presented a valid ``X-Admin-Token`` (or when no token
+    is configured — the legacy nginx-only mode where every caller is trusted).
+    Unlike ``require_admin`` this never raises, so public callers simply get
+    the non-admin view.
+    """
+    expected = _admin_token()
+    if not expected:
+        return True
+    return hmac.compare_digest(x_admin_token, expected)
 
 
 def require_admin(x_admin_token: str = Header(default="")) -> None:
@@ -30,7 +45,7 @@ def require_admin(x_admin_token: str = Header(default="")) -> None:
     if not expected:
         # Token not configured — fall back to the legacy nginx-only behaviour.
         return
-    if x_admin_token != expected:
+    if not hmac.compare_digest(x_admin_token, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing X-Admin-Token",

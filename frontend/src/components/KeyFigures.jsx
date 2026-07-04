@@ -65,8 +65,16 @@ function CandidateModal({ figure, candidates, onApprove, onDismiss, onClose }) {
 
   const handle = async (fn, id) => {
     setProcessing(id);
-    await fn(id);
-    setProcessing(null);
+    try {
+      await fn(id);
+    } catch (err) {
+      // Clear the processing flag (and surface the error) so the candidate's
+      // Approve/Dismiss buttons don't stay disabled forever on a failed call.
+      console.error("Key-figure action failed:", err);
+      alert(`Action failed: ${err.message || err}`);
+    } finally {
+      setProcessing(null);
+    }
   };
 
   return (
@@ -344,9 +352,13 @@ export default function KeyFigures() {
 
   useEffect(() => {
     loadFigures();
-    fetchKeyFigureCandidates()
-      .then((d) => setCandidates(d.candidates || {}))
-      .catch(() => {});
+    // Candidates queue is admin-only — skip the call entirely in the
+    // public read-only build (the API would 401 it anyway).
+    if (!READ_ONLY) {
+      fetchKeyFigureCandidates()
+        .then((d) => setCandidates(d.candidates || {}))
+        .catch(() => {});
+    }
   }, []);
 
   const handleApprove = async (statementId) => {
