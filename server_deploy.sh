@@ -33,6 +33,12 @@ fi
 # to db/schema.sql (with IF NOT EXISTS) for fresh-init parity.
 echo "--- Applying idempotent schema additions ---"
 sqlite3 db/cross_strait_signal.db <<'SQL'
+-- Wait up to 30s for the write lock instead of failing instantly if a cron
+-- pipeline tick is mid-write while the deploy runs.
+.timeout 30000
+-- Hot FK index: entities.article_id (article feed EXISTS filter + per-page
+-- entity fetch). Missing on the live DB; creating it here on deploy.
+CREATE INDEX IF NOT EXISTS idx_entities_article ON entities(article_id);
 CREATE TABLE IF NOT EXISTS economic_indicators (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     series_id   TEXT NOT NULL,

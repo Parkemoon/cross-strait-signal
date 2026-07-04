@@ -80,8 +80,8 @@ Return ONLY valid JSON of the shape:
 }
 
 Extract any military exercise mentioned in the article — both named
-exercises (Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, RIMPAC, Strait
-Thunder 海峽雷霆, Wan An 萬安) AND unnamed drills explicitly described
+exercises (Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, Talisman Sabre,
+RIMPAC, Strait Thunder 海峽雷霆, Wan An 萬安) AND unnamed drills explicitly described
 (live-fire / readiness / patrols / amphibious / cyber). Map actor →
 performer_side: PLA/解放軍/東部戰區 → PRC; MND/國防部/國軍/漢光 → ROC;
 INDOPACOM/USN/USAF → US; JSDF/海上自衛隊 → JP; two-or-more sides → MULTI

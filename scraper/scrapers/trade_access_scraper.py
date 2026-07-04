@@ -55,7 +55,7 @@ MOF_PRC_SUSP_W2_URL  = 'https://gss.mof.gov.cn/gzdt/zhengcefabu/202405/P02024053
 # The PDF URL has not been findable via public search, so we carry the list inline
 # from contemporary reporting. Update when the canonical PDF surfaces.
 MOF_PRC_SUSP_W1_ITEMS = [
-    ('29012100', '丙烯',                      'Propylene'),
+    ('29012200', '丙烯',                      'Propylene'),
     ('29012400', '丁二烯',                    '1,3-Butadiene'),
     ('29012990', '異戊二烯',                  'Isoprene'),
     ('29024100', '鄰二甲苯',                  'o-Xylene'),
@@ -286,7 +286,9 @@ def scrape_trade_access() -> dict:
     conn = get_connection()
     counts: dict[str, int] = {}
 
-    # 1. TW banned list (BOFT 22674)
+    # 1. TW banned list (BOFT 22674). Initialise before the try so a fetch
+    # failure here doesn't NameError the conditional step below (which reads it).
+    banned = []
     try:
         banned = _fetch_boft_csv(BOFT_BANNED_URL)
         rows = [
@@ -301,6 +303,7 @@ def scrape_trade_access() -> dict:
         counts['tw_banned'] = 0
 
     # 2. TW conditional list (BOFT 22675)
+    banned_hs = {b['hs_code'] for b in banned}  # built once, not per conditional row
     try:
         conditional = _fetch_boft_csv(BOFT_CONDITIONAL_URL)
         rows = [
@@ -309,7 +312,7 @@ def scrape_trade_access() -> dict:
              'BOFT_22675', it['rule_code'], None)
             for it in conditional
             # Don't downgrade a banned row to conditional — banned is stricter
-            if it['hs_code'] not in {b['hs_code'] for b in banned}
+            if it['hs_code'] not in banned_hs
         ]
         counts['tw_conditional'] = _upsert(conn, rows)
     except Exception as e:

@@ -47,7 +47,7 @@ def collect_entities(conn, days: int, type_filter: str | None):
         FROM entities e
         JOIN articles a ON e.article_id = a.id
         JOIN ai_analysis ai ON ai.article_id = a.id
-        WHERE a.published_at >= datetime('now', ?)
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
           AND e.entity_name_en IS NOT NULL
           AND TRIM(e.entity_name_en) != ''

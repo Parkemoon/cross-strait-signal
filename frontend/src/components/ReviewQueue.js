@@ -35,22 +35,30 @@ function ReviewCard({ item, onResolved }) {
   // Save any changed translation fields, then resolve
   async function handleResolve(resolution) {
     setSubmitting(true);
-    // Only send fields that differ from the AI originals
-    const translationUpdates = {};
-    if (translations.title_en_override !== (item.title_en || ""))
-      translationUpdates.title_en_override = translations.title_en_override;
-    if (translations.summary_en_override !== (item.summary_en || ""))
-      translationUpdates.summary_en_override = translations.summary_en_override;
-    if (translations.key_quote_override !== (item.key_quote_en || item.key_quote || ""))
-      translationUpdates.key_quote_override = translations.key_quote_override;
-    if (Object.keys(translationUpdates).length > 0) {
-      await updateArticleTranslation(item.article_id, translationUpdates);
+    try {
+      // Only send fields that differ from the AI originals
+      const translationUpdates = {};
+      if (translations.title_en_override !== (item.title_en || ""))
+        translationUpdates.title_en_override = translations.title_en_override;
+      if (translations.summary_en_override !== (item.summary_en || ""))
+        translationUpdates.summary_en_override = translations.summary_en_override;
+      if (translations.key_quote_override !== (item.key_quote_en || item.key_quote || ""))
+        translationUpdates.key_quote_override = translations.key_quote_override;
+      if (Object.keys(translationUpdates).length > 0) {
+        await updateArticleTranslation(item.article_id, translationUpdates);
+      }
+      await resolveReview(item.analysis_id, {
+        resolution,
+        ...(resolution === "overridden" ? overrides : { note: overrides.note }),
+      });
+      onResolved(item.analysis_id);
+    } catch (err) {
+      // Re-enable the buttons and surface the failure instead of leaving the
+      // card permanently stuck in the disabled "submitting" state.
+      console.error("Failed to resolve review:", err);
+      alert(`Could not save this review: ${err.message || err}`);
+      setSubmitting(false);
     }
-    await resolveReview(item.analysis_id, {
-      resolution,
-      ...(resolution === "overridden" ? overrides : { note: overrides.note }),
-    });
-    onResolved(item.analysis_id);
   }
 
   const biasColour = {
@@ -474,10 +482,16 @@ export default function ReviewQueue({ onClose }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchReviewQueue().then((data) => {
-      setItems(Array.isArray(data) ? data : []);
-      setLoading(false);
-    });
+    fetchReviewQueue()
+      .then((data) => {
+        setItems(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        // Without this the spinner would spin forever on any fetch failure.
+        console.error("Failed to load review queue:", err);
+        setItems([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   function handleResolved(analysisId) {

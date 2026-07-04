@@ -340,6 +340,11 @@ def _validate_sentiment(sentiment, score, reasoning):
     """Check that sentiment label, numeric score, and reasoning are mutually consistent.
     Returns a list of problem strings (empty = consistent)."""
     problems = []
+    # The model can emit an explicit `"sentiment_score": null`; get(..., 0.0)
+    # returns None (not the default) for a present-but-null key, and the
+    # comparisons below would then raise TypeError. Treat null as 0.0 (neutral).
+    if score is None:
+        score = 0.0
     if sentiment == 'hostile' and score > -0.3:
         problems.append(f"label=hostile but score={score:.2f} (expected ≤ -0.3)")
     elif sentiment == 'cooperative' and score < 0.3:
@@ -364,18 +369,39 @@ try:
 except Exception:
     _OFFICIALS = {'current': [], 'former': []}
 
-def _format_officials_block():
+def _format_officials_current_block():
+    """Static roster of CURRENT office-holders. Injected into every prompt and
+    kept small (~29 entries) and stable so it stays inside the implicitly
+    cached prompt prefix."""
     lines = ['CURRENT OFFICIAL ROSTER (authoritative — override any conflicting training-data knowledge):']
     for o in _OFFICIALS.get('current', []):
         party = f", {o['party']}" if o.get('party') else ''
         lines.append(f"- {o['role']}: {o['name_en']} ({o.get('name_zh', '')}{party}, since {o.get('since', '')})")
-    lines.append('\nFORMER OFFICIALS (NO LONGER in role — never describe these people as currently holding the listed role):')
-    for o in _OFFICIALS.get('former', []):
-        party = f", {o['party']}" if o.get('party') else ''
-        lines.append(f"- {o['role']}: {o['name_en']} ({o.get('name_zh', '')}{party}, served {o.get('term', '')})")
     return '\n'.join(lines)
 
-_OFFICIALS_BLOCK = _format_officials_block()
+
+_OFFICIALS_CURRENT_BLOCK = _format_officials_current_block()
+
+
+def _officials_former_block(content, title=""):
+    """Only the FORMER officials actually named in the article. The full former
+    roster is ~99 entries (~11k chars) and is almost never relevant to a given
+    article, so — exactly like generate_dynamic_glossary — we filter by presence
+    in the text instead of shipping the whole list on every Gemini call.
+    Returns '' when no former official is mentioned (the common case)."""
+    haystack = f"{content or ''}\n{title or ''}"
+    matched = []
+    for o in _OFFICIALS.get('former', []):
+        name_zh = o.get('name_zh', '')
+        name_en = o.get('name_en', '')
+        if (name_zh and name_zh in haystack) or (name_en and name_en in haystack):
+            party = f", {o['party']}" if o.get('party') else ''
+            matched.append(f"- {o['role']}: {name_en} ({name_zh}{party}, served {o.get('term', '')})")
+    if not matched:
+        return ""
+    return ('\n\nFORMER OFFICIALS named in this article (NO LONGER in role — never '
+            'describe these people as currently holding the listed role):\n'
+            + '\n'.join(matched))
 
 # alias (lowercased) → figure_id lookup
 _ALIAS_TO_FIGURE_ID = {}
@@ -559,6 +585,21 @@ CLASSIFICATION RULES:
   - "DPP legislator accuses KMT chair of selling out Taiwan during mainland visit" → POL_DOMESTIC_TW, sentiment=neutral, score=0.0, reasoning="" — intra-Taiwan party conflict with no direct characterisation of PRC.
   - "Global Times editorial calls Lai Ching-te a 'troublemaker' threatening regional peace" → INFO_WARFARE, sentiment=hostile, score=-0.8, reasoning="PRC state media characterises Taiwan's president hostilely: 'troublemaker threatening regional peace'."
 - Return ONLY valid JSON. No markdown code blocks, no commentary, no text before or after the JSON."""
+
+
+# Appended to the Tier-2 escalation-review prompt. The reviewer only needs to
+# second-guess the sentiment / escalation / topic judgement, so we tell it to
+# skip the expensive extraction arrays — this cuts most of the review call's
+# output tokens without touching the (shared) scoring rules above, so Tier 1 and
+# Tier 2 still judge sentiment by identical rules.
+_ESCALATION_REVIEW_DIRECTIVE = (
+    "REVIEW MODE — you are re-judging an earlier analysis of THIS article. "
+    "Populate ONLY these fields: is_cross_strait_primary, topic_primary, "
+    "sentiment, sentiment_score, sentiment_reasoning, urgency, "
+    "is_escalation_signal, escalation_note, confidence. Return empty arrays for "
+    "entities, keywords_matched, key_figure_statements, military_exercises, "
+    "polls, and diplomacy_statements — they are not needed for this review."
+)
 
 
 def generate_dynamic_glossary(content: str, title: str = "") -> str:
@@ -773,9 +814,10 @@ def _insert_poll_row(conn, article_id, poll, lookup):
 def analyse_article(title, content, language, source_name, published_at=None):
     """Send one article to Gemini and return structured analysis."""
     glossary_block = generate_dynamic_glossary(content, title)
+    former_block = _officials_former_block(content, title)
     prompt = f"""{ANALYSIS_SYSTEM_PROMPT}
 
-{_OFFICIALS_BLOCK}{glossary_block}
+{_OFFICIALS_CURRENT_BLOCK}{glossary_block}{former_block}
 
 SOURCE: {source_name}
 LANGUAGE: {language}
@@ -805,6 +847,25 @@ FULL TEXT:
             text = text.split("\n", 1)[1]
             text = text.rsplit("```", 1)[0]
         return json.loads(text)
+
+
+def _is_transient_error(exc):
+    """True for failures worth retrying on the next run (rate limits, 5xx,
+    network/timeout) rather than permanently tombstoning the article.
+    google.genai raises APIError subclasses carrying a numeric `code`; raw
+    transport failures surface as httpx/timeout exceptions whose class name we
+    sniff so we don't have to import every SDK internal. Genuine parse/validation
+    failures (e.g. JSONDecodeError) are NOT transient — those should tombstone so
+    a pathological article can't retry forever."""
+    code = getattr(exc, 'code', None)
+    if not isinstance(code, int):
+        code = getattr(exc, 'status_code', None)
+    if isinstance(code, int) and (code == 429 or code >= 500):
+        return True
+    name = type(exc).__name__.lower()
+    return any(tok in name for tok in
+               ('timeout', 'connection', 'transport', 'unavailable',
+                'deadline', 'resourceexhausted'))
 
 
 def process_unanalysed_articles(limit=10):
@@ -969,9 +1030,9 @@ def process_unanalysed_articles(limit=10):
 
             # Insert key figure statements (pending analyst approval)
             for stmt in analysis.get('key_figure_statements', []):
-                speaker = stmt.get('speaker', '').strip()
+                speaker = (stmt.get('speaker') or '').strip()
                 figure_id = _ALIAS_TO_FIGURE_ID.get(speaker.lower())
-                text = stmt.get('statement_text', '').strip()
+                text = (stmt.get('statement_text') or '').strip()
                 if not figure_id or not text:
                     continue
                 # Drop if model returned Chinese instead of translating
@@ -1128,11 +1189,14 @@ def process_unanalysed_articles(limit=10):
                     lite_confidence = analysis.get('confidence', 1.0)
 
                     escalation_glossary = generate_dynamic_glossary(article['content_original'], title)
+                    escalation_former = _officials_former_block(article['content_original'], title)
                     review = client.models.generate_content(
                         model="gemini-3.5-flash",
                         contents=f"""{ANALYSIS_SYSTEM_PROMPT}
 
-{_OFFICIALS_BLOCK}{escalation_glossary}
+{_OFFICIALS_CURRENT_BLOCK}{escalation_glossary}{escalation_former}
+
+{_ESCALATION_REVIEW_DIRECTIVE}
 
 SOURCE: {article['source_name']}
 LANGUAGE: {article['language']}
@@ -1227,6 +1291,15 @@ FULL TEXT:
         except Exception as e:
             error_count += 1
             print(f"    ERROR: {e}")
+            if _is_transient_error(e):
+                # Rate limit / 5xx / network blip — NOT the article's fault.
+                # Roll back any partial writes and leave ai_processed = 0 so the
+                # next cron tick retries it, rather than tombstoning a perfectly
+                # good article as permanently processed (silent data loss).
+                conn.rollback()
+                print(f"    ↳ transient error — leaving article {article['id']} "
+                      f"unprocessed for retry next run")
+                continue
             conn.execute(
                 "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
                 (datetime.now(timezone.utc).isoformat(), article['id'])
@@ -1328,7 +1401,10 @@ FULL TEXT:
             "response_mime_type": "application/json",
             "max_output_tokens": 4000,
             "temperature": 0.1,
-            "thinking_config": {"thinking_level": "medium"},
+            # Template-following extraction — low thinking is plenty and avoids
+            # spending several thinking tokens per output token (they bill at the
+            # output rate). Measured ~12x thinking:output at 'medium'.
+            "thinking_config": {"thinking_level": "low"},
         },
     )
     log_usage("exercise_only", "gemini-3.1-flash-lite", resp, article_id=article['id'])
@@ -1725,19 +1801,19 @@ EXAMPLE — a TVBS Chiayi poll PDF reporting vote intent + favourability
        "family_hint": "vote_intent",
        "options": [{"label_zh": "王美惠", "label_en": "Wang Mei-hui", "percentage": 43.0},
                    {"label_zh": "張啟楷", "label_en": "Chang Chi-kai", "percentage": 37.0},
-                   {"label_zh": "未決定", "label_en": "Undecided", "percentage": 20.0}]},
+                   {"label_zh": "尚未決定", "label_en": "Undecided", "percentage": 20.0}]},
       {"question_text_zh": "您喜歡王美惠這位參選人嗎？",
        "question_text_en": "Do you like candidate Wang Mei-hui?",
        "family_hint": "approval",
        "options": [{"label_zh": "喜歡", "label_en": "Like", "percentage": 49.0},
                    {"label_zh": "不喜歡", "label_en": "Dislike", "percentage": 25.0},
-                   {"label_zh": "沒意見", "label_en": "No opinion", "percentage": 26.0}]},
+                   {"label_zh": "未明確回答", "label_en": "No response", "percentage": 26.0}]},
       {"question_text_zh": "您對市長黃敏惠施政表現的滿意度？",
        "question_text_en": "Are you satisfied with Mayor Huang Min-hui's performance?",
        "family_hint": "approval",
        "options": [{"label_zh": "滿意", "label_en": "Satisfied", "percentage": 79.0},
                    {"label_zh": "不滿意", "label_en": "Dissatisfied", "percentage": 9.0},
-                   {"label_zh": "沒意見", "label_en": "No opinion", "percentage": 11.0}]}
+                   {"label_zh": "未明確回答", "label_en": "No response", "percentage": 11.0}]}
     ],
     "confidence": 0.9
   }]
@@ -1774,7 +1850,11 @@ FULL TEXT:
             "response_mime_type": "application/json",
             "max_output_tokens": 16000,
             "temperature": 0.1,
-            "thinking_config": {"thinking_level": "medium"},
+            # Template-following extraction against a detailed rubric — low
+            # thinking is sufficient here and 'medium' was billing ~51 thinking
+            # tokens per output token on this stage (thinking bills at the
+            # output rate on the more expensive Flash model).
+            "thinking_config": {"thinking_level": "low"},
         },
     )
     log_usage("poll_only", "gemini-3.5-flash", resp, article_id=article['id'])
