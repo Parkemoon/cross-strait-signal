@@ -14,7 +14,7 @@ from the HK side).
 import json
 import os
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
 
 from api.database import db_conn
@@ -354,12 +354,6 @@ def get_series(
     }
 
 
-@router.get("/series/meta")
-def get_series_meta():
-    """Return just the indicator catalog (no data) — useful for frontend bootstrap."""
-    return {"series": SERIES_META}
-
-
 # Verification pairs: two reporters disclosing the same trade flow.
 # `series_a` is the TW-perspective baseline (always TW MAC); `series_b` is
 # the second reporter (PRC Customs via Comtrade, or HK Customs via MAC 7459).
@@ -624,7 +618,13 @@ def investment_by_industry(
 ):
     """Return latest industry breakdown + top-N share-evolution for one direction."""
     if direction not in _INVESTMENT_DIRECTIONS:
-        return {"error": "invalid direction", "valid": sorted(_INVESTMENT_DIRECTIONS)}
+        # Raise a real 4xx (like the sibling routes) rather than a 200 with an
+        # {"error": ...} body — the shared frontend request() wrapper only checks
+        # res.ok, so a 200 error body reads as success and renders empty data.
+        raise HTTPException(
+            status_code=400,
+            detail=f"invalid direction {direction!r}; valid: {sorted(_INVESTMENT_DIRECTIONS)}",
+        )
 
     with db_conn() as conn:
         latest_period_row = conn.execute(

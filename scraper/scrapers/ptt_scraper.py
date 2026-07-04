@@ -112,13 +112,15 @@ async def scrape_ptt():
                 page_entries = soup.select('div.r-ent')
                 all_entries.extend(page_entries)
 
-                # Find "上頁" (previous page) link for next iteration
-                if page_num == 0:
-                    prev_link = soup.select_one('a.btn.wide:-soup-contains("上頁"), .action-bar a:-soup-contains("上頁")')
-                    if prev_link and prev_link.get('href'):
-                        prev_url = BASE_URL + prev_link['href']
-                    else:
-                        break  # no previous page link found
+                # Find "上頁" (previous/older page) link for the NEXT iteration.
+                # This must run on EVERY page — when it was gated to page_num == 0
+                # prev_url never advanced, so pages 2..N re-fetched the same second
+                # page and most of the intended window was silently never scanned.
+                prev_link = soup.select_one('a.btn.wide:-soup-contains("上頁"), .action-bar a:-soup-contains("上頁")')
+                if prev_link and prev_link.get('href'):
+                    prev_url = BASE_URL + prev_link['href']
+                else:
+                    prev_url = None  # no older page — the loop breaks next iter
 
             print(f"  {board}: {len(all_entries)} posts across {page_num + 1} page(s)")
 

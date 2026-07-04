@@ -90,15 +90,11 @@ async def scrape_rss_source(source):
                             if cutoff in content:
                                 content = content[:content.index(cutoff)]
                                 break
-                    # Try common article selectors
-                    content_div = (
-                        soup.select_one('div.archives') or
-                        soup.select_one('article') or
-                        soup.select_one('div.article-content') or
-                        soup.select_one('div.content')
-                    )
-                    if content_div:
-                        content = content_div.get_text(strip=True)
+                    # NOTE: the source-specific block above already falls back to
+                    # the generic selectors (div.archives / article / div.content).
+                    # A second generic pass used to run here unconditionally and
+                    # clobbered the trimmed content with the raw, untrimmed
+                    # container (page furniture and all) — removed.
             except Exception as e:
                 print(f"    Could not fetch full text: {e}")
             

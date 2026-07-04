@@ -30,11 +30,12 @@ async function request(path, options = {}) {
 
 export async function fetchArticles(params = {}) {
   const query = new URLSearchParams(params).toString();
-  return request(`/api/articles?${query}`);
+  // Admin token unlocks include_pending server-side; harmless when unset.
+  return request(`/api/articles?${query}`, { headers: authHeaders() });
 }
 
 export async function fetchArticle(id) {
-  return request(`/api/articles/${id}`);
+  return request(`/api/articles/${id}`, { headers: authHeaders() });
 }
 
 export async function fetchStats(days = 30, filters = {}) {
@@ -48,21 +49,12 @@ export async function fetchStats(days = 30, filters = {}) {
   return request(`/api/stats?${params}`);
 }
 
-export async function fetchEntities(params = {}) {
-  const query = new URLSearchParams(params).toString();
-  return request(`/api/stats/entities?${query}`);
-}
-
 export async function createNote(note) {
   return request(`/api/notes/`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(note),
   });
-}
-
-export async function fetchNotes(articleId) {
-  return request(`/api/notes/article/${articleId}`);
 }
 
 export async function fetchReviewQueue() {
@@ -82,7 +74,7 @@ export async function resolveReview(analysisId, decision) {
 }
 
 export async function fetchArticleCluster(articleId) {
-  return request(`/api/articles/${articleId}/cluster`);
+  return request(`/api/articles/${articleId}/cluster`, { headers: authHeaders() });
 }
 
 export async function hideArticle(articleId) {
@@ -108,7 +100,8 @@ export async function fetchKeyFigures() {
 }
 
 export async function fetchKeyFigureCandidates() {
-  return request(`/api/stats/key-figures/candidates`);
+  // Admin-only route — requires X-Admin-Token.
+  return request(`/api/stats/key-figures/candidates`, { headers: authHeaders() });
 }
 
 export async function approveKeyFigureStatement(id) {
@@ -203,10 +196,6 @@ export async function fetchMilitaryIncursions(params = {}) {
   return request(`/api/military/incursions?${query}`);
 }
 
-export async function fetchMilitaryIncursionsMonthly(months = 48) {
-  return request(`/api/military/incursions/monthly?months=${months}`);
-}
-
 export async function fetchMilitarySummary() {
   return request(`/api/military/incursions/summary`);
 }
@@ -223,10 +212,6 @@ export async function fetchMilitaryExercises(params = {}) {
     }
   });
   return request(`/api/military/exercises?${query}`);
-}
-
-export async function fetchMilitaryExerciseSummary() {
-  return request(`/api/military/exercises/summary`);
 }
 
 export async function fetchMilitaryExerciseCandidates() {
@@ -371,13 +356,6 @@ export async function setOptionParty(body) {
   });
 }
 
-export async function deleteOptionParty(labelZh) {
-  return request(`/api/polls/option-parties/${encodeURIComponent(labelZh)}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-}
-
 export async function correctSocialTranslation(id, titleEnOverride) {
   return request(`/api/social/${id}/translation`, {
     method: "PATCH",
@@ -432,14 +410,6 @@ export async function dismissDiplomacyStatement(id) {
   return request(`/api/diplomacy/${id}/dismiss`, {
     method: "POST",
     headers: authHeaders(),
-  });
-}
-
-export async function mergeDiplomacyStatement(id, targetId, reviewedBy) {
-  return request(`/api/diplomacy/${id}/merge`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ target_id: targetId, reviewed_by: reviewedBy }),
   });
 }
 

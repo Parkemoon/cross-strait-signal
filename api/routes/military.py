@@ -339,6 +339,15 @@ def incursions_summary():
     reports the latest available date so the UI can flag staleness."""
     today = date.today()
 
+    def _year_ago(d: date) -> date:
+        """One year earlier, clamping Feb 29 → Feb 28 (the prior year is never a
+        leap year, so date.replace(year=...) would otherwise ValueError and 500
+        the whole endpoint every leap day)."""
+        try:
+            return d.replace(year=d.year - 1)
+        except ValueError:
+            return d.replace(year=d.year - 1, month=2, day=28)
+
     with db_conn() as conn:
         latest_row = conn.execute(
             "SELECT MAX(date) AS d FROM pla_incursions"
@@ -360,7 +369,7 @@ def incursions_summary():
 
     avg_7d = _window_avg(today, 7)
     avg_30d = _window_avg(today, 30)
-    avg_30d_ya = _window_avg(today.replace(year=today.year - 1), 30)
+    avg_30d_ya = _window_avg(_year_ago(today), 30)
     yoy_delta_pct = None
     if avg_30d is not None and avg_30d_ya and avg_30d_ya > 0:
         yoy_delta_pct = round((avg_30d - avg_30d_ya) / avg_30d_ya * 100, 1)
