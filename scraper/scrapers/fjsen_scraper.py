@@ -1,6 +1,6 @@
 import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import sys
 import os
 import re
@@ -11,6 +11,7 @@ from scraper.utils.db import get_connection, article_exists
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 LIST_URL = 'http://taihai.fjsen.com/'
+MAX_ARTICLE_AGE = timedelta(days=180)
 
 
 def parse_date_from_url(url):
@@ -78,9 +79,17 @@ async def scrape_fjsen():
             if article_exists(conn, full_url):
                 continue
 
-            print(f"  New: {title[:70]}...")
-
             published_at = parse_date_from_url(full_url)
+            # Skip articles older than 180 days — section pages can surface
+            # evergreen/archive pieces (rss_scraper pattern)
+            try:
+                art_dt = datetime.fromisoformat(published_at)
+                if art_dt < datetime.now(timezone.utc) - MAX_ARTICLE_AGE:
+                    continue
+            except ValueError:
+                pass
+
+            print(f"  New: {title[:70]}...")
 
             # Fetch article content — table-based layout, grab all <p> tags
             content = ''

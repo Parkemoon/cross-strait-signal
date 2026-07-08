@@ -24,6 +24,7 @@ Both factories enable two PRAGMAs on every connection:
 ## Cross-table conventions worth remembering
 
 - **articles.analyst_approved** defaults to 0; the article is hidden from the public feed until it flips to 1 (Approve button or review-queue confirm/override). Three analyst translation overrides: `title_en_override`, `summary_en_override`, `key_quote_override` — when set they take precedence over the AI translation in the frontend.
+- **articles.poll_scanned_at / exercise_scanned_at** are the Step 3c/3b scan markers — stamped after every poll-only/exercise-only pass over the article, even when nothing was extracted (`NULL` = not yet scanned). They exist so zero-yield articles don't re-qualify every 6h tick; don't reset them casually — clearing one re-queues the article for a paid Gemini scan.
 - **ai_analysis.sentiment_reasoning** is a one-sentence audit trail (who is framed how, toward whom, with a quoted phrase). Empty for neutral. `needs_human_review=1` + `review_resolved=0` additionally hides the article.
 - **entities** carries lat/lng fields deferred for Phase 2c (maps).
 - **key_figure_statements.approval_status** must be `approved` before display — `pending` is the default for Tier-1 candidates. Never bypass.
@@ -50,4 +51,4 @@ Keep `db/schema.sql` in sync with the live DB even for columns the pipeline adde
 
 ## Date-window comparisons on `published_at`
 
-`published_at` is stored as `T`-separated ISO strings (`2026-07-03T01:38:00+00:00`). Compare windows with `strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)`, **never** `datetime('now', ?)` — the latter produces a space-separated string, and because `'T'` (0x54) > `' '` (0x20) the lexical TEXT comparison silently widens the cutoff to the boundary day's midnight (measured ~5% row over-inclusion on a 7-day window). Routes that normalise the column instead (`date(a.published_at)` / `WHERE date(...) >=`) are also fine. Fixed in `stats.py`, `cluster_events.py`, `merge_entities.py` on 2026-07-04; `military.py` / `diplomacy.py` already used `date(...)`.
+`published_at` is stored as `T`-separated ISO strings (`2026-07-03T01:38:00+00:00`). Compare windows with `strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)`, **never** `datetime('now', ?)` — the latter produces a space-separated string, and because `'T'` (0x54) > `' '` (0x20) the lexical TEXT comparison silently widens the cutoff to the boundary day's midnight (measured ~5% row over-inclusion on a 7-day window). Routes that normalise the column instead (`date(a.published_at)` / `WHERE date(...) >=`) are also fine. Fixed in `stats.py`, `cluster_events.py`, `merge_entities.py` on 2026-07-04, and in the `ai_pipeline.py` Step 3b/3c selection queries on 2026-07-08; `military.py` / `diplomacy.py` already used `date(...)`.

@@ -1573,8 +1573,9 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
     """Scan articles from the whitelisted military sources where Tier 1
     was skipped (rejected by the keyword pre-filter, no ai_analysis row),
     and run exercise-only extraction. Capped per cron tick so a busy YDN
-    day can't run away. Idempotent — articles that already have any
-    military_exercises row are skipped."""
+    day can't run away. Idempotent via articles.exercise_scanned_at —
+    stamped after every scan (including zero-yield), so an article is
+    only ever sent to the API once."""
     source_names = source_names or EXERCISE_ONLY_SOURCES
     placeholders = ",".join("?" * len(source_names))
 
@@ -1591,7 +1592,8 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
             WHERE s.name IN ({placeholders})
               AND a.ai_processed = 1
               AND ai.id IS NULL
-              AND a.published_at >= datetime('now', ?)
+              AND a.exercise_scanned_at IS NULL
+              AND a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND NOT EXISTS (
                   SELECT 1 FROM military_exercises me WHERE me.article_id = a.id
               )
@@ -1612,9 +1614,14 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
                 exercises = _extract_exercises_only(article)
             except Exception as e:
                 print(f"  [{i}/{len(articles)}] article {article['id']}: extract failed — {e}")
-                continue
-            if not exercises:
-                continue
+                if _is_transient_error(e):
+                    continue  # no marker — retry on the next tick
+                exercises = []  # permanent failure — stamp so it can't retry forever
+            # Stamp even on zero yield: idempotency used to rely on inserted
+            # rows alone, so no-yield articles re-qualified every tick.
+            conn.execute(
+                "UPDATE articles SET exercise_scanned_at = strftime('%Y-%m-%dT%H:%M:%S', 'now') WHERE id = ?",
+                (article['id'],))
             article_inserted = 0
             for ex in exercises:
                 try:
@@ -1625,15 +1632,15 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
                     # continue — losing one candidate is preferable to
                     # aborting the run.
                     print(f"  [{i}/{len(articles)}] article {article['id']}: insert failed — {e}")
-            if article_inserted:
-                try:
-                    conn.commit()
-                except Exception as e:
-                    print(f"  [{i}/{len(articles)}] commit failed: {e}")
-                    conn.rollback()
+            try:
+                conn.commit()
+            except Exception as e:
+                print(f"  [{i}/{len(articles)}] commit failed: {e}")
+                conn.rollback()
             inserted += article_inserted
-            print(f"  [{i}/{len(articles)}] article {article['id']}: "
-                  f"{len(exercises)} extracted, {article_inserted} inserted")
+            if exercises:
+                print(f"  [{i}/{len(articles)}] article {article['id']}: "
+                      f"{len(exercises)} extracted, {article_inserted} inserted")
         print(f"  Inserted {inserted} pending exercise candidates from {len(articles)} articles.")
     finally:
         conn.close()
@@ -1885,8 +1892,9 @@ def process_poll_only_articles(days=14, limit=30):
     """Scan TW-side articles where the keyword pre-filter rejected the
     piece (no ai_analysis row) but the title carries a poll signal,
     and run the poll-only extraction. Capped per cron tick so a flurry
-    of polling coverage can't run away. Idempotent — articles that
-    already have a polls row are skipped."""
+    of polling coverage can't run away. Idempotent via
+    articles.poll_scanned_at — stamped after every scan (including
+    zero-yield), so an article is only ever sent to the API once."""
     from scraper.utils.db import get_connection
     conn = get_connection()
     try:
@@ -1904,7 +1912,8 @@ def process_poll_only_articles(days=14, limit=30):
             WHERE s.place = 'TW'
               AND a.ai_processed = 1
               AND ai.id IS NULL
-              AND a.published_at >= datetime('now', ?)
+              AND a.poll_scanned_at IS NULL
+              AND a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND ({title_clauses})
               AND NOT EXISTS (
                   SELECT 1 FROM polls p WHERE p.source_article_id = a.id
@@ -1925,9 +1934,14 @@ def process_poll_only_articles(days=14, limit=30):
                 polls = _extract_polls_only(article)
             except Exception as e:
                 print(f"  [{i}/{len(articles)}] article {article['id']}: extract failed — {e}")
-                continue
-            if not polls:
-                continue
+                if _is_transient_error(e):
+                    continue  # no marker — retry on the next tick
+                polls = []  # permanent failure — stamp so it can't retry forever
+            # Stamp even on zero yield: idempotency used to rely on inserted
+            # rows alone, so no-yield articles re-qualified every tick.
+            conn.execute(
+                "UPDATE articles SET poll_scanned_at = strftime('%Y-%m-%dT%H:%M:%S', 'now') WHERE id = ?",
+                (article['id'],))
             article_inserted = 0
             for poll in polls:
                 try:
@@ -1935,15 +1949,15 @@ def process_poll_only_articles(days=14, limit=30):
                         article_inserted += 1
                 except Exception as e:
                     print(f"  [{i}/{len(articles)}] article {article['id']}: insert failed — {e}")
-            if article_inserted:
-                try:
-                    conn.commit()
-                except Exception as e:
-                    print(f"  [{i}/{len(articles)}] commit failed: {e}")
-                    conn.rollback()
+            try:
+                conn.commit()
+            except Exception as e:
+                print(f"  [{i}/{len(articles)}] commit failed: {e}")
+                conn.rollback()
             inserted += article_inserted
-            print(f"  [{i}/{len(articles)}] article {article['id']}: "
-                  f"{len(polls)} extracted, {article_inserted} inserted")
+            if polls:
+                print(f"  [{i}/{len(articles)}] article {article['id']}: "
+                      f"{len(polls)} extracted, {article_inserted} inserted")
         print(f"  Inserted {inserted} pending poll candidates from {len(articles)} articles.")
     finally:
         conn.close()
