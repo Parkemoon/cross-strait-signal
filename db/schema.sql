@@ -40,7 +40,9 @@ CREATE TABLE articles (
     analyst_approved BOOLEAN DEFAULT 0,          -- must be approved by analyst before appearing on public feed
     title_en_override TEXT,                      -- analyst-corrected headline
     summary_en_override TEXT,                    -- analyst-corrected summary
-    key_quote_override TEXT                      -- analyst-corrected key quote translation
+    key_quote_override TEXT,                     -- analyst-corrected key quote translation
+    poll_scanned_at    TIMESTAMP,                -- Step 3c poll-only pass ran (stamped even on zero yield)
+    exercise_scanned_at TIMESTAMP                -- Step 3b exercise-only pass ran (stamped even on zero yield)
 );
 
 CREATE TABLE ai_analysis (

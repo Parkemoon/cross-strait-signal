@@ -1,6 +1,6 @@
 import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import sys
 import os
 import re
@@ -12,6 +12,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 LIST_URL = 'https://www.guancha.cn/taihaifengyun'
 BASE_URL = 'https://www.guancha.cn'
+MAX_ARTICLE_AGE = timedelta(days=180)
 
 
 def parse_date_from_url(href):
@@ -89,9 +90,17 @@ async def scrape_guancha():
             if article_exists(conn, full_url):
                 continue
 
-            print(f"  New: {title[:70]}...")
-
             published_at = parse_date_from_url(href)
+            # Skip articles older than 180 days — section pages can surface
+            # evergreen/archive pieces (rss_scraper pattern)
+            try:
+                art_dt = datetime.fromisoformat(published_at)
+                if art_dt < datetime.now(timezone.utc) - MAX_ARTICLE_AGE:
+                    continue
+            except ValueError:
+                pass
+
+            print(f"  New: {title[:70]}...")
 
             # Fetch article content
             content = ''
