@@ -1310,51 +1310,62 @@ def _keyword_prefilter(conn, articles):
     return relevant
 
 
+# Articles per batch job. Inline batch requests are capped at 20MB total;
+# a worst-case Tier-1 prompt is ~60KB (30KB system prompt + officials +
+# 25KB article), so a full 500-article backlog could blow the cap in one
+# job. 150/job keeps worst case ~9MB with headroom.
+_TIER1_BATCH_CHUNK = 150
+
+
 def submit_tier1_batch(limit=500):
-    """Submit the current Tier-1 backlog as one Gemini Batch job.
-    Returns the job resource name, or None when there was nothing to
-    submit. Raises on submission failure — run_tier1 falls back to the
-    interactive path in that case."""
+    """Submit the current Tier-1 backlog as one or more Gemini Batch jobs
+    (chunked to stay under the inline-request size cap). Returns the list
+    of job resource names ([] when there was nothing to submit). Raises on
+    submission failure — run_tier1 falls back to the interactive path in
+    that case (articles already recorded in a job stay riding it)."""
     conn = get_connection()
     try:
         articles = _select_tier1_candidates(conn, limit)
         if not articles:
             print("No unprocessed articles found.")
-            return None
+            return []
         relevant = _keyword_prefilter(conn, articles)
         if not relevant:
             print("No relevant articles to submit.")
-            return None
+            return []
 
-        inlined = []
-        for article in relevant:
-            prompt = _tier1_prompt(
-                title=article['title_original'],
-                content=article['content_original'],
-                language=article['language'],
-                source_name=article['source_name'],
-                published_at=article['published_at'],
-            )
-            inlined.append({
-                'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
-                'config': _TIER1_GEN_CONFIG,
-            })
-
+        job_names = []
         stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
-        job = client.batches.create(
-            model=_TIER1_MODEL,
-            src=inlined,
-            config={'display_name': f'tier1-{stamp}'},
-        )
-        conn.execute(
-            """INSERT INTO gemini_batch_jobs (job_name, kind, model, article_ids)
-               VALUES (?, 'tier1', ?, ?)""",
-            (job.name, _TIER1_MODEL,
-             json.dumps([a['id'] for a in relevant])),
-        )
-        conn.commit()
-        print(f"Submitted batch job {job.name} with {len(relevant)} articles.")
-        return job.name
+        for c, start in enumerate(range(0, len(relevant), _TIER1_BATCH_CHUNK)):
+            chunk = relevant[start:start + _TIER1_BATCH_CHUNK]
+            inlined = []
+            for article in chunk:
+                prompt = _tier1_prompt(
+                    title=article['title_original'],
+                    content=article['content_original'],
+                    language=article['language'],
+                    source_name=article['source_name'],
+                    published_at=article['published_at'],
+                )
+                inlined.append({
+                    'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
+                    'config': _TIER1_GEN_CONFIG,
+                })
+            job = client.batches.create(
+                model=_TIER1_MODEL,
+                src=inlined,
+                config={'display_name': f'tier1-{stamp}-{c}'},
+            )
+            conn.execute(
+                """INSERT INTO gemini_batch_jobs (job_name, kind, model, article_ids)
+                   VALUES (?, 'tier1', ?, ?)""",
+                (job.name, _TIER1_MODEL,
+                 json.dumps([a['id'] for a in chunk])),
+            )
+            conn.commit()
+            print(f"Submitted batch job {job.name} with {len(chunk)} articles.")
+            job_names.append(job.name)
+        return job_names
     finally:
         conn.close()
 
@@ -1481,32 +1492,38 @@ def collect_tier1_batches():
         conn.close()
 
 
-def _wait_and_collect(job_name):
-    """Poll a just-submitted job for a bounded window so most runs apply
+def _wait_and_collect(job_names):
+    """Poll just-submitted jobs for a bounded window so most runs apply
     their results same-tick (small jobs usually finish in minutes). If the
-    window elapses, the job is simply collected on the next cron tick."""
+    window elapses, remaining jobs are simply collected on the next cron
+    tick."""
     try:
         wait_min = float(os.environ.get('TIER1_BATCH_WAIT_MIN', '20'))
     except ValueError:
         wait_min = 20.0
-    if wait_min <= 0:
+    if wait_min <= 0 or not job_names:
         return
     deadline = time.monotonic() + wait_min * 60
     terminal = {'JOB_STATE_SUCCEEDED', 'JOB_STATE_FAILED',
                 'JOB_STATE_CANCELLED', 'JOB_STATE_EXPIRED'}
-    print(f"Waiting up to {wait_min:.0f} min for batch job to finish...")
-    while time.monotonic() < deadline:
+    outstanding = set(job_names)
+    print(f"Waiting up to {wait_min:.0f} min for {len(outstanding)} batch job(s)...")
+    while time.monotonic() < deadline and outstanding:
         time.sleep(60)
-        try:
-            state = getattr(client.batches.get(name=job_name).state, 'name', '')
-        except Exception as e:
-            print(f"  poll failed: {e}")
-            continue
-        if state in terminal:
-            print(f"  job reached {state} after wait — collecting now")
-            collect_tier1_batches()
-            return
-    print("  wait window elapsed — job will be collected next tick")
+        for name in list(outstanding):
+            try:
+                state = getattr(client.batches.get(name=name).state, 'name', '')
+            except Exception as e:
+                print(f"  poll failed for {name}: {e}")
+                continue
+            if state in terminal:
+                outstanding.discard(name)
+    if len(outstanding) < len(job_names):
+        print(f"  {len(job_names) - len(outstanding)} job(s) finished within the "
+              f"wait window — collecting now")
+        collect_tier1_batches()
+    if outstanding:
+        print(f"  {len(outstanding)} job(s) still running — collected next tick")
 
 
 def run_tier1(limit=500):
@@ -1523,12 +1540,12 @@ def run_tier1(limit=500):
     except Exception as e:
         print(f"Batch collection failed: {e} — continuing to submission")
     try:
-        job_name = submit_tier1_batch(limit=limit)
+        job_names = submit_tier1_batch(limit=limit)
     except Exception as e:
         print(f"Batch submission failed ({e}) — falling back to interactive Tier 1")
         return process_unanalysed_articles(limit=limit)
-    if job_name:
-        _wait_and_collect(job_name)
+    if job_names:
+        _wait_and_collect(job_names)
 
 
 # ============================================================
