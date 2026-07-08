@@ -48,9 +48,11 @@ from scraper.processors.ai_pipeline import (
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-_VALID_PERFORMERS = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
-_VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
-                         'named_exercise', 'cyber', 'amphibious', 'other'}
+from shared.exercise_keys import (
+    VALID_PERFORMERS as _VALID_PERFORMERS,
+    VALID_EXERCISE_KINDS as _VALID_EXERCISE_KINDS,
+    COORD_BBOX as _COORD_BBOX,
+)
 
 _API_KEY = os.environ.get("GEMINI_API_KEY")
 if not _API_KEY:
@@ -125,9 +127,10 @@ def _sanitise_coords(lat, lng, fallback_label=None):
         lng = float(lng) if lng is not None else None
     except (TypeError, ValueError):
         lat, lng = None, None
-    if lat is not None and not (8.0 <= lat <= 35.0):
+    lat_min, lat_max, lon_min, lon_max = _COORD_BBOX
+    if lat is not None and not (lat_min <= lat <= lat_max):
         lat = None
-    if lng is not None and not (105.0 <= lng <= 135.0):
+    if lng is not None and not (lon_min <= lng <= lon_max):
         lng = None
     if lat is None or lng is None:
         lat, lng = None, None

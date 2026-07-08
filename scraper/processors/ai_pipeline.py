@@ -17,31 +17,17 @@ from scraper.utils.usage_log import log_usage
 MAX_PROMPT_CONTENT_CHARS = 25000
 
 
-# Used by the exercise tracker to collapse name variants the AI produces
-# for the same activity. Three layers:
-#   1. "Exercise No. 42" → "42" so "Han Kuang Exercise No. 42" matches
-#      "Han Kuang 42 Exercise".
-#   2. Strip trailing interchangeable nouns (drill/exercise/training/
-#      wargame) — applied iteratively so chains like "Exercise Wargame"
-#      collapse fully.
-#   3. Lowercase + hyphenate.
-# Parenthesised clauses are deliberately preserved — they often carry
-# subtype info (CPX vs live-fire) that the merge logic must NOT collapse.
-_EXERCISE_NO_RE = re.compile(r'\bExercise\s+No\.?\s+(\d+)\b', re.IGNORECASE)
-_EXERCISE_SUFFIX_RE = re.compile(
-    r'(\s+(drills?|exercises?|trainings?|wargames?))+$', re.IGNORECASE
+# Exercise-name canonicalisation lives in shared/exercise_keys.py — it MUST
+# match what api/routes/military.py uses (approve's auto-merge groups pending
+# rows on canonical_name, so write path and PATCH recompute have to agree).
+# Underscore alias keeps this module's public surface (and the backfill
+# script's imports) unchanged.
+from shared.exercise_keys import (
+    build_exercise_canonical_key as _build_exercise_canonical_key,
+    VALID_PERFORMERS as _VALID_EXERCISE_PERFORMERS,
+    VALID_EXERCISE_KINDS as _VALID_EXERCISE_KINDS,
+    COORD_BBOX as _COORD_BBOX,
 )
-
-
-def _build_exercise_canonical_key(name_en: str | None) -> str | None:
-    """Lower-hyphenated canonical form used for grouping and auto-merge."""
-    if not name_en:
-        return None
-    s = _EXERCISE_NO_RE.sub(r'\1', name_en.strip())
-    s = re.sub(r'\s{2,}', ' ', s)
-    s = _EXERCISE_SUFFIX_RE.sub('', s).strip()
-    key = s.lower().replace(' ', '-').replace('_', '-')
-    return key or None
 
 
 def _exercise_canonical_en(name_zh, name_en_fallback):
@@ -1406,11 +1392,8 @@ def _insert_exercise_row(conn, article_id, ex):
     """Apply canonicalisation + sanity checks + geocoder fallback, then
     insert one pending row. Returns True iff a row was inserted (skips
     invalid performer_side)."""
-    valid_performers = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
-    valid_kinds = {'live_fire', 'readiness_drill', 'joint_patrol',
-                   'named_exercise', 'cyber', 'amphibious', 'other'}
     performer = (ex.get('performer_side') or '').upper().strip()
-    if performer not in valid_performers:
+    if performer not in _VALID_EXERCISE_PERFORMERS:
         return False
 
     name_zh_raw = (ex.get('name_zh') or '').strip() or None
@@ -1426,14 +1409,15 @@ def _insert_exercise_row(conn, article_id, ex):
 
     lat = ex.get('latitude')
     lng = ex.get('longitude')
+    lat_min, lat_max, lon_min, lon_max = _COORD_BBOX
     try:
         lat = float(lat) if lat is not None else None
         lng = float(lng) if lng is not None else None
     except (TypeError, ValueError):
         lat, lng = None, None
-    if lat is not None and not (8.0 <= lat <= 35.0):
+    if lat is not None and not (lat_min <= lat <= lat_max):
         lat = None
-    if lng is not None and not (105.0 <= lng <= 135.0):
+    if lng is not None and not (lon_min <= lng <= lon_max):
         lng = None
     if lat is None or lng is None:
         lat, lng = None, None
@@ -1447,7 +1431,7 @@ def _insert_exercise_row(conn, article_id, ex):
                          and participants else None)
 
     kind = (ex.get('exercise_kind') or 'other').strip()
-    if kind not in valid_kinds:
+    if kind not in _VALID_EXERCISE_KINDS:
         kind = 'other'
 
     conn.execute("""
