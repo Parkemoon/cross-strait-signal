@@ -39,39 +39,48 @@ DEFAULT_CONFIG = os.path.join(
 )
 
 
+# Mirror of the family enum polls.py enforces on approve. Used only to warn
+# on config typos — a misspelt family in a scope would otherwise silently
+# widen (exclude_families) or empty (families) the rule's range.
+_KNOWN_FAMILIES = {'identity', 'unification', 'approval', 'attitude',
+                   'vote_intent', 'issue'}
+
+
 def _resolve_scope(conn, scope):
     """Resolve a rule's scope to a set of question_ids.
 
-    `scope.question_keys` (if present): only these. If absent, all
-    question_keys are in scope.
-    `scope.exclude_question_keys` (if present): drop these from the set.
+    Include axes (intersected when both are present):
+      `scope.question_keys` — only these keys.
+      `scope.families`      — only questions whose poll_questions.family
+                              is in this list. Family scoping is what lets
+                              a rule cover FUTURE keys (e.g. every new
+                              2026 race) without re-enumerating.
+    Exclude axes (applied after):
+      `scope.exclude_question_keys`, `scope.exclude_families`.
     Empty/missing scope => all question_keys are eligible.
     """
-    if not scope or (not scope.get("question_keys") and not scope.get("exclude_question_keys")):
-        rows = conn.execute("SELECT id FROM poll_questions").fetchall()
-        return {r[0] for r in rows}
+    scope = scope or {}
+    include_keys = set(scope.get("question_keys") or [])
+    include_fams = set(scope.get("families") or [])
+    exclude_keys = set(scope.get("exclude_question_keys") or [])
+    exclude_fams = set(scope.get("exclude_families") or [])
 
-    include = scope.get("question_keys")
-    exclude = scope.get("exclude_question_keys") or []
+    unknown = (include_fams | exclude_fams) - _KNOWN_FAMILIES
+    if unknown:
+        print(f"    WARN: scope references unknown families {sorted(unknown)} "
+              f"(known: {sorted(_KNOWN_FAMILIES)}) — typo in the config?")
 
-    if include:
-        placeholders = ','.join('?' * len(include))
-        rows = conn.execute(
-            f"SELECT id FROM poll_questions WHERE question_key IN ({placeholders})",
-            include,
-        ).fetchall()
-    else:
-        rows = conn.execute("SELECT id FROM poll_questions").fetchall()
-    qids = {r[0] for r in rows}
-
-    if exclude:
-        placeholders = ','.join('?' * len(exclude))
-        excl_rows = conn.execute(
-            f"SELECT id FROM poll_questions WHERE question_key IN ({placeholders})",
-            exclude,
-        ).fetchall()
-        qids -= {r[0] for r in excl_rows}
-
+    rows = conn.execute(
+        "SELECT id, question_key, family FROM poll_questions").fetchall()
+    qids = set()
+    for r in rows:
+        if include_keys and r['question_key'] not in include_keys:
+            continue
+        if include_fams and r['family'] not in include_fams:
+            continue
+        if r['question_key'] in exclude_keys or r['family'] in exclude_fams:
+            continue
+        qids.add(r['id'])
     return qids
 
 
