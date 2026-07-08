@@ -23,6 +23,7 @@ Both factories enable two PRAGMAs on every connection:
 
 ## Cross-table conventions worth remembering
 
+- **sources.is_pollster_direct / exercise_only_scan** are behaviour flags set by `seed_sources.py` (not hand-edited): `is_pollster_direct` = the article URL is the pollster's own release page (auto-populates `polls.source_url` on AI poll extraction); `exercise_only_scan` = the source's keyword-filter rejects still get the Step-3b exercise-only pass (currently YDN). They replaced hardcoded display-name sets in `ai_pipeline.py` (2026-07-08) so source renames can't silently break the behaviour.
 - **articles.analyst_approved** defaults to 0; the article is hidden from the public feed until it flips to 1 (Approve button or review-queue confirm/override). Three analyst translation overrides: `title_en_override`, `summary_en_override`, `key_quote_override` — when set they take precedence over the AI translation in the frontend.
 - **articles.poll_scanned_at / exercise_scanned_at** are the Step 3c/3b scan markers — stamped after every poll-only/exercise-only pass over the article, even when nothing was extracted (`NULL` = not yet scanned). They exist so zero-yield articles don't re-qualify every 6h tick; don't reset them casually — clearing one re-queues the article for a paid Gemini scan.
 - **ai_analysis.sentiment_reasoning** is a one-sentence audit trail (who is framed how, toward whom, with a quoted phrase). Empty for neutral. `needs_human_review=1` + `review_resolved=0` additionally hides the article.

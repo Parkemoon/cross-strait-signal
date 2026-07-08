@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,20 @@ from fastapi.middleware.cors import CORSMiddleware
 # Load .env into os.environ before any route/auth module reads it. Idempotent
 # if the systemd unit ever switches to EnvironmentFile=.
 load_dotenv()
+
+# ADMIN_TOKEN unset means require_admin / is_admin fall back to legacy
+# nginx-only mode: every caller is trusted at the app layer (write endpoints
+# open, admin-only reads served without a token). Deliberate for local dev,
+# but on the server it usually means a lost or unsourced .env — shout at
+# startup so that failure mode can't be silent.
+if not os.environ.get("ADMIN_TOKEN", "").strip():
+    print(
+        "\n!!! ADMIN_TOKEN is not set — app-level admin auth is DISABLED "
+        "(legacy nginx-only mode). !!!\n"
+        "!!! Write endpoints and admin-only reads will trust EVERY caller. "
+        "If this is production, restore .env and restart. !!!\n",
+        file=sys.stderr,
+    )
 
 from api.routes import articles, stats, notes, social, economy, trade_access, military, polls, diplomacy
 from api.routes.review import router as review_router

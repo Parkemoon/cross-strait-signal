@@ -216,6 +216,10 @@ SOURCES = [
         'tier': 1,
         'scrape_interval': 240,
         'scrape_method': 'html_scrape',
+        # MND's organ carries almost all ROC domestic drill coverage; its
+        # keyword-filter rejects still feed the Step-3b exercise-only pass.
+        # Set this on PLA Daily / INDOPACOM-type sources if gaps emerge.
+        'exercise_only_scan': 1,
     },
     # TW pollsters — Phase 2d direct ingestion. Step 3c catches all three
     # via the existing %民調% title trigger; no bypass flag needed.
@@ -230,6 +234,7 @@ SOURCES = [
         'tier': 2,
         'scrape_interval': 720,
         'scrape_method': 'html_scrape',
+        'is_pollster_direct': 1,  # article URL IS the pollster's own release page
     },
     {
         'name': 'TVBS Poll Center',
@@ -242,6 +247,7 @@ SOURCES = [
         'tier': 2,
         'scrape_interval': 1440,
         'scrape_method': 'html_scrape',
+        'is_pollster_direct': 1,  # article URL IS the pollster's own release page
     },
     {
         'name': 'My-Formosa',
@@ -254,6 +260,7 @@ SOURCES = [
         'tier': 2,
         'scrape_interval': 1440,
         'scrape_method': 'html_scrape',
+        'is_pollster_direct': 1,  # article URL IS the pollster's own release page
     },
     # PRC
     {
@@ -456,19 +463,24 @@ def seed_sources():
         cursor.execute("SELECT id FROM sources WHERE name = ?", (source['name'],))
         if cursor.fetchone():
             cursor.execute(
-                "UPDATE sources SET bias = ?, url = ?, scrape_method = ?, is_active = 1 WHERE name = ?",
-                (source['bias'], source['url'], source['scrape_method'], source['name']))
+                "UPDATE sources SET bias = ?, url = ?, scrape_method = ?, is_active = 1, "
+                "is_pollster_direct = ?, exercise_only_scan = ? WHERE name = ?",
+                (source['bias'], source['url'], source['scrape_method'],
+                 source.get('is_pollster_direct', 0), source.get('exercise_only_scan', 0),
+                 source['name']))
             print(f"  Updated: {source['name']}")
             continue
 
         cursor.execute("""
             INSERT INTO sources
-                (name, name_zh, url, source_type, place, bias, language, tier, scrape_interval, scrape_method)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (name, name_zh, url, source_type, place, bias, language, tier,
+                 scrape_interval, scrape_method, is_pollster_direct, exercise_only_scan)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             source['name'], source['name_zh'], source['url'], source['source_type'],
             source['place'], source['bias'], source['language'], source['tier'],
-            source['scrape_interval'], source['scrape_method']
+            source['scrape_interval'], source['scrape_method'],
+            source.get('is_pollster_direct', 0), source.get('exercise_only_scan', 0)
         ))
         print(f"  Added: {source['name']}")
 
