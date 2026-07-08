@@ -152,7 +152,7 @@ The 6-week gap between PLATracker's last row (2026-04-10) and present fills in a
 
 ## Exercise Tracker side-channel (`Step 3b`)
 
-Tier 1 AI extraction also writes `military_exercises` candidate rows from MIL_EXERCISE articles — see `.claude/rules/ai-pipeline.md`. **Step 3b** (`process_exercise_only_articles`, cap 30/run, last 14 days) does a *parallel* extraction pass against articles the keyword pre-filter REJECTED, restricted to military-source whitelist (YDN). The goal is to feed ROC domestic drill content into the exercise tracker without polluting the main signal feed — these articles never get an `ai_analysis` row written. The exercise endpoint uses LEFT JOIN + a relaxed VISIBLE predicate so the rows still surface.
+Tier 1 AI extraction also writes `military_exercises` candidate rows from MIL_EXERCISE articles — see `.claude/rules/ai-pipeline.md`. **Step 3b** (`process_exercise_only_articles`, cap 30/run, last 14 days) does a *parallel* extraction pass against articles the keyword pre-filter REJECTED, restricted to sources flagged `sources.exercise_only_scan` (set in `seed_sources.py`; currently YDN — flag PLA Daily / INDOPACOM-type sources there if coverage gaps emerge). The goal is to feed ROC domestic drill content into the exercise tracker without polluting the main signal feed — these articles never get an `ai_analysis` row written. The exercise endpoint uses LEFT JOIN + a relaxed VISIBLE predicate so the rows still surface.
 
 Geocoding is fed by two JSON sidecars in `scraper/processors/`:
 - `military_locations.json` — hand-curated lookup of named places (~55 entries).

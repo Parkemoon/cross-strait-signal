@@ -363,6 +363,17 @@ sqlite3 db/cross_strait_signal.db \
     "ALTER TABLE articles ADD COLUMN exercise_scanned_at TIMESTAMP" \
     2>/dev/null || true
 
+# Idempotent ALTERs for the source behaviour flags (code-review §4.7).
+# ai_pipeline used to key pollster-direct / exercise-only behaviour on
+# hardcoded display-name sets; the flags now live on the sources row and
+# seed_sources.py sets them — run seed_sources.py after this deploy.
+sqlite3 db/cross_strait_signal.db \
+    "ALTER TABLE sources ADD COLUMN is_pollster_direct BOOLEAN NOT NULL DEFAULT 0" \
+    2>/dev/null || true
+sqlite3 db/cross_strait_signal.db \
+    "ALTER TABLE sources ADD COLUMN exercise_only_scan BOOLEAN NOT NULL DEFAULT 0" \
+    2>/dev/null || true
+
 echo "--- Building frontend (admin) ---"
 cd frontend
 # Pass ADMIN_TOKEN through to the admin bundle so write endpoints can be

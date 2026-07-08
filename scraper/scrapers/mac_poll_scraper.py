@@ -171,11 +171,28 @@ def _options_from_table(tbl, mapentry):
     is_binary = len(tbl) >= 3 and any(c is None for c in tbl[-1])
     if is_binary:
         vals = [c for c in tbl[-1] if c is not None]  # [positive, negative, no-op]
+        # Shape assertion: an anomalous PDF (reformatted table, extra column)
+        # used to surface as a bare IndexError/KeyError that failed the whole
+        # URL on every run. Fail with a message that names the shape instead;
+        # the caller skips just this question.
+        if len(vals) != 3 or len(header) < 3:
+            raise ValueError(
+                f"binary table shape mismatch — expected 3 aggregate cells "
+                f"(positive/negative/no-opinion) under a >=3-column header, "
+                f"got {len(vals)} cells {vals!r}, header {header!r}")
+        if 'positive_en' not in mapentry or 'negative_en' not in mapentry:
+            raise ValueError(
+                f"question map entry {mapentry.get('question_key')!r} lacks "
+                f"positive_en/negative_en for a binary table")
         return [
             (header[1], mapentry['positive_en'], _pct(vals[0]), 0),
             (header[2], mapentry['negative_en'], _pct(vals[1]), 1),
             (_NOOP_ZH, _NOOP_EN, _pct(vals[2]), 2),
         ]
+    if len(tbl) < 2:
+        raise ValueError(
+            f"multi-option table shape mismatch — expected header + "
+            f"percentage row, got {len(tbl)} row(s), header {header!r}")
     pcts = tbl[1]
     opts_en = mapentry.get('options_en', {})
     out = []
@@ -288,9 +305,20 @@ def ingest_mac_poll_page(news_url, html=None):
         poll_id = cur.lastrowid
 
         n_results = 0
+        skipped_shapes = []
         for entry, q in resolved:
+            try:
+                options = _options_from_table(q['table'], entry)
+            except ValueError as e:
+                # Anomalous table shape (e.g. MAC reformats the 配布表). Skip
+                # THIS question loudly but keep the rest of the release —
+                # otherwise the whole URL re-fails on every run for as long
+                # as the PDF persists.
+                print(f"    SKIPPING question {entry['question_key']} — {e}")
+                skipped_shapes.append(entry['question_key'])
+                continue
             qid = _ensure_question(conn, entry, q['text_zh'])
-            for label_zh, label_en, pct, order in _options_from_table(q['table'], entry):
+            for label_zh, label_en, pct, order in options:
                 conn.execute(
                     """INSERT INTO poll_results
                            (poll_id, question_id, option_label_zh, option_label_en,
@@ -299,10 +327,18 @@ def ingest_mac_poll_page(news_url, html=None):
                     (poll_id, qid, label_zh, label_en, order, pct))
                 n_results += 1
 
+        if not n_results:
+            # Every question failed the shape check — don't land an empty
+            # approved envelope; leave the URL un-ingested so it stays loud.
+            conn.rollback()
+            return {'status': 'error', 'reason': 'no_results_parsed',
+                    'skipped_shapes': skipped_shapes}
+
         conn.commit()
         return {'status': 'ingested', 'poll_id': poll_id, 'title': title,
-                'questions': len(resolved), 'results': n_results,
-                'unmapped': unmapped}
+                'questions': len(resolved) - len(skipped_shapes),
+                'results': n_results, 'unmapped': unmapped,
+                'skipped_shapes': skipped_shapes}
     finally:
         conn.close()
 

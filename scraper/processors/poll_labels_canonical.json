@@ -1,5 +1,5 @@
 {
-  "_comment": "Canonical labels for poll_results. Run scripts/canonicalise_poll_labels.py to apply. Each rule defines a scope (question_keys to include or exclude) and a list of (from_zh, from_en) → (to_zh, to_en) mappings. Both from_zh and from_en, if present, must match for the rule to fire. Edit this file when adding a new pollster, a new question_key, or when a new wave introduces a label variant that should canonicalise. The script is idempotent — running it twice on canonical data is a no-op.",
+  "_comment": "Canonical labels for poll_results. Run scripts/canonicalise_poll_labels.py to apply. Each rule defines a scope (question_keys and/or poll_questions.family values to include or exclude — family scoping covers FUTURE keys, e.g. every new race, without re-enumeration) and a list of (from_zh, from_en) → (to_zh, to_en) mappings. Both from_zh and from_en, if present, must match for the rule to fire. Edit this file when adding a new pollster, a new question_key, or when a new wave introduces a label variant that should canonicalise. The script is idempotent — running it twice on canonical data is a no-op.",
 
   "rules": [
     {
@@ -7,11 +7,9 @@
       "scope": {
         "exclude_question_keys": [
           "identity_nccu_3pt",
-          "unification_nccu_6pt",
-          "2026_chiayi_mayor",
-          "2026_new_taipei_mayor",
-          "2026_taipei_mayor"
-        ]
+          "unification_nccu_6pt"
+        ],
+        "exclude_families": ["vote_intent"]
       },
       "mappings": [
         {"from_en": "No opinion",            "to_zh": "未明確回答", "to_en": "No response"},
@@ -34,11 +32,7 @@
     {
       "description": "Vote-intent canonicalisation: strip party prefixes from candidate names, fix romanisation slips, unify residual buckets. The 'haven't picked a candidate' cluster (Don't know / No clear answer / Undecided / etc.) collapses to '尚未決定' / 'Undecided'. The 'won't vote / spoiled ballot' bucket is kept SEPARATE because it carries distinct signal (abstention vs indecision) and the My-Formosa-style polls that report both should retain the distinction.",
       "scope": {
-        "question_keys": [
-          "2026_chiayi_mayor",
-          "2026_new_taipei_mayor",
-          "2026_taipei_mayor"
-        ]
+        "families": ["vote_intent"]
       },
       "mappings": [
         {"from_zh": "國民黨李四川",  "from_en": "KMT Lee Shu-chuan",  "to_zh": "李四川", "to_en": "Lee Shu-chuan"},
@@ -53,7 +47,9 @@
         {"from_zh": "不知道",         "from_en": "Don't know",       "to_zh": "尚未決定", "to_en": "Undecided"},
         {"from_zh": "未明確回答",     "from_en": "No clear answer",  "to_zh": "尚未決定", "to_en": "Undecided"},
         {"from_zh": "無明確意見",     "from_en": "No clear opinion", "to_zh": "尚未決定", "to_en": "Undecided"},
-        {"from_zh": "未決定",                                        "to_zh": "尚未決定", "to_en": "Undecided"}
+        {"from_zh": "未決定",                                        "to_zh": "尚未決定", "to_en": "Undecided"},
+
+        {"from_zh": "未明確回答",     "from_en": "No response",      "to_zh": "尚未決定", "to_en": "Undecided"}
       ]
     }
   ]

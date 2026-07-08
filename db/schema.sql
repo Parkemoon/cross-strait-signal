@@ -15,6 +15,8 @@ CREATE TABLE sources (
     scrape_method   TEXT NOT NULL DEFAULT 'rss', -- 'rss', 'html_scrape', 'api'
     bias            TEXT,                        -- 'green', 'green_leaning', 'blue', 'centrist', 'state_official', 'state_nationalist'
     is_active       BOOLEAN NOT NULL DEFAULT 1,
+    is_pollster_direct BOOLEAN NOT NULL DEFAULT 0, -- article URL IS the pollster's own release page (auto-populates polls.source_url)
+    exercise_only_scan BOOLEAN NOT NULL DEFAULT 0, -- keyword-filter rejects still get the Step-3b exercise-only pass
     last_scraped    TIMESTAMP,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
