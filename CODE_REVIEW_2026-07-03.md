@@ -8,13 +8,19 @@ priority. Each item is independent unless noted. After backend changes run
 `cd frontend && npm run build` (admin) and `npm run build:public`.
 
 Per CLAUDE.md: bug fixes may go on `main`; items tagged **[STAGING-FIRST]** are
-structural and belong on the `staging` worktree first. Schema changes must be added
-BOTH to `db/schema.sql` and the idempotent migration block in `server_deploy.sh`
-(that dual-maintenance itself is finding S1 below).
+structural and belong on the `staging` worktree first. Schema changes go in a new
+numbered `db/migrations/` file AND `db/schema.sql` (the old server_deploy.sh
+heredoc dual-maintenance was retired by §4.2 on 2026-07-08).
 
 ---
 
 ## Implementation status (applied 2026-07-04)
+
+**DEPLOYED 2026-07-08 (evening):** all three 2026-07-08 batches below were
+merged to `main` (`e7d7f63`) and deployed — the migration runner's first
+prod run applied 0001+0002 cleanly, `seed_sources.py` set the new source
+flags, and prod Tier 1 runs batch-mode from the 18:00 tick. Remaining
+open items: §3.3 remainder, §4.3, §4.6.
 
 **Applied in this commit:** §0 (security/visibility); all of §1.1–1.12; all of
 §2.1–2.9; §3.2, §3.3 (safe subset — see below), §3.4, §3.6, §3.7b; §4.1 (index in
