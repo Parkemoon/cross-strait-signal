@@ -32,7 +32,6 @@ override with --db for testing against another worktree's data.
 import argparse
 import os
 import smtplib
-import sqlite3
 import sys
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
@@ -43,6 +42,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from scraper.processors.keyword_filter import PRC_MUST_MENTION_TAIWAN  # noqa: E402
+from scraper.utils.db import get_connection  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -432,7 +432,7 @@ def main():
     start = (now - timedelta(days=args.days)).replace(microsecond=0).isoformat()
     prior_start = (now - timedelta(days=2 * args.days)).replace(microsecond=0).isoformat()
 
-    conn = sqlite3.connect(args.db)
+    conn = get_connection(args.db)
     data = {
         "lead": lead_splitscreen(conn, start, end),
         "sentiment": sentiment_divergence(conn, start, end, prior_start),

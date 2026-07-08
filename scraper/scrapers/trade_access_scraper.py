@@ -41,6 +41,7 @@ import pdfplumber
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection
+from scraper.utils.http import browser_headers
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -71,13 +72,7 @@ MOF_PRC_SUSP_W1_ITEMS = [
 
 # BOFT (trade.gov.tw) returns a Cloudflare-style block page without a Referer.
 # data.gov.tw's dataset page is a stable referer that passes the check.
-BOFT_HEADERS = {
-    'Referer': 'https://data.gov.tw/dataset/22674',
-    'User-Agent': (
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    ),
-}
+BOFT_HEADERS = browser_headers(referer='https://data.gov.tw/dataset/22674')
 
 CURATED_BANS_PATH = os.path.join(
     os.path.dirname(__file__), '..', 'processors', 'prc_trade_bans.json'

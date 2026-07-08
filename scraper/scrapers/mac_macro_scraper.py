@@ -42,6 +42,7 @@ import httpx
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection
+from scraper.utils.dates import roc_year_to_gregorian
 from scraper.scrapers.mac_economic_scraper import (
     CATALOG_URL, direct_url, parse_number, parse_pct, roc_to_iso,
 )
@@ -94,7 +95,7 @@ def parse_period_to_month(cell: str, kind: str) -> str | None:
         return None
     try:
         roc_year_str, rest = s.split('年', 1)
-        year = 1911 + int(roc_year_str.strip())
+        year = roc_year_to_gregorian(roc_year_str.strip())
         month_part = rest.replace('月', '').strip()
     except (ValueError, IndexError):
         return None

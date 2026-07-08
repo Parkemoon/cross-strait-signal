@@ -37,16 +37,15 @@ import pdfplumber
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection
+from scraper.utils.http import browser_headers
+from scraper.utils.dates import roc_date_to_iso
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 LIST_URL = 'https://www.mac.gov.tw/News.aspx?n=05B73310C5C3A632&sms=1A40B00E4C745211'
 _QUESTION_MAP_PATH = os.path.join(
     os.path.dirname(__file__), '..', 'processors', 'mac_poll_questions.json')
-_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-}
+_HEADERS = browser_headers()
 _NOOP_ZH = '未明確回答'
 _NOOP_EN = 'No response'
 _NOOP_TOKENS = ('不知道', '無意見', '沒意見', '未表態', '拒答')
@@ -107,7 +106,7 @@ def _pct(s):
 
 
 def _roc_to_iso(roc_year, month, day):
-    return f"{roc_year + 1911:04d}-{int(month):02d}-{int(day):02d}"
+    return roc_date_to_iso(roc_year, month, day)
 
 
 def _parse_fielded(text):

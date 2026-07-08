@@ -1,12 +1,12 @@
-import httpx
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
 import sys
 import os
-import re
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from scraper.utils.db import get_connection, article_exists
+from scraper.utils.db import get_connection, article_exists, save_article
+from scraper.utils.http import make_async_client
+from scraper.utils.dates import parse_url_date
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -15,15 +15,11 @@ MAX_ARTICLE_AGE = timedelta(days=180)
 
 
 def parse_date_from_url(url):
-    """Extract published date from URL pattern /YYYY-MM/DD/content_..."""
-    match = re.search(r'/(\d{4})-(\d{2})/(\d{2})/', url)
-    if match:
-        try:
-            return datetime(int(match.group(1)), int(match.group(2)), int(match.group(3)),
-                            tzinfo=timezone.utc).isoformat()
-        except ValueError:
-            pass
-    return datetime.now(timezone.utc).isoformat()
+    """Extract published date from URL pattern /YYYY-MM/DD/content_...
+    Unmatched URLs deliberately stamp now() so the article still gets a
+    feed position (the shared helper returns None and leaves that call)."""
+    return (parse_url_date(url, r'/(\d{4})-(\d{2})/(\d{2})/')
+            or datetime.now(timezone.utc).isoformat())
 
 
 async def scrape_fjsen():
@@ -43,11 +39,7 @@ async def scrape_fjsen():
 
     new_count = 0
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    }
-
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=headers) as client:
+    async with make_async_client() as client:
         try:
             resp = await client.get(LIST_URL)
             resp.encoding = 'utf-8'
@@ -115,10 +107,7 @@ async def scrape_fjsen():
             except Exception as e:
                 print(f"    Could not fetch article: {e}")
 
-            conn.execute("""
-                INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (source['id'], full_url, title, content[:10000], 'zh-cn', published_at))
+            save_article(conn, source['id'], full_url, title, content, 'zh-cn', published_at)
             new_count += 1
 
     conn.commit()

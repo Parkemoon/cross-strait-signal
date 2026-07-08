@@ -51,6 +51,21 @@ flattened the `App.js` tab chain, and added a min-count guard to `refresh_offici
 `REACT_APP_ADMIN_TOKEN` set, or the admin feed loses pending articles and the
 curate queue 401s (the new §0 gates enforce the token server-side).
 
+**Applied 2026-07-08 (staging), third batch:** **§4.2** — versioned
+migrations: `db/migrations/` ordered files (`0001_baseline.sql` = frozen
+heredoc content incl. the run-once data fixes; `0002_….py` = the tolerant
+ALTERs) applied by `scripts/migrate.py` into a `schema_migrations` ledger;
+`server_deploy.sh`'s heredoc + `|| true` ALTERs replaced by the runner
+(real errors now fail the deploy; cron locks wait on the 30s busy_timeout);
+`init_db.py` records history after `schema.sql`. **§4.9** — shared
+`scraper/utils/{dates,http,llm}.py` + `save_article()`/`get_connection(db_path)`
+in `db.py`; ROC-year (6 sites), URL-date (3), browser headers/client
+(~13 scrapers), article INSERT (13 scrapers, truncation standardised at
+25K = MAX_PROMPT_CONTENT_CHARS), Gemini client bootstrap (5 sites) and
+LLM JSON parsing (6 sites) all consolidated; bare-connection scripts
+(cluster_events, rebuild_fts, seed_sources, weekly_digest, init_db)
+routed through `get_connection`.
+
 **Applied 2026-07-08 (staging), second batch:** **§3.7a** (shared
 `_DIPLOMACY_RULES` + `_NAMED_EXERCISES` constants; the exercise-only prompt
 had drifted, not the backfill); **§4.5** (Tier-1 loop calls

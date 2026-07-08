@@ -19,7 +19,7 @@ import os
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from scraper.utils.db import get_connection, article_exists
+from scraper.utils.db import get_connection, article_exists, save_article
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -121,11 +121,8 @@ def scrape_myformosa_polls():
                     article_page.close()
 
                 print(f"  New: {entry['title'][:70]}")
-                conn.execute("""
-                    INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (source['id'], entry['url'], entry['title'], content[:25000],
-                      'zh-tw', published_at))
+                save_article(conn, source['id'], entry['url'], entry['title'], content,
+                             'zh-tw', published_at)
                 new_count += 1
         finally:
             browser.close()

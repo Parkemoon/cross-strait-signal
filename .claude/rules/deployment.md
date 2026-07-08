@@ -12,14 +12,11 @@ paths:
 ## Two-script deploy pattern
 
 - **`deploy.sh`** (local): builds frontend, git push, SSHs to server to run `server_deploy.sh`.
-- **`server_deploy.sh`** (server only): `git pull`, applies idempotent schema additions inline via `sqlite3`, `npm run build` (admin), `npm run build:public` (public read-only), `systemctl restart cross-strait-signal`.
+- **`server_deploy.sh`** (server only): `git pull`, applies pending schema migrations via `scripts/migrate.py`, `npm run build` (admin), `npm run build:public` (public read-only), `systemctl restart cross-strait-signal`.
 
 ## Schema migrations
 
-`init_db.py` runs the full `schema.sql` and would fail on an existing DB because original tables don't use `IF NOT EXISTS`. When adding new tables or indexes:
-
-1. Append a `CREATE … IF NOT EXISTS` block to the inline migration in `server_deploy.sh`.
-2. Add the same statement to `db/schema.sql` (with `IF NOT EXISTS`) so fresh init still works.
+Versioned since 2026-07-08: ordered files in `db/migrations/` (`NNNN_name.sql`, or `NNNN_name.py` with `migrate(conn)` for ALTERs), tracked in the `schema_migrations` table, applied by `scripts/migrate.py` on every deploy. New schema = a new numbered migration file AND the same object mirrored into `db/schema.sql` for fresh-init parity. Real migration errors fail the deploy loudly; a concurrent cron lock waits (30s busy_timeout) instead of skipping. Full rules in `.claude/rules/database.md`.
 
 ## Live URLs
 

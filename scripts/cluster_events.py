@@ -3,13 +3,14 @@ Event clustering script for Cross-Strait Signal.
 Groups articles covering the same story based on title similarity and publication time.
 Run after the pipeline: python scripts/cluster_events.py
 """
-import sqlite3
 import os
 import re
+import sys
 import uuid
 from datetime import datetime, timezone
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'cross_strait_signal.db')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from scraper.utils.db import get_connection
 
 # Stopwords to ignore when comparing titles
 ZH_STOPWORDS = {
@@ -93,8 +94,9 @@ def cluster_recent_articles(hours=48):
     Cluster articles published within the last N hours.
     Articles from different sources covering the same story get the same cluster ID.
     """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    # get_connection = row_factory + FK pragma + busy_timeout (this runs
+    # inside the cron pipeline and used to be able to hit 'database is locked')
+    conn = get_connection()
 
     # Get recently published, AI-processed articles
     articles = conn.execute("""

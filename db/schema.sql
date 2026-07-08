@@ -21,6 +21,15 @@ CREATE TABLE sources (
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Migration ledger (code-review §4.2) — scripts/migrate.py records each
+-- applied db/migrations/ file here. schema.sql stays the complete
+-- fresh-init picture; every new object must appear BOTH here and in a
+-- new numbered migration file.
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    name       TEXT PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Gemini Batch API job tracking (code-review §3.5). One row per submitted
 -- Tier-1 batch job; article_ids is a JSON array in request order. Articles
 -- inside a 'submitted' job are excluded from re-selection; failed/expired/

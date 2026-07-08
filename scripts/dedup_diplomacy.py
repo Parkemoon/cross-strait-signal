@@ -42,7 +42,6 @@ Usage:
     python scripts/dedup_diplomacy.py --country US --threshold 0.9
 """
 import argparse
-import json
 import os
 import sys
 from collections import defaultdict
@@ -57,6 +56,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 import scraper.utils.db as dbmod
+from scraper.utils.llm import get_gemini_client
 
 EMBED_MODEL = 'gemini-embedding-001'
 EMBED_BATCH = 100          # API max contents per embed call
@@ -64,11 +64,7 @@ OFFICIAL_TIERS = {'government', 'head_of_state'}
 
 
 def _client():
-    from google import genai
-    key = os.environ.get('GEMINI_API_KEY')
-    if not key:
-        sys.exit('GEMINI_API_KEY not set')
-    return genai.Client(api_key=key)
+    return get_gemini_client()
 
 
 def _embed_all(client, texts):
@@ -145,9 +141,7 @@ def main():
     ap.add_argument('--country', help="Restrict to one country_iso")
     args = ap.parse_args()
 
-    if args.db:
-        dbmod.DB_PATH = args.db
-    conn = dbmod.get_connection()
+    conn = dbmod.get_connection(args.db)
     tag = f"dedup:diplomacy-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
 
     where = "approval_status = 'approved'"

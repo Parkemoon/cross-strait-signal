@@ -55,7 +55,7 @@ async def scrape_weibo_hot():
     scraped_at = datetime.now(timezone.utc).isoformat()
     matched = []
 
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True, headers=headers) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=headers) as client:
         try:
             resp = await client.get(LIST_URL)
         except Exception as e:

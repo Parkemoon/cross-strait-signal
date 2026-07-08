@@ -83,7 +83,7 @@ async def scrape_ptt():
     new_count = 0
     scraped_at = datetime.now(timezone.utc).isoformat()
 
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True, headers=headers) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=headers) as client:
         for board, max_pages in BOARD_PAGES.items():
             # Collect entries across pages until max_pages or no previous page
             all_entries = []

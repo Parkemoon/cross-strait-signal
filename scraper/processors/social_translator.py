@@ -16,8 +16,8 @@ load_dotenv()
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-from google import genai
 from scraper.utils.db import get_connection
+from scraper.utils.llm import get_gemini_client, parse_llm_json
 from scraper.utils.usage_log import log_usage
 
 _GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
@@ -37,13 +37,7 @@ def _build_glossary_block(titles):
         + "\n".join(lines)
     )
 
-_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if not _GEMINI_API_KEY:
-    raise RuntimeError(
-        "GEMINI_API_KEY environment variable is not set. "
-        "Add it to .env in the project root (see CLAUDE.md > Environment)."
-    )
-client = genai.Client(api_key=_GEMINI_API_KEY)
+client = get_gemini_client()
 
 TRANSLATION_PROMPT = """You are translating Chinese social media content into English for a cross-strait intelligence dashboard.
 
@@ -96,16 +90,7 @@ def translate_social_pulse(batch_size=20):
                 config={"thinking_config": {"thinking_level": "low"}},
             )
             log_usage("social", "gemini-3.1-flash-lite", response)
-            raw = response.text.strip()
-
-            # Strip markdown code blocks if present
-            if raw.startswith('```'):
-                raw = raw.split('```')[1]
-                if raw.startswith('json'):
-                    raw = raw[4:]
-                raw = raw.strip()
-
-            translations = json.loads(raw)
+            translations = parse_llm_json(response.text)
 
             if not isinstance(translations, list) or len(translations) != len(batch):
                 print(f"  Translation batch returned unexpected format, skipping")
