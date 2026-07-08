@@ -50,7 +50,9 @@ python scripts/run_pipeline.py
 - `scripts/canonicalise_poll_labels.py` (then `--apply`) — collapses option_label variants in `poll_results` to canonical strings. Rules live in `scraper/processors/poll_labels_canonical.json` (per-scope mapping list — `from_zh` / `from_en` match, `to_zh` / `to_en` write; scopes take `question_keys` and/or `families` + `exclude_*` variants — family scoping covers future keys, e.g. every new 2026 race, without re-enumeration). Two seeded rules: (a) no-opinion normalisation across non-NCCU non-vote-intent keys → `未明確回答` / "No response"; (b) vote-intent normalisation (strip party prefixes, fix Su Chiao-hui romanisation, collapse "haven't decided" residuals to `尚未決定` / "Undecided", keep "won't vote" as a separate `不投票或投廢票` / "Won't vote / Spoiled ballot" bucket). Idempotent (skips rows already canonical). **Now also runs automatically as pipeline Step 3d** (`run_pipeline.py` invokes it with `--apply` after Step 3c), so drift self-heals every 6h — manual runs are only needed for ad-hoc checks or after editing the JSON. Edit the JSON to add new mappings; no code change needed.
 - `scripts/backfill_diplomacy_statements.py --days 90 --limit 300` — back-populates `diplomacy_statements` (Phase 2c) from already-analysed articles. Shares `_insert_diplomacy_row` with the live Tier-1 pass (so org-exclusion + validation are identical). Flags: `--days`, `--limit`, `--topics`, `--all-topics`, `--db` (target another worktree's DB, e.g. prod), `--dry-run`. Rows land `pending` for the analyst review queue; safe to re-run.
 - `scripts/build_world_geojson.py` — builds the Diplomacy map basemap `frontend/public/geo/world-110m.geojson` from Natural Earth 1:110m admin0 (trims to `iso_a2`/`name`/`lx`/`ly` label points, drops Antarctica). Output is committed; re-run only to refresh the basemap.
-- `scripts/usage_report.py` — aggregates the per-call Gemini token-usage log (written by `scraper/utils/usage_log.py` to `$GEMINI_USAGE_LOG`, default `/var/log/gemini-usage.jsonl`) by pipeline stage / model / day. Token totals are exact; fill the `PRICES` dict for an estimated cost column. Flags: `--days`, `--by stage|model|day`, `--log`. Use it to attribute the Gemini bill before tuning cost.
+- `scripts/usage_report.py` — aggregates the per-call Gemini token-usage log (written by `scraper/utils/usage_log.py` to `$GEMINI_USAGE_LOG`, default `/var/log/gemini-usage.jsonl`) by pipeline stage / model / day. Token totals are exact; the `PRICES` dict carries the cost rates (verified against Google's sheet 2026-07-08, incl. the 50%-rate `@batch` model variants) — re-verify when Google reprices. Flags: `--days`, `--by stage|model|day`, `--log`. Use it to attribute the Gemini bill before tuning cost.
+- `scripts/dedup_diplomacy.py` (dry-run default; `--apply`) — semantic dedup for approved `diplomacy_statements`: buckets by (country, official/non-official), embeds with `gemini-embedding-001`, union-find clusters at cosine ≥ `--threshold` (0.86), merges to the member nearest the cluster median stance, quarantines wide-spread clusters (genuine timelines), flattens merge chains. Flags: `--db`, `--country`, `--threshold`, `--quarantine-spread`. Run after big review sessions or monthly — replaces the 2026-06-30 scratchpad passes.
+- `scripts/audit_diplomacy_offaxis.py` (dry-run default; `--apply`) — two-pass off-axis audit of approved `diplomacy_statements` (detect in batches → conservative KEEP-biased confirm per flagged row → dismiss with a dated `offaxis-audit-*` tag; sole-statement countries held back). Flags: `--db`, `--model`, `--country`, `--limit`. Quarterly, or after approving a large backfill — replaces the 2026-07-01 scratchpad detector.
 
 ### Frontend builds
 ```bash
@@ -73,6 +75,10 @@ The project venv at `venv/` may be near-empty on Windows. Use `/c/Users/Ed/venv/
 ~30 RSS/HTML news sources
     → Keyword pre-filter (directional: saves ~80% API cost)
     → Tier 1 AI: Gemini 3.1 Flash Lite (topic, sentiment, entities, urgency)
+        ↳ via the Gemini BATCH API by default (~50% token price): submit
+          backlog as one job, collect on the same tick when it finishes
+          within the wait window, else next tick. GEMINI_TIER1_MODE=
+          interactive restores the sequential path. See ai-pipeline.md.
         ↳ side-extract: military exercise candidates from MIL_EXERCISE
                         articles → military_exercises (status=pending)
         ↳ side-extract: third-country diplomatic stances on Taiwan →
@@ -125,6 +131,8 @@ Requires `.env` in project root:
 GEMINI_API_KEY=your_key_here
 ADMIN_TOKEN=...                # gates write endpoints AND admin-only reads (is_admin); also inlined into the admin frontend build
 ```
+
+Optional: `GEMINI_TIER1_MODE=interactive` (Tier 1 defaults to the Batch API — this restores the sequential per-article path), `TIER1_BATCH_WAIT_MIN` (same-tick batch collection window, default 20 minutes; 0 = never wait, always collect next tick).
 
 ## Key domain concepts
 
