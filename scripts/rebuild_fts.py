@@ -3,7 +3,7 @@
 The FTS5 virtual table was declared as ``content='articles'`` (external content
 mode) without INSERT/UPDATE/DELETE triggers, so historical writes to
 ``articles`` never made it into the index. Run this once to backfill, and
-ensure the new triggers in ``schema.sql`` / ``server_deploy.sh`` are in place
+ensure the new triggers in ``schema.sql`` / ``db/migrations/`` are in place
 so future inserts stay in sync.
 
 Idempotent: re-running drops and rebuilds the index in one transaction.
@@ -13,7 +13,10 @@ Usage:
     venv/bin/python3 scripts/rebuild_fts.py
 """
 import os
-import sqlite3
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from scraper.utils.db import get_connection
 import sys
 import time
 
@@ -22,7 +25,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'cross_strait_sign
 
 def rebuild():
     print(f"Rebuilding articles_fts in {DB_PATH}")
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection(DB_PATH)
     try:
         start = time.time()
         conn.execute("INSERT INTO articles_fts(articles_fts) VALUES('rebuild')")

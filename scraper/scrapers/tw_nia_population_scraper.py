@@ -25,6 +25,7 @@ import httpx
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection
+from scraper.utils.dates import roc_label_year, roc_year_to_gregorian
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -59,10 +60,7 @@ def _parse_number(cell: str) -> int | None:
 
 def _roc_year_to_gregorian(label: str) -> int | None:
     """Convert ROC year label like '112年' to 2023."""
-    m = re.match(r'^\s*(\d{1,3})年', label)
-    if not m:
-        return None
-    return int(m.group(1)) + 1911
+    return roc_label_year(label)
 
 
 _UPSERT_SQL = """
@@ -159,7 +157,7 @@ def _ingest_13503(conn) -> int:
         m = re.match(r'\s*(\d{1,3})年(?:\s*\((\d{1,2})~(\d{1,2})月\))?', label)
         if not m:
             continue
-        year = int(m.group(1)) + 1911
+        year = roc_year_to_gregorian(m.group(1))
         end_month = int(m.group(3)) if m.group(3) else 12
         period = f'{year:04d}-{end_month:02d}'
 

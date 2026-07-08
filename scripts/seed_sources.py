@@ -1,7 +1,8 @@
-import sqlite3
 import os
+import sys
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'cross_strait_signal.db')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from scraper.utils.db import get_connection
 
 # Broad feeds replaced by targeted sections — deactivate these
 DEACTIVATE_SOURCES = [
@@ -449,7 +450,7 @@ SOURCES = [
 
 
 def seed_sources():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Deactivate broad feeds replaced by targeted sections

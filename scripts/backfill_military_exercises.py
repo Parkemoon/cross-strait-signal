@@ -34,9 +34,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from dotenv import load_dotenv
 load_dotenv()
 
-from google import genai
 
 from scraper.utils.db import get_connection
+from scraper.utils.llm import get_gemini_client, parse_llm_json
 from scraper.processors.ai_pipeline import (
     _CANONICAL_ENTITIES,
     _NAMED_EXERCISES,
@@ -54,10 +54,7 @@ from shared.exercise_keys import (
     COORD_BBOX as _COORD_BBOX,
 )
 
-_API_KEY = os.environ.get("GEMINI_API_KEY")
-if not _API_KEY:
-    raise RuntimeError("GEMINI_API_KEY missing — source .env first")
-_client = genai.Client(api_key=_API_KEY)
+_client = get_gemini_client()
 
 _EXTRACT_PROMPT = """You are extracting military exercises from a news article.
 Return ONLY valid JSON of the shape:
@@ -169,14 +166,10 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "medium"},
         },
     )
-    text = resp.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
     try:
-        return (json.loads(text) or {}).get('military_exercises', []) or []
+        return parse_llm_json(resp.text, envelope_key='military_exercises')
     except json.JSONDecodeError:
-        print(f"  [warn] non-JSON response for article {article['id']}: {text[:120]}")
+        print(f"  [warn] non-JSON response for article {article['id']}: {resp.text[:120]}")
         return []
 
 

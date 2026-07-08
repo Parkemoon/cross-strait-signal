@@ -1,4 +1,3 @@
-import httpx
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
 import sys
@@ -7,7 +6,8 @@ import os
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from scraper.utils.db import get_connection, article_exists
+from scraper.utils.db import get_connection, article_exists, save_article
+from scraper.utils.http import browser_headers, make_async_client
 
 # UDN list-page timestamps are Asia/Taipei local time (UTC+8, no DST).
 _TAIPEI = timezone(timedelta(hours=8))
@@ -23,12 +23,9 @@ async def scrape_udn(source):
 
     print(f"\nScraping: {source['name']} ({source['url']})")
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept-Language': 'zh-TW,zh;q=0.9',
-    }
+    headers = browser_headers(**{'Accept-Language': 'zh-TW,zh;q=0.9'})
 
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=headers) as client:
+    async with make_async_client(headers=headers) as client:
         try:
             resp = await client.get(source['url'])
             resp.encoding = 'utf-8'
@@ -99,13 +96,8 @@ async def scrape_udn(source):
             except Exception as e:
                 print(f"    Could not fetch article content: {e}")
 
-            conn.execute("""
-                INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                source['id'], full_url, title, content[:10000],
-                'zh-tw', published_at
-            ))
+            save_article(conn, source['id'], full_url, title, content,
+                         'zh-tw', published_at)
             new_count += 1
 
     conn.commit()

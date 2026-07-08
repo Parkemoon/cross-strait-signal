@@ -35,6 +35,8 @@ from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection
+from scraper.utils.http import make_async_client
+from scraper.utils.dates import roc_date_to_iso
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -58,11 +60,6 @@ LIST_ITEM_RE = re.compile(
     re.DOTALL,
 )
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-}
-
 _UPSERT_SQL = """
 INSERT INTO pla_incursions
     (date, aircraft_total, aircraft_intruded, aircraft_zones,
@@ -81,7 +78,7 @@ ON CONFLICT(date, source) DO UPDATE SET
 
 
 def _roc_to_iso(roc_y: str, m: str, d: str) -> str:
-    return f"{int(roc_y) + 1911:04d}-{int(m):02d}-{int(d):02d}"
+    return roc_date_to_iso(roc_y, m, d)
 
 
 def _extract_zones(s: str) -> str | None:
@@ -174,7 +171,7 @@ async def scrape_mnd_incursions() -> int:
     written = 0
     stop_walk = False
 
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, headers=HEADERS) as client:
+    async with make_async_client() as client:
         for page in range(1, MAX_PAGES + 1):
             if stop_walk:
                 break

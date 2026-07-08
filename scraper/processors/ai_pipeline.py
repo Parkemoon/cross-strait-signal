@@ -400,16 +400,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 load_dotenv()
 
-from google import genai
 from scraper.utils.db import get_connection
-
-_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if not _GEMINI_API_KEY:
-    raise RuntimeError(
-        "GEMINI_API_KEY environment variable is not set. "
-        "Add it to .env in the project root (see CLAUDE.md > Environment)."
-    )
-client = genai.Client(api_key=_GEMINI_API_KEY)
+from scraper.utils.llm import get_gemini_client, parse_llm_json
+client = get_gemini_client()
 
 # Named-exercise roster shared by all three exercise-extraction prompts (the
 # live Tier-1 bullet, the Step-3b _EXERCISE_ONLY_PROMPT, and
@@ -823,14 +816,7 @@ FULL TEXT:
 
 def _parse_tier1_json(text):
     """json.loads with the code-fence fallback both Tier-1 paths need."""
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        text = text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1]
-            text = text.rsplit("```", 1)[0]
-        return json.loads(text)
+    return parse_llm_json(text)
 
 
 def analyse_article(title, content, language, source_name, published_at=None):
@@ -1645,18 +1631,11 @@ FULL TEXT:
         },
     )
     log_usage("exercise_only", "gemini-3.1-flash-lite", resp, article_id=article['id'])
-    text = resp.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
+    # parse_llm_json accepts the bare-array-instead-of-envelope quirk too.
     try:
-        parsed = json.loads(text)
+        return parse_llm_json(resp.text, envelope_key='military_exercises')
     except json.JSONDecodeError:
         return []
-    # Accept a bare JSON array as well as the {"military_exercises": [...]} envelope.
-    if isinstance(parsed, list):
-        return parsed
-    return (parsed or {}).get('military_exercises', []) or []
 
 
 # The shared rules core (_DIPLOMACY_RULES) is identical to the live Tier-1
@@ -1706,19 +1685,11 @@ FULL TEXT:
         },
     )
     log_usage("diplomacy_only", "gemini-3.1-flash-lite", resp, article_id=article['id'])
-    text = resp.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
+    # parse_llm_json accepts the bare-array-instead-of-envelope quirk too.
     try:
-        parsed = json.loads(text)
+        return parse_llm_json(resp.text, envelope_key='diplomacy_statements')
     except json.JSONDecodeError:
         return []
-    # The model occasionally returns a bare JSON array instead of the
-    # {"diplomacy_statements": [...]} envelope — accept both.
-    if isinstance(parsed, list):
-        return parsed
-    return (parsed or {}).get('diplomacy_statements', []) or []
 
 
 def _insert_exercise_row(conn, article_id, ex):
@@ -2088,18 +2059,11 @@ FULL TEXT:
         },
     )
     log_usage("poll_only", "gemini-3.5-flash", resp, article_id=article['id'])
-    text = resp.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
+    # parse_llm_json accepts the bare-array-instead-of-envelope quirk too.
     try:
-        parsed = json.loads(text)
+        return parse_llm_json(resp.text, envelope_key='polls')
     except json.JSONDecodeError:
         return []
-    # Accept a bare JSON array as well as the {"polls": [...]} envelope.
-    if isinstance(parsed, list):
-        return parsed
-    return (parsed or {}).get('polls', []) or []
 
 
 # Title-pattern trigger keywords. Kept as a tuple so the query builder
