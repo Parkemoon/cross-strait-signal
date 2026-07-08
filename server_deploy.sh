@@ -39,6 +39,20 @@ sqlite3 db/cross_strait_signal.db <<'SQL'
 -- Hot FK index: entities.article_id (article feed EXISTS filter + per-page
 -- entity fetch). Missing on the live DB; creating it here on deploy.
 CREATE INDEX IF NOT EXISTS idx_entities_article ON entities(article_id);
+
+-- Gemini Batch API job tracking (code-review §3.5) — see db/schema.sql.
+CREATE TABLE IF NOT EXISTS gemini_batch_jobs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_name      TEXT NOT NULL UNIQUE,
+    kind          TEXT NOT NULL DEFAULT 'tier1',
+    model         TEXT NOT NULL,
+    article_ids   TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'submitted',
+    submitted_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    collected_at  TIMESTAMP,
+    error         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_batch_jobs_status ON gemini_batch_jobs(status);
 CREATE TABLE IF NOT EXISTS economic_indicators (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     series_id   TEXT NOT NULL,

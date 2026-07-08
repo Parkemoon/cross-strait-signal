@@ -21,6 +21,23 @@ CREATE TABLE sources (
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Gemini Batch API job tracking (code-review §3.5). One row per submitted
+-- Tier-1 batch job; article_ids is a JSON array in request order. Articles
+-- inside a 'submitted' job are excluded from re-selection; failed/expired/
+-- stale jobs release them automatically.
+CREATE TABLE IF NOT EXISTS gemini_batch_jobs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_name      TEXT NOT NULL UNIQUE,              -- API resource name (batches/...)
+    kind          TEXT NOT NULL DEFAULT 'tier1',
+    model         TEXT NOT NULL,
+    article_ids   TEXT NOT NULL,                     -- JSON array, order == request order
+    status        TEXT NOT NULL DEFAULT 'submitted', -- submitted | collected | failed
+    submitted_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    collected_at  TIMESTAMP,
+    error         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_batch_jobs_status ON gemini_batch_jobs(status);
+
 CREATE TABLE articles (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     source_id       INTEGER NOT NULL REFERENCES sources(id),

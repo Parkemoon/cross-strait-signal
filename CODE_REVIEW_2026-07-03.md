@@ -51,6 +51,26 @@ flattened the `App.js` tab chain, and added a min-count guard to `refresh_offici
 `REACT_APP_ADMIN_TOKEN` set, or the admin feed loses pending articles and the
 curate queue 401s (the new §0 gates enforce the token server-side).
 
+**Applied 2026-07-08 (staging), second batch:** **§3.7a** (shared
+`_DIPLOMACY_RULES` + `_NAMED_EXERCISES` constants; the exercise-only prompt
+had drifted, not the backfill); **§4.5** (Tier-1 loop calls
+`_insert_exercise_row`); **§4.7** (`sources.is_pollster_direct` /
+`exercise_only_scan` columns, seed-driven); **§4.8** (family scoping in
+`canonicalise_poll_labels` + the no-response→undecided repair mapping);
+**§4.10** (loud startup banner when `ADMIN_TOKEN` unset — warn, not
+fail-closed); **§4.4** (`shared/exercise_keys.py` — one canonical-key
+implementation for api/ + scraper/ + backfill); **§5** stragglers (notes.py
+trimmed to the used POST, mac_poll shape assertions with per-question skip,
+.env SMTP dedup applied); **§3.5** (Tier 1 through the Gemini Batch API by
+default — `run_tier1` collect→submit→bounded-wait flow, `gemini_batch_jobs`
+table, interactive fallback on submission error, `GEMINI_TIER1_MODE` escape
+hatch; verified end-to-end on staging with a real 4-article job). Also from
+the session-log backlog: `scripts/dedup_diplomacy.py` +
+`scripts/audit_diplomacy_offaxis.py` promote the scratchpad dedup/off-axis
+passes to maintenance scripts (on `gemini-embedding-001` — the old
+`text-embedding-004` is retired), and `usage_report.py` PRICES verified
+against Google's 2026-07 sheet incl. `@batch` variants.
+
 **Applied 2026-07-08 (staging):** **§3.1** — `poll_scanned_at` /
 `exercise_scanned_at` marker columns on `articles` (schema.sql + idempotent
 ALTERs in the `server_deploy.sh` migration block), stamped after every Step
