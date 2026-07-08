@@ -38,11 +38,11 @@ _MIL_LOCATIONS_AUTO_PATH = os.path.join(
 # auto-file itself to avoid edge cases with truncate + flock + replace.
 _MIL_LOCATIONS_AUTO_LOCK = _MIL_LOCATIONS_AUTO_PATH + ".lock"
 
-# Indo-Pacific sanity bbox shared with the AI ingest path. Coords outside
-# this rectangle are presumed analyst typos and rejected at the API edge
-# rather than silently nulled (the PATCH route has an analyst to argue
-# with; the AI path doesn't).
-_COORD_BBOX = (8.0, 35.0, 105.0, 135.0)  # lat_min, lat_max, lon_min, lon_max
+# Indo-Pacific sanity bbox shared with the AI ingest path (see
+# shared/exercise_keys.py). Coords outside this rectangle are presumed
+# analyst typos and rejected at the API edge rather than silently nulled
+# (the PATCH route has an analyst to argue with; the AI path doesn't).
+from shared.exercise_keys import COORD_BBOX as _COORD_BBOX
 
 
 def _load_auto_locations():
@@ -201,30 +201,14 @@ _VISIBLE_ARTICLE = (
     ")"
 )
 
-_VALID_PERFORMERS = {'PRC', 'ROC', 'US', 'JP', 'MULTI'}
-_VALID_EXERCISE_KINDS = {'live_fire', 'readiness_drill', 'joint_patrol',
-                         'named_exercise', 'cyber', 'amphibious', 'other'}
-
-# Mirror of scraper.processors.ai_pipeline._build_exercise_canonical_key —
-# kept in sync because api/ cannot import from scraper/ without inverting
-# the project's layering. See that file for full rationale; in short:
-#   - "Exercise No. <n>" → "<n>" so "X No. 42" matches "X 42 Exercise"
-#   - strip trailing drill/exercise/training/wargame (iteratively)
-#   - keep parenthesised clauses (they carry subtype info)
-_EXERCISE_NO_RE = re.compile(r'\bExercise\s+No\.?\s+(\d+)\b', re.IGNORECASE)
-_EXERCISE_SUFFIX_RE = re.compile(
-    r'(\s+(drills?|exercises?|trainings?|wargames?))+$', re.IGNORECASE
+# Canonical-key builder + enums live in shared/exercise_keys.py — one
+# implementation for both this module and the scraper ingest path, so the
+# key space can't fork (approve's auto-merge groups on canonical_name).
+from shared.exercise_keys import (
+    build_exercise_canonical_key as _build_exercise_canonical_key,
+    VALID_PERFORMERS as _VALID_PERFORMERS,
+    VALID_EXERCISE_KINDS as _VALID_EXERCISE_KINDS,
 )
-
-
-def _build_exercise_canonical_key(name_en):
-    if not name_en:
-        return None
-    s = _EXERCISE_NO_RE.sub(r'\1', name_en.strip())
-    s = re.sub(r'\s{2,}', ' ', s)
-    s = _EXERCISE_SUFFIX_RE.sub('', s).strip()
-    key = s.lower().replace(' ', '-').replace('_', '-')
-    return key or None
 
 ZONE_LABELS = {
     "N":  "North",
