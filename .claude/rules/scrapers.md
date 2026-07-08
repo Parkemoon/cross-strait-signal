@@ -9,7 +9,7 @@ Two types:
 - **RSS** (`rss_scraper.py`): handles all `scrape_method='rss'` sources generically via `scrape_all_rss_sources()`.
 - **HTML scrapers**: one file per source for sites without usable RSS feeds.
 
-**Adding a new HTML scraper**: follow the pattern in any existing one. Register the source in `seed_sources.py` and add the import + call to `run_pipeline.py`.
+**Adding a new HTML scraper**: follow the pattern in any existing one, and use the shared utils rather than re-rolling them — `save_article()` + `get_connection`/`article_exists` from `scraper/utils/db.py` (the 25K content cap lives in the helper), `browser_headers()`/`make_async_client()` from `scraper/utils/http.py`, ROC-calendar + URL-date helpers from `scraper/utils/dates.py`, and `get_gemini_client()`/`parse_llm_json()` from `scraper/utils/llm.py` if it calls the API. Register the source in `seed_sources.py` and add the import + call to `run_pipeline.py`.
 
 **Age guard**: both `rss_scraper.py` and HTML scrapers skip articles older than 180 days at insert time (`MAX_ARTICLE_AGE = timedelta(days=180)`).
 

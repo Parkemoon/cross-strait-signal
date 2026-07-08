@@ -71,9 +71,18 @@ Full remediation from a multi-agent review; work order + per-item status in `COD
 - **Prompt / cost** — officials roster trimmed to static-current + article-matched-former (~14.5k→3.1k chars/call); `poll_only`/`exercise_only` dropped to `thinking_level=low`; Tier-2 escalation review skips the extraction arrays; poll example labels made canonical.
 - **Performance / hygiene** — `entities(article_id)` index; removed committed scratch files, a dead route, and 6 dead `api.js` exports.
 
+### Cost & structure (2026-07-08, code-review work order continued)
+
+- **Tier 1 via the Gemini Batch API** (~50% token price on the largest bill line) — collect-previous / submit-backlog / bounded same-tick wait per pipeline tick, `gemini_batch_jobs` state table, 150-article job chunking, interactive fallback + `GEMINI_TIER1_MODE` escape hatch
+- **Scan markers for the poll/exercise side-passes** — zero-yield articles no longer re-scanned every tick (was 96%/70% repeat calls; ~95% of those stages' spend eliminated)
+- **Versioned schema migrations** — `db/migrations/` + `scripts/migrate.py` + `schema_migrations` ledger replace the deploy-script heredoc; real migration errors now fail deploys loudly
+- **Shared modules end copy-drift** — `shared/exercise_keys.py` (canonical keys, api+scraper), `scraper/utils/{dates,http,llm}.py`, `save_article()` (content cap standardised at 25K), prompt constants (`_DIPLOMACY_RULES`, `_NAMED_EXERCISES`), source behaviour flags on the `sources` table
+- **Diplomacy corpus maintenance scripts** — `dedup_diplomacy.py` (embedding clustering on `gemini-embedding-001`) + `audit_diplomacy_offaxis.py` (two-pass detect/confirm), promoted from scratchpad one-offs
+- Family-scoped poll-label canonicalisation (future race keys auto-inherit vote-intent semantics); MAC poll PDF shape assertions; notes API trimmed to the used POST (closing an ungated read of analyst commentary); loud startup banner when `ADMIN_TOKEN` is unset; 180-day age guard on guancha/fjsen
+
 ## In progress / planned
 
-- Deferred code-review items (bigger/structural) tracked in `CODE_REVIEW_2026-07-03.md`: unified review-queue mechanism (§4.3), one entity-normalisation semantics (§4.6), Tier-2 standalone lean prompt (§3.3 remainder). (Applied 2026-07-08 on staging: §3.1 scan markers, §3.5 Batch-API Tier 1, §3.7a shared prompt constants, §4.2 versioned migrations, §4.4/4.5/4.7/4.8/4.10, §4.9 shared scraper utils, §5 stragglers, plus the diplomacy dedup/off-axis maintenance scripts.)
+- Deferred code-review items (bigger/structural) tracked in `CODE_REVIEW_2026-07-03.md`: unified review-queue mechanism (§4.3), one entity-normalisation semantics (§4.6), Tier-2 standalone lean prompt (§3.3 remainder). (Applied AND deployed to prod 2026-07-08: §3.1 scan markers, §3.5 Batch-API Tier 1, §3.7a shared prompt constants, §4.2 versioned migrations, §4.4/4.5/4.7/4.8/4.10, §4.9 shared scraper utils, §5 stragglers, plus the diplomacy dedup/off-axis maintenance scripts.)
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
 - Incursion × exercise cross-reference — apply the verification angle to military data (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?)
 - Monthly-aggregated sentiment endpoint (revisit when 12+ months of data exists)
