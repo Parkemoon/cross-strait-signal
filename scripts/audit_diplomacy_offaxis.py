@@ -31,7 +31,6 @@ Usage:
     python scripts/audit_diplomacy_offaxis.py --apply
 """
 import argparse
-import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -44,6 +43,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 import scraper.utils.db as dbmod
+from scraper.utils.llm import get_gemini_client, parse_llm_json
 from scraper.utils.usage_log import log_usage
 
 DETECT_BATCH = 20
@@ -86,11 +86,7 @@ STATEMENT (ZH): {zh}
 
 
 def _client():
-    from google import genai
-    key = os.environ.get('GEMINI_API_KEY')
-    if not key:
-        sys.exit('GEMINI_API_KEY not set')
-    return genai.Client(api_key=key)
+    return get_gemini_client()
 
 
 def _gen_json(client, model, prompt, stage):
@@ -99,10 +95,7 @@ def _gen_json(client, model, prompt, stage):
         config={"response_mime_type": "application/json",
                 "max_output_tokens": 2000, "temperature": 0.0})
     log_usage(stage, model, resp)
-    text = resp.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1].rsplit("```", 1)[0]
-    return json.loads(text)
+    return parse_llm_json(resp.text)
 
 
 def main():
@@ -114,9 +107,7 @@ def main():
     ap.add_argument('--country', help="Restrict to one country_iso")
     args = ap.parse_args()
 
-    if args.db:
-        dbmod.DB_PATH = args.db
-    conn = dbmod.get_connection()
+    conn = dbmod.get_connection(args.db)
     tag = f"offaxis-audit-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
 
     where = "approval_status = 'approved'"

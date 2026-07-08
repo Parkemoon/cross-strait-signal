@@ -25,7 +25,8 @@ import httpx
 import pdfplumber
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from scraper.utils.db import get_connection, article_exists
+from scraper.utils.db import get_connection, article_exists, save_article
+from scraper.utils.http import browser_headers
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -109,10 +110,7 @@ def scrape_tvbs_polls():
 
     print(f"  Found {len(entries)} TVBS poll PDFs")
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Referer': LIST_URL,
-    }
+    headers = browser_headers(referer=LIST_URL)
 
     with httpx.Client(timeout=30, follow_redirects=True, headers=headers) as client:
         for entry in entries:
@@ -130,11 +128,8 @@ def scrape_tvbs_polls():
 
             published_at = _published_from_url(entry['url'])
             print(f"  New: {entry['title'][:70]}")
-            conn.execute("""
-                INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (source['id'], entry['url'], entry['title'], content[:25000],
-                  'zh-tw', published_at))
+            save_article(conn, source['id'], entry['url'], entry['title'], content,
+                         'zh-tw', published_at)
             new_count += 1
 
     conn.commit()

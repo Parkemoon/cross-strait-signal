@@ -8,7 +8,7 @@ Path-scoped rules in `.claude/rules/` cover subsystem details (loaded on demand 
 - `database.md` — canonical DB path, schema conventions, `get_db()` pattern, migration pattern
 - `api-routes.md` — per-route non-obvious rules, `VISIBLE` constant, scoping clauses
 - `frontend.md` — React layout, central API client, read-only build, sync points, component-specific notes
-- `deployment.md` — two-script deploy, schema migration block, cron schedule, RSSHub
+- `deployment.md` — two-script deploy, versioned schema migrations (`db/migrations/` + `scripts/migrate.py`), cron schedule, RSSHub
 
 ## Project Overview
 

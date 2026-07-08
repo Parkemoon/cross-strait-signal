@@ -19,6 +19,7 @@ import httpx
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection
+from scraper.utils.dates import roc_year_to_gregorian
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -90,7 +91,7 @@ def roc_to_iso(period_label: str) -> str | None:
         month_str = rest.replace('月', '').strip()
         if not roc_year_str.strip().isdigit() or not month_str.isdigit():
             return None
-        year = 1911 + int(roc_year_str.strip())
+        year = roc_year_to_gregorian(roc_year_str.strip())
         return f'{year:04d}-{int(month_str):02d}'
     except (ValueError, IndexError):
         return None

@@ -5,7 +5,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from scraper.utils.db import get_connection, article_exists
+from scraper.utils.db import get_connection, article_exists, save_article
 
 
 async def scrape_mfa_spokesperson():
@@ -114,17 +114,8 @@ async def scrape_mfa_spokesperson():
                 print(f"    Could not fetch article: {e}")
             
             # Save to database
-            conn.execute("""
-                INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                source['id'],
-                full_url,
-                title,
-                content[:10000],
-                'zh-cn',
-                datetime.now(timezone.utc).isoformat()
-            ))
+            save_article(conn, source['id'], full_url, title, content,
+                         'zh-cn', datetime.now(timezone.utc).isoformat())
             new_count += 1
     
     conn.commit()

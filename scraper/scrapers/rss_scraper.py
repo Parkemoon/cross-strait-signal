@@ -9,13 +9,13 @@ import os
 
 # Add the project root to the path so we can import our modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from scraper.utils.db import get_connection, article_exists
+from scraper.utils.db import get_connection, article_exists, save_article
+from scraper.utils.http import browser_headers, make_async_client
 
 
-FEED_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
-}
+FEED_HEADERS = browser_headers(
+    Accept='application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+)
 
 
 async def scrape_rss_source(source):
@@ -35,7 +35,7 @@ async def scrape_rss_source(source):
     # Fetch feed content via httpx so we control headers (feedparser's built-in
     # fetcher uses a bare UA that rsshub.app and some proxies reject)
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=FEED_HEADERS) as client:
+        async with make_async_client(headers=FEED_HEADERS) as client:
             feed_resp = await client.get(source['url'])
         if feed_resp.status_code != 200:
             print(f"  Feed returned HTTP {feed_resp.status_code}")
@@ -118,17 +118,8 @@ async def scrape_rss_source(source):
                     pass
 
             # Save to database
-            conn.execute("""
-                INSERT INTO articles (source_id, url, title_original, content_original, language, published_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                source['id'],
-                url,
-                title,
-                content[:10000],  # Cap content length
-                source['language'],
-                published_at
-            ))
+            save_article(conn, source['id'], url, title, content,
+                         source['language'], published_at)
             new_count += 1
 
     conn.commit()
