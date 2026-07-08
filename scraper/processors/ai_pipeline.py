@@ -793,11 +793,22 @@ def _insert_poll_row(conn, article_id, poll, lookup):
     return True
 
 
-def analyse_article(title, content, language, source_name, published_at=None):
-    """Send one article to Gemini and return structured analysis."""
+_TIER1_MODEL = "gemini-3.1-flash-lite"
+_TIER1_GEN_CONFIG = {
+    "response_mime_type": "application/json",
+    "max_output_tokens": 8000,
+    "temperature": 0.1,
+    "thinking_config": {"thinking_level": "medium"},
+}
+
+
+def _tier1_prompt(title, content, language, source_name, published_at=None):
+    """Build the full Tier-1 prompt for one article. Shared by the
+    interactive path (analyse_article) and the Batch API path
+    (submit_tier1_batch) so the two modes send identical requests."""
     glossary_block = generate_dynamic_glossary(content, title)
     former_block = _officials_former_block(content, title)
-    prompt = f"""{ANALYSIS_SYSTEM_PROMPT}
+    return f"""{ANALYSIS_SYSTEM_PROMPT}
 
 {_OFFICIALS_CURRENT_BLOCK}{glossary_block}{former_block}
 
@@ -809,26 +820,29 @@ TITLE: {title}
 FULL TEXT:
 {content[:MAX_PROMPT_CONTENT_CHARS]}"""
 
-    response = client.models.generate_content(
-        model="gemini-3.1-flash-lite",
-        contents=prompt,
-        config={
-            "response_mime_type": "application/json",
-            "max_output_tokens": 8000,
-            "temperature": 0.1,
-            "thinking_config": {"thinking_level": "medium"},
-        }
-    )
-    log_usage("tier1", "gemini-3.1-flash-lite", response)
 
+def _parse_tier1_json(text):
+    """json.loads with the code-fence fallback both Tier-1 paths need."""
     try:
-        return json.loads(response.text)
+        return json.loads(text)
     except json.JSONDecodeError:
-        text = response.text.strip()
+        text = text.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1]
             text = text.rsplit("```", 1)[0]
         return json.loads(text)
+
+
+def analyse_article(title, content, language, source_name, published_at=None):
+    """Send one article to Gemini and return structured analysis."""
+    prompt = _tier1_prompt(title, content, language, source_name, published_at)
+    response = client.models.generate_content(
+        model=_TIER1_MODEL,
+        contents=prompt,
+        config=_TIER1_GEN_CONFIG,
+    )
+    log_usage("tier1", _TIER1_MODEL, response)
+    return _parse_tier1_json(response.text)
 
 
 def _is_transient_error(exc):
@@ -848,6 +862,281 @@ def _is_transient_error(exc):
     return any(tok in name for tok in
                ('timeout', 'connection', 'transport', 'unavailable',
                 'deadline', 'resourceexhausted'))
+
+
+def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
+    """Write one Tier-1 result to the DB: relevance gate, article
+    translation, ai_analysis row, entities/keywords/key-figure/exercise/
+    poll/diplomacy side-extracts, review flags, and the conditional
+    Tier-2 escalation review (which stays an interactive call — it is
+    rare and needed same-tick). Shared by the interactive Tier-1 loop
+    and the Batch API collection path, so the two modes can never
+    drift. Raises on failure — the CALLER decides tombstone vs retry.
+    Returns 'not_relevant' when the relevance gate rejected the
+    article (already tombstoned as ai_processed=-1), else 'ok'."""
+    # Enforce relevance gate — either field is sufficient to reject
+    if not analysis.get('is_cross_strait_primary', True):
+        analysis['topic_primary'] = 'NOT_RELEVANT'
+
+    # Skip articles the AI identifies as irrelevant
+    if analysis.get('topic_primary') == 'NOT_RELEVANT':
+        conn.execute(
+            "UPDATE articles SET ai_processed = -1, ai_processed_at = ? WHERE id = ?",
+            (datetime.now(timezone.utc).isoformat(), article['id'])
+        )
+        conn.commit()
+        print(f"    Skipped: not relevant to cross-strait monitoring")
+        return 'not_relevant'
+
+    # Update the article with translation
+    conn.execute("""
+        UPDATE articles
+        SET title_en = ?, content_en = ?, ai_processed = 1, ai_processed_at = ?
+        WHERE id = ?
+    """, (
+        analysis.get('title_en', article['title_original']),
+        analysis.get('summary_en', ''),
+        datetime.now(timezone.utc).isoformat(),
+        article['id']
+    ))
+
+    sentiment_reasoning = analysis.get('sentiment_reasoning', '')
+
+    # Insert analysis results
+    conn.execute("""
+        INSERT INTO ai_analysis
+        (article_id, topic_primary, topic_secondary, sentiment, sentiment_score,
+         sentiment_reasoning, urgency, summary_en, key_quote, key_quote_en,
+         is_new_formulation, is_escalation_signal, escalation_note,
+         model_used, confidence)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        article['id'],
+        analysis.get('topic_primary', 'HUMANITARIAN'),
+        analysis.get('topic_secondary'),
+        analysis.get('sentiment', 'neutral'),
+        analysis.get('sentiment_score', 0.0),
+        sentiment_reasoning,
+        analysis.get('urgency', 'routine'),
+        analysis.get('summary_en', ''),
+        analysis.get('key_quote'),
+        analysis.get('key_quote_en'),
+        analysis.get('is_new_formulation', False),
+        analysis.get('is_escalation_signal', False),
+        analysis.get('escalation_note'),
+        analysis.get('_model_used', 'gemini-3.1-flash-lite'),
+        analysis.get('confidence', 0.0)
+    ))
+
+    # Insert entities
+    for entity in analysis.get('entities', []):
+        entity = _normalise_entity_name(entity)
+        conn.execute("""
+            INSERT INTO entities
+            (article_id, entity_name, entity_name_en, entity_type,
+             entity_role, location_name)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            article['id'],
+            entity.get('name', ''),
+            entity.get('name_en', ''),
+            entity.get('type', 'organisation'),
+            entity.get('role', ''),
+            entity.get('location')
+        ))
+
+    # Insert keyword matches
+    for kw in analysis.get('keywords_matched', []):
+        conn.execute("""
+            INSERT INTO keywords_matched
+            (article_id, keyword, keyword_category)
+            VALUES (?, ?, ?)
+        """, (
+            article['id'],
+            kw.get('keyword', ''),
+            kw.get('category', '')
+        ))
+
+    # Insert key figure statements (pending analyst approval)
+    for stmt in analysis.get('key_figure_statements', []):
+        speaker = (stmt.get('speaker') or '').strip()
+        figure_id = _ALIAS_TO_FIGURE_ID.get(speaker.lower())
+        text = (stmt.get('statement_text') or '').strip()
+        if not figure_id or not text:
+            continue
+        # Drop if model returned Chinese instead of translating
+        cjk_ratio = sum(1 for c in text if '\u4e00' <= c <= '\u9fff') / len(text)
+        if cjk_ratio > 0.15:
+            continue
+        conn.execute("""
+            INSERT INTO key_figure_statements
+            (article_id, figure_id, speaker_raw, statement_text, statement_zh,
+             statement_kind, confidence, approval_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+        """, (
+            article['id'],
+            figure_id,
+            speaker,
+            text,
+            stmt.get('statement_zh'),
+            stmt.get('statement_kind', 'quote'),
+            stmt.get('confidence', 0.8)
+        ))
+
+    # Insert military exercises (pending analyst approval). Mirrors the
+    # key_figure_statements pattern; the editorial gate is required because
+    # mis-attributing performer (PRC vs ROC vs US) on a high-profile drill
+    # is a credibility-ender, identical to mis-quoting a senior figure.
+    # Validation + canonicalisation + geocoder fallback live in
+    # _insert_exercise_row, shared with the Step-3b exercise-only pass.
+    for ex in analysis.get('military_exercises', []):
+        _insert_exercise_row(conn, article['id'], ex)
+
+    # Insert polls (pending analyst approval). Same editorial-gate
+    # pattern as military_exercises — see _insert_poll_row for the
+    # validation rules. Per-question results stage in
+    # pending_results_json until the analyst assigns question_keys
+    # at approval.
+    for poll in analysis.get('polls', []):
+        _insert_poll_row(conn, article['id'], poll, pollster_lookup)
+
+    # Insert third-country diplomacy statements (pending analyst
+    # approval). Separate axis from cross-strait sentiment — see
+    # _insert_diplomacy_row and diplomacy_statements in schema.sql.
+    # Per-row guard so one malformed statement can't cost the
+    # article its whole analysis transaction.
+    for stmt in analysis.get('diplomacy_statements', []):
+        try:
+            _insert_diplomacy_row(conn, article['id'], stmt,
+                                  source_place=article['source_place'])
+        except Exception as e:
+            print(f"    diplomacy insert skipped: {e}")
+
+    conn.commit()
+
+    # Flag low confidence or inconsistent sentiment for human review
+    tier1_review_reasons = []
+    if analysis.get('confidence', 1.0) < 0.7:
+        tier1_review_reasons.append(f"Low confidence: {analysis.get('confidence', 0):.2f}")
+    sentiment_problems = _validate_sentiment(
+        analysis.get('sentiment', 'neutral'),
+        analysis.get('sentiment_score', 0.0),
+        sentiment_reasoning,
+    )
+    tier1_review_reasons.extend(sentiment_problems)
+    if tier1_review_reasons:
+        conn.execute("""
+            UPDATE ai_analysis SET needs_human_review = 1, review_reason = ?
+            WHERE article_id = ?
+        """, (' | '.join(tier1_review_reasons), article['id']))
+        conn.commit()
+
+    # Escalation review: re-analyse with Flash for flagged articles
+    if analysis.get('is_escalation_signal') or analysis.get('urgency') == 'flash':
+        try:
+            # Save Flash Lite values BEFORE overwriting with Flash review
+            lite_sentiment = analysis.get('sentiment')
+            lite_escalation = analysis.get('is_escalation_signal')
+            lite_topic = analysis.get('topic_primary')
+            lite_confidence = analysis.get('confidence', 1.0)
+
+            escalation_glossary = generate_dynamic_glossary(article['content_original'], article['title_original'])
+            escalation_former = _officials_former_block(article['content_original'], article['title_original'])
+            review = client.models.generate_content(
+                model="gemini-3.5-flash",
+                contents=f"""{ANALYSIS_SYSTEM_PROMPT}
+
+{_OFFICIALS_CURRENT_BLOCK}{escalation_glossary}{escalation_former}
+
+{_ESCALATION_REVIEW_DIRECTIVE}
+
+SOURCE: {article['source_name']}
+LANGUAGE: {article['language']}
+PUBLISHED: {article['published_at'] or 'unknown'}
+TITLE: {article['title_original']}
+
+FULL TEXT:
+{article['content_original'][:MAX_PROMPT_CONTENT_CHARS]}""",
+                config={
+                    "response_mime_type": "application/json",
+                    "max_output_tokens": 8000,
+                    "temperature": 0.1
+                }
+            )
+            log_usage("tier2", "gemini-3.5-flash", review, article_id=article['id'])
+            review_analysis = json.loads(review.text)
+
+            # Update analysis dict with Flash's assessment
+            analysis['sentiment'] = review_analysis.get('sentiment', analysis['sentiment'])
+            analysis['sentiment_score'] = review_analysis.get('sentiment_score', analysis['sentiment_score'])
+            analysis['sentiment_reasoning'] = review_analysis.get('sentiment_reasoning', analysis.get('sentiment_reasoning', ''))
+            analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis['is_escalation_signal'])
+            analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
+            analysis['entities'] = review_analysis.get('entities', analysis.get('entities', []))
+
+            # Re-validate sentiment after Flash may have changed it
+            tier2_sentiment_problems = _validate_sentiment(
+                analysis['sentiment'],
+                analysis['sentiment_score'],
+                analysis['sentiment_reasoning'],
+            )
+
+            # Update the database with Flash's assessment
+            conn.execute("""
+                UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
+                sentiment_reasoning = ?, is_escalation_signal = ?,
+                escalation_note = ?, model_used = ?
+                WHERE article_id = ?
+            """, (
+                analysis['sentiment'], analysis['sentiment_score'],
+                analysis['sentiment_reasoning'],
+                analysis['is_escalation_signal'], analysis.get('escalation_note'),
+                'gemini-3.5-flash (review)', article['id']
+            ))
+            conn.commit()
+
+            # --- HUMAN REVIEW FLAGGING ---
+            # Compare Flash Lite originals vs Flash review
+            review_reasons = []
+            flash_confidence = review_analysis.get('confidence', 1.0)
+
+            if review_analysis.get('sentiment') != lite_sentiment:
+                review_reasons.append(
+                    f"Sentiment disagreement: Flash Lite={lite_sentiment} / Flash={review_analysis.get('sentiment')}"
+                )
+
+            if review_analysis.get('is_escalation_signal') != lite_escalation:
+                review_reasons.append(
+                    f"Escalation disagreement: Flash Lite={lite_escalation} / Flash={review_analysis.get('is_escalation_signal')}"
+                )
+
+            if lite_confidence < 0.7 or flash_confidence < 0.7:
+                review_reasons.append(
+                    f"Low confidence: Flash Lite={lite_confidence} / Flash={flash_confidence}"
+                )
+
+            if review_analysis.get('topic_primary') != lite_topic:
+                review_reasons.append(
+                    f"Topic disagreement: Flash Lite={lite_topic} / Flash={review_analysis.get('topic_primary')}"
+                )
+
+            review_reasons.extend(tier2_sentiment_problems)
+
+            if review_reasons:
+                conn.execute("""
+                    UPDATE ai_analysis
+                    SET needs_human_review = 1, review_reason = ?
+                    WHERE article_id = ?
+                """, (' | '.join(review_reasons), article['id']))
+                conn.commit()
+                print(f"    ↳ Flagged for human review: {review_reasons[0]}")
+
+            print(f"    ↳ Escalation review (Flash): Sentiment={analysis['sentiment']} | Confirmed={analysis['is_escalation_signal']}")
+
+        except Exception as e:
+            print(f"    ↳ Escalation review failed: {e}")
+
+    return 'ok'
 
 
 def process_unanalysed_articles(limit=10):
@@ -927,267 +1216,9 @@ def process_unanalysed_articles(limit=10):
                 published_at=article['published_at'],
             )
 
-            # Enforce relevance gate — either field is sufficient to reject
-            if not analysis.get('is_cross_strait_primary', True):
-                analysis['topic_primary'] = 'NOT_RELEVANT'
-
-            # Skip articles the AI identifies as irrelevant
-            if analysis.get('topic_primary') == 'NOT_RELEVANT':
-                conn.execute(
-                    "UPDATE articles SET ai_processed = -1, ai_processed_at = ? WHERE id = ?",
-                    (datetime.now(timezone.utc).isoformat(), article['id'])
-                )
-                conn.commit()
-                print(f"    Skipped: not relevant to cross-strait monitoring")
+            outcome = _apply_tier1_analysis(conn, article, analysis, pollster_lookup)
+            if outcome == 'not_relevant':
                 continue
-
-            # Update the article with translation
-            conn.execute("""
-                UPDATE articles
-                SET title_en = ?, content_en = ?, ai_processed = 1, ai_processed_at = ?
-                WHERE id = ?
-            """, (
-                analysis.get('title_en', title),
-                analysis.get('summary_en', ''),
-                datetime.now(timezone.utc).isoformat(),
-                article['id']
-            ))
-
-            sentiment_reasoning = analysis.get('sentiment_reasoning', '')
-
-            # Insert analysis results
-            conn.execute("""
-                INSERT INTO ai_analysis
-                (article_id, topic_primary, topic_secondary, sentiment, sentiment_score,
-                 sentiment_reasoning, urgency, summary_en, key_quote, key_quote_en,
-                 is_new_formulation, is_escalation_signal, escalation_note,
-                 model_used, confidence)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                article['id'],
-                analysis.get('topic_primary', 'HUMANITARIAN'),
-                analysis.get('topic_secondary'),
-                analysis.get('sentiment', 'neutral'),
-                analysis.get('sentiment_score', 0.0),
-                sentiment_reasoning,
-                analysis.get('urgency', 'routine'),
-                analysis.get('summary_en', ''),
-                analysis.get('key_quote'),
-                analysis.get('key_quote_en'),
-                analysis.get('is_new_formulation', False),
-                analysis.get('is_escalation_signal', False),
-                analysis.get('escalation_note'),
-                analysis.get('_model_used', 'gemini-3.1-flash-lite'),
-                analysis.get('confidence', 0.0)
-            ))
-
-            # Insert entities
-            for entity in analysis.get('entities', []):
-                entity = _normalise_entity_name(entity)
-                conn.execute("""
-                    INSERT INTO entities
-                    (article_id, entity_name, entity_name_en, entity_type,
-                     entity_role, location_name)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    article['id'],
-                    entity.get('name', ''),
-                    entity.get('name_en', ''),
-                    entity.get('type', 'organisation'),
-                    entity.get('role', ''),
-                    entity.get('location')
-                ))
-
-            # Insert keyword matches
-            for kw in analysis.get('keywords_matched', []):
-                conn.execute("""
-                    INSERT INTO keywords_matched
-                    (article_id, keyword, keyword_category)
-                    VALUES (?, ?, ?)
-                """, (
-                    article['id'],
-                    kw.get('keyword', ''),
-                    kw.get('category', '')
-                ))
-
-            # Insert key figure statements (pending analyst approval)
-            for stmt in analysis.get('key_figure_statements', []):
-                speaker = (stmt.get('speaker') or '').strip()
-                figure_id = _ALIAS_TO_FIGURE_ID.get(speaker.lower())
-                text = (stmt.get('statement_text') or '').strip()
-                if not figure_id or not text:
-                    continue
-                # Drop if model returned Chinese instead of translating
-                cjk_ratio = sum(1 for c in text if '\u4e00' <= c <= '\u9fff') / len(text)
-                if cjk_ratio > 0.15:
-                    continue
-                conn.execute("""
-                    INSERT INTO key_figure_statements
-                    (article_id, figure_id, speaker_raw, statement_text, statement_zh,
-                     statement_kind, confidence, approval_status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-                """, (
-                    article['id'],
-                    figure_id,
-                    speaker,
-                    text,
-                    stmt.get('statement_zh'),
-                    stmt.get('statement_kind', 'quote'),
-                    stmt.get('confidence', 0.8)
-                ))
-
-            # Insert military exercises (pending analyst approval). Mirrors the
-            # key_figure_statements pattern; the editorial gate is required because
-            # mis-attributing performer (PRC vs ROC vs US) on a high-profile drill
-            # is a credibility-ender, identical to mis-quoting a senior figure.
-            # Validation + canonicalisation + geocoder fallback live in
-            # _insert_exercise_row, shared with the Step-3b exercise-only pass.
-            for ex in analysis.get('military_exercises', []):
-                _insert_exercise_row(conn, article['id'], ex)
-
-            # Insert polls (pending analyst approval). Same editorial-gate
-            # pattern as military_exercises — see _insert_poll_row for the
-            # validation rules. Per-question results stage in
-            # pending_results_json until the analyst assigns question_keys
-            # at approval.
-            for poll in analysis.get('polls', []):
-                _insert_poll_row(conn, article['id'], poll, pollster_lookup)
-
-            # Insert third-country diplomacy statements (pending analyst
-            # approval). Separate axis from cross-strait sentiment — see
-            # _insert_diplomacy_row and diplomacy_statements in schema.sql.
-            # Per-row guard so one malformed statement can't cost the
-            # article its whole analysis transaction.
-            for stmt in analysis.get('diplomacy_statements', []):
-                try:
-                    _insert_diplomacy_row(conn, article['id'], stmt,
-                                          source_place=article['source_place'])
-                except Exception as e:
-                    print(f"    diplomacy insert skipped: {e}")
-
-            conn.commit()
-
-            # Flag low confidence or inconsistent sentiment for human review
-            tier1_review_reasons = []
-            if analysis.get('confidence', 1.0) < 0.7:
-                tier1_review_reasons.append(f"Low confidence: {analysis.get('confidence', 0):.2f}")
-            sentiment_problems = _validate_sentiment(
-                analysis.get('sentiment', 'neutral'),
-                analysis.get('sentiment_score', 0.0),
-                sentiment_reasoning,
-            )
-            tier1_review_reasons.extend(sentiment_problems)
-            if tier1_review_reasons:
-                conn.execute("""
-                    UPDATE ai_analysis SET needs_human_review = 1, review_reason = ?
-                    WHERE article_id = ?
-                """, (' | '.join(tier1_review_reasons), article['id']))
-                conn.commit()
-
-            # Escalation review: re-analyse with Flash for flagged articles
-            if analysis.get('is_escalation_signal') or analysis.get('urgency') == 'flash':
-                try:
-                    # Save Flash Lite values BEFORE overwriting with Flash review
-                    lite_sentiment = analysis.get('sentiment')
-                    lite_escalation = analysis.get('is_escalation_signal')
-                    lite_topic = analysis.get('topic_primary')
-                    lite_confidence = analysis.get('confidence', 1.0)
-
-                    escalation_glossary = generate_dynamic_glossary(article['content_original'], title)
-                    escalation_former = _officials_former_block(article['content_original'], title)
-                    review = client.models.generate_content(
-                        model="gemini-3.5-flash",
-                        contents=f"""{ANALYSIS_SYSTEM_PROMPT}
-
-{_OFFICIALS_CURRENT_BLOCK}{escalation_glossary}{escalation_former}
-
-{_ESCALATION_REVIEW_DIRECTIVE}
-
-SOURCE: {article['source_name']}
-LANGUAGE: {article['language']}
-PUBLISHED: {article['published_at'] or 'unknown'}
-TITLE: {title}
-
-FULL TEXT:
-{article['content_original'][:MAX_PROMPT_CONTENT_CHARS]}""",
-                        config={
-                            "response_mime_type": "application/json",
-                            "max_output_tokens": 8000,
-                            "temperature": 0.1
-                        }
-                    )
-                    log_usage("tier2", "gemini-3.5-flash", review, article_id=article['id'])
-                    review_analysis = json.loads(review.text)
-
-                    # Update analysis dict with Flash's assessment
-                    analysis['sentiment'] = review_analysis.get('sentiment', analysis['sentiment'])
-                    analysis['sentiment_score'] = review_analysis.get('sentiment_score', analysis['sentiment_score'])
-                    analysis['sentiment_reasoning'] = review_analysis.get('sentiment_reasoning', analysis.get('sentiment_reasoning', ''))
-                    analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis['is_escalation_signal'])
-                    analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
-                    analysis['entities'] = review_analysis.get('entities', analysis.get('entities', []))
-
-                    # Re-validate sentiment after Flash may have changed it
-                    tier2_sentiment_problems = _validate_sentiment(
-                        analysis['sentiment'],
-                        analysis['sentiment_score'],
-                        analysis['sentiment_reasoning'],
-                    )
-
-                    # Update the database with Flash's assessment
-                    conn.execute("""
-                        UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
-                        sentiment_reasoning = ?, is_escalation_signal = ?,
-                        escalation_note = ?, model_used = ?
-                        WHERE article_id = ?
-                    """, (
-                        analysis['sentiment'], analysis['sentiment_score'],
-                        analysis['sentiment_reasoning'],
-                        analysis['is_escalation_signal'], analysis.get('escalation_note'),
-                        'gemini-3.5-flash (review)', article['id']
-                    ))
-                    conn.commit()
-
-                    # --- HUMAN REVIEW FLAGGING ---
-                    # Compare Flash Lite originals vs Flash review
-                    review_reasons = []
-                    flash_confidence = review_analysis.get('confidence', 1.0)
-
-                    if review_analysis.get('sentiment') != lite_sentiment:
-                        review_reasons.append(
-                            f"Sentiment disagreement: Flash Lite={lite_sentiment} / Flash={review_analysis.get('sentiment')}"
-                        )
-
-                    if review_analysis.get('is_escalation_signal') != lite_escalation:
-                        review_reasons.append(
-                            f"Escalation disagreement: Flash Lite={lite_escalation} / Flash={review_analysis.get('is_escalation_signal')}"
-                        )
-
-                    if lite_confidence < 0.7 or flash_confidence < 0.7:
-                        review_reasons.append(
-                            f"Low confidence: Flash Lite={lite_confidence} / Flash={flash_confidence}"
-                        )
-
-                    if review_analysis.get('topic_primary') != lite_topic:
-                        review_reasons.append(
-                            f"Topic disagreement: Flash Lite={lite_topic} / Flash={review_analysis.get('topic_primary')}"
-                        )
-
-                    review_reasons.extend(tier2_sentiment_problems)
-
-                    if review_reasons:
-                        conn.execute("""
-                            UPDATE ai_analysis
-                            SET needs_human_review = 1, review_reason = ?
-                            WHERE article_id = ?
-                        """, (' | '.join(review_reasons), article['id']))
-                        conn.commit()
-                        print(f"    ↳ Flagged for human review: {review_reasons[0]}")
-
-                    print(f"    ↳ Escalation review (Flash): Sentiment={analysis['sentiment']} | Confirmed={analysis['is_escalation_signal']}")
-
-                except Exception as e:
-                    print(f"    ↳ Escalation review failed: {e}")
 
             time.sleep(0.3)
             success_count += 1
@@ -1213,6 +1244,291 @@ FULL TEXT:
 
     conn.close()
     print(f"\nDone. {success_count} analysed successfully, {error_count} errors.")
+
+
+# ============================================================
+# Tier 1 via the Gemini Batch API (code-review §3.5)
+# ============================================================
+# Tier-1 results aren't needed until the next 6-hourly tick, and batch
+# tokens bill at ~50% of interactive — and Tier 1 is the largest line on
+# the Gemini bill. Flow per pipeline tick: COLLECT any job submitted on a
+# previous tick, SUBMIT a new job for the current backlog, then wait
+# briefly polling for same-tick completion (small jobs usually finish in
+# minutes; if not, the next tick collects). Job state lives in the
+# gemini_batch_jobs table; articles inside a 'submitted' job are excluded
+# from re-selection, and a failed/expired/stale job releases its articles
+# automatically. GEMINI_TIER1_MODE=interactive restores the old
+# sequential path (run_tier1 also falls back to it automatically when
+# batch submission itself errors).
+
+
+def _select_tier1_candidates(conn, limit):
+    """The Tier-1 backlog query, shared by both modes: unprocessed, has
+    content, inside the 180-day window, and not already riding in a
+    submitted batch job."""
+    return conn.execute("""
+        SELECT articles.id, articles.title_original, articles.content_original,
+               articles.language, articles.published_at,
+               sources.name as source_name,
+               sources.place as source_place
+        FROM articles
+        JOIN sources ON articles.source_id = sources.id
+        WHERE articles.ai_processed = 0
+          AND articles.content_original != ''
+          AND (articles.published_at IS NULL OR articles.published_at >= datetime('now', '-180 days'))
+          AND articles.id NOT IN (
+              SELECT je.value FROM gemini_batch_jobs j, json_each(j.article_ids) je
+              WHERE j.status = 'submitted'
+          )
+        ORDER BY articles.published_at DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+
+
+def _keyword_prefilter(conn, articles):
+    """Tombstone keyword-filter rejects, return the relevant remainder."""
+    relevant = []
+    filtered = 0
+    for article in articles:
+        is_relevant, _cats, _kws = check_relevance(
+            article['title_original'],
+            article['content_original'],
+            article['language'],
+            source_place=article['source_place'],
+        )
+        if is_relevant:
+            relevant.append(article)
+        else:
+            conn.execute(
+                "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), article['id'])
+            )
+            filtered += 1
+    conn.commit()
+    print(f"Pre-filter: {len(articles)} articles checked, "
+          f"{len(relevant)} relevant, {filtered} filtered out")
+    return relevant
+
+
+def submit_tier1_batch(limit=500):
+    """Submit the current Tier-1 backlog as one Gemini Batch job.
+    Returns the job resource name, or None when there was nothing to
+    submit. Raises on submission failure — run_tier1 falls back to the
+    interactive path in that case."""
+    conn = get_connection()
+    try:
+        articles = _select_tier1_candidates(conn, limit)
+        if not articles:
+            print("No unprocessed articles found.")
+            return None
+        relevant = _keyword_prefilter(conn, articles)
+        if not relevant:
+            print("No relevant articles to submit.")
+            return None
+
+        inlined = []
+        for article in relevant:
+            prompt = _tier1_prompt(
+                title=article['title_original'],
+                content=article['content_original'],
+                language=article['language'],
+                source_name=article['source_name'],
+                published_at=article['published_at'],
+            )
+            inlined.append({
+                'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
+                'config': _TIER1_GEN_CONFIG,
+            })
+
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
+        job = client.batches.create(
+            model=_TIER1_MODEL,
+            src=inlined,
+            config={'display_name': f'tier1-{stamp}'},
+        )
+        conn.execute(
+            """INSERT INTO gemini_batch_jobs (job_name, kind, model, article_ids)
+               VALUES (?, 'tier1', ?, ?)""",
+            (job.name, _TIER1_MODEL,
+             json.dumps([a['id'] for a in relevant])),
+        )
+        conn.commit()
+        print(f"Submitted batch job {job.name} with {len(relevant)} articles.")
+        return job.name
+    finally:
+        conn.close()
+
+
+def _collect_one_batch(conn, job_row, batch_job, pollster_lookup):
+    """Process a SUCCEEDED batch job's responses through the same
+    post-processing as the interactive path. Per-article semantics mirror
+    the interactive loop: item-level API errors leave the article
+    unprocessed (retried via resubmission next tick); parse/apply
+    failures tombstone it so a pathological article can't loop forever."""
+    article_ids = json.loads(job_row['article_ids'])
+    responses = list((batch_job.dest and batch_job.dest.inlined_responses) or [])
+    if len(responses) != len(article_ids):
+        print(f"  WARN: job {job_row['job_name']} returned {len(responses)} "
+              f"responses for {len(article_ids)} articles — pairing by index, "
+              f"missing tail will retry next tick")
+
+    ok = skipped = errors = 0
+    for article_id, item in zip(article_ids, responses):
+        article = conn.execute("""
+            SELECT articles.id, articles.title_original, articles.content_original,
+                   articles.language, articles.published_at,
+                   sources.name as source_name,
+                   sources.place as source_place
+            FROM articles JOIN sources ON articles.source_id = sources.id
+            WHERE articles.id = ? AND articles.ai_processed = 0
+        """, (article_id,)).fetchone()
+        if not article:
+            continue  # deleted or handled elsewhere since submission
+
+        if getattr(item, 'error', None):
+            errors += 1
+            print(f"  article {article_id}: batch item error — {item.error} "
+                  f"(left unprocessed for retry)")
+            continue
+
+        try:
+            analysis = _parse_tier1_json(item.response.text)
+        except Exception as e:
+            errors += 1
+            print(f"  article {article_id}: unparseable batch response ({e}) — tombstoned")
+            conn.execute(
+                "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), article_id))
+            conn.commit()
+            continue
+
+        # "@batch" suffix keeps usage_report's per-model cost estimate honest —
+        # batch tokens bill at ~50% of the interactive rate for the same model.
+        log_usage("tier1_batch", job_row['model'] + "@batch", item.response,
+                  article_id=article_id)
+        print(f"  Applying: {article['title_original'][:60]}...")
+        try:
+            outcome = _apply_tier1_analysis(conn, article, analysis, pollster_lookup)
+        except Exception as e:
+            errors += 1
+            print(f"  article {article_id}: apply failed — {e}")
+            conn.rollback()
+            if not _is_transient_error(e):
+                conn.execute(
+                    "UPDATE articles SET ai_processed = 1, ai_processed_at = ? WHERE id = ?",
+                    (datetime.now(timezone.utc).isoformat(), article_id))
+                conn.commit()
+            continue
+        if outcome == 'not_relevant':
+            skipped += 1
+        else:
+            ok += 1
+    print(f"  Job {job_row['job_name']}: {ok} applied, {skipped} not relevant, "
+          f"{errors} errors.")
+
+
+def collect_tier1_batches():
+    """Check every outstanding batch job; apply results of finished ones.
+    Failed/expired/cancelled jobs (or jobs stuck >48h — the API's target
+    turnaround is 24h) are marked failed, which releases their articles
+    back into the next submission's selection."""
+    conn = get_connection()
+    try:
+        jobs = conn.execute(
+            "SELECT * FROM gemini_batch_jobs WHERE status = 'submitted'"
+        ).fetchall()
+        if not jobs:
+            return
+        pollster_lookup = _load_pollster_lookup(conn)
+        for job_row in jobs:
+            try:
+                batch_job = client.batches.get(name=job_row['job_name'])
+            except Exception as e:
+                print(f"  batch status check failed for {job_row['job_name']}: {e}")
+                continue
+            state = getattr(batch_job.state, 'name', str(batch_job.state))
+            if state == 'JOB_STATE_SUCCEEDED':
+                _collect_one_batch(conn, job_row, batch_job, pollster_lookup)
+                conn.execute(
+                    "UPDATE gemini_batch_jobs SET status='collected', collected_at=? WHERE id=?",
+                    (datetime.now(timezone.utc).isoformat(), job_row['id']))
+                conn.commit()
+            elif state in ('JOB_STATE_FAILED', 'JOB_STATE_CANCELLED', 'JOB_STATE_EXPIRED'):
+                err = getattr(batch_job, 'error', None)
+                print(f"  batch job {job_row['job_name']} ended {state} — "
+                      f"articles released for resubmission. {err or ''}")
+                conn.execute(
+                    "UPDATE gemini_batch_jobs SET status='failed', error=?, collected_at=? WHERE id=?",
+                    (f"{state}: {err}" if err else state,
+                     datetime.now(timezone.utc).isoformat(), job_row['id']))
+                conn.commit()
+            else:
+                # still pending/running — release articles if it's been stuck
+                # past double the API's 24h turnaround target
+                stuck = conn.execute(
+                    "SELECT 1 FROM gemini_batch_jobs WHERE id=? AND submitted_at <= datetime('now', '-48 hours')",
+                    (job_row['id'],)).fetchone()
+                if stuck:
+                    print(f"  batch job {job_row['job_name']} stuck in {state} >48h — "
+                          f"marking failed, articles released")
+                    conn.execute(
+                        "UPDATE gemini_batch_jobs SET status='failed', error=?, collected_at=? WHERE id=?",
+                        (f'stale: {state}', datetime.now(timezone.utc).isoformat(), job_row['id']))
+                    conn.commit()
+                else:
+                    print(f"  batch job {job_row['job_name']} still {state} — will collect next tick")
+    finally:
+        conn.close()
+
+
+def _wait_and_collect(job_name):
+    """Poll a just-submitted job for a bounded window so most runs apply
+    their results same-tick (small jobs usually finish in minutes). If the
+    window elapses, the job is simply collected on the next cron tick."""
+    try:
+        wait_min = float(os.environ.get('TIER1_BATCH_WAIT_MIN', '20'))
+    except ValueError:
+        wait_min = 20.0
+    if wait_min <= 0:
+        return
+    deadline = time.monotonic() + wait_min * 60
+    terminal = {'JOB_STATE_SUCCEEDED', 'JOB_STATE_FAILED',
+                'JOB_STATE_CANCELLED', 'JOB_STATE_EXPIRED'}
+    print(f"Waiting up to {wait_min:.0f} min for batch job to finish...")
+    while time.monotonic() < deadline:
+        time.sleep(60)
+        try:
+            state = getattr(client.batches.get(name=job_name).state, 'name', '')
+        except Exception as e:
+            print(f"  poll failed: {e}")
+            continue
+        if state in terminal:
+            print(f"  job reached {state} after wait — collecting now")
+            collect_tier1_batches()
+            return
+    print("  wait window elapsed — job will be collected next tick")
+
+
+def run_tier1(limit=500):
+    """Pipeline Step-3 entry point. GEMINI_TIER1_MODE=batch (default)
+    collects yesterday's job, submits today's backlog, and briefly waits
+    to collect same-tick; =interactive restores the sequential per-article
+    path. Batch submission errors fall back to interactive automatically
+    so a Batch API outage can't stall analysis."""
+    mode = os.environ.get('GEMINI_TIER1_MODE', 'batch').strip().lower()
+    if mode != 'batch':
+        return process_unanalysed_articles(limit=limit)
+    try:
+        collect_tier1_batches()
+    except Exception as e:
+        print(f"Batch collection failed: {e} — continuing to submission")
+    try:
+        job_name = submit_tier1_batch(limit=limit)
+    except Exception as e:
+        print(f"Batch submission failed ({e}) — falling back to interactive Tier 1")
+        return process_unanalysed_articles(limit=limit)
+    if job_name:
+        _wait_and_collect(job_name)
 
 
 # ============================================================

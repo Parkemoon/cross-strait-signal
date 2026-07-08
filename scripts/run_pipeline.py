@@ -33,7 +33,7 @@ from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.scrapers.tw_nia_population_scraper import scrape_tw_nia_population
 from scraper.scrapers.mnd_incursion_scraper import scrape_mnd_incursions
 from scraper.processors.ai_pipeline import (
-    process_unanalysed_articles,
+    run_tier1,
     process_exercise_only_articles,
     process_poll_only_articles,
 )
@@ -164,7 +164,10 @@ async def main():
                  + new_fjsen + new_pla + new_ydn + new_ltn_defence + new_ettoday_polls
                  + new_tvbs_polls + new_myformosa_polls)
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
-    _run('ai_analysis', lambda: process_unanalysed_articles(limit=500), default=None)
+    # run_tier1 = Batch API mode by default (collect previous job, submit
+    # backlog, brief same-tick wait) — ~50% off Tier-1 token pricing.
+    # GEMINI_TIER1_MODE=interactive in .env restores the sequential path.
+    _run('ai_analysis', lambda: run_tier1(limit=500), default=None)
 
     # Step 3b: Exercise-only extraction on articles the keyword pre-filter
     # rejected (no ai_analysis row) from the YDN military-source whitelist.
