@@ -349,6 +349,20 @@ sqlite3 db/cross_strait_signal.db \
     "ALTER TABLE pollsters ADD COLUMN place TEXT NOT NULL DEFAULT 'TW'" \
     2>/dev/null || true
 
+# Idempotent ALTERs for the Step 3b/3c scan markers (code-review §3.1).
+# The poll/exercise-only passes used to be idempotent only on inserted
+# rows, so zero-yield articles re-qualified every 6h tick (poll_only 96%
+# repeat calls, exercise_only 70% over a 14-day usage-log window). The
+# passes now stamp these after every scan and select on IS NULL. NULL on
+# existing rows is correct: each backlog article gets scanned at most
+# once more, then drops out.
+sqlite3 db/cross_strait_signal.db \
+    "ALTER TABLE articles ADD COLUMN poll_scanned_at TIMESTAMP" \
+    2>/dev/null || true
+sqlite3 db/cross_strait_signal.db \
+    "ALTER TABLE articles ADD COLUMN exercise_scanned_at TIMESTAMP" \
+    2>/dev/null || true
+
 echo "--- Building frontend (admin) ---"
 cd frontend
 # Pass ADMIN_TOKEN through to the admin bundle so write endpoints can be

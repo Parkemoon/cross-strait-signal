@@ -51,6 +51,19 @@ flattened the `App.js` tab chain, and added a min-count guard to `refresh_offici
 `REACT_APP_ADMIN_TOKEN` set, or the admin feed loses pending articles and the
 curate queue 401s (the new §0 gates enforce the token server-side).
 
+**Applied 2026-07-08 (staging):** **§3.1** — `poll_scanned_at` /
+`exercise_scanned_at` marker columns on `articles` (schema.sql + idempotent
+ALTERs in the `server_deploy.sh` migration block), stamped after every Step
+3b/3c scan including zero-yield; selection adds `IS NULL` on the marker.
+Transient API errors (`_is_transient_error`) skip the stamp (retry next tick);
+parse failures stamp it (no infinite retry). No backfill needed — NULL markers
+on backlog rows mean each gets scanned at most once more, then drops out. The
+two selection queries' `datetime('now', ?)` comparisons were also switched to
+the T-format `strftime` convention (same class as the §0 stats.py fix). Bundled
+in the same commit: the 180-day age guard for `guancha_scraper.py` /
+`fjsen_scraper.py` (flagged in the 2026-07-01 session log, not a review
+finding).
+
 ---
 
 ## §0 — Already applied (this commit) — do NOT redo

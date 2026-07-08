@@ -73,7 +73,7 @@ Full remediation from a multi-agent review; work order + per-item status in `COD
 
 ## In progress / planned
 
-- Deferred code-review items (bigger/structural) tracked in `CODE_REVIEW_2026-07-03.md`: poll/exercise `scanned_at` marker columns (§3.1, biggest remaining cost win), Gemini Batch API (§3.5), versioned migrations (§4.2), unified review-queue mechanism (§4.3), shared scraper/DB/LLM util modules (§4.6–4.9).
+- Deferred code-review items (bigger/structural) tracked in `CODE_REVIEW_2026-07-03.md`: Gemini Batch API (§3.5), versioned migrations (§4.2), unified review-queue mechanism (§4.3), shared scraper/DB/LLM util modules (§4.6–4.9). (§3.1 poll/exercise `scanned_at` markers — the biggest cost win — applied 2026-07-08 on staging.)
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
 - Incursion × exercise cross-reference — apply the verification angle to military data (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?)
 - Monthly-aggregated sentiment endpoint (revisit when 12+ months of data exists)
