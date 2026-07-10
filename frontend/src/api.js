@@ -381,6 +381,10 @@ export async function fetchDiplomacySummary(params = {}) {
   return request(`/api/diplomacy/summary${query.toString() ? `?${query}` : ""}`);
 }
 
+export async function fetchPositions() {
+  return request("/api/positions/");
+}
+
 export async function fetchDiplomacyStatements(params = {}) {
   const query = new URLSearchParams();
   ["days", "start", "end", "country", "tier", "side", "official_only", "limit"].forEach((k) => {
