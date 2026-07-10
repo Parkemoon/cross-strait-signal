@@ -1520,12 +1520,34 @@ def _wait_and_collect(job_names):
         print(f"  {len(outstanding)} job(s) still running — collected next tick")
 
 
+def _tombstone_empty_content():
+    """Stamp ai_processed=1 on unprocessed articles with an empty body.
+    Tier-1 selection requires content_original != '', so these rows can
+    never be picked up — but without a stamp they also never leave the
+    backlog, sitting invisible to every pipeline stage forever (3,800+
+    had accumulated by 2026-07, including a My-Formosa poll wave whose
+    fetch had failed). Scrapers where an empty body means recoverable
+    data (the pollster-direct set) now skip the save instead, so by the
+    time a row gets here an empty body is permanent."""
+    conn = get_connection()
+    cur = conn.execute("""
+        UPDATE articles
+        SET ai_processed = 1, ai_processed_at = datetime('now')
+        WHERE ai_processed = 0 AND content_original = ''
+    """)
+    conn.commit()
+    conn.close()
+    if cur.rowcount:
+        print(f"Tombstoned {cur.rowcount} empty-content articles (unprocessable).")
+
+
 def run_tier1(limit=500):
     """Pipeline Step-3 entry point. GEMINI_TIER1_MODE=batch (default)
     collects yesterday's job, submits today's backlog, and briefly waits
     to collect same-tick; =interactive restores the sequential per-article
     path. Batch submission errors fall back to interactive automatically
     so a Batch API outage can't stall analysis."""
+    _tombstone_empty_content()
     mode = os.environ.get('GEMINI_TIER1_MODE', 'batch').strip().lower()
     if mode != 'batch':
         return process_unanalysed_articles(limit=limit)
@@ -1793,6 +1815,7 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
             LEFT JOIN ai_analysis ai ON ai.article_id = a.id
             WHERE {source_clause}
               AND a.ai_processed = 1
+              AND a.content_original != ''
               AND ai.id IS NULL
               AND a.exercise_scanned_at IS NULL
               AND a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
@@ -2106,6 +2129,7 @@ def process_poll_only_articles(days=14, limit=30):
             LEFT JOIN ai_analysis ai ON ai.article_id = a.id
             WHERE s.place = 'TW'
               AND a.ai_processed = 1
+              AND a.content_original != ''
               AND ai.id IS NULL
               AND a.poll_scanned_at IS NULL
               AND a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
