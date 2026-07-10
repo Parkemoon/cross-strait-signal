@@ -152,3 +152,7 @@ Admin (all `Depends(require_admin)`):
 - `PATCH /api/diplomacy/{id}` — analyst edits, only changed fields. `stance_label` always recomputed from the final `stance`; `authority_tier`/`source_side` validated against enums; `stance` clamped to [−1,1]; `stated_date` must be ISO `YYYY-MM-DD`. `country_iso` cannot be cleared.
 
 Used by `DiplomacyTab.jsx` (choropleth + KPI strip + stance-sorted country list + drill-in detail), `DiplomacyMap.jsx` (fill + voices pins), and `DiplomacyReviewQueue.jsx` (collapsible-by-country candidate triage).
+
+## `positions.py` — `/api/positions`
+
+- `GET /api/positions/` — the whole curated Positions & Legal Status content (`scraper/processors/positions.json`), public, no DB. `_comment*` authoring-doc keys are stripped from the response. The file is re-read on mtime change (no restart needed during content co-writing sessions). No write endpoints — the JSON is edited by hand and validated by `tests/test_positions_content.py`.
