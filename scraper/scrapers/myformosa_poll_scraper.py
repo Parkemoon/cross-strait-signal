@@ -120,6 +120,15 @@ def scrape_myformosa_polls():
                 finally:
                     article_page.close()
 
+                # Never save an empty body: article_exists() dedups on URL, so
+                # a row saved during a failed fetch is poisoned forever — it's
+                # also invisible to Tier 1 (which requires content != ''), so
+                # the wave silently vanishes (the 2026-06 國政民調 did exactly
+                # this). Skipping leaves the URL eligible for retry next tick.
+                if not content:
+                    print(f"    Empty body for {entry['title'][:50]} — skipping, will retry next run")
+                    continue
+
                 print(f"  New: {entry['title'][:70]}")
                 save_article(conn, source['id'], entry['url'], entry['title'], content,
                              'zh-tw', published_at)

@@ -126,6 +126,12 @@ def scrape_tvbs_polls():
                 print(f"    {entry['url']}: fetch failed — {e}")
                 continue
 
+            # A scanned/image-only PDF yields no prose — don't save an empty
+            # row (URL dedup would make the miss permanent).
+            if not content:
+                print(f"    {entry['url']}: no extractable prose — skipping")
+                continue
+
             published_at = _published_from_url(entry['url'])
             print(f"  New: {entry['title'][:70]}")
             save_article(conn, source['id'], entry['url'], entry['title'], content,
