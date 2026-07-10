@@ -16,11 +16,33 @@ heredoc dual-maintenance was retired by §4.2 on 2026-07-08).
 
 ## Implementation status (applied 2026-07-04)
 
+**WORK ORDER COMPLETE (2026-07-10, staging — not yet deployed):** the last
+three open items landed as three staging commits:
+- **§4.6** (`0d88ea1`) — `shared/entity_norm.py`: ONE resolver (exact →
+  explicit title-strip → opt-in fold prefixes) for the pipeline write path
+  AND `renormalise_entities.py`; `entity_canonical.json` restructured to
+  `{canonical, title_tokens, fold_prefixes}`. An old-vs-new simulation over
+  both DBs showed the old bidirectional prefix scan was far worse than this
+  review flagged (中華民國→"ROC Armed Forces" ×336, 韓國→"Han Kuo-yu" ×87,
+  福建→the carrier ×165); ~6.3k staging rows repaired. **Post-deploy: run
+  `renormalise_entities.py --db <prod> --apply`.**
+- **§4.3** (`549f55a`) — `api/review_queue.py` approve/dismiss/merge
+  primitives shared by all four gates; migration **0004** adds
+  `reviewed_by`/`merged_into_id` to key_figure_statements. Candidates/PATCH
+  deliberately stay per-queue (domain shape). Two behaviour fixes: military
+  /merge refuses dismissed/merged sources; kfs approve/dismiss 404 on miss.
+- **§3.3 remainder** (`71eefef`) — dedicated `_ESCALATION_REVIEW_PROMPT`
+  built from the same shared blocks as `ANALYSIS_SYSTEM_PROMPT` (Tier-1
+  side verified byte-identical). 55-article staging A/B vs the old form,
+  benchmarked against the old prompt's own repeat-run flutter: band
+  agreement 91% vs 93% noise floor; small rule-consistent shifts (stricter
+  third-party neutrality, more conservative escalation → lands in human
+  review). Prompt −43%, output −62%.
+
 **DEPLOYED 2026-07-08 (evening):** all three 2026-07-08 batches below were
 merged to `main` (`e7d7f63`) and deployed — the migration runner's first
 prod run applied 0001+0002 cleanly, `seed_sources.py` set the new source
-flags, and prod Tier 1 runs batch-mode from the 18:00 tick. Remaining
-open items: §3.3 remainder, §4.3, §4.6.
+flags, and prod Tier 1 runs batch-mode from the 18:00 tick.
 
 **Applied in this commit:** §0 (security/visibility); all of §1.1–1.12; all of
 §2.1–2.9; §3.2, §3.3 (safe subset — see below), §3.4, §3.6, §3.7b; §4.1 (index in
