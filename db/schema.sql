@@ -232,8 +232,10 @@ CREATE TABLE IF NOT EXISTS key_figure_statements (
     statement_zh    TEXT,                           -- original-language version (optional)
     statement_kind  TEXT NOT NULL,                  -- 'quote' or 'action'
     confidence      REAL,
-    approval_status TEXT NOT NULL DEFAULT 'pending',-- 'pending' | 'approved' | 'dismissed'
+    approval_status TEXT NOT NULL DEFAULT 'pending',-- 'pending' | 'approved' | 'dismissed' | 'merged'
+    merged_into_id  INTEGER REFERENCES key_figure_statements(id),
     reviewed_at     TIMESTAMP,
+    reviewed_by     TEXT,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.auth import require_admin
+from api.review_queue import approve_row, dismiss_row, merge_row
 from api.database import db_conn
 
 router = APIRouter(prefix="/api/diplomacy", tags=["diplomacy"])
@@ -329,37 +330,17 @@ def approve(statement_id: int):
     exercises there is no mechanical canonical key, so duplicate collapsing
     is left to the explicit /merge endpoint (analyst judgement)."""
     with db_conn() as conn:
-        row = conn.execute(
-            "SELECT approval_status FROM diplomacy_statements WHERE id = ?",
-            (statement_id,),
-        ).fetchone()
-        if not row:
-            raise HTTPException(404, f"statement {statement_id} not found")
-        conn.execute("""
-            UPDATE diplomacy_statements
-            SET approval_status = 'approved', reviewed_at = datetime('now')
-            WHERE id = ?
-        """, (statement_id,))
+        result = approve_row(conn, "diplomacy_statements", "statement", statement_id)
         conn.commit()
-    return {"status": "approved", "id": statement_id}
+    return result
 
 
 @router.post("/{statement_id}/dismiss", dependencies=[Depends(require_admin)])
 def dismiss(statement_id: int):
     with db_conn() as conn:
-        row = conn.execute(
-            "SELECT approval_status FROM diplomacy_statements WHERE id = ?",
-            (statement_id,),
-        ).fetchone()
-        if not row:
-            raise HTTPException(404, f"statement {statement_id} not found")
-        conn.execute("""
-            UPDATE diplomacy_statements
-            SET approval_status = 'dismissed', reviewed_at = datetime('now')
-            WHERE id = ?
-        """, (statement_id,))
+        result = dismiss_row(conn, "diplomacy_statements", "statement", statement_id)
         conn.commit()
-    return {"status": "dismissed", "id": statement_id}
+    return result
 
 
 class MergeRequest(BaseModel):
@@ -369,36 +350,14 @@ class MergeRequest(BaseModel):
 
 @router.post("/{statement_id}/merge", dependencies=[Depends(require_admin)])
 def merge(statement_id: int, body: MergeRequest):
-    """Fold a duplicate statement into another. Target must be `approved`
-    (the chain can't dangle into a dismissed/merged target) — same
-    constraint military.py / polls.py enforce."""
-    if body.target_id == statement_id:
-        raise HTTPException(400, "cannot merge a statement into itself")
+    """Fold a duplicate statement into another — shared review-queue state
+    machine (api/review_queue.py): target must be 'approved' so the chain
+    can't dangle, source must be pending/approved."""
     with db_conn() as conn:
-        src = conn.execute(
-            "SELECT approval_status FROM diplomacy_statements WHERE id = ?",
-            (statement_id,),
-        ).fetchone()
-        if not src:
-            raise HTTPException(404, f"statement {statement_id} not found")
-        tgt = conn.execute(
-            "SELECT approval_status FROM diplomacy_statements WHERE id = ?",
-            (body.target_id,),
-        ).fetchone()
-        if not tgt:
-            raise HTTPException(404, f"target {body.target_id} not found")
-        if tgt["approval_status"] != 'approved':
-            raise HTTPException(400, "merge target must be approved")
-        if src["approval_status"] not in ('pending', 'approved'):
-            raise HTTPException(400, "only pending/approved statements can be merged")
-        conn.execute("""
-            UPDATE diplomacy_statements
-            SET approval_status = 'merged', merged_into_id = ?,
-                reviewed_at = datetime('now'), reviewed_by = ?
-            WHERE id = ?
-        """, (body.target_id, body.reviewed_by, statement_id))
+        result = merge_row(conn, "diplomacy_statements", "statement",
+                           statement_id, body.target_id, body.reviewed_by)
         conn.commit()
-    return {"status": "merged", "id": statement_id, "merged_into": body.target_id}
+    return result
 
 
 class StatementPatch(BaseModel):
