@@ -1,0 +1,338 @@
+{
+  "_comment": "Curated content for the Positions & Legal Status page (/api/positions -> PositionsTab). HAND-CURATED ONLY — never AI-generate or bulk-edit content in this file; misstating a legal position is the same credibility risk class as misattributing a key-figure quote. Editorial stance: DESCRIPTIVE, NOT ADJUDICATIVE — every claim is an actor's STATED position anchored to a dated primary source (statute text, communique, official transcript; news only as fallback); the page never rules on which position is correct. Prose is English; every key formulation carries the original Chinese (_zh) plus romanisation — Wade-Giles/Tongyong for Taiwan-coined terms, Hanyu Pinyin for PRC-coined terms, per house rules. Script convention: simplified characters for PRC-origin text, traditional for Taiwan-origin and third-party text. Empty-string fields render as 'entry pending' placeholders; fill them in co-writing sessions. tests/test_positions_content.py validates this file's shape on every pytest run — run it after editing.",
+
+  "_meta": {
+    "version": 1,
+    "last_reviewed": "2026-07-10"
+  },
+
+  "_comment_actors": "One object per actor. depth 'full' renders expandable sections (legal_foundation / current_position / sub_positions / misconceptions); depth 'brief' renders a single compact card from intro_en + current_position. legal_foundation = what is legally or constitutionally on the books (changes rarely; anchored on effective_date). current_position = the actor's current official line (changes a few times a year; each item anchored to a dated formulation via as_stated + stated_by). not_say_en / nuance_en are the 'what this is commonly assumed to say but doesn't' fields — they are the point of the page, use them. sub_positions = intra-actor splits (Taiwan's DPP/KMT/TPP); 'party' keys into frontend/src/partyColours.js PARTY_COLOURS. hooks = future live integrations, rendered by nothing in v1. sources[] items are {label, url, date, lang}.",
+
+  "actors": [
+    {
+      "id": "prc",
+      "name_en": "People's Republic of China",
+      "name_zh": "中华人民共和国",
+      "short_name": "PRC",
+      "depth": "full",
+      "iso": "CN",
+      "intro_en": "",
+      "legal_foundation": [
+        {
+          "id": "prc-constitution-preamble",
+          "title_en": "PRC Constitution — Preamble (Taiwan clause)",
+          "title_zh": "中华人民共和国宪法・序言",
+          "romanisation": "Zhōnghuá Rénmín Gònghéguó Xiànfǎ",
+          "summary_en": "",
+          "effective_date": "1982-12-04",
+          "not_say_en": "",
+          "sources": []
+        },
+        {
+          "id": "anti-secession-law",
+          "title_en": "Anti-Secession Law (2005)",
+          "title_zh": "反分裂国家法",
+          "romanisation": "Fǎn Fēnliè Guójiā Fǎ",
+          "summary_en": "",
+          "effective_date": "2005-03-14",
+          "not_say_en": "",
+          "sources": []
+        }
+      ],
+      "current_position": [
+        {
+          "id": "one-china-principle",
+          "position_en": "",
+          "formulation_zh": "一个中国原则",
+          "romanisation": "yī gè Zhōngguó yuánzé",
+          "formulation_en": "One China Principle",
+          "as_stated": "",
+          "stated_by": "",
+          "nuance_en": "",
+          "sources": []
+        },
+        {
+          "id": "one-country-two-systems-taiwan-plan",
+          "position_en": "",
+          "formulation_zh": "一国两制台湾方案",
+          "romanisation": "yī guó liǎng zhì Táiwān fāng'àn",
+          "formulation_en": "One Country, Two Systems — Taiwan Plan",
+          "as_stated": "",
+          "stated_by": "",
+          "nuance_en": "",
+          "sources": []
+        }
+      ],
+      "sub_positions": [],
+      "misconceptions": [],
+      "hooks": {
+        "diplomacy_iso": null,
+        "entity_names_en": []
+      }
+    },
+
+    {
+      "id": "taiwan",
+      "name_en": "Republic of China (Taiwan)",
+      "name_zh": "中華民國（臺灣）",
+      "short_name": "Taiwan",
+      "depth": "full",
+      "iso": "TW",
+      "intro_en": "",
+      "legal_foundation": [
+        {
+          "id": "roc-constitution",
+          "title_en": "ROC Constitution (1947)",
+          "title_zh": "中華民國憲法",
+          "romanisation": "Chung-hua Min-kuo Hsien-fa",
+          "summary_en": "",
+          "effective_date": "1947-12-25",
+          "not_say_en": "",
+          "sources": []
+        },
+        {
+          "id": "roc-additional-articles",
+          "title_en": "Additional Articles of the ROC Constitution",
+          "title_zh": "中華民國憲法增修條文",
+          "romanisation": "Hsien-fa Tseng-hsiu T'iao-wen",
+          "summary_en": "",
+          "effective_date": "1991-05-01",
+          "not_say_en": "",
+          "sources": []
+        },
+        {
+          "id": "cross-strait-act",
+          "title_en": "Act Governing Relations between the People of the Taiwan Area and the Mainland Area (1992)",
+          "title_zh": "臺灣地區與大陸地區人民關係條例",
+          "romanisation": "Liang-an Jen-min Kuan-hsi T'iao-li",
+          "summary_en": "",
+          "effective_date": "1992-09-18",
+          "not_say_en": "",
+          "sources": []
+        }
+      ],
+      "current_position": [
+        {
+          "id": "mutual-non-subordination",
+          "position_en": "",
+          "formulation_zh": "互不隸屬",
+          "romanisation": "hu-pu li-shu",
+          "formulation_en": "Mutually non-subordinate",
+          "as_stated": "",
+          "stated_by": "",
+          "nuance_en": "",
+          "sources": []
+        }
+      ],
+      "sub_positions": [
+        {
+          "id": "tw-dpp",
+          "label_en": "Democratic Progressive Party (DPP)",
+          "party": "DPP",
+          "items": []
+        },
+        {
+          "id": "tw-kmt",
+          "label_en": "Kuomintang (KMT)",
+          "party": "KMT",
+          "items": []
+        },
+        {
+          "id": "tw-tpp",
+          "label_en": "Taiwan People's Party (TPP)",
+          "party": "TPP",
+          "items": []
+        }
+      ],
+      "misconceptions": [],
+      "hooks": {
+        "diplomacy_iso": null,
+        "entity_names_en": []
+      }
+    },
+
+    {
+      "id": "us",
+      "name_en": "United States",
+      "name_zh": "美國",
+      "short_name": "US",
+      "depth": "full",
+      "iso": "US",
+      "intro_en": "",
+      "legal_foundation": [
+        {
+          "id": "three-communiques",
+          "title_en": "The Three Joint Communiqués (1972 / 1979 / 1982)",
+          "title_zh": "三個聯合公報",
+          "romanisation": "",
+          "summary_en": "",
+          "effective_date": "1972-02-28",
+          "not_say_en": "",
+          "sources": []
+        },
+        {
+          "id": "taiwan-relations-act",
+          "title_en": "Taiwan Relations Act (1979)",
+          "title_zh": "臺灣關係法",
+          "romanisation": "",
+          "summary_en": "",
+          "effective_date": "1979-04-10",
+          "not_say_en": "",
+          "sources": []
+        },
+        {
+          "id": "six-assurances",
+          "title_en": "The Six Assurances (1982)",
+          "title_zh": "六項保證",
+          "romanisation": "",
+          "summary_en": "",
+          "effective_date": "1982-07-14",
+          "not_say_en": "",
+          "sources": []
+        }
+      ],
+      "current_position": [
+        {
+          "id": "one-china-policy",
+          "position_en": "",
+          "formulation_zh": "",
+          "romanisation": "",
+          "formulation_en": "One China Policy",
+          "as_stated": "",
+          "stated_by": "",
+          "nuance_en": "",
+          "sources": []
+        },
+        {
+          "id": "strategic-ambiguity",
+          "position_en": "",
+          "formulation_zh": "",
+          "romanisation": "",
+          "formulation_en": "Strategic ambiguity",
+          "as_stated": "",
+          "stated_by": "",
+          "nuance_en": "",
+          "sources": []
+        }
+      ],
+      "sub_positions": [],
+      "misconceptions": [],
+      "hooks": {
+        "diplomacy_iso": "US",
+        "entity_names_en": []
+      }
+    },
+
+    {
+      "id": "japan",
+      "name_en": "Japan",
+      "name_zh": "日本",
+      "short_name": "Japan",
+      "depth": "brief",
+      "iso": "JP",
+      "intro_en": "",
+      "legal_foundation": [],
+      "current_position": [
+        {
+          "id": "1972-normalisation",
+          "position_en": "",
+          "formulation_zh": "",
+          "romanisation": "",
+          "formulation_en": "Understands and respects (1972 Joint Communiqué)",
+          "as_stated": "",
+          "stated_by": "",
+          "nuance_en": "",
+          "sources": []
+        }
+      ],
+      "sub_positions": [],
+      "misconceptions": [],
+      "hooks": {
+        "diplomacy_iso": "JP",
+        "entity_names_en": []
+      }
+    },
+
+    {
+      "id": "eu",
+      "name_en": "European Union",
+      "name_zh": "歐洲聯盟",
+      "short_name": "EU",
+      "depth": "brief",
+      "iso": "EU",
+      "intro_en": "",
+      "legal_foundation": [],
+      "current_position": [
+        {
+          "id": "eu-one-china-policy",
+          "position_en": "",
+          "formulation_zh": "",
+          "romanisation": "",
+          "formulation_en": "EU One China Policy",
+          "as_stated": "",
+          "stated_by": "",
+          "nuance_en": "",
+          "sources": []
+        }
+      ],
+      "sub_positions": [],
+      "misconceptions": [],
+      "hooks": {
+        "diplomacy_iso": "EU",
+        "entity_names_en": []
+      }
+    }
+  ],
+
+  "_comment_concepts": "Cross-cutting contested concepts — things that are not any one actor's position; the disagreement IS the content. Each renders as a neutral what_en paragraph followed by the actors' readings side by side. readings[].actor_id must be an actor id or a sub_position id (e.g. 'tw-kmt').",
+
+  "concepts": [
+    {
+      "id": "1992-consensus",
+      "title_en": "The 1992 Consensus",
+      "title_zh": "九二共識",
+      "romanisation": "Chiu-erh Kung-shih",
+      "what_en": "",
+      "readings": [
+        { "actor_id": "prc",    "label_en": "PRC reading", "reading_en": "", "formulation_zh": "", "sources": [] },
+        { "actor_id": "tw-kmt", "label_en": "KMT reading", "reading_en": "", "formulation_zh": "", "sources": [] },
+        { "actor_id": "tw-dpp", "label_en": "DPP reading", "reading_en": "", "formulation_zh": "", "sources": [] }
+      ]
+    },
+    {
+      "id": "un-res-2758",
+      "title_en": "UN General Assembly Resolution 2758 (1971)",
+      "title_zh": "聯合國大會第2758號決議",
+      "romanisation": "",
+      "what_en": "",
+      "readings": [
+        { "actor_id": "prc",    "label_en": "PRC reading",    "reading_en": "", "formulation_zh": "", "sources": [] },
+        { "actor_id": "taiwan", "label_en": "Taiwan reading", "reading_en": "", "formulation_zh": "", "sources": [] },
+        { "actor_id": "us",     "label_en": "US reading",     "reading_en": "", "formulation_zh": "", "sources": [] }
+      ]
+    },
+    {
+      "id": "status-quo",
+      "title_en": "\"Maintaining the status quo\"",
+      "title_zh": "維持現狀",
+      "romanisation": "wei-ch'ih hsien-chuang",
+      "what_en": "",
+      "readings": [
+        { "actor_id": "prc",    "label_en": "PRC usage",    "reading_en": "", "formulation_zh": "", "sources": [] },
+        { "actor_id": "taiwan", "label_en": "Taiwan usage", "reading_en": "", "formulation_zh": "", "sources": [] },
+        { "actor_id": "us",     "label_en": "US usage",     "reading_en": "", "formulation_zh": "", "sources": [] }
+      ]
+    },
+    {
+      "id": "one-country-two-systems",
+      "title_en": "One Country, Two Systems",
+      "title_zh": "一国两制",
+      "romanisation": "yī guó liǎng zhì",
+      "what_en": "",
+      "readings": [
+        { "actor_id": "prc",    "label_en": "PRC position",    "reading_en": "", "formulation_zh": "", "sources": [] },
+        { "actor_id": "taiwan", "label_en": "Taiwan position", "reading_en": "", "formulation_zh": "", "sources": [] }
+      ]
+    }
+  ]
+}
