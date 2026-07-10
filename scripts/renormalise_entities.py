@@ -1,18 +1,19 @@
 """
-Re-apply entity_canonical.json to existing `entities` rows by EXACT Chinese-name
-match, rewriting entity_name_en.
+Re-apply entity_canonical.json to existing `entities` rows, rewriting
+entity_name_en.
 
 Why this exists: `_normalise_entity_name` in the pipeline only runs at *extraction*
 time, so editing entity_canonical.json never touches rows already in the DB. After
 adding canonical entries you want the historical rows to match too — this back-fills
 them.
 
-EXACT match only — deliberately NOT the pipeline's prefix logic. Prefix matching
-(`zh_name.startswith(key)`) corrupts title-prepended rows: e.g. '國防部長顧立雄'
-would map to 'Ministry of National Defense (MND)' and a truncated '萬安'
-(Mayor Chiang Wan-an) to 'Wan An Exercise'. Exact match sidesteps every such false
-positive; the trade-off is it won't fold genuine sub-forms (解放軍海軍 under 解放軍) —
-those still rely on the live pipeline at extraction time.
+Resolution is the SAME shared resolver the pipeline uses
+(shared/entity_norm.resolve_name_en): exact match → explicit title-strip
+(國防部長顧立雄 → 顧立雄) → opt-in fold prefixes (漢光41號演習 → 漢光41). All
+three tiers are safe on historical rows — this script was exact-only while the
+pipeline ran an open-ended prefix scan, precisely because that scan corrupted
+title-prepended rows; since 2026-07-10 both sides share one semantics, so the
+back-fill can repair the very rows the old scan mislabelled.
 
 Companion to merge_entities.py: that tool clusters near-duplicate *English* spellings
 on approved articles only; this is the canonical-driven counterpart and can target any
@@ -26,7 +27,6 @@ Usage:
 """
 import sys
 import os
-import json
 import argparse
 import sqlite3
 from collections import Counter
@@ -35,10 +35,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scraper.utils.db import get_connection, DB_PATH
-
-CANON_PATH = os.path.join(
-    os.path.dirname(__file__), '..', 'scraper', 'processors', 'entity_canonical.json'
-)
+from shared.entity_norm import load_canon, resolve_name_en, CANON_PATH
 
 # Scope predicates over articles a / ai_analysis ai (LEFT JOINed).
 SCOPE_SQL = {
@@ -60,8 +57,8 @@ def _connect(db_path):
 
 
 def collect_updates(conn, canon, scope, type_filter):
-    """Return {entity_id: (new_en, zh, old_en)} for rows whose exact zh name is
-    in canon and whose current English spelling differs.
+    """Return {entity_id: (new_en, zh, old_en)} for rows whose zh name resolves
+    through the shared resolver and whose current English spelling differs.
 
     The article scope is resolved once (article-level, ~12k rows) and entities are
     matched against it in a single scan — `entities.article_id` is unindexed, so a
@@ -83,16 +80,20 @@ def collect_updates(conn, canon, scope, type_filter):
         params.append(type_filter)
 
     updates = {}
+    resolved = {}  # per-distinct-name memo — the resolver scans token/fold lists
     for r in conn.execute(sql, params):
         zh = r['zh']
-        if zh in canon and canon[zh] != (r['en'] or ''):
-            updates[r['id']] = (canon[zh], zh, r['en'])
+        if zh not in resolved:
+            resolved[zh] = resolve_name_en(zh, canon)
+        new_en = resolved[zh]
+        if new_en and new_en != (r['en'] or ''):
+            updates[r['id']] = (new_en, zh, r['en'])
     return updates
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Re-apply entity_canonical.json to existing entity rows (exact zh match)")
+        description="Re-apply entity_canonical.json to existing entity rows (shared resolver)")
     parser.add_argument('--scope', choices=list(SCOPE_SQL), default='all',
                         help="Which articles' entities to touch (default: all)")
     parser.add_argument('--type', default=None,
@@ -107,16 +108,17 @@ def main():
                         help="Max distinct change lines to print (default: 40)")
     args = parser.parse_args()
 
-    with open(args.canon, encoding='utf-8') as f:
-        canon = json.load(f)
+    canon = load_canon(args.canon)
 
     conn = _connect(args.db)
     print(f"DB:    {args.db or DB_PATH}")
-    print(f"Canon: {len(canon)} entries | scope={args.scope}"
+    print(f"Canon: {len(canon['canonical'])} entries, "
+          f"{len(canon['title_tokens'])} title tokens, "
+          f"{len(canon['fold_prefixes'])} fold prefixes | scope={args.scope}"
           + (f" | type={args.type}" if args.type else ""))
 
     updates = collect_updates(conn, canon, args.scope, args.type)
-    print(f"{len(updates)} entity rows would change (exact zh match).\n")
+    print(f"{len(updates)} entity rows would change.\n")
 
     agg = Counter((zh, old, new) for new, zh, old in updates.values())
     for (zh, old, new), n in sorted(agg.items(), key=lambda x: -x[1])[:args.limit]:
