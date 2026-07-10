@@ -1,6 +1,10 @@
 {
-  "_comment": "Country name -> ISO 3166-1 alpha-2 resolver for the Diplomacy Tracker side-extract. The AI emits both a country English name and an ISO code; _resolve_country_iso() trusts a valid 2-letter ISO, else falls back to alias_to_iso. exclude_iso drops the two cross-strait principals — statements BY China or Taiwan are the core sentiment axis, not this third-country instrument. 'EU' is a non-ISO pseudo-code for the European Union bloc. Roster is curated for cross-strait relevance (major powers, Indo-Pacific neighbours, EU members, Taiwan's diplomatic allies + recent switchers); an unknown-but-plausible 2-letter ISO from the AI is accepted as-is so long-tail countries still land in the review queue. Add aliases freely — en aliases lowercase, zh aliases verbatim (both Traditional + Simplified).",
+  "_comment": "Country name -> ISO 3166-1 alpha-2 resolver for the Diplomacy Tracker side-extract. The AI emits both a country English name and an ISO code; _resolve_country_iso() trusts a valid 2-letter ISO, else falls back to alias_to_iso. exclude_iso drops the two cross-strait principals — statements BY China or Taiwan are the core sentiment axis, not this third-country instrument. 'EU' is a non-ISO pseudo-code for the European Union bloc. Roster is curated for cross-strait relevance (major powers, Indo-Pacific neighbours, EU members, Taiwan's diplomatic allies + recent switchers); an unknown-but-plausible 2-letter ISO from the AI is accepted as-is so long-tail countries still land in the review queue. Add aliases freely — en aliases lowercase, zh aliases verbatim (both Traditional + Simplified). iso_override_by_name (lowercase en name -> code) wins over the AI-emitted code: for de-facto states with no ISO code the AI reliably stamps the NEIGHBOURING recognised state's code (Somaliland -> 'SO' = Somalia, Kosovo -> 'RS' = Serbia), which painted the wrong polygon on the diplomacy map; 'XS'/'XK' are user-assigned pseudo-codes matched by name-stamped features in world-110m.geojson (build_world_geojson.py DEFACTO_ISO — keep in sync).",
   "exclude_iso": ["CN", "TW", "HK", "MO", "UN"],
+  "iso_override_by_name": {
+    "somaliland": "XS", "republic of somaliland": "XS",
+    "kosovo": "XK", "republic of kosovo": "XK"
+  },
   "iso_to_name": {
     "US": "United States",
     "JP": "Japan",
@@ -77,6 +81,9 @@
     "NI": "Nicaragua",
     "SB": "Solomon Islands",
     "KI": "Kiribati",
+    "SO": "Somalia",
+    "XS": "Somaliland",
+    "XK": "Kosovo",
     "EU": "European Union"
   },
   "alias_to_iso": {
@@ -161,6 +168,9 @@
     "尼加拉瓜": "NI", "nicaragua": "NI",
     "索羅門群島": "SB", "所罗门群岛": "SB", "索羅門": "SB", "solomon islands": "SB",
     "吉里巴斯": "KI", "基里巴斯": "KI", "kiribati": "KI",
-    "歐盟": "EU", "欧盟": "EU", "歐洲聯盟": "EU", "欧洲联盟": "EU", "european union": "EU", "the eu": "EU"
+    "歐盟": "EU", "欧盟": "EU", "歐洲聯盟": "EU", "欧洲联盟": "EU", "european union": "EU", "the eu": "EU",
+    "索馬利亞": "SO", "索马里": "SO", "somalia": "SO", "mogadishu": "SO",
+    "索馬利蘭": "XS", "索马里兰": "XS", "somaliland": "XS", "republic of somaliland": "XS", "hargeisa": "XS",
+    "科索沃": "XK", "kosovo": "XK", "republic of kosovo": "XK", "pristina": "XK"
   }
 }
