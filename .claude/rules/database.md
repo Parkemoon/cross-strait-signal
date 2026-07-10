@@ -29,7 +29,7 @@ Both factories enable two PRAGMAs on every connection:
 - **articles.poll_scanned_at / exercise_scanned_at** are the Step 3c/3b scan markers — stamped after every poll-only/exercise-only pass over the article, even when nothing was extracted (`NULL` = not yet scanned). They exist so zero-yield articles don't re-qualify every 6h tick; don't reset them casually — clearing one re-queues the article for a paid Gemini scan.
 - **ai_analysis.sentiment_reasoning** is a one-sentence audit trail (who is framed how, toward whom, with a quoted phrase). Empty for neutral. `needs_human_review=1` + `review_resolved=0` additionally hides the article.
 - **entities** carries lat/lng fields deferred for Phase 2c (maps).
-- **key_figure_statements.approval_status** must be `approved` before display — `pending` is the default for Tier-1 candidates. Never bypass.
+- **key_figure_statements.approval_status** must be `approved` before display — `pending` is the default for Tier-1 candidates. Never bypass. Since migration 0004 (code-review §4.3) the table carries the full review-queue column set (`merged_into_id`, `reviewed_by`) like the other three gates, though no merge endpoint is exposed yet (no UI need).
 - **economic_indicators.period_type**: in practice always `'month'` — quarterly GDP is stored at the last month of the quarter so the monthly API serves it without special-casing.
 - **trade_access** unique on (direction, hs_code); status priority `banned > ecfa_suspended > conditional > ecfa_active` is enforced in the scraper.
 - **cifer_snapshots** unique on (snapshot_date, status) — one row per (date, suspended/valid).

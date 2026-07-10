@@ -4,6 +4,7 @@ import os
 from fastapi import APIRouter, Depends, Query
 from api.database import db_conn
 from api.auth import require_admin
+from api.review_queue import approve_row, dismiss_row
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -429,23 +430,15 @@ def key_figure_candidates():
 def approve_statement(statement_id: int):
     """Mark a key figure statement as approved for display."""
     with db_conn() as conn:
-        conn.execute("""
-            UPDATE key_figure_statements
-            SET approval_status = 'approved', reviewed_at = datetime('now')
-            WHERE id = ?
-        """, (statement_id,))
+        result = approve_row(conn, "key_figure_statements", "statement", statement_id)
         conn.commit()
-        return {"status": "approved", "id": statement_id}
+    return result
 
 
 @router.post("/key-figures/statements/{statement_id}/dismiss", dependencies=[Depends(require_admin)])
 def dismiss_statement(statement_id: int):
     """Mark a key figure statement as dismissed."""
     with db_conn() as conn:
-        conn.execute("""
-            UPDATE key_figure_statements
-            SET approval_status = 'dismissed', reviewed_at = datetime('now')
-            WHERE id = ?
-        """, (statement_id,))
+        result = dismiss_row(conn, "key_figure_statements", "statement", statement_id)
         conn.commit()
-        return {"status": "dismissed", "id": statement_id}
+    return result
