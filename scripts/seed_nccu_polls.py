@@ -145,9 +145,19 @@ def _seed_series(conn, pollster_id, series) -> int:
     for wave in waves:
         year = int(wave['year'])
         fielded_start = f"{year}-01-01"
-        fielded_end = f"{year}-12-31"
+        # NCCU publishes twice yearly: a June interim carrying only the
+        # Jan–Jun waves, then the December final merging the full year.
+        # Interim waves are flagged in the JSON so fielded_end doesn't
+        # claim coverage the data doesn't have; when the final lands,
+        # drop the flag and update the numbers — the upsert on
+        # (pollster_id, fielded_start) overwrites the same row.
+        interim = bool(wave.get('interim'))
+        fielded_end = f"{year}-06-30" if interim else f"{year}-12-31"
         sample_size = int(wave['sample_size'])
         notes = NOTES_TEMPLATE.format(sample_size=f"{sample_size:,}")
+        if interim:
+            notes += (" June interim release (Jan–Jun waves only); "
+                      "superseded by the December final.")
 
         poll_id = _upsert_poll(
             conn, pollster_id, fielded_start, fielded_end, sample_size,
