@@ -13,9 +13,13 @@ that's cheap to fetch on tab open.
 The `iso_a2` join key: Natural Earth famously stamps ISO_A2 = "-99" for a
 handful of entities (France, Norway, and disputed/partial-recognition cases).
 ISO_A2_EH ("EH" = de-facto, with sovereignty fixes) repairs France/Norway, so
-we prefer it and fall back to ISO_A2. Anything still "-99" (Kosovo, N. Cyprus,
-Somaliland, …) is left without a join key — those aren't on the diplomacy
-roster, so they simply render as no-data base fill, which is correct.
+we prefer it and fall back to ISO_A2. De-facto states that ARE on the
+diplomacy axis get user-assigned pseudo-codes via DEFACTO_ISO (Somaliland is
+one of the most Taiwan-relevant states there is — mutual representative
+offices since 2020; without its own key, its statements painted Somalia's
+polygon). Keep DEFACTO_ISO in sync with `iso_override_by_name` in
+scraper/processors/country_iso.json. Anything still unkeyed (N. Cyprus, …)
+renders as no-data base fill.
 
 Re-run only to refresh the basemap (new NE release, precision change). Output
 is committed so the frontend build has no network dependency.
@@ -36,14 +40,18 @@ OUT_PATH = os.path.join(
 )
 PRECISION = 2  # decimal places — ~1.1 km at the equator
 
+# User-assigned pseudo-codes for de-facto states NE leaves unkeyed but which
+# appear on the diplomacy axis. Mirror of country_iso.json iso_override_by_name.
+DEFACTO_ISO = {"Somaliland": "XS", "Kosovo": "XK"}
 
-def iso_a2(props: dict):
+
+def iso_a2(props: dict, name=None):
     """Best available ISO 3166-1 alpha-2, or None. See module docstring."""
     for key in ("ISO_A2_EH", "ISO_A2"):
         code = (props.get(key) or "").strip().upper()
         if code and code != "-99":
             return code
-    return None
+    return DEFACTO_ISO.get(name)
 
 
 def round_coords(coords):
@@ -69,7 +77,7 @@ def main():
             continue
         lx, ly = props.get("LABEL_X"), props.get("LABEL_Y")
         feat["properties"] = {
-            "iso_a2": iso_a2(props),
+            "iso_a2": iso_a2(props, name),
             "name": name,
             # NE's cartographic label point — a sensible on-land anchor for the
             # voices-pin layer (avoids the bbox-centre-in-ocean problem for
