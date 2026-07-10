@@ -639,7 +639,7 @@ export default function App() {
             maxHeight: "calc(100vh - 52px)",
             overflowY: "auto",
             minWidth: 0,
-            display: (view === "economy" || view === "trade" || view === "people" || view === "military" || view === "diplomacy" || view === "positions")
+            display: (view === "economy" || view === "trade" || view === "people" || view === "military" || view === "polls" || view === "diplomacy" || view === "positions")
               ? "none"
               : (isMobile ? (mobileTab === "social" ? "block" : "none") : "block"),
           }}
