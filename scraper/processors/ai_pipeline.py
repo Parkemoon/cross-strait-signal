@@ -48,9 +48,12 @@ _GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
 with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
     _MASTER_GLOSSARY = json.load(_f)
 
-_CANONICAL_PATH = os.path.join(os.path.dirname(__file__), 'entity_canonical.json')
-with open(_CANONICAL_PATH, encoding='utf-8') as _f:
-    _CANONICAL_ENTITIES = json.load(_f)
+# Entity canonicalisation is shared with scripts/renormalise_entities.py via
+# shared/entity_norm.py — one resolver for the write path and the back-fill,
+# so a canonical edit can always repair the rows the pipeline wrote.
+from shared.entity_norm import load_canon as _load_entity_canon, resolve_name_en as _resolve_name_en
+_ENTITY_CANON = _load_entity_canon()
+_CANONICAL_ENTITIES = _ENTITY_CANON['canonical']  # exact-match map (exercise names)
 
 _MIL_LOCATIONS_PATH = os.path.join(os.path.dirname(__file__), 'military_locations.json')
 # Companion file written by the API's PATCH endpoint each time an analyst
@@ -291,36 +294,18 @@ def _insert_diplomacy_row(conn, article_id, stmt, source_place=None):
 
 
 def _normalise_entity_name(entity):
-    """Override entity name_en with the canonical English form if the Chinese
-    name matches an entry in entity_canonical.json. Falls through three tiers:
-      1. Exact match (always safe).
-      2. Canonical key is a prefix of the extracted name (e.g. 解放軍 → 解放軍海軍).
-      3. Canonical key is a prefix of the canonical key — i.e. the AI returned
-         the shorter form (e.g. extracted 解放軍 against canonical 中國人民解放軍).
-    Bidirectional substring matching is intentionally avoided: it produced
-    false positives where short keys like 臺灣 collided with unrelated longer
-    entity names that contained them. Only keys with 2+ characters
-    participate. Whitespace is normalised and all-lowercase AI output is
-    title-cased."""
-    zh_name = entity.get('name', '')
-    if not zh_name:
+    """Override entity name_en with the canonical English form via the shared
+    resolver (shared/entity_norm.py: exact match → explicit title-strip →
+    opt-in fold prefixes). The old open-ended bidirectional prefix scan lived
+    here until 2026-07-10 — it corrupted title-prepended names (國防部長顧立雄
+    → "Ministry of National Defense") and collided short names with unrelated
+    keys (韓國 → "Han Kuo-yu", 中華民國 → "Republic of China Armed Forces").
+    Unresolved names keep the AI's English, with whitespace normalised and
+    all-lowercase output title-cased."""
+    canonical_en = _resolve_name_en(entity.get('name', ''), _ENTITY_CANON)
+    if canonical_en:
+        entity['name_en'] = canonical_en
         return entity
-
-    # Tier 1: exact match wins outright, before the prefix tiers — otherwise an
-    # earlier, longer key shadows it (bare 解放軍 would match 解放軍海軍 via the
-    # prefix tiers and resolve to "PLAN" instead of "PLA").
-    if len(zh_name) >= 2 and zh_name in _CANONICAL_ENTITIES:
-        entity['name_en'] = _CANONICAL_ENTITIES[zh_name]
-        return entity
-
-    # Tiers 2-3: prefix relationships — the extracted name is a longer form of a
-    # canonical key, or the AI returned a shorter form than the canonical key.
-    for zh, en in _CANONICAL_ENTITIES.items():
-        if len(zh) < 2:
-            continue
-        if zh_name.startswith(zh) or zh.startswith(zh_name):
-            entity['name_en'] = en
-            return entity
 
     # Normalise whitespace and fix all-lowercase names
     name_en = ' '.join(entity.get('name_en', '').split())
