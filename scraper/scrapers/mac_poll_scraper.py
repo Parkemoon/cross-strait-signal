@@ -31,6 +31,7 @@ import os
 import re
 import sys
 from datetime import datetime, timezone
+from urllib.parse import urljoin
 
 import httpx
 import pdfplumber
@@ -354,9 +355,10 @@ def scrape_mac_polls():
 
     urls, seen = [], set()
     for m in re.finditer(r'href="([^"]*News_Content\.aspx[^"]*)"', listing):
-        href = m.group(1)
-        if href.startswith('/'):
-            href = 'https://www.mac.gov.tw' + href
+        # The listing has emitted absolute, root-relative AND page-relative
+        # ("News_Content.aspx?n=…") hrefs at different times — urljoin
+        # against the listing URL handles all three.
+        href = urljoin(LIST_URL, m.group(1))
         if 'News_Content' in href and href not in seen:
             seen.add(href)
             urls.append(href)

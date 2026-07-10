@@ -113,6 +113,13 @@ async def scrape_ettoday_polls():
             except Exception as e:
                 print(f"    Could not fetch article {href}: {e}")
 
+            # Never save an empty body (fetch failed or div.story missing):
+            # URL dedup would make the miss permanent, and empty-content rows
+            # are invisible to Tier 1. Skip so the URL retries next tick.
+            if not content:
+                print(f"    Empty body for {title[:50]} — skipping, will retry next run")
+                continue
+
             print(f"  New: {title[:70]}")
             save_article(conn, source['id'], href, title, content, 'zh-tw', published_at)
             new_count += 1
