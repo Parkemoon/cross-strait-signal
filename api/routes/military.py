@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.auth import require_admin
+from api.review_queue import approve_row, dismiss_row, merge_row
 from api.database import db_conn
 
 # Two-file split so the curated, hand-vetted military_locations.json stays
@@ -597,13 +598,8 @@ def approve_exercise(exercise_id: int):
                 ORDER BY id ASC LIMIT 1
             """, {"canonical": canonical, "performer": performer, "id": exercise_id}).fetchone()
             if twin:
-                conn.execute("""
-                    UPDATE military_exercises
-                    SET approval_status = 'merged',
-                        merged_into_id = ?,
-                        reviewed_at = datetime('now')
-                    WHERE id = ?
-                """, (twin["id"], exercise_id))
+                merge_row(conn, "military_exercises", "exercise",
+                          exercise_id, twin["id"])
                 conn.commit()
                 return {
                     "status": "merged_into_existing",
@@ -613,11 +609,7 @@ def approve_exercise(exercise_id: int):
                 }
 
         # 2. Standard approve path.
-        conn.execute("""
-            UPDATE military_exercises
-            SET approval_status = 'approved', reviewed_at = datetime('now')
-            WHERE id = ?
-        """, (exercise_id,))
+        result = approve_row(conn, "military_exercises", "exercise", exercise_id)
 
         # 3. Pending-row auto-merge: same canonical AND same performer AND
         # date proximity (±30 days, or both NULL). Date proximity uses
@@ -649,7 +641,7 @@ def approve_exercise(exercise_id: int):
             })
             auto_merged = cur.rowcount
         conn.commit()
-    return {"status": "approved", "id": exercise_id, "auto_merged": auto_merged}
+    return {**result, "auto_merged": auto_merged}
 
 
 @router.post("/exercises/{exercise_id}/dismiss", dependencies=[Depends(require_admin)])
@@ -658,51 +650,27 @@ def dismiss_exercise(exercise_id: int):
     Also prunes any auto-learned location entries this row contributed,
     so a rejected drill's coordinates don't pollute future geocoding."""
     with db_conn() as conn:
-        cur = conn.execute("""
-            UPDATE military_exercises
-            SET approval_status = 'dismissed', reviewed_at = datetime('now')
-            WHERE id = ?
-        """, (exercise_id,))
-        if cur.rowcount == 0:
-            raise HTTPException(404, f"exercise {exercise_id} not found")
+        result = dismiss_row(conn, "military_exercises", "exercise", exercise_id)
         conn.commit()
     pruned = _remove_learned_locations_for(exercise_id)
-    return {"status": "dismissed", "id": exercise_id, "auto_entries_pruned": pruned}
+    return {**result, "auto_entries_pruned": pruned}
 
 
 class MergeRequest(BaseModel):
     target_id: int
+    reviewed_by: Optional[str] = None
 
 
 @router.post("/exercises/{exercise_id}/merge", dependencies=[Depends(require_admin)])
 def merge_exercise(exercise_id: int, body: MergeRequest):
-    """Mark exercise as a duplicate of `target_id` — sets status='merged'
-    and merged_into_id. The target MUST itself be 'approved' so the chain
-    can't dangle into a dismissed/already-merged target (which would hide
-    the merged row entirely from any read endpoint)."""
-    if body.target_id == exercise_id:
-        raise HTTPException(400, "cannot merge an exercise into itself")
+    """Mark exercise as a duplicate of `target_id` — shared review-queue
+    state machine (api/review_queue.py): target must be 'approved' so the
+    chain can't dangle, source must be pending/approved."""
     with db_conn() as conn:
-        target = conn.execute(
-            "SELECT id, approval_status FROM military_exercises WHERE id = ?",
-            (body.target_id,)
-        ).fetchone()
-        if not target:
-            raise HTTPException(404, f"target {body.target_id} not found")
-        if target["approval_status"] != "approved":
-            raise HTTPException(
-                400,
-                f"merge target {body.target_id} is {target['approval_status']!r}, must be 'approved'",
-            )
-        cur = conn.execute("""
-            UPDATE military_exercises
-            SET approval_status = 'merged', merged_into_id = ?, reviewed_at = datetime('now')
-            WHERE id = ?
-        """, (body.target_id, exercise_id))
-        if cur.rowcount == 0:
-            raise HTTPException(404, f"exercise {exercise_id} not found")
+        result = merge_row(conn, "military_exercises", "exercise",
+                           exercise_id, body.target_id, body.reviewed_by)
         conn.commit()
-    return {"status": "merged", "id": exercise_id, "merged_into_id": body.target_id}
+    return result
 
 
 class ExercisePatch(BaseModel):

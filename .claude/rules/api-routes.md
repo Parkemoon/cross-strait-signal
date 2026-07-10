@@ -8,6 +8,10 @@ paths:
 
 Endpoint list is in `/docs` (Swagger). Non-obvious rules per route below.
 
+## Shared review-queue state machine (`api/review_queue.py`)
+
+The four editorial gates (military_exercises, polls, diplomacy_statements, key_figure_statements) run their approve/dismiss/merge transitions through ONE set of primitives (code-review §4.3): `approve_row` / `dismiss_row` / `merge_row` implement the existence/state guards, `reviewed_at`/`reviewed_by` stamping (`COALESCE(?, reviewed_by)` — passing None preserves the row's value), and the uniform `{status, id[, merged_into_id]}` responses. Merge guards everywhere: no self-merge; source must be `pending|approved` (dismissed/merged rows carry editorial intent); target must exist and be `approved` so chains can't dangle. Primitives do NOT commit — the route owns the transaction and layers queue-specific behaviour around them (military's canonical auto-merge, polls' `pending_results_json` NULLing via `extra_set`, dismiss side effects). Candidates/PATCH endpoints stay per-queue on purpose — their grouping keys, projections and validation are domain shape, not duplication. `table`/`label`/`extra_set` are trusted literals owned by the route modules, never user input.
+
 ## `articles.py` — `/api/articles`
 
 Filter params: `topic`, `sentiment`, `source_place`, `source_name`, `bias`, `urgency`, `escalation_only`, `entity`, `search`, `include_pending`.
@@ -41,6 +45,7 @@ Key Figures endpoints:
 - `GET /api/stats/key-figures/candidates` (**admin** — `Depends(require_admin)`) — pending grouped by figure. Exposes un-reviewed AI-extracted statements, so it stays gated like every other `/candidates` route.
 - `POST /api/stats/key-figures/statements/{id}/approve`
 - `POST /api/stats/key-figures/statements/{id}/dismiss`
+- Both run through the shared review-queue primitives — they 404 on a missing id (pre-2026-07-10 they silently returned success) and stamp `reviewed_at`/`reviewed_by` like the other queues.
 
 ## `review.py` — `/api/review`
 
@@ -88,7 +93,7 @@ Exercise tracker endpoints:
 - `GET /api/military/exercises/candidates` (admin) — `status='pending'` rows grouped by canonical key for batch review.
 - `POST /api/military/exercises/{id}/approve` (admin) — flips status. Auto-merges other same-`canonical_name` pending rows into this one (one click clears a whole exercise group).
 - `POST /api/military/exercises/{id}/dismiss` (admin)
-- `POST /api/military/exercises/{id}/merge` (admin) — explicit merge with `merged_into_id`.
+- `POST /api/military/exercises/{id}/merge` (admin) — explicit merge with `merged_into_id`; body `{target_id, reviewed_by?}`. Shared-machine guards apply (source must be pending/approved — added 2026-07-10; previously military alone allowed re-merging a merged row).
 - `PATCH /api/military/exercises/{id}` (admin) — analyst edits. Sends only changed fields (the frontend builds a minimal patch via `buildExercisePatch`). Always recomputes `canonical_name` from the final `name_en`. Coordinates bbox-validated to 8–35°N / 105–135°E — out-of-bbox PATCHes return 400 (vs the AI ingest path which silently nulls — at the analyst layer we'd rather argue). If the patch explicitly touched `location_label`, the (label → lat/lng) pair is auto-recorded into `military_locations_auto.json` for future AI extractions. Also rejects `end_date < start_date` (the same date-range guard polls applies — symmetric across the two editorial-gated trackers).
 
 Used by `MilitaryTab.jsx` for both the incursion KPI strip / ADIZ map and the Exercise Tracker section (map + list + analyst review queue + edit modal).

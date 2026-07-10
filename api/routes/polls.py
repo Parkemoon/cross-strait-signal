@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.auth import require_admin
+from api.review_queue import dismiss_row, merge_row
 from api.database import db_conn
 
 
@@ -970,15 +971,8 @@ def approve_poll(poll_id: int, body: PollApprove):
                     "you want the richer wave to become canonical, then approve "
                     "this row.",
                 )
-            conn.execute("""
-                UPDATE polls
-                SET approval_status = 'merged',
-                    merged_into_id  = ?,
-                    pending_results_json = NULL,
-                    reviewed_at     = datetime('now'),
-                    reviewed_by     = COALESCE(?, reviewed_by)
-                WHERE id = ?
-            """, (twin["id"], body.reviewed_by, poll_id))
+            merge_row(conn, "polls", "poll", poll_id, twin["id"],
+                      body.reviewed_by, extra_set=", pending_results_json = NULL")
             conn.commit()
             return {
                 "status":         "merged_into_existing",
@@ -1155,18 +1149,10 @@ def dismiss_poll(poll_id: int, reviewed_by: Optional[str] = Query(None)):
     since the AI's extraction is being discarded — keeping it would just
     bloat the row indefinitely."""
     with db_conn() as conn:
-        cur = conn.execute("""
-            UPDATE polls
-            SET approval_status      = 'dismissed',
-                pending_results_json = NULL,
-                reviewed_at          = datetime('now'),
-                reviewed_by          = COALESCE(?, reviewed_by)
-            WHERE id = ?
-        """, (reviewed_by, poll_id))
-        if cur.rowcount == 0:
-            raise HTTPException(404, f"poll {poll_id} not found")
+        result = dismiss_row(conn, "polls", "poll", poll_id, reviewed_by,
+                             extra_set=", pending_results_json = NULL")
         conn.commit()
-    return {"status": "dismissed", "id": poll_id}
+    return result
 
 
 # ============================================================
@@ -1180,51 +1166,18 @@ class PollMerge(BaseModel):
 
 @router.post("/{poll_id}/merge", dependencies=[Depends(require_admin)])
 def merge_poll(poll_id: int, body: PollMerge):
-    """Mark `poll_id` as a duplicate of `target_id`. The target must be
-    `approved` so the merge chain can't dangle into a dismissed-or-
-    already-merged target (which would hide the merged row entirely
-    from every read endpoint). Same constraint `military.py`
-    enforces."""
-    if body.target_id == poll_id:
-        raise HTTPException(400, "cannot merge a poll into itself")
+    """Mark `poll_id` as a duplicate of `target_id` — shared review-queue
+    state machine (api/review_queue.py): target must be 'approved' so the
+    chain can't dangle, source must be pending/approved (dismissed and
+    already-merged rows carry editorial intent that shouldn't be silently
+    overwritten). Also NULLs `pending_results_json` — the AI extraction
+    is discarded on merge."""
     with db_conn() as conn:
-        source = conn.execute(
-            "SELECT approval_status FROM polls WHERE id = ?", (poll_id,)
-        ).fetchone()
-        if not source:
-            raise HTTPException(404, f"poll {poll_id} not found")
-        # Source must be in a state where merging makes sense — dismissed
-        # or already-merged rows shouldn't be silently flipped to merged
-        # (their state carries editorial intent the analyst signed off on).
-        if source["approval_status"] not in ("pending", "approved"):
-            raise HTTPException(
-                400,
-                f"poll {poll_id} is {source['approval_status']!r}, "
-                "must be 'pending' or 'approved' to merge",
-            )
-
-        target = conn.execute(
-            "SELECT id, approval_status FROM polls WHERE id = ?", (body.target_id,)
-        ).fetchone()
-        if not target:
-            raise HTTPException(404, f"target {body.target_id} not found")
-        if target["approval_status"] != "approved":
-            raise HTTPException(
-                400,
-                f"merge target {body.target_id} is {target['approval_status']!r}, "
-                "must be 'approved'",
-            )
-        conn.execute("""
-            UPDATE polls
-            SET approval_status      = 'merged',
-                merged_into_id       = ?,
-                pending_results_json = NULL,
-                reviewed_at          = datetime('now'),
-                reviewed_by          = COALESCE(?, reviewed_by)
-            WHERE id = ?
-        """, (body.target_id, body.reviewed_by, poll_id))
+        result = merge_row(conn, "polls", "poll", poll_id, body.target_id,
+                           body.reviewed_by,
+                           extra_set=", pending_results_json = NULL")
         conn.commit()
-    return {"status": "merged", "id": poll_id, "merged_into_id": body.target_id}
+    return result
 
 
 # ============================================================
