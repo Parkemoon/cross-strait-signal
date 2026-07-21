@@ -13,6 +13,8 @@ Two types:
 
 **Age guard**: both `rss_scraper.py` and HTML scrapers skip articles older than 180 days at insert time (`MAX_ARTICLE_AGE = timedelta(days=180)`).
 
+**Stale-UA 403s**: UDN's WAF rejects requests whose UA carries an outdated Chrome version (UDN went dark for 5 weeks in 2026-06/07 while `BROWSER_UA` said Chrome/124 — every request 403'd; the server IP was never blocked). Fix by bumping the version in `BROWSER_UA` (`scraper/utils/http.py`) — every scraper on the shared utils picks it up. PTT / Weibo / CIFER keep their own UA strings and would need bumping separately if their sites start the same trick. Outages surface via `scripts/check_scraper_health.py` (daily cron, emails on state change — see deployment.md).
+
 **PLA Daily date extraction**: reads the Chinese date format from the article title (`(\d{4})年(\d{1,2})月(\d{1,2})日`) — do not re-introduce content-based date scraping on 81.cn (the page template contains a static date that overrides real dates).
 
 ## Article scraper inventory
