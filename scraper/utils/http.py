@@ -12,7 +12,7 @@ import httpx
 # rejecting it — every converted scraper picks it up.
 BROWSER_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
               'AppleWebKit/537.36 (KHTML, like Gecko) '
-              'Chrome/124.0.0.0 Safari/537.36')
+              'Chrome/143.0.0.0 Safari/537.36')
 
 DEFAULT_TIMEOUT = 30
 
