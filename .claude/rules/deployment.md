@@ -29,6 +29,8 @@ Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`
 
 - Pipeline runs every 6h (`0 */6 * * *`), logging to `/var/log/cross-strait-pipeline.log`.
 - CIFER snapshot scraper runs monthly (`0 3 1 * *`), logging to `/var/log/cifer-snapshot.log`.
+- Weekly digest runs Mondays 08:00 (`0 8 * * 1`), logging to `/var/log/cross-strait-digest.log`.
+- Scraper health monitor runs daily 08:15 (`15 8 * * *`), logging to `/var/log/scraper-health.log`. Emails on staleness state changes only (state in `/var/log/scraper-health-state.json`); see `scripts/check_scraper_health.py` for per-source thresholds.
 
 ## After deploying source changes
 
@@ -43,6 +45,8 @@ docker run -d --name rsshub --restart always -p 1200:1200 diygod/rsshub:chromium
 ```
 
 The `chromium-bundled` tag is required — CT sections use Puppeteer to render chinatimes.com and will return 503 without it. If these feeds return 0 entries, check `docker ps` to confirm the container is running. rsshub.app (the public instance) blocks automated clients — always use localhost.
+
+**The chinatimes route is locally patched inside the container** (2026-07-21). Upstream RSSHub (still broken on master) has two bugs: (a) `const { category = 'realtimenews' } = ctx.req.param('category')` object-destructures a string, so the category is always ignored and every section serves the generic 即時新聞 feed — this silently fed the realtime firehose into CT Cross-Strait for 3 months and starved the other three CT sections to zero via dedup; (b) category pages use absolute hrefs which the route double-prefixes with the base URL (503). Both are patched in the container's built file `/app/dist/chinatimes-CoSBu9wp.mjs` (original at `.bak` alongside). **The patch survives container restarts but is LOST if the image is re-pulled or the container recreated** — after any `docker pull`/`docker run`, re-check `curl localhost:1200/chinatimes/politic` returns a 政治-titled feed, not 即時新聞, and re-apply if not (see SESSION_LOG 2026-07-21 for the patch strings).
 
 ## Read-only build
 
