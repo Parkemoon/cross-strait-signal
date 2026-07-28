@@ -56,3 +56,7 @@ Keep `db/schema.sql` in sync with the live DB even for columns the pipeline adde
 ## Date-window comparisons on `published_at`
 
 `published_at` is stored as `T`-separated ISO strings (`2026-07-03T01:38:00+00:00`). Compare windows with `strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)`, **never** `datetime('now', ?)` — the latter produces a space-separated string, and because `'T'` (0x54) > `' '` (0x20) the lexical TEXT comparison silently widens the cutoff to the boundary day's midnight (measured ~5% row over-inclusion on a 7-day window). Routes that normalise the column instead (`date(a.published_at)` / `WHERE date(...) >=`) are also fine. Fixed in `stats.py`, `cluster_events.py`, `merge_entities.py` on 2026-07-04, and in the `ai_pipeline.py` Step 3b/3c selection queries on 2026-07-08; `military.py` / `diplomacy.py` already used `date(...)`.
+
+## `alt_model_analysis` (experiment table)
+
+One row per (article, model, arm) alt-model sweep result — `UNIQUE(article_id, model, arm)` is the idempotency key for `scripts/sweep_alt_models.py`. `outcome IN ('ok','refused','parse_error','api_error')`; comparison fields are NULL unless `ok`; refusal/error evidence and full `raw_response` kept per row. NO editorial columns by design — this table never gates or feeds the public feed, and side-extract arrays from the Tier-1 JSON stay inside `raw_response`. Re-runs: `--retry-errors` DELETEs error rows then re-inserts — never `INSERT OR REPLACE` (would clobber `ok`/`refused` rows). Migration `0005`.

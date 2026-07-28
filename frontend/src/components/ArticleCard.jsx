@@ -5,6 +5,7 @@ import SentimentBadge from "./SentimentBadge";
 import { createNote, hideArticle, toggleSignal, approveArticle, updateArticleTranslation, updateEntityName } from "../api";
 import { fetchArticleCluster } from "../api";
 import { READ_ONLY } from "../readOnly";
+import AltModelPanel from "./AltModelPanel";
 
 const SENTIMENT_OPTIONS = ["hostile", "cooperative", "neutral", "mixed"];
 const TOPIC_OPTIONS = [
@@ -690,6 +691,9 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
               ))}
             </div>
           )}
+
+          {/* Alt-model comparison — admin only, renders nothing unless swept */}
+          {!READ_ONLY && <AltModelPanel article={article} />}
 
           {/* Analyst commentary — admin only */}
           {!READ_ONLY && (
