@@ -158,65 +158,107 @@
       "short_name": "US",
       "depth": "full",
       "iso": "US",
-      "intro_en": "",
+      "intro_en": "Washington's position is a layered construction that resists the slogan it is usually reduced to. Since 1 January 1979 the United States has recognised the PRC as the sole legal government of China and maintained only unofficial relations with Taipei — yet it has never accepted Beijing's sovereignty claim over Taiwan, and it takes no position on Taiwan's ultimate status beyond insisting that any resolution be peaceful, uncoerced, and acceptable to the people on both sides of the Strait. Its One China policy is defined by a three-part canon of its own — the Taiwan Relations Act, the three US–PRC Joint Communiqués, and the Six Assurances — not by Beijing's One China principle; conflating the two is the most common error in cross-strait coverage.",
       "legal_foundation": [
         {
           "id": "three-communiques",
           "title_en": "The Three Joint Communiqués (1972 / 1979 / 1982)",
           "title_zh": "三個聯合公報",
           "romanisation": "",
-          "summary_en": "",
+          "summary_en": "The diplomatic scaffolding of US–PRC relations, agreed with Beijing. In the Shanghai Communiqué (28 February 1972) the US 'acknowledges that all Chinese on either side of the Taiwan Strait maintain there is but one China and that Taiwan is a part of China' and 'does not challenge that position'. The Normalization Communiqué (effective 1 January 1979) recognises the PRC as 'the sole legal Government of China' while, in the same careful register, only acknowledging 'the Chinese position that there is but one China and Taiwan is part of China'. The August 17 Communiqué (1982) records a US intention to gradually reduce arms sales to Taiwan — an undertaking President Reagan tied, in a contemporaneous internal memorandum, to the PRC's continued commitment to a peaceful resolution.",
           "effective_date": "1972-02-28",
-          "not_say_en": "",
-          "sources": []
+          "not_say_en": "'Acknowledges' is not 'accepts'. In all three texts the US notes the Chinese position without stating its own agreement — and the gap is contested in translation: the Chinese text of the 1979 communiqué renders 'acknowledges' as 承认 (chéngrèn, 'recognises'), a stronger verb; Washington has always held the English text controlling. Nothing in the communiqués recognises PRC sovereignty over Taiwan.",
+          "sources": [
+            { "label": "Joint Communiqué (Shanghai), full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1972/", "date": "1972-02-28", "lang": "en" },
+            { "label": "Joint Communiqué on Normalization, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1979/", "date": "1979-01-01", "lang": "en" },
+            { "label": "August 17 Communiqué, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1982/", "date": "1982-08-17", "lang": "en" }
+          ]
         },
         {
           "id": "taiwan-relations-act",
           "title_en": "Taiwan Relations Act (1979)",
           "title_zh": "臺灣關係法",
           "romanisation": "",
-          "summary_en": "",
+          "summary_en": "US domestic law, enacted three months after de-recognition, that anchors the unofficial relationship. It commits the US to 'make available to Taiwan such defense articles and defense services in such quantity as may be necessary to enable Taiwan to maintain a sufficient self-defense capability', declares it US policy 'to maintain the capacity of the United States to resist any resort to force or other forms of coercion' against Taiwan, and states that any effort to determine Taiwan's future 'by other than peaceful means' would be 'a threat to the peace and security of the Western Pacific area and of grave concern to the United States'. Relations run through the nominally private American Institute in Taiwan.",
           "effective_date": "1979-04-10",
-          "not_say_en": "",
-          "sources": []
+          "not_say_en": "It contains no commitment to defend Taiwan — no Article 5 analogue. The TRA obliges arms provision and the maintenance of American capacity to resist coercion; whether that capacity would ever be used is left to the president and Congress of the day. That statutory silence is where 'strategic ambiguity' lives. (The US–ROC Mutual Defense Treaty that did carry a commitment was terminated on 1 January 1980, and nothing replaced it.)",
+          "sources": [
+            { "label": "Taiwan Relations Act, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/taiwan-relations-act/", "date": "1979-04-10", "lang": "en" }
+          ]
         },
         {
           "id": "six-assurances",
           "title_en": "The Six Assurances (1982)",
           "title_zh": "六項保證",
           "romanisation": "",
-          "summary_en": "",
+          "summary_en": "Six undertakings President Reagan had conveyed privately to Taipei in July 1982, as the arms-sales communiqué was being negotiated. The US: (1) has not agreed to set an end-date for arms sales to Taiwan; (2) has not agreed to consult with Beijing before making them; (3) will not play a mediation role between Taipei and Beijing; (4) has not agreed to revise the Taiwan Relations Act; (5) has not altered its position regarding sovereignty over Taiwan; and (6) will not exert pressure on Taiwan to enter negotiations with the PRC. Semi-official for decades, the underlying cables were declassified and published in 2020, and administrations of both parties now cite the Six Assurances as a formal component of the one-China policy canon.",
           "effective_date": "1982-07-14",
-          "not_say_en": "",
-          "sources": []
+          "not_say_en": "The fifth assurance is routinely misread as support for Taipei's claim. Its content is agnosticism: the 'position on sovereignty' it preserves is precisely that the US has none.",
+          "sources": [
+            { "label": "The Six Assurances declassified cables — AIT", "url": "https://www.ait.org.tw/six-assurances-1982/", "date": "2020-08-31", "lang": "en" }
+          ]
         }
       ],
       "current_position": [
         {
           "id": "one-china-policy",
-          "position_en": "",
+          "position_en": "The US recognises the PRC as the sole legal government of China, maintains unofficial relations with Taiwan, opposes unilateral changes to the status quo by either side, and takes no position on the ultimate resolution provided it is reached peacefully. Officials define the policy by the TRA, the three Joint Communiqués, and the Six Assurances — customarily in that order, US domestic law first. Its fullest recent articulation remains the one conveyed to Xi Jinping in November 2023: opposition to unilateral changes from either side, no support for Taiwan independence, support for cross-strait dialogue, and resolution 'by peaceful means, free from coercion, in a manner that is acceptable to the people on both sides of the Strait'. The second Trump administration states the policy is unchanged — 'US policy on the issue of Taiwan is unchanged as of today' (Secretary of State Rubio, at the May 2026 Beijing summit).",
           "formulation_zh": "",
           "romanisation": "",
           "formulation_en": "One China Policy",
-          "as_stated": "",
-          "stated_by": "",
-          "nuance_en": "",
-          "sources": []
+          "as_stated": "2026-05-14",
+          "stated_by": "Marco Rubio, US Secretary of State, at the Trump–Xi Beijing summit",
+          "nuance_en": "In February 2025 the State Department deleted the sentence 'we do not support Taiwan independence' from its Taiwan fact sheet, calling the edit routine and the policy unchanged. Deleting the sentence is not asserting its opposite — no official has voiced support for independence — but the published formulation now opposes only 'unilateral changes to the status quo from either side'. The same sentence was briefly dropped and restored once before, in mid-2022: the fact-sheet wording is actively managed, and its movements are read on both sides of the strait as signals.",
+          "sources": [
+            { "label": "CRS IF10275, Taiwan: Background and U.S. Relations", "url": "https://www.congress.gov/crs-product/IF10275", "date": "2024-02-23", "lang": "en" },
+            { "label": "Focus Taiwan: fact sheet removes Taiwan-independence line", "url": "https://focustaiwan.tw/politics/202502160006", "date": "2025-02-16", "lang": "en" },
+            { "label": "Global Taiwan Institute: How Taiwan fared at the 2026 Trump–Xi summit", "url": "https://globaltaiwan.org/2026/05/how-taiwan-fared-during-the-trump-xi-summit/", "date": "2026-05-21", "lang": "en" }
+          ]
         },
         {
           "id": "strategic-ambiguity",
-          "position_en": "",
+          "position_en": "No US document states whether America would fight for Taiwan; the choice is a case-by-case presidential decision, and every administration since 1979 has formally kept it open. President Biden said four times that the US would defend Taiwan, each time walked back by his own staff as 'no change in policy'. President Trump has run the ambiguity in the opposite direction — declining to say what he would do while treating elements of the security relationship itself as negotiable: around the May 2026 Beijing summit he described arms sales to Taiwan as 'a very good negotiating chip for us' whose fate 'depends on China', and said he would discuss them with Xi Jinping, while his officials maintained that policy was unchanged.",
           "formulation_zh": "",
           "romanisation": "",
           "formulation_en": "Strategic ambiguity",
-          "as_stated": "",
-          "stated_by": "",
-          "nuance_en": "",
-          "sources": []
+          "as_stated": "2026-05-16",
+          "stated_by": "Donald Trump, Fox News interview after the Trump–Xi Beijing summit",
+          "nuance_en": "Strategic ambiguity is a description of practice, not a written doctrine — no document commits the US to it, which is why a single presidential remark in either direction (Biden's 'yes', Trump's 'it depends') dominates headlines without changing any written position. The 2026 novelty is different in kind: offering to discuss arms sales with Beijing cuts against the second of the Six Assurances (no prior consultation with Beijing) — an erosion of the canon itself, not merely of the ambiguity.",
+          "sources": [
+            { "label": "CRS IF10275, Taiwan: Background and U.S. Relations", "url": "https://www.congress.gov/crs-product/IF10275", "date": "2024-02-23", "lang": "en" },
+            { "label": "Global Taiwan Institute: How Taiwan fared at the 2026 Trump–Xi summit", "url": "https://globaltaiwan.org/2026/05/how-taiwan-fared-during-the-trump-xi-summit/", "date": "2026-05-21", "lang": "en" }
+          ]
         }
       ],
       "sub_positions": [],
-      "misconceptions": [],
+      "misconceptions": [
+        {
+          "id": "us-recognises-prc-claim",
+          "myth_en": "The United States recognises Taiwan as part of the People's Republic of China.",
+          "actually_en": "It never has. The communiqués 'acknowledge' the Chinese position — diplomatic language chosen to note a claim without adopting it — and the Six Assurances record that the US position on sovereignty over Taiwan is to have no position. What the US recognises is the PRC as the sole legal government of China; whose territory Taiwan ultimately is, it deliberately leaves unresolved.",
+          "sources": [
+            { "label": "Joint Communiqué (Shanghai), full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1972/", "date": "1972-02-28", "lang": "en" },
+            { "label": "The Six Assurances declassified cables — AIT", "url": "https://www.ait.org.tw/six-assurances-1982/", "date": "2020-08-31", "lang": "en" }
+          ]
+        },
+        {
+          "id": "tra-defence-guarantee",
+          "myth_en": "The Taiwan Relations Act commits the United States to defend Taiwan militarily.",
+          "actually_en": "The TRA commits the US to sell Taiwan defensive arms and to maintain its own capacity to resist coercion in the Strait — it is silent on whether that capacity would be used. The mutual defence treaty that did carry a commitment was terminated in 1980. Intervention remains an open presidential choice; that openness is what 'strategic ambiguity' names.",
+          "sources": [
+            { "label": "Taiwan Relations Act, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/taiwan-relations-act/", "date": "1979-04-10", "lang": "en" }
+          ]
+        },
+        {
+          "id": "policy-equals-principle",
+          "myth_en": "The US 'One China policy' endorses Beijing's 'One China principle'.",
+          "actually_en": "Beijing's principle holds that there is one China, that Taiwan is part of it, and that the PRC is its sole legal government. US policy accepts only the last clause, acknowledges the rest without endorsing it, and adds elements Beijing rejects outright — the TRA's arms-sales mandate and the Six Assurances. When US officials enumerate their policy they put the TRA first; Beijing's readings put the communiqués first and omit the rest. The two phrases are not translations of each other; they are competing constructions.",
+          "sources": [
+            { "label": "CRS IF10275, Taiwan: Background and U.S. Relations", "url": "https://www.congress.gov/crs-product/IF10275", "date": "2024-02-23", "lang": "en" },
+            { "label": "U.S. Relations With Taiwan fact sheet (2021–25 archive)", "url": "https://2021-2025.state.gov/u-s-relations-with-taiwan/", "date": "", "lang": "en" }
+          ]
+        }
+      ],
       "hooks": {
         "diplomacy_iso": "US",
         "entity_names_en": []
