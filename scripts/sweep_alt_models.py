@@ -141,7 +141,8 @@ def main():
     parser.add_argument('--dry-run', action='store_true',
                         help="List eligibles + print the first request body; no calls, no writes")
     parser.add_argument('--retry-errors', action='store_true',
-                        help="Delete api_error/parse_error rows for this (model, arm) selection first")
+                        help="Delete ALL api_error/parse_error rows for this (model, arm) first "
+                             "(they then re-sweep when eligible; ok/refused rows never touched)")
     parser.add_argument('--sleep', type=float, default=1.0)
     args = parser.parse_args()
 

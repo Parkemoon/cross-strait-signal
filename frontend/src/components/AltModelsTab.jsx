@@ -70,7 +70,7 @@ function GroupCard({ g }) {
         </div>
         <div>
           <div style={tileLabel}>Score bias</div>
-          <div style={tileValue} title="mean signed (alt − Gemini); positive = alt scores friendlier to the PRC-side framing axis">
+          <div style={tileValue} title="mean signed (alt − Gemini) on the sentiment axis; positive = alt scores more cooperative, negative = more hostile">
             {g.mean_score_bias == null ? "—"
               : `${g.mean_score_bias >= 0 ? "+" : ""}${g.mean_score_bias.toFixed(3)}`}
           </div>
