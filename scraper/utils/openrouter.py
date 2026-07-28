@@ -161,6 +161,11 @@ def classify_outcome(response_json):
         parsed = parse_llm_json(content)
         if not isinstance(parsed, dict):
             return "parse_error", None, None, "JSON is not an object"
+        # A NOT_RELEVANT verdict is schema-valid with empty summary/title —
+        # the relevance gate tells models to return exactly that. It's an
+        # 'ok' outcome (and a relevance disagreement worth measuring).
+        if parsed.get("topic_primary") == "NOT_RELEVANT" or parsed.get("is_cross_strait_primary") is False:
+            return "ok", parsed, None, None
         missing = [k for k in REQUIRED_KEYS if not parsed.get(k)]
         if missing:
             return "parse_error", None, None, f"missing required keys: {missing}"
