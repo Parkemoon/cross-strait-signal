@@ -156,3 +156,10 @@ Used by `DiplomacyTab.jsx` (choropleth + KPI strip + stance-sorted country list 
 ## `positions.py` — `/api/positions`
 
 - `GET /api/positions/` — the whole curated Positions & Legal Status content (`scraper/processors/positions.json`), public, no DB. `_comment*` authoring-doc keys are stripped from the response. The file is re-read on mtime change (no restart needed during content co-writing sessions). No write endpoints — the JSON is edited by hand and validated by `tests/test_positions_content.py`.
+
+## `alt_models.py` — `/api/alt-models` (experiment)
+
+- ALL routes `Depends(require_admin)` (raising — there is no public subset; the public build never calls them). Read-only presentation of `alt_model_analysis` sweep results; NOT an editorial queue — no approve/dismiss verbs, nothing here feeds the feed.
+- `GET /article/{id}` — rows for the ArticleCard panel; `raw_response` deliberately excluded (large — inspect via sqlite3).
+- `GET /summary` — per (model, arm) aggregates joined vs `ai_analysis`: outcome counts, topic agreement, mean |Δscore|, signed score bias, refusals-by-topic. Sanitised-but-answered output shows up ONLY here, never in outcome counts.
+- `GET /refusals?model=&arm=&limit=` — refusal browser with article context (limit clamped ≤200).
