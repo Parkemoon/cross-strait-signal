@@ -93,6 +93,14 @@ def test_non_refusal_garbage_parse_error():
     assert outcome == "parse_error"
 
 
+def test_not_relevant_verdict_with_empty_summary_is_ok():
+    payload = json.dumps({"is_cross_strait_primary": False, "title_en": "",
+                          "summary_en": "", "topic_primary": "NOT_RELEVANT",
+                          "sentiment": "neutral", "sentiment_score": 0.0})
+    outcome, parsed, _, _ = orx.classify_outcome(_resp(payload))
+    assert outcome == "ok" and parsed["topic_primary"] == "NOT_RELEVANT"
+
+
 def test_missing_required_keys_parse_error():
     outcome, _, _, err = orx.classify_outcome(
         _resp(json.dumps({"sentiment": "neutral", "summary_en": "x"})))
