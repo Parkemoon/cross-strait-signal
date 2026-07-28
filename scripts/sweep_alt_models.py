@@ -140,11 +140,36 @@ def main():
     parser.add_argument('--db', type=str, default=None)
     parser.add_argument('--dry-run', action='store_true',
                         help="List eligibles + print the first request body; no calls, no writes")
+    parser.add_argument('--probe', action='store_true',
+                        help="Send one ~4-token request per arm of --model to verify routing "
+                             "(account data-policy settings can silently block an arm); no DB writes")
     parser.add_argument('--retry-errors', action='store_true',
                         help="Delete ALL api_error/parse_error rows for this (model, arm) first "
                              "(they then re-sweep when eligible; ok/refused rows never touched)")
     parser.add_argument('--sleep', type=float, default=1.0)
     args = parser.parse_args()
+
+    if args.probe:
+        if args.model == GEMINI_CONTROL:
+            parser.error("--probe applies to OpenRouter models, not gemini-control")
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+        import httpx as _httpx
+        for arm_name in ARMS[args.model]:
+            body = build_request_body(
+                args.model, "Reply with the word OK and nothing else.", arm_name)
+            body["max_tokens"] = 4
+            resp = _httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"},
+                json=body, timeout=60)
+            data = resp.json()
+            if "error" in data:
+                print(f"  {arm_name:<11} BLOCKED  HTTP {resp.status_code}: "
+                      f"{json.dumps(data['error'])[:140]}")
+            else:
+                print(f"  {arm_name:<11} ok via {data.get('provider')}")
+        return
 
     control = args.model == GEMINI_CONTROL
     if control:
