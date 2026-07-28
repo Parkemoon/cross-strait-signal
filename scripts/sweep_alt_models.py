@@ -58,7 +58,10 @@ def _connect(db_path):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 30000")
+    # 5 min, not the usual 30s: multi-hour detached sweeps must survive the
+    # prod pipeline tick, whose batch-collection transaction can hold the
+    # write lock for minutes (killed the 2026-07-28 sweep at 918/2000).
+    conn.execute("PRAGMA busy_timeout = 300000")
     return conn
 
 
