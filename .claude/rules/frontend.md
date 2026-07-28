@@ -76,3 +76,8 @@ Every fetch in the frontend goes through a named function in `api.js`, not inlin
 Never run `npm run build` (admin bundle) without sourcing `.env` — the admin bundle bakes in `REACT_APP_ADMIN_TOKEN` at build time. A plain `npm run build` ships an empty token; every write request then fails auth.
 
 For iterating fast: `set -a && source .env && set +a && cd frontend && REACT_APP_ADMIN_TOKEN="$ADMIN_TOKEN" npm run build`. Otherwise use `bash server_deploy.sh` which handles env sourcing. The public build (`npm run build:public`) intentionally has no token and is safe to run without env.
+
+## Alt-model experiment components (admin-only)
+
+- **`AltModelPanel.jsx`**: comparison strip inside `ArticleCard`'s expanded detail, mounted `{!READ_ONLY && ...}` next to Analyst Commentary. Fetches `/api/alt-models/article/{id}` on mount (cards fetch only when expanded); renders NOTHING when the article hasn't been swept, so unswept feeds stay visually unchanged. Reuses `TopicPill`/`SentimentBadge` (production palette); arm chips neutral grey / originator red / control blue; `refused` renders as a red FILTERED/REFUSED finding block, not an error state.
+- **`AltModelsTab.jsx`**: aggregate view (view id `altmodels`, desktop button + mobile tab both gated `!READ_ONLY` — permanent admin view, not a pre-ship gate like Positions). Summary cards per (model, arm) + refusal browser. Footer discloses the two methodology caveats (approximated decoding config; sanitised answers classify `ok`).
