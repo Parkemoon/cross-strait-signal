@@ -95,6 +95,17 @@ Separate lightweight pipeline for social data — does NOT go through the articl
 
 Every Gemini call routes its `usage_metadata` through `log_usage(stage, model, response, article_id=None)`, which appends one JSON line per call (prompt / cached / thoughts / output / total tokens) to `$GEMINI_USAGE_LOG` (default `/var/log/gemini-usage.jsonl`). Calls are tagged by stage — the article-AI sites (`tier1`, `tier2`, `exercise_only`, `poll_only`, `diplomacy_only`) plus the social translator (`social`). Append-only, no schema; the logger swallows all errors so instrumentation can never break the pipeline. Aggregate with `scripts/usage_report.py` (`--days`, `--by stage|model|day`). Use it to attribute the bill by stage before tuning cost (context caching / `MAX_PROMPT_CONTENT_CHARS` / thinking level).
 
+## Alt-model experiment (`scraper/utils/openrouter.py` + `scripts/sweep_alt_models.py`)
+
+Editorial experiment, NOT a pipeline stage: re-runs approved articles through Chinese LLMs (DeepSeek V4 Flash, Kimi K3) via OpenRouter with the byte-identical `_tier1_prompt` output, storing one `alt_model_analysis` row per (article, model, arm). Key invariants:
+
+- **Provider pinning is load-bearing**: `provider.only` + `allow_fallbacks: false` per arm (`ARMS` registry in `openrouter.py`). The `neutral` arm (Western hosts running the public weights, + `data_collection: "deny"`) is the data-never-touches-PRC guarantee; `originator` (DeepSeek/Moonshot's own endpoint through OpenRouter) isolates serving-layer censorship. Verify provider display names against `GET openrouter.ai/api/v1/models/<slug>/endpoints` before big sweeps — a typo fails every request.
+- **Refusals are first-class outcomes** (`refused`), classified after JSON parsing fails (CJK/EN boilerplate regex) or on `finish_reason=content_filter`/empty content. A model that answers but sanitises classifies `ok` — that mode only shows in the divergence aggregates (`/api/alt-models/summary`), so never treat refusal rate as the sole censorship metric.
+- **Never touches editorial queues**: the Tier-1 JSON's side-extract arrays stay inside `raw_response`; the sweep must never call the `_insert_*` helpers.
+- **`gemini-control` arm**: current production Gemini on the same articles — stored `ai_analysis` rows came from older prompt revisions, so alt-vs-stored divergence conflates model and prompt drift; alt-vs-control isolates the model. Each row stores `prompt_sha256`.
+- `openrouter.py` deliberately does not import `ai_pipeline` (which needs `GEMINI_API_KEY` at import) — keeps `tests/test_alt_models.py` keyless. Decoding config approximates Tier 1 (temp 0.1, max 8000) but exact parity is impossible (Gemini runs JSON MIME + thinking); no `response_format` is sent so refusals surface raw.
+- Usage logs to the same JSONL, stage `alt_tier1` (OpenAI-shape adapter) / `alt_control`. Needs `OPENROUTER_API_KEY` in `.env`; leave OpenRouter prompt-logging OFF (grants them commercial rights).
+
 ## Don't reference `test_ai.py`
 
 `test_ai.py` is a legacy prototype script — do not use it as a reference. It uses a stale prompt with old topic codes (`POL_UNIFICATION`, `POL_DOMESTIC`) and old sentiment values (`escalatory`/`conciliatory`) that no longer match the DB schema or the real pipeline in `ai_pipeline.py`.

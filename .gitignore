@@ -232,3 +232,4 @@ scratch.py
 
 # Runtime lock files from military_locations auto-extend path
 scraper/processors/*.json.lock
+US_ENTRY_DRAFT.md

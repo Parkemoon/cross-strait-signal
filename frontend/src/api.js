@@ -424,3 +424,18 @@ export async function updateDiplomacyStatement(id, patch) {
     body: JSON.stringify(patch),
   });
 }
+
+// --- Alt-model comparison experiment (admin-only routes; require X-Admin-Token) ---
+
+export async function fetchAltModelAnalyses(articleId) {
+  return request(`/api/alt-models/article/${articleId}`, { headers: authHeaders() });
+}
+
+export async function fetchAltModelSummary() {
+  return request(`/api/alt-models/summary`, { headers: authHeaders() });
+}
+
+export async function fetchAltModelRefusals(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/alt-models/refusals?${query}`, { headers: authHeaders() });
+}
