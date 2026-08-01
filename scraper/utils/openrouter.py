@@ -21,7 +21,8 @@ aggregates, never in outcome counts.
 
 Deliberately does NOT import ai_pipeline (which builds a Gemini client at
 import time) so this module and its tests need no API key. Decoding
-config approximates production Tier 1 (temperature 0.1, max_tokens 8000)
+config approximates production Tier 1 (temperature 0.1, max_tokens per
+MAX_TOKENS — reasoning models need headroom for chain-of-thought)
 but exact parity is impossible: Gemini runs enforced-JSON MIME plus
 thinking; these arms get plain text mode. No response_format is sent —
 JSON mode varies by provider and can mask or alter refusals.
@@ -59,6 +60,16 @@ ARMS = {
 # them parsed but didn't follow the schema — that's parse_error, not ok.
 REQUIRED_KEYS = ("topic_primary", "sentiment", "summary_en")
 
+# Per-model output budget. K3 is a reasoning model whose chain-of-thought
+# bills against max_tokens (message.reasoning, ~up to 9k tokens observed
+# 2026-08-01); at the default 8000 it exhausted the budget mid-thought and
+# returned EMPTY content, which mis-classified as 'refused'. Non-reasoning
+# models stay at 8000 — Tier-1 JSON itself never approaches that.
+DEFAULT_MAX_TOKENS = 8000
+MAX_TOKENS = {
+    "moonshotai/kimi-k3": 24000,
+}
+
 # Refusal boilerplate (CJK + EN). Matched only AFTER JSON parsing fails —
 # an analysis that merely quotes refusal-like words still parses as JSON.
 _REFUSAL_RE = re.compile(
@@ -83,7 +94,7 @@ def build_request_body(model, prompt, arm):
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.1,
-        "max_tokens": 8000,
+        "max_tokens": MAX_TOKENS.get(model, DEFAULT_MAX_TOKENS),
         "usage": {"include": True},
         "provider": provider,
     }
@@ -151,11 +162,24 @@ def classify_outcome(response_json):
     if not choices:
         return "api_error", None, None, "no choices in response"
     choice = choices[0]
-    content = ((choice.get("message") or {}).get("content") or "").strip()
+    message = choice.get("message") or {}
+    content = (message.get("content") or "").strip()
     finish = choice.get("finish_reason")
 
-    if finish == "content_filter" or not content:
+    if finish == "content_filter":
         return "refused", None, content[:2000] or None, None
+    if not content:
+        # Empty content + non-empty reasoning = the model spent its whole
+        # max_tokens budget thinking (reasoning models; finish_reason is
+        # usually 'length'). That's a harness artifact, not a refusal —
+        # classify api_error so --retry-errors re-runs it. Only a truly
+        # empty response (no content, no reasoning) is a refusal.
+        reasoning = (message.get("reasoning") or "").strip()
+        if reasoning:
+            return ("api_error", None, None,
+                    f"empty content with {len(reasoning)} chars of reasoning "
+                    f"(reasoning-token exhaustion, finish_reason={finish})")
+        return "refused", None, None, None
 
     try:
         parsed = parse_llm_json(content)
