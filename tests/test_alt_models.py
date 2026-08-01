@@ -19,6 +19,11 @@ def test_body_pins_providers_no_fallbacks():
     assert body["usage"] == {"include": True}
 
 
+def test_body_reasoning_model_gets_bigger_token_budget():
+    body = orx.build_request_body("moonshotai/kimi-k3", "PROMPT", "neutral")
+    assert body["max_tokens"] == orx.MAX_TOKENS["moonshotai/kimi-k3"] == 24000
+
+
 def test_body_data_collection_deny_neutral_only():
     neutral = orx.build_request_body("moonshotai/kimi-k3", "p", "neutral")
     originator = orx.build_request_body("moonshotai/kimi-k3", "p", "originator")
@@ -62,6 +67,31 @@ def test_content_filter_refused():
 def test_empty_content_refused():
     outcome, _, refusal, _ = orx.classify_outcome(_resp("   "))
     assert outcome == "refused" and refusal is None
+
+
+def test_empty_content_with_reasoning_is_api_error_not_refused():
+    # Reasoning models can burn the whole max_tokens budget thinking and
+    # return empty content (finish_reason=length) — a harness artifact,
+    # retryable via --retry-errors, NOT a refusal finding.
+    resp = {"choices": [{"message": {"content": "", "reasoning": "step 1: the article says..."},
+                         "finish_reason": "length"}]}
+    outcome, parsed, refusal, err = orx.classify_outcome(resp)
+    assert outcome == "api_error" and parsed is None and refusal is None
+    assert "reasoning-token exhaustion" in err
+
+
+def test_empty_content_with_reasoning_finish_stop_still_api_error():
+    resp = {"choices": [{"message": {"content": "", "reasoning": "thinking..."},
+                         "finish_reason": "stop"}]}
+    outcome, _, _, err = orx.classify_outcome(resp)
+    assert outcome == "api_error" and "finish_reason=stop" in err
+
+
+def test_content_filter_with_reasoning_still_refused():
+    resp = {"choices": [{"message": {"content": "", "reasoning": "hmm"},
+                         "finish_reason": "content_filter"}]}
+    outcome, _, _, _ = orx.classify_outcome(resp)
+    assert outcome == "refused"
 
 
 def test_chinese_refusal_prose():
