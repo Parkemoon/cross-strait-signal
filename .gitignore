@@ -234,3 +234,4 @@ scratch.py
 scraper/processors/*.json.lock
 US_ENTRY_DRAFT.md
 V3_SENTIMENT_DRAFT.md
+approved_ids_*.json
