@@ -90,12 +90,16 @@ def _eligible(conn, args, model, arm):
                      WHERE m.article_id = a.id AND m.model = ?)"""
         params.append(args.match_model)
 
+    # GROUP BY a.id: a few old articles carry 2 ai_analysis rows, and a
+    # duplicate in the run list crashes the (article, model, arm) UNIQUE
+    # key at insert time.
     base = f"""SELECT a.id, a.title_original, a.content_original, a.language,
         a.published_at, s.name AS source_name, ai.topic_primary
         FROM articles a
         JOIN ai_analysis ai ON ai.article_id = a.id
         JOIN sources s ON s.id = a.source_id
-        WHERE {where}"""
+        WHERE {where}
+        GROUP BY a.id"""
 
     if args.per_topic:
         sql = f"""SELECT * FROM (
