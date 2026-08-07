@@ -19,10 +19,18 @@ import PollsTab from "./components/PollsTab";
 import DiplomacyTab from "./components/DiplomacyTab";
 import PositionsTab from "./components/PositionsTab";
 import AltModelsTab from "./components/AltModelsTab";
+import AltModelLens from "./components/AltModelLens";
 
 export default function App() {
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
+  // Admin-only feed lens: null = production Gemini, {model, arm} = view the
+  // feed through that alt-model sweep (swept articles only).
+  const [altLens, setAltLens] = useState(null);
+  // Lens display mode: false = alt output replaces production, true = dual
+  // (both side by side). Display-only — same fetch either way, so it lives
+  // outside altLens to avoid a pointless refetch on toggle.
+  const [altDual, setAltDual] = useState(false);
   const [view, setView] = useState("feed"); // "feed" | "review" | "economy" | "trade" | "people" | "military" | "polls" | "diplomacy" | "positions"
   const [showAbout, setShowAbout] = useState(false);
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "people" | "military" | "polls" | "diplomacy" | "positions" | "social" | "review"
@@ -32,7 +40,7 @@ export default function App() {
   const {
     articles, total, loading, stats,
     reviewPending, pendingApproval, setPendingApproval,
-  } = useDashboardData(filters, page);
+  } = useDashboardData(filters, page, READ_ONLY ? null : altLens);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
@@ -429,6 +437,7 @@ export default function App() {
           <StatsSidebar
             stats={stats}
             filters={filters}
+            altDual={altDual}
             onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
             onPlaceClick={(place) => {
               setFilters((f) => {
@@ -525,6 +534,16 @@ export default function App() {
                   <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
                 </div>
 
+                {/* Model lens — admin-only feed re-render through an alt-model sweep */}
+                {!READ_ONLY && (
+                  <AltModelLens
+                    lens={altLens}
+                    onChange={(l) => { setAltLens(l); setPage(1); }}
+                    dual={altDual}
+                    onDualChange={setAltDual}
+                  />
+                )}
+
                 {/* Filters */}
                 <FilterBar
                   filters={filters}
@@ -560,7 +579,9 @@ export default function App() {
                       padding: "40px 0",
                     }}
                   >
-                    No articles match these filters.
+                    {altLens && !READ_ONLY
+                      ? "No swept articles match these filters — the model lens only shows articles the sweep covered."
+                      : "No articles match these filters."}
                   </p>
                 ) : (
                   <>
@@ -568,6 +589,8 @@ export default function App() {
                       <ArticleCard
                         key={article.id}
                         article={article}
+                        altLens={READ_ONLY ? null : altLens}
+                        altDual={altDual}
                         onTopicClick={(topic) => {
                           setFilters((f) => ({ ...f, topic }));
                           setPage(1);

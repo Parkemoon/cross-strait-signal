@@ -50,6 +50,8 @@ def list_articles(
     escalation_only: bool = Query(False, description="Only show escalation signals"),
     search: Optional[str] = Query(None, description="Search in titles and content"),
     include_pending: bool = Query(False, description="Admin: include unapproved articles"),
+    alt_model: Optional[str] = Query(None, description="Admin: alt-model lens — model slug, e.g. deepseek/deepseek-v4-flash"),
+    alt_arm: Optional[str] = Query(None, description="Admin: alt-model lens — arm (neutral/originator/control)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     admin: bool = Depends(is_admin),
@@ -58,6 +60,29 @@ def list_articles(
     # include_pending is admin-only: without a valid X-Admin-Token the pending
     # backlog stays hidden regardless of the query param.
     include_pending = include_pending and admin
+    # Alt-model lens is admin-only and needs both halves of the (model, arm)
+    # key (UNIQUE in alt_model_analysis). The INNER JOIN deliberately narrows
+    # the feed to swept articles — an unswept article has no alt view to show.
+    alt_lens = bool(admin and alt_model and alt_arm)
+    alt_join = ""
+    alt_select = ""
+    alt_params = []
+    if alt_lens:
+        alt_join = ("JOIN alt_model_analysis alt ON alt.article_id = a.id "
+                    "AND alt.model = ? AND alt.arm = ?")
+        alt_params = [alt_model, alt_arm]
+        alt_select = """,
+                alt.outcome AS alt_outcome,
+                alt.topic_primary AS alt_topic_primary,
+                alt.sentiment AS alt_sentiment,
+                alt.sentiment_score AS alt_sentiment_score,
+                alt.sentiment_reasoning AS alt_sentiment_reasoning,
+                alt.urgency AS alt_urgency,
+                alt.summary_en AS alt_summary_en,
+                alt.is_escalation_signal AS alt_is_escalation_signal,
+                alt.finish_reason AS alt_finish_reason,
+                alt.refusal_text AS alt_refusal_text,
+                alt.provider_used AS alt_provider_used"""
     with db_conn() as conn:
         # Build the query dynamically based on filters
         where_clauses = []
@@ -125,9 +150,10 @@ def list_articles(
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
+            {alt_join}
             {where_sql}
         """
-        total = conn.execute(count_sql, params).fetchone()[0]
+        total = conn.execute(count_sql, alt_params + params).fetchone()[0]
 
         # Fetch page of results
         offset = (page - 1) * page_size
@@ -162,16 +188,16 @@ def list_articles(
                 s.name_zh as source_name_zh,
                 s.place as source_place,
                 s.source_type,
-                s.bias
+                s.bias{alt_select}
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             JOIN sources s ON a.source_id = s.id
+            {alt_join}
             {where_sql}
             ORDER BY {"a.analyst_approved ASC, " if include_pending else ""}a.published_at DESC
             LIMIT ? OFFSET ?
         """
-        params.extend([page_size, offset])
-        rows = conn.execute(query_sql, params).fetchall()
+        rows = conn.execute(query_sql, alt_params + params + [page_size, offset]).fetchall()
 
         articles = [_sanitize_floats(dict(row)) for row in rows]
 
