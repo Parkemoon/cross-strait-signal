@@ -21,7 +21,11 @@ export default function AltModelLens({ lens, onChange, dual, onDualChange }) {
 
   useEffect(() => {
     fetchAltModelSummary()
-      .then((d) => setGroups((d?.groups || []).filter((g) => !isRetiredModel(g.model))))
+      // The gemini-control arm is the tab's calibration baseline, not a feed
+      // lens — viewing the feed "through Gemini" is what the Gemini-only
+      // segment already means. Offer only real alt-model arms here.
+      .then((d) => setGroups((d?.groups || [])
+        .filter((g) => !isRetiredModel(g.model) && g.arm !== "control")))
       .catch(() => setGroups([]));
   }, []);
 
