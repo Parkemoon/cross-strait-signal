@@ -47,7 +47,15 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 ARMS = {
     "deepseek/deepseek-v4-flash": {
-        "neutral":    ["DeepInfra", "Fireworks", "Parasail"],
+        # DeepInfra first — 13k of the 13.1k corpus rows came from it, so
+        # keeping it preferred preserves serving-stack consistency; the rest
+        # are Western-infra fallbacks (added 2026-08-07 after a DeepInfra
+        # capacity outage 429'd two whole retry passes — the original
+        # 3-provider list was effectively single-host). All US companies, so
+        # the neutral arm's data-residency guarantee holds; provider_used is
+        # recorded per-row, so any host-attributable drift stays auditable.
+        "neutral":    ["DeepInfra", "DigitalOcean", "Cloudflare", "CoreWeave",
+                       "Fireworks", "Parasail"],
         "originator": ["DeepSeek"],
     },
     "moonshotai/kimi-k3": {
@@ -85,7 +93,10 @@ def build_request_body(model, prompt, arm):
     load-bearing: without it OpenRouter may route outside the arm and the
     neutral arm's data-residency guarantee is void."""
     providers = ARMS[model][arm]
-    provider = {"only": providers, "allow_fallbacks": False}
+    # "order" makes the ARMS list order a routing priority (first = preferred
+    # host, consistency with the existing corpus); "only" keeps it a hard
+    # whitelist even so.
+    provider = {"only": providers, "order": providers, "allow_fallbacks": False}
     if arm == "neutral":
         # Extra belt on the neutral arm only — the originator arm would
         # exclude itself under this predicate.
