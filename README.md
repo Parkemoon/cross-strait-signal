@@ -308,6 +308,13 @@ the current DPP executive. The label tracks the government, not the
 publisher — reclassify if the executive changes party. Same logic
 applied to RTHK after the National Security Law.
 
+Not listed above: three pollster-direct scrapers (My-Formosa, TVBS
+Poll Center, ETtoday Polls) that feed the poll tracker rather than
+the article feed, plus the structured-data scrapers behind the
+Economy / Trade / People / Military tabs (MAC, UN Comtrade, HK CSD,
+BOFT, NIA, MND, CIFER). The in-app About panel carries the full
+roster.
+
 ## Limitations
 
 What the system can't do, or does badly. Listed in descending order
