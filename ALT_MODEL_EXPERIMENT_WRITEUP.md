@@ -96,9 +96,29 @@ On TW-source articles, V4F shifts 大陸→"China" in 33% of opportunities (a *g
 
 The `woguo_rendering` `china_misassigned` marker is **broken as spec'd** — it fires on unrelated "China" mentions in the output rather than actual 我國-referent errors; sampled hits were all false positives. The 14 flagged V4F rows need hand-review before being cited; K3 scored 0/36 even on the broken marker. Tightening the spec is Ed's call — noted here so the number never gets quoted raw.
 
+### 5.6 Completeness check — what the models *declined to write* (added 2026-08-02)
+
+The marker audit only scans what a model wrote; it cannot see silent omission — the documented DeepSeek-translation failure mode (quietly dropping content rather than refusing). §5.2 itself noted models omit names rather than mis-romanise them. So: `scripts/audit_summary_completeness.py` diffs, per shared article, (a) whether each production-extracted entity appears in the model's summary (zh + en + glossary/key-figure aliases; hyphenation-, plural- and parenthetical-abbreviation-tolerant matching), (b) whether it appears in the model's own `entities[]` extraction, and (c) whether the model carried a key quote and whether it is the *same* quote (char-trigram Jaccard on the zh). The **gemini-control group is the noise floor**: its "omissions" vs the stored production summary are pure run-to-run summary variance.
+
+Results (n = 13,873 / 1,939 / 1,388 entity instances):
+
+| | V4F neutral | K3 neutral | control (noise floor) |
+|---|---|---|---|
+| omitted by alt only | **5.6%** | 2.9% | 4.8% |
+| omitted by Gemini only (reverse) | 7.7% | 23.0% | 2.2% |
+| sensitive-slice alt-only omission | **3.8%** | 1.8% | 8.8% (n=91) |
+| entity-extraction recall | 87.2% | 96.2% | 86.7% |
+| key quote dropped | **0** | **0** | **0** |
+
+- **V4F's omission rate is at the Gemini rerun noise floor** (5.6% vs 4.8%) and the reverse direction is larger — V4F (68-word summaries vs Gemini's 53) *carries* entities production dropped more often than vice versa. Per-name: Lai Ching-te appears in 397 V4F-audited articles; V4F omits him where Gemini carried him 14 times (3.5%) — Gemini omits him where V4F carried him 46 times (11.6%). Xi Jinping: 13 vs 44 of n=289.
+- **The sensitive slice runs the wrong direction for censorship**: politically loaded entities (Tsai/Lai/独/Tiananmen/Falun/Xi/Xinjiang…) are omitted *less* than average by both Chinese models.
+- **Extraction recall is identical to Gemini's own rerun** (87.2% vs 86.7%) — no "declined to extract" signal. K3 (9.4 entities/article) extracts a superset.
+- **No model ever dropped the key quote** (0 of 3,433). They do *choose different quotes* — V4F picks a different quote from the article 38% of the time vs the control's 22%. Residual caveat: quote *choice* could theoretically skew bland; the 1,067 different-quote V4F rows are in the examples JSONL if we ever want a hand-review pass, but with omission and sensitivity both clean this reads as editorial variance.
+- Methodology note: three matcher false-positive classes were found by hand-review and fixed before the numbers above (V4F renders "Strait Forum" singular, hyphenates pinyin as "Chen Bin-hua", and writes org names without the "(MAC)" abbreviation gloss). Residual variant misses (e.g. "Chinese coast guard" for "China Coast Guard") affect all three groups symmetrically, including the noise floor.
+
 ## 6. Bottom line
 
-1. **The censorship hypothesis fails on this corpus.** On Western-hosted endpoints with our prompt, neither DeepSeek V4F nor Kimi K3 refused, avoided sovereignty content, dropped presidential titles, or pinyin-ised Taiwanese names. The measurable differences are analytic quality and translation register, not political filtering. (Untested here: the `originator` arm — PRC-hosted endpoints may behave differently; that's the natural follow-up if we ever want it.)
+1. **The censorship hypothesis fails on this corpus.** On Western-hosted endpoints with our prompt, neither DeepSeek V4F nor Kimi K3 refused, avoided sovereignty content, dropped presidential titles, pinyin-ised Taiwanese names, or silently omitted sensitive entities/quotes from their summaries (§5.6 — omission rates sit at the Gemini rerun noise floor, and the sensitive slice runs the wrong direction for censorship). The measurable differences are analytic quality and translation register, not political filtering. (Untested here: the `originator` arm — PRC-hosted endpoints may behave differently; that's the natural follow-up if we ever want it.)
 2. **V4F's low headline agreement decomposes into (a) a much stricter relevance gate that actually *favours* keeping sovereignty content, and (b) taxonomy boundary disputes on our fuzziest categories.** Conditional on relevance it reaches 60% against a 78% same-model ceiling.
 3. **K3 generalises nothing about "Chinese models" from V4F.** It has no relevance-gate quirk, no over-flagging, near-zero signed bias, and the best glossary compliance of any model tested — including production Gemini.
 4. **Editorial angle** (Substack raw material): "We ran our Taiwan-monitoring pipeline through China's own AI models. They didn't censor it — and one of them followed our Taiwanese romanisation style guide better than Google's model does." The NR-gate finding (the Chinese model *keeps* the sovereignty stories and throws out the celebrity fluff) is the counterintuitive hook.
@@ -107,5 +127,6 @@ The `woguo_rendering` `china_misassigned` marker is **broken as spec'd** — it 
 
 - Aggregates: `venv/bin/python scripts/alt_model_aggregates.py --db /var/www/cross-strait-signal/db/cross_strait_signal.db` (read-only; every §3–§4 number).
 - Terminology tables + examples: `venv/bin/python scripts/audit_terminology_markers.py --db /var/www/cross-strait-signal/db/cross_strait_signal.db --out … --examples …` (seconds; deterministic).
+- Completeness (§5.6): `venv/bin/python scripts/audit_summary_completeness.py --db … --out … --examples …` (seconds; deterministic; read-only).
 - Raw model outputs, refusal evidence and side-extracts remain in `alt_model_analysis.raw_response`; nothing feeds editorial queues.
 - Sweep tooling: `scripts/sweep_alt_models.py` (see CLAUDE.md); always `--probe` before a sweep.
