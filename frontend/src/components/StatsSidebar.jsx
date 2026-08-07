@@ -1,5 +1,6 @@
 import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
 import StatSpotlight from "./StatSpotlight";
+import { modelLabel, armLabel, modelTint, modelTintRgba } from "../altModels";
 
 const PUBLICATION_NAMES = {
   // Liberty Times
@@ -303,11 +304,22 @@ function StabilityGauge({ label, score, days, compact, globalScore, onClick, isA
   );
 }
 
-export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters, onOpenTab }) {
+export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters, onOpenTab }) {
   if (!stats) return null;
 
   const isFiltered    = hasScopingFilter(filters);
   const scopeLabel    = isFiltered ? buildScopeLabel(filters) : "";
+  // Server echoes the lens it applied ({model, arm} | null) — trusting the
+  // response, not the request state, so the banner can never claim alt data
+  // while showing production numbers (or vice versa).
+  const altLens = stats.alt_lens;
+  // "Both" view: overlay production Gemini (computed server-side over the
+  // SAME swept subset) as ghost dots on the gauges + a dashed trend line.
+  const dualBaseline = altLens && altDual ? stats.alt_baseline : null;
+  const baselineByPlace = {};
+  (dualBaseline?.sentiment_by_place ?? []).forEach((r) => {
+    baselineByPlace[r.place] = r.avg_score;
+  });
 
   // Build global-by-place lookup for ghost dots
   const globalByPlace = {};
@@ -336,6 +348,31 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
 
   return (
     <div>
+      {/* Alt-model lens banner — every number below comes from the sweep */}
+      {altLens && (
+        <div style={{
+          marginBottom: "16px",
+          padding: "7px 10px",
+          border: `1px solid ${modelTint(altLens.model)}`,
+          background: modelTintRgba(altLens.model, 0.07),
+          fontSize: "10px",
+          fontFamily: "var(--font-mono)",
+          color: "var(--text-primary)",
+          textTransform: "uppercase",
+          letterSpacing: "0.8px",
+          lineHeight: 1.6,
+        }}>
+          <span style={{ color: modelTint(altLens.model), fontWeight: 600 }}>
+            {modelLabel(altLens.model)}
+          </span>
+          {" "}· {armLabel(altLens.arm)}
+          <div style={{ color: "var(--text-muted)", letterSpacing: "0.5px" }}>
+            {dualBaseline
+              ? "vs Gemini · ghost dot + dashed line = production"
+              : "stats from swept articles only"}
+          </div>
+        </div>
+      )}
       {/* Strait Watch */}
       <div style={{ marginBottom: "28px" }}>
         <SectionHeader
@@ -396,7 +433,9 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
               label="Overall"
               score={stats.avg_sentiment_score}
               days={isFiltered ? null : stats.period_days}
-              globalScore={isFiltered ? stats.global_avg_sentiment_score : undefined}
+              globalScore={dualBaseline
+                ? dualBaseline.avg_sentiment_score
+                : isFiltered ? stats.global_avg_sentiment_score : undefined}
               onClick={filters.source_place && onPlaceClick ? () => onPlaceClick(null) : undefined}
               isActive={false}
             />
@@ -420,7 +459,9 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
                     key={c.place}
                     label={placeLabel}
                     score={c.avg_score}
-                    globalScore={isFiltered ? (globalByPlace[c.place] ?? undefined) : undefined}
+                    globalScore={dualBaseline
+                      ? (baselineByPlace[c.place] ?? undefined)
+                      : isFiltered ? (globalByPlace[c.place] ?? undefined) : undefined}
                     onClick={onPlaceClick ? () => onPlaceClick(placeKey) : undefined}
                     isActive={filters.source_place === placeKey}
                   />
@@ -476,10 +517,13 @@ export default function StatsSidebar({ stats, filters = {}, onTopicClick, onPlac
         )}
       </div>
 
-      {/* Stability Trend Chart */}
+      {/* Stability Trend Chart — under the lens the line takes the model's
+          tint; the "Both" view adds production Gemini as a dashed grey line */}
       <SentimentTrendChart
         data={stats.sentiment_trend}
         days={stats.period_days}
+        accent={altLens ? modelTint(altLens.model) : undefined}
+        baseline={dualBaseline?.sentiment_trend}
       />
 
       {/* Topic Breakdown Chart — hidden when a topic filter is active (one bar = useless) */}
