@@ -22,12 +22,29 @@ Keyword Pre-filter (directional — no API calls on irrelevant articles)
 │
 Three-Tier AI Analysis Pipeline (articles only)
 ├── Tier 1: Gemini 3.1 Flash Lite — topic, sentiment, entities, urgency
+│           (submitted via the Gemini Batch API by default — ~half the
+│           token price; collected same tick when the job finishes in
+│           the wait window, else next tick)
 │           + side-extract: key figure statements (pending), military
 │             exercise candidates from MIL_EXERCISE articles (pending),
-│             poll questions from TW poll-bearing articles (pending)
+│             third-country diplomatic stances on Taiwan (pending →
+│             diplomacy_statements → Diplomacy tab; intl orgs excluded,
+│             EU bloc kept), poll questions from TW poll-bearing
+│             articles (pending)
 ├── Tier 2: Gemini 3.5 Flash — escalation review for flagged articles
 ├── Tier 3: Human review queue — model disagreement resolution
 │            (translation editing + auto-approve on resolution)
+│
+Secondary extraction passes (keyword-filter rejects — no ai_analysis row,
+nothing enters the article feed)
+├── Exercise-only pass — YDN military articles the filter rejected →
+│   Tier 1 exercise extraction only → military_exercises review queue
+├── Poll-only pass — TW-side rejects whose title carries 民調/民意調查 →
+│   stripped poll-only prompt → polls review queue
+├── MAC poll PDFs — deterministic pdfplumber parse of 配布表 tables →
+│   polls + poll_results as approved (no AI, config-driven question keys)
+└── Poll-label canonicaliser — idempotent per-tick drift-catcher collapsing
+    option-label variants to canonical strings
 │
 Glossary injection (pre-analysis): glossary.json terms injected as CRITICAL TERMINOLOGY MAPPING
 Officials roster injection (pre-analysis): current_officials.json (~28 roles, TW/US/PRC/JP) injected as authoritative reference; prevents officeholder hallucinations from stale training data
@@ -53,7 +70,11 @@ Parallel Data Pipelines (no AI analysis — feed dedicated tables and tabs)
     coast-guard) + one-shot PLATracker CSV backfill (ADIZ-entry count only,
     2020-09 → 2026-04) → /api/military/incursions, /api/military/zones
 
-Storage: SQLite with full-text search (FTS5)
+Event clustering — related articles grouped within a 48-hour window by
+Jaccard similarity on title keywords (threshold 0.25)
+
+Storage: SQLite with full-text search (FTS5); versioned schema migrations
+(db/migrations/ + scripts/migrate.py, applied on every deploy)
 ```
 
 ## Tech stack
@@ -61,9 +82,10 @@ Storage: SQLite with full-text search (FTS5)
 | Layer | Technology |
 |-------|------------|
 | Backend API | FastAPI (Python) |
-| Database | SQLite with FTS5 |
-| AI Pipeline | Google Gemini 3.1 Flash Lite (Tier 1) + Gemini 3.5 Flash (Tier 2 / poll extraction) |
-| Scraping | feedparser, BeautifulSoup, httpx, Playwright (CIFER + My-Formosa) |
+| Database | SQLite with FTS5, versioned migrations |
+| AI Pipeline | Google Gemini 3.1 Flash Lite (Tier 1, via Batch API by default) + Gemini 3.5 Flash (Tier 2 / poll extraction) |
+| Model audit | OpenRouter (alt-model comparison sweeps — admin experiment, never feeds the editorial pipeline) |
+| Scraping | feedparser, BeautifulSoup, httpx, Playwright (CIFER + pollster sites), pdfplumber (MAC poll PDFs) |
 | Frontend | React 19, Recharts, react-leaflet |
 | RSS proxy | RSSHub (self-hosted Docker, chromium-bundled) |
 | Web server | Nginx (reverse proxy + static serving) |
@@ -165,6 +187,7 @@ quoting the specific phrase that drove the classification.
 | The Paper (澎湃新聞) | state_official | RSS (RSSHub) |
 | PRC MFA Spokesperson (外交部发言人) | state_official | HTML scraper |
 | Taiwan Affairs Office (国台办) | state_official | HTML scraper |
+| China Taiwan Net (中国台湾网) | state_official | HTML scraper |
 | Guancha (观察者网) | state_nationalist | HTML scraper |
 | Haixia Daobao (海峽導報) | state_official | HTML scraper |
 | PLA Daily (解放軍報) | state_official | HTML scraper |
@@ -174,9 +197,9 @@ quoting the specific phrase that drove the classification.
 | Source | Bias | Method |
 |--------|------|--------|
 | RTHK Greater China (香港電台大灣區) | state_official | RSS |
-| Ming Pao Cross-Strait (明報兩岸) | centrist | RSS |
-| Ming Pao Editorial (明報社評) | centrist | RSS |
-| Ming Pao Opinion (明報觀點) | centrist | RSS |
+| Ming Pao Cross-Strait (明報兩岸) | china_centrist | RSS |
+| Ming Pao Editorial (明報社評) | china_centrist | RSS |
+| Ming Pao Opinion (明報觀點) | china_centrist | RSS |
 
 ### International
 
@@ -192,7 +215,16 @@ quoting the specific phrase that drove the classification.
 | Weibo Hot Search (微博热搜) | JSON API |
 | PTT Military / Gossiping / HatePolitics | HTML scraper |
 
-### Deactivated
+### Pollster-direct scrapers (feed the poll tracker, not the article feed)
+
+| Source | Bias | Method |
+|--------|------|--------|
+| My-Formosa (美麗島電子報) | centrist | Playwright |
+| TVBS Poll Center (TVBS民調中心) | blue | Playwright (PDF releases) |
+| ETtoday Polls (ETtoday民調雲) | blue_leaning | Playwright |
+| MAC 即時民調 (structured 配布表 PDFs) | state_official (TW exec) | pdfplumber, no AI |
+
+### Removed
 
 - **Guangming Daily (光明日報)** — anyfeeder proxy dead, rarely cross-strait relevant.
 
@@ -210,6 +242,7 @@ Articles & analysis
 
 Stats & key figures
 ├── GET    /api/stats                   — dashboard summary, scoped aggregations + global baselines
+│                                         (admin: ?alt_model=&alt_arm= re-aggregates from an alt-model sweep)
 ├── GET    /api/stats/entities          — entity leaderboard
 ├── GET    /api/stats/key-figures(/candidates)
 ├── POST   /api/stats/key-figures/statements/{id}/approve  (and /dismiss)
@@ -247,6 +280,21 @@ Polls
 ├── POST   /api/polls/{id}/(approve|dismiss|merge)
 └── POST   /api/polls/                  — manual entry fallback
 
+Diplomacy (third-country stance on the Taiwan question)
+├── GET    /api/diplomacy/map           — choropleth payload: official-tier aggregate fill per
+│                                         country + non-official "voices" pins + divergence flag
+├── GET    /api/diplomacy/summary       — KPI strip (countries tracked, band histogram, divergent count)
+├── GET    /api/diplomacy/statements    — windowed statement list (country / tier / side filters)
+├── GET    /api/diplomacy/candidates    — admin: pending queue grouped by country
+├── POST   /api/diplomacy/{id}/(approve|dismiss|merge)
+└── PATCH  /api/diplomacy/{id}          — analyst edit (stance re-clamped, label recomputed)
+
+Positions & alt-model experiment
+├── GET    /api/positions/              — curated Positions & Legal Status reference content
+├── GET    /api/alt-models/summary      — admin: per-(model, arm) sweep aggregates vs production
+├── GET    /api/alt-models/article/{id} — admin: per-article alt-model rows
+└── GET    /api/alt-models/refusals     — admin: refusal browser
+
 Review
 ├── GET    /review/queue                — articles pending human review
 ├── POST   /review/{id}/resolve         — confirm / override / dismiss
@@ -272,7 +320,15 @@ React Dashboard
 ├── Trade Access tab (asymmetry headline, suspension waves, status-coloured table)
 ├── People tab (bidirectional residency, policy timeline, paired visitor flows)
 ├── Military tab (PLA incursion KPIs + ADIZ heatmap + Strait map; Exercise Tracker with Leaflet map, list, analyst review queue, edit modal)
-├── Polls tab (cross-pollster trend charts per canonical question_key)
+├── Polls tab (three flagship trend strips + two-tier question selector + review queue,
+│   manual entry, per-chart party-colour assignment)
+├── Diplomacy tab (world choropleth of third-country stance — official fill + non-official
+│   voices pins, divergence highlighting, per-country drill-in, review queue)
+├── Stat Spotlight (rotating sidebar card cycling one headline figure per top-level section)
+├── Positions tab (curated cross-strait positions reference — admin-gated until content review completes)
+├── Alt Models tab + feed model lens (admin only — the model-audit experiment: aggregate
+│   agreement cards, refusal browser, and a Gemini / DeepSeek / Both feed view with
+│   lensed sidebar stats)
 └── Dark/light theme toggle
 ```
 
@@ -291,8 +347,21 @@ The pipeline uses Google Gemini 3.1 Flash Lite as the default
 processing engine (cost-effective, strong Chinese-language
 performance) with Gemini 3.5 Flash for escalation review on flagged
 articles and for poll-question extraction (denser parsing task,
-longer outputs). DeepSeek was evaluated and rejected due to
-documented political censorship on cross-strait topics — it
-consistently refused to analyse or misclassified content involving
-Taiwan independence, PLA exercises, and cross-strait political
-dynamics.
+longer outputs).
+
+DeepSeek was passed over early on after content-dropping was observed
+in translation testing via its first-party endpoint. That early call
+was **superseded by a systematic audit in mid-2026**: the entire
+approved corpus (13,000+ articles) re-run through DeepSeek V4 Flash —
+plus a stratified Kimi K3 sample — on Western-hosted endpoints with
+the byte-identical production prompt, against a same-model Gemini
+rerun as the noise-floor control. Result: zero refusals, no
+sovereignty-selective avoidance, no romanisation or title-dropping
+tells, and summary omission of sensitive entities at the control's
+noise floor. The measured differences are analytic (a stricter
+relevance gate, taxonomy boundary disputes), not political filtering.
+Gemini remains the production engine on quality and operational
+grounds; the audit lives in
+[`ALT_MODEL_EXPERIMENT_WRITEUP.md`](../ALT_MODEL_EXPERIMENT_WRITEUP.md)
+and stays comparable over time via a weekly incremental sweep
+(admin-only Alt Models tab + feed model lens).
