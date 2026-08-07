@@ -15,7 +15,9 @@ SQLite with FTS5 full-text search.
 
 ## Connection pattern
 
-`api/database.py` exports `get_db()` — returns a `sqlite3.Connection` with `row_factory = sqlite3.Row`. All API routes follow the same pattern: call `get_db()`, run queries, call `conn.close()` manually (no context manager). `scraper/utils/db.py` provides the same for the pipeline side.
+`api/database.py` exports `get_db()` — returns a `sqlite3.Connection` with `row_factory = sqlite3.Row`. All API routes follow the same pattern: call `get_db()`/`with db_conn()` **inside the endpoint body**, run queries, close. `scraper/utils/db.py` provides the same for the pipeline side.
+
+**Never inject a sqlite connection via a FastAPI `Depends()` generator.** FastAPI may run a sync dependency and the endpoint on different threadpool threads; sqlite3's `check_same_thread` then raises `ProgrammingError` *intermittently* — fine from one thread, 500 from another (bit `alt_models.py` in prod, 2026-08-07). Open the connection inside the endpoint so creation and use share a thread.
 
 Both factories enable two PRAGMAs on every connection:
 - `foreign_keys = ON` — activates ON DELETE CASCADE (e.g. on `poll_results.poll_id`). SQLite's default is OFF; without this every FK clause is documentation-only.
