@@ -38,7 +38,7 @@ export async function fetchArticle(id) {
   return request(`/api/articles/${id}`, { headers: authHeaders() });
 }
 
-export async function fetchStats(days = 30, filters = {}) {
+export async function fetchStats(days = 30, filters = {}, altLens = null) {
   const params = new URLSearchParams({ days });
   const SCOPING_KEYS = ["topic", "source_place", "source_name", "bias", "urgency", "escalation_only", "entity"];
   SCOPING_KEYS.forEach((k) => {
@@ -46,7 +46,13 @@ export async function fetchStats(days = 30, filters = {}) {
       params.append(k, filters[k]);
     }
   });
-  return request(`/api/stats?${params}`);
+  if (altLens) {
+    params.append("alt_model", altLens.model);
+    params.append("alt_arm", altLens.arm);
+  }
+  // Token needed for the alt-model lens params (admin-gated server-side);
+  // harmless empty object on the public build.
+  return request(`/api/stats?${params}`, { headers: authHeaders() });
 }
 
 export async function createNote(note) {

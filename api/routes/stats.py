@@ -3,7 +3,7 @@ import os
 
 from fastapi import APIRouter, Depends, Query
 from api.database import db_conn
-from api.auth import require_admin
+from api.auth import require_admin, is_admin
 from api.review_queue import approve_row, dismiss_row
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
@@ -66,28 +66,56 @@ def dashboard_stats(
     entity: str = Query(None),
     source_name: str = Query(None),
     bias: str = Query(None),
+    alt_model: str = Query(None),
+    alt_arm: str = Query(None),
+    admin: bool = Depends(is_admin),
 ):
     """Dashboard summary statistics. Sentiment gauges scope to active filters."""
+    # Alt-model lens (admin-gated like articles.py): both params together
+    # re-aggregate sentiment/topic stats from that sweep's ok rows over the
+    # swept subset. Anonymous callers passing the params get production stats.
+    alt_lens = (alt_model, alt_arm) if (alt_model and alt_arm and admin) else None
     with db_conn() as conn:
         return _dashboard_stats_body(
             conn, days, topic, source_place, urgency, escalation_only, entity, source_name, bias,
+            alt_lens=alt_lens,
         )
 
 
-def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_only, entity, source_name, bias):
+def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_only, entity, source_name, bias, alt_lens=None):
     VISIBLE = "a.is_hidden = 0 AND a.analyst_approved = 1 AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
     filter_extra, filter_params = _build_filter_clause(topic, source_place, urgency, escalation_only, entity, source_name, bias)
     has_filter = bool(filter_extra)
 
+    # Under the lens every aggregation reads analysis columns from the alt
+    # sweep ('alx' alias) instead of production ('ai'), and the ALT_JOIN
+    # narrows to swept-ok articles. ai stays joined regardless — VISIBLE
+    # needs its review columns. Scoping filters (_build_filter_clause) still
+    # evaluate against PRODUCTION values, matching the articles.py lens.
+    # Escalation signals stay production (they drive the FlashTraffic
+    # editorial section, not an aggregate); top_entities are production
+    # extractions merely narrowed to the swept subset (sweeps don't write
+    # the entities table).
+    if alt_lens:
+        ALT_JOIN = ("JOIN alt_model_analysis alx ON alx.article_id = a.id "
+                    "AND alx.model = ? AND alx.arm = ? AND alx.outcome = 'ok'")
+        alt_params = list(alt_lens)
+        X = "alx"
+    else:
+        ALT_JOIN = ""
+        alt_params = []
+        X = "ai"
+
     # ── Global (unfiltered) aggregations — always computed ────────────────
 
     global_avg = conn.execute(f"""
-        SELECT AVG(ai.sentiment_score)
+        SELECT AVG({X}.sentiment_score)
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
+        {ALT_JOIN}
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
-    """, (f'-{days} days',)).fetchone()
+    """, (*alt_params, f'-{days} days')).fetchone()
 
     # Normalise raw s.place values into four display buckets so that
     # UK, SG, etc. all collapse into a single 'INTL' row and HK/MO merge.
@@ -99,48 +127,52 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
     )
 
     global_sentiment_by_place = conn.execute(f"""
-        SELECT {PLACE_BUCKET} as place, AVG(ai.sentiment_score) as avg_score
+        SELECT {PLACE_BUCKET} as place, AVG({X}.sentiment_score) as avg_score
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
+        {ALT_JOIN}
         JOIN sources s ON a.source_id = s.id
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY 1
-    """, (f'-{days} days',)).fetchall()
+    """, (*alt_params, f'-{days} days')).fetchall()
 
     # Articles by topic — always global (navigation/context, not scoped)
     topics = conn.execute(f"""
-        SELECT ai.topic_primary, COUNT(*) as count
+        SELECT {X}.topic_primary, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
+        {ALT_JOIN}
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
-        GROUP BY ai.topic_primary
+        GROUP BY {X}.topic_primary
         ORDER BY count DESC
-    """, (f'-{days} days',)).fetchall()
+    """, (*alt_params, f'-{days} days')).fetchall()
 
     # Articles by sentiment — always global
     sentiments = conn.execute(f"""
-        SELECT ai.sentiment, COUNT(*) as count
+        SELECT {X}.sentiment, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
+        {ALT_JOIN}
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
-        GROUP BY ai.sentiment
+        GROUP BY {X}.sentiment
         ORDER BY count DESC
-    """, (f'-{days} days',)).fetchall()
+    """, (*alt_params, f'-{days} days')).fetchall()
 
     # Articles by source — always global
     sources = conn.execute(f"""
         SELECT s.name, s.place, s.bias, COUNT(*) as count
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
+        {ALT_JOIN}
         JOIN sources s ON a.source_id = s.id
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY s.id
         ORDER BY count DESC
-    """, (f'-{days} days',)).fetchall()
+    """, (*alt_params, f'-{days} days')).fetchall()
 
     # Escalation signals — always global, 24h window
     escalation_rows = conn.execute(f"""
@@ -185,12 +217,13 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         FROM entities e
         JOIN articles a ON e.article_id = a.id
         JOIN ai_analysis ai ON ai.article_id = a.id
+        {ALT_JOIN}
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND {VISIBLE}
         GROUP BY LOWER(e.entity_name_en), e.entity_type
         ORDER BY mentions DESC
         LIMIT 15
-    """, (f'-{days} days',)).fetchall()
+    """, (*alt_params, f'-{days} days')).fetchall()
 
     # ── Scoped aggregations (equal global when no filter active) ──────────
 
@@ -199,57 +232,62 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         total = conn.execute(f"""
             SELECT COUNT(*) FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
-        """, (f'-{days} days', *filter_params)).fetchone()[0]
+        """, (*alt_params, f'-{days} days', *filter_params)).fetchone()[0]
 
         scoped_avg = conn.execute(f"""
-            SELECT AVG(ai.sentiment_score)
+            SELECT AVG({X}.sentiment_score)
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
-        """, (f'-{days} days', *filter_params)).fetchone()
+        """, (*alt_params, f'-{days} days', *filter_params)).fetchone()
 
         sentiment_by_place = conn.execute(f"""
-            SELECT {PLACE_BUCKET} as place, AVG(ai.sentiment_score) as avg_score
+            SELECT {PLACE_BUCKET} as place, AVG({X}.sentiment_score) as avg_score
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
             GROUP BY 1
-        """, (f'-{days} days', *filter_params)).fetchall()
+        """, (*alt_params, f'-{days} days', *filter_params)).fetchall()
 
         sentiment_by_bias = conn.execute(f"""
-            SELECT s.bias, AVG(ai.sentiment_score) as avg_score, COUNT(*) as count
+            SELECT s.bias, AVG({X}.sentiment_score) as avg_score, COUNT(*) as count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               AND s.bias IN ('green', 'green_leaning', 'blue')
               {filter_extra}
             GROUP BY s.bias
-        """, (f'-{days} days', *filter_params)).fetchall()
+        """, (*alt_params, f'-{days} days', *filter_params)).fetchall()
 
         sentiment_trend = conn.execute(f"""
-            SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
+            SELECT date(a.published_at) as date, AVG({X}.sentiment_score) as avg_score,
                    COUNT(*) as article_count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               {filter_extra}
             GROUP BY date(a.published_at)
             ORDER BY date
-        """, (f'-{days} days', *filter_params)).fetchall()
+        """, (*alt_params, f'-{days} days', *filter_params)).fetchall()
 
         avg_sentiment_score = scoped_avg[0] if scoped_avg[0] else 0
     else:
@@ -257,38 +295,84 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         total = conn.execute(f"""
             SELECT COUNT(*) FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
-        """, (f'-{days} days',)).fetchone()[0]
+        """, (*alt_params, f'-{days} days')).fetchone()[0]
 
         sentiment_by_place = global_sentiment_by_place
 
         sentiment_by_bias = conn.execute(f"""
-            SELECT s.bias, AVG(ai.sentiment_score) as avg_score, COUNT(*) as count
+            SELECT s.bias, AVG({X}.sentiment_score) as avg_score, COUNT(*) as count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
               AND s.bias IN ('green', 'green_leaning', 'blue')
             GROUP BY s.bias
-        """, (f'-{days} days',)).fetchall()
+        """, (*alt_params, f'-{days} days')).fetchall()
 
         sentiment_trend = conn.execute(f"""
-            SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
+            SELECT date(a.published_at) as date, AVG({X}.sentiment_score) as avg_score,
                    COUNT(*) as article_count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
             GROUP BY date(a.published_at)
             ORDER BY date
-        """, (f'-{days} days',)).fetchall()
+        """, (*alt_params, f'-{days} days')).fetchall()
 
         avg_sentiment_score = global_avg[0] if global_avg[0] else 0
 
+    # Dual-view baseline: PRODUCTION aggregates over the SAME swept subset,
+    # so the sidebar's "Both" overlay compares like with like (an unswept
+    # article can't skew the Gemini line). Unfiltered on purpose — this is
+    # the model-comparison instrument, not the scoping instrument.
+    alt_baseline = None
+    if alt_lens:
+        baseline_avg = conn.execute(f"""
+            SELECT AVG(ai.sentiment_score)
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
+              AND {VISIBLE}
+        """, (*alt_params, f'-{days} days')).fetchone()
+        baseline_by_place = conn.execute(f"""
+            SELECT {PLACE_BUCKET} as place, AVG(ai.sentiment_score) as avg_score
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
+            JOIN sources s ON a.source_id = s.id
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
+              AND {VISIBLE}
+            GROUP BY 1
+        """, (*alt_params, f'-{days} days')).fetchall()
+        baseline_trend = conn.execute(f"""
+            SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
+                   COUNT(*) as article_count
+            FROM articles a
+            JOIN ai_analysis ai ON a.id = ai.article_id
+            {ALT_JOIN}
+            WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
+              AND {VISIBLE}
+            GROUP BY date(a.published_at)
+            ORDER BY date
+        """, (*alt_params, f'-{days} days')).fetchall()
+        alt_baseline = {
+            "avg_sentiment_score": baseline_avg[0] if baseline_avg[0] else 0,
+            "sentiment_by_place": [dict(r) for r in baseline_by_place],
+            "sentiment_trend": [dict(r) for r in baseline_trend],
+        }
+
     return {
         "period_days": days,
+        "alt_lens": {"model": alt_lens[0], "arm": alt_lens[1]} if alt_lens else None,
+        "alt_baseline": alt_baseline,
         "total_articles": total,
         "avg_sentiment_score": avg_sentiment_score,
         "global_avg_sentiment_score": global_avg[0] if global_avg[0] else 0,

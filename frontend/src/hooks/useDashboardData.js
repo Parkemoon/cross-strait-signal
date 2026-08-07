@@ -11,7 +11,10 @@ import { READ_ONLY } from "../readOnly";
 // Returns plain state plus a setter for pendingApproval so callers can
 // optimistically decrement it after an Approve action without waiting for
 // the next stats refresh.
-export function useDashboardData(filters, page) {
+// `altLens` ({model, arm} | null, admin only) re-renders the feed AND the
+// sidebar stats through an alt-model sweep's classifications — the server
+// narrows both to swept articles; stats re-aggregate from the sweep's ok rows.
+export function useDashboardData(filters, page, altLens = null) {
   const [articles, setArticles] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -27,6 +30,10 @@ export function useDashboardData(filters, page) {
     const myReq = ++articlesReq.current;
     const params = { ...filters, page, page_size: 20 };
     if (!READ_ONLY) params.include_pending = true;
+    if (altLens) {
+      params.alt_model = altLens.model;
+      params.alt_arm = altLens.arm;
+    }
     Object.keys(params).forEach(
       (k) => params[k] === undefined && delete params[k]
     );
@@ -45,7 +52,7 @@ export function useDashboardData(filters, page) {
       .finally(() => {
         if (myReq === articlesReq.current) setLoading(false);
       });
-  }, [filters, page]);
+  }, [filters, page, altLens]);
 
   // Only the scoping filters affect stats — sentiment/search are article-list-
   // only filters. bias + source_name ARE scoping filters (see api.js
@@ -53,7 +60,7 @@ export function useDashboardData(filters, page) {
   // be threaded here too or the sidebar charts stay unscoped after those clicks.
   const { topic, source_place, urgency, escalation_only, entity, bias, source_name } = filters;
   useEffect(() => {
-    fetchStats(30, { topic, source_place, urgency, escalation_only, entity, bias, source_name })
+    fetchStats(30, { topic, source_place, urgency, escalation_only, entity, bias, source_name }, altLens)
       .then(setStats)
       .catch((err) => console.error("Failed to load stats:", err));
     fetchReviewStats()
@@ -62,7 +69,7 @@ export function useDashboardData(filters, page) {
         setPendingApproval(d?.pending_approval || 0);
       })
       .catch(() => {});
-  }, [topic, source_place, urgency, escalation_only, entity, bias, source_name]);
+  }, [topic, source_place, urgency, escalation_only, entity, bias, source_name, altLens]);
 
   return {
     articles,

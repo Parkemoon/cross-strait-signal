@@ -65,8 +65,12 @@ const TOPIC_LABELS = {
 
 function SentimentTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
-  const score = payload[0]?.value;
-  const count = payload[0]?.payload?.count;
+  // Select by dataKey, not position — with the dual-view baseline line the
+  // payload carries two entries and their order follows render order.
+  const main = payload.find((p) => p.dataKey === "score") ?? payload[0];
+  const base = payload.find((p) => p.dataKey === "base");
+  const score = main?.value;
+  const count = main?.payload?.count;
   const color = score > 0.3
     ? "#f59e0b"
     : score < -0.3
@@ -85,6 +89,11 @@ function SentimentTooltip({ active, payload, label }) {
       <div style={{ color, fontWeight: 600 }}>
         {score > 0 ? "+" : ""}{score?.toFixed(3)}
       </div>
+      {base?.value != null && (
+        <div style={{ color: "var(--text-muted)", fontSize: "10px", marginTop: "2px" }}>
+          Gemini {base.value > 0 ? "+" : ""}{base.value.toFixed(3)}
+        </div>
+      )}
       <div style={{ color: "var(--text-muted)", fontSize: "10px", marginTop: "2px" }}>
         {count} articles
       </div>
@@ -92,7 +101,10 @@ function SentimentTooltip({ active, payload, label }) {
   );
 }
 
-export function SentimentTrendChart({ data, days }) {
+// `baseline` (optional): a second {date, avg_score}[] series drawn as a grey
+// dashed line — the alt-model lens's "Both" view overlays production Gemini
+// this way. `accent` (optional) recolours the main line (the model's tint).
+export function SentimentTrendChart({ data, days, baseline, accent }) {
   if (!data || data.length === 0) {
     return (
       <div style={{
@@ -107,14 +119,22 @@ export function SentimentTrendChart({ data, days }) {
     );
   }
 
+  const baseByDate = {};
+  (baseline || []).forEach((d) => { baseByDate[d.date] = d.avg_score; });
+
   const formatted = data.map((d) => ({
     date: d.date?.slice(5),
     // A day with articles but no scores yields avg_score: null; keep it null
     // (a gap in the line) rather than letting ?.toFixed → undefined → NaN
     // propagate into the chart and the "NaN" tooltip.
     score: d.avg_score == null ? null : Number(d.avg_score.toFixed(3)),
+    base: baseline
+      ? (baseByDate[d.date] == null ? null : Number(baseByDate[d.date].toFixed(3)))
+      : undefined,
     count: d.article_count,
   }));
+
+  const stroke = accent || "var(--accent-teal)";
 
   return (
     <div style={{ marginBottom: "28px" }}>
@@ -157,13 +177,23 @@ export function SentimentTrendChart({ data, days }) {
             <ReferenceLine y={0} stroke="var(--border-color)" strokeDasharray="3 3" />
             <ReferenceLine y={0.3} stroke="#f59e0b" strokeOpacity={0.3} strokeDasharray="2 4" />
             <ReferenceLine y={-0.3} stroke="#7c3aed" strokeOpacity={0.3} strokeDasharray="2 4" />
+            {baseline && (
+              <Line
+                type="monotone"
+                dataKey="base"
+                stroke="#6b7280"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                dot={{ r: 2, fill: "#6b7280", strokeWidth: 0 }}
+              />
+            )}
             <Line
               type="monotone"
               dataKey="score"
-              stroke="var(--accent-teal)"
+              stroke={stroke}
               strokeWidth={2}
-              dot={{ r: 3, fill: "var(--accent-teal)", strokeWidth: 0 }}
-              activeDot={{ r: 5, fill: "var(--accent-teal)" }}
+              dot={{ r: 3, fill: stroke, strokeWidth: 0 }}
+              activeDot={{ r: 5, fill: stroke }}
             />
           </LineChart>
         </ResponsiveContainer>

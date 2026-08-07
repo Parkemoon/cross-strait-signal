@@ -2,21 +2,17 @@ import React, { useEffect, useState } from "react";
 import { fetchAltModelAnalyses } from "../api";
 import SentimentBadge from "./SentimentBadge";
 import TopicPill from "./TopicPill";
+import { modelLabel, ARM_LABELS, isRetiredModel } from "../altModels";
 
 // Alt-model comparison strip (admin only — parent gates on !READ_ONLY).
 // Shows how Chinese LLMs classified the same article next to the production
 // Gemini analysis. Refusals render as findings, not failures. Renders
 // nothing when the article hasn't been swept (most articles).
 
-const MODEL_LABELS = {
-  "deepseek/deepseek-v4-flash": "DeepSeek V4 Flash",
-  "moonshotai/kimi-k3": "Kimi K3",
-};
-
 const ARM_STYLE = {
-  neutral:    { label: "neutral host", colour: "#6b7280" },
-  originator: { label: "originator endpoint", colour: "#dc2626" },
-  control:    { label: "gemini control", colour: "#2563eb" },
+  neutral:    { label: ARM_LABELS.neutral, colour: "#6b7280" },
+  originator: { label: ARM_LABELS.originator, colour: "#dc2626" },
+  control:    { label: ARM_LABELS.control, colour: "#2563eb" },
 };
 
 function ArmChip({ arm }) {
@@ -33,7 +29,7 @@ function ArmChip({ arm }) {
 }
 
 function AltRow({ row }) {
-  const label = MODEL_LABELS[row.model] || row.model;
+  const label = modelLabel(row.model);
   return (
     <div style={{
       padding: "10px 12px", marginBottom: "8px",
@@ -111,7 +107,7 @@ export default function AltModelPanel({ article }) {
   useEffect(() => {
     let alive = true;
     fetchAltModelAnalyses(article.id)
-      .then((data) => { if (alive) setRows(data?.rows || []); })
+      .then((data) => { if (alive) setRows((data?.rows || []).filter((r) => !isRetiredModel(r.model))); })
       .catch(() => { if (alive) setRows([]); });
     return () => { alive = false; };
   }, [article.id]);
