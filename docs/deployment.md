@@ -18,15 +18,35 @@ Create a `.env` file in the project root:
 
 ```
 GEMINI_API_KEY=your_gemini_key_here
-ADMIN_TOKEN=...                 # required for admin frontend build
+ADMIN_TOKEN=...                 # required for admin frontend build; gates write
+                                # endpoints AND admin-only reads server-side
+```
+
+Optional extras (all degrade gracefully when unset):
+
+```
+GEMINI_TIER1_MODE=interactive   # Tier 1 defaults to the Gemini Batch API;
+                                # this restores the sequential per-article path
+TIER1_BATCH_WAIT_MIN=20         # same-tick batch collection window (0 = always next tick)
+OPENROUTER_API_KEY=...          # alt-model comparison sweeps only
+SMTP_HOST=... SMTP_PORT=587     # weekly digest + health/report emails
+SMTP_USER=... SMTP_PASS=...
+DIGEST_TO=...                   # digest + alt-model report recipient
+HEALTH_TO=...                   # scraper-health alerts (falls back to DIGEST_TO)
 ```
 
 Initialise the database and seed sources:
 
 ```bash
-python scripts/init_db.py
+python scripts/init_db.py       # fresh install — creates the full schema from db/schema.sql
 python scripts/seed_sources.py
 ```
+
+Existing databases are upgraded by versioned migrations instead:
+ordered files in `db/migrations/` tracked in a `schema_migrations`
+ledger, applied by `python scripts/migrate.py` (run automatically on
+every server deploy). New schema always lands as a numbered migration
+file AND mirrored into `db/schema.sql` for fresh-init parity.
 
 Run the full pipeline (scrape + analyse):
 
@@ -67,6 +87,13 @@ instance. Run it as a Docker container with Chromium bundled
 docker run -d --name rsshub --restart always -p 1200:1200 \
   diygod/rsshub:chromium-bundled
 ```
+
+The `chromium-bundled` tag is required — the China Times sections
+render via Puppeteer and 503 without it. Note that the chinatimes
+route currently needs a local patch inside the container (upstream
+RSSHub serves the generic realtime feed for every CT section and
+503s on category pages); the patch is lost if the image is re-pulled
+— details in `.claude/rules/deployment.md`.
 
 ## Server setup
 
@@ -166,6 +193,19 @@ server {
 # CIFER snapshot (Playwright, monthly — not in main pipeline because of the
 # headless Chromium launch cost)
 0 3 1 * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python -m scraper.scrapers.cifer_snapshot_scraper >> /var/log/cifer-snapshot.log 2>&1
+
+# Weekly editorial digest email (Mon 08:00)
+0 8 * * 1 cd /var/www/cross-strait-signal && venv/bin/python scripts/weekly_digest.py >> /var/log/cross-strait-digest.log 2>&1
+
+# Scraper staleness monitor (daily 08:15 — emails on state changes only)
+15 8 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/check_scraper_health.py >> /var/log/scraper-health.log 2>&1
+
+# Alt-model experiment: weekly incremental v4f sweep (Sun 04:00, probe-guarded,
+# self-heals last week's transient provider failures)
+0 4 * * 0 cd /var/www/cross-strait-signal && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --probe && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --retry-errors --days 10 --limit 400 >> /var/log/cross-strait-v4f-sweep.log 2>&1
+
+# Alt-model monthly review email (1st 08:30 — live aggregates vs frozen write-up)
+30 8 1 * * cd /var/www/cross-strait-signal && venv/bin/python scripts/alt_model_monthly_report.py >> /var/log/alt-model-report.log 2>&1
 ```
 
 ## Deploy workflow
@@ -177,9 +217,11 @@ ssh root@<your-server>
 cd /var/www/cross-strait-signal && ./server_deploy.sh
 ```
 
-`server_deploy.sh` runs `git pull`, builds both frontend versions
+`server_deploy.sh` runs `git pull`, applies pending schema migrations
+via `scripts/migrate.py`, builds both frontend versions
 (`npm run build` for admin, `npm run build:public` for public), and
-restarts the service.
+restarts the service. After deploying changes to `seed_sources.py`,
+also run `python scripts/seed_sources.py` on the server.
 
 ## Frontend builds
 
