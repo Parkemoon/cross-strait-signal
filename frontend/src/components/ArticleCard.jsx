@@ -6,6 +6,7 @@ import { createNote, hideArticle, toggleSignal, approveArticle, updateArticleTra
 import { fetchArticleCluster } from "../api";
 import { READ_ONLY } from "../readOnly";
 import AltModelPanel from "./AltModelPanel";
+import { modelLabel, modelTintRgba } from "../altModels";
 
 const SENTIMENT_OPTIONS = ["hostile", "cooperative", "neutral", "mixed"];
 const TOPIC_OPTIONS = [
@@ -202,7 +203,7 @@ function EntityTag({ articleId, entity, onEntityClick }) {
   );
 }
 
-export default function ArticleCard({ article, onTopicClick, onEntityClick, onSignalOff, onApprove }) {
+export default function ArticleCard({ article, altLens, altDual, onTopicClick, onEntityClick, onSignalOff, onApprove }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [sentimentOverride, setSentimentOverride] = useState("");
@@ -297,11 +298,30 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
   const displayQuote = quoteOverride || article.key_quote_en || article.key_quote;
   const isPending = !READ_ONLY && !approved;
 
+  // Alt-model lens: when active, the server attached alt_* fields to every
+  // row (INNER JOIN on the swept subset). 'ok' rows swap the analysis fields
+  // for the alt model's and show production Gemini as a ghost chip; refused /
+  // error rows keep production values plus a finding chip. Headline and
+  // quote translations always stay production — the sweep doesn't retranslate.
+  const lensActive = !READ_ONLY && altLens && article.alt_outcome != null;
+  const lensOk = lensActive && article.alt_outcome === "ok";
+  const topicDiverges = lensOk && article.alt_topic_primary !== article.topic_primary;
+  // Dual display: production stays primary (and interactive); the alt model
+  // renders alongside it instead of replacing it. Swap = the original lens.
+  const dualMode = lensOk && altDual;
+  const swapMode = lensOk && !altDual;
+
   if (hidden) return null;
 
   return (
     <article
       style={{
+        // Under an active lens, wash the card in the model's tint (stronger
+        // when the model's output has replaced production) — you should never
+        // mistake a lensed feed for the production one.
+        background: lensActive
+          ? modelTintRgba(altLens.model, dualMode ? 0.04 : 0.05)
+          : undefined,
         borderBottom: "1px solid var(--border-color)",
         borderLeft: article.urgency === "flash"
           ? "3px solid var(--accent-red)"
@@ -385,14 +405,85 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
           sourceName={article.source_name}
           bias={article.bias}
         />
-        <TopicPill topic={article.topic_primary} onClick={onTopicClick} />
-        <SentimentBadge
-          sentiment={article.sentiment}
-          score={article.sentiment_score}
+        <TopicPill
+          topic={swapMode ? article.alt_topic_primary : article.topic_primary}
+          // Topic filtering runs on the production classification, so an alt
+          // pill click would filter by the wrong value — disable it under swap.
+          // (Dual shows the production pill, so clicking stays valid.)
+          onClick={swapMode ? undefined : onTopicClick}
         />
-        {!READ_ONLY && article.sentiment_reasoning && (
+        <SentimentBadge
+          sentiment={swapMode ? article.alt_sentiment : article.sentiment}
+          score={swapMode ? article.alt_sentiment_score : article.sentiment_score}
+        />
+        {swapMode && topicDiverges && (
+          // Model-only view stays clean of Gemini chrome except this one
+          // signal: the production topic differed. Full comparison lives
+          // in the Both view.
+          <span
+            title={`Production Gemini classified this ${article.topic_primary}`}
+            style={{
+              fontSize: "10px",
+              fontFamily: "var(--font-mono)",
+              padding: "1px 8px",
+              borderRadius: "2px",
+              color: "#f59e0b",
+              border: "1px solid #f59e0b",
+            }}
+          >
+            ≠ Gemini
+          </span>
+        )}
+        {dualMode && (
+          <span
+            title={`${modelLabel(altLens.model)} classification for comparison`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "2px 6px",
+              borderRadius: "2px",
+              border: `1px ${topicDiverges ? "solid #f59e0b" : "dashed var(--border-color)"}`,
+              background: topicDiverges ? "rgba(245,158,11,0.05)" : "transparent",
+            }}
+          >
+            <span style={{
+              fontSize: "9px",
+              fontFamily: "var(--font-mono)",
+              color: topicDiverges ? "#f59e0b" : "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+            }}>
+              {modelLabel(altLens.model)}
+            </span>
+            <TopicPill topic={article.alt_topic_primary} />
+            <SentimentBadge
+              sentiment={article.alt_sentiment}
+              score={article.alt_sentiment_score}
+            />
+          </span>
+        )}
+        {lensActive && article.alt_outcome !== "ok" && (
+          <span style={{
+            fontSize: "10px",
+            fontFamily: "var(--font-mono)",
+            fontWeight: 600,
+            padding: "1px 8px",
+            borderRadius: "2px",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+            color: article.alt_outcome === "refused" ? "#dc2626" : "var(--text-muted)",
+            border: `1px solid ${article.alt_outcome === "refused" ? "#dc2626" : "var(--border-color)"}`,
+            background: article.alt_outcome === "refused" ? "rgba(220,38,38,0.06)" : "transparent",
+          }}>
+            {article.alt_outcome === "refused"
+              ? (article.alt_finish_reason === "content_filter" ? "Filtered by provider" : "Refused")
+              : article.alt_outcome === "parse_error" ? "Unparseable output" : "API error"}
+          </span>
+        )}
+        {!READ_ONLY && (swapMode ? article.alt_sentiment_reasoning : article.sentiment_reasoning) && (
           <span style={{ color: "var(--text-muted)", fontSize: "11px", fontStyle: "italic" }}>
-            {article.sentiment_reasoning}
+            {swapMode ? article.alt_sentiment_reasoning : article.sentiment_reasoning}
           </span>
         )}
         <span
@@ -521,12 +612,64 @@ export default function ArticleCard({ article, onTopicClick, onEntityClick, onSi
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <FieldEditor
-          label="summary"
-          value={displaySummary}
-          onSave={(v) => handleSaveTranslation("summary_en_override", v)}
-        />
+        {swapMode && article.alt_summary_en ? (
+          // The alt model's own summary — read-only; the FieldEditor writes
+          // production summary overrides and must not be fed model output.
+          article.alt_summary_en
+        ) : (
+          <FieldEditor
+            label="summary"
+            value={displaySummary}
+            onSave={(v) => handleSaveTranslation("summary_en_override", v)}
+          />
+        )}
       </p>
+
+      {/* Dual mode: alt model's summary + reasoning below production's.
+          Read-only for the same reason as swap — never feed model output
+          into the production override editor. */}
+      {dualMode && article.alt_summary_en && (
+        <div
+          style={{
+            marginTop: "8px",
+            padding: "8px 10px",
+            borderLeft: `2px solid ${topicDiverges ? "#f59e0b" : "var(--border-color)"}`,
+            background: "var(--bg-secondary)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span style={{
+            fontSize: "9px",
+            fontFamily: "var(--font-mono)",
+            color: "var(--text-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+            display: "block",
+            marginBottom: "4px",
+          }}>
+            {modelLabel(altLens.model)} summary
+          </span>
+          <p style={{
+            fontSize: "13px",
+            fontFamily: "var(--font-body)",
+            color: "var(--text-secondary)",
+            lineHeight: 1.6,
+            margin: 0,
+          }}>
+            {article.alt_summary_en}
+          </p>
+          {article.alt_sentiment_reasoning && (
+            <p style={{
+              fontSize: "11px",
+              color: "var(--text-muted)",
+              fontStyle: "italic",
+              margin: "6px 0 0",
+            }}>
+              {article.alt_sentiment_reasoning}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Expanded detail */}
       {expanded && (
