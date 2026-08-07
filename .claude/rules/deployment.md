@@ -31,7 +31,7 @@ Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`
 - CIFER snapshot scraper runs monthly (`0 3 1 * *`), logging to `/var/log/cifer-snapshot.log`.
 - Weekly digest runs Mondays 08:00 (`0 8 * * 1`), logging to `/var/log/cross-strait-digest.log`.
 - Scraper health monitor runs daily 08:15 (`15 8 * * *`), logging to `/var/log/scraper-health.log`. Emails on staleness state changes only (state in `/var/log/scraper-health-state.json`); see `scripts/check_scraper_health.py` for per-source thresholds.
-- **INSTALL WITH THE ALT-MODEL-UI DEPLOY (not yet in prod crontab):**
+- Alt-model crons (installed 2026-08-07 with the alt-model-UI deploy):
   - Weekly v4f incremental sweep, Sundays 04:00: `0 4 * * 0 cd /var/www/cross-strait-signal && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --probe && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --days 10 --limit 400 >> /var/log/cross-strait-v4f-sweep.log 2>&1`. The `--probe` guard makes an OpenRouter account/data-policy breakage fail loudly before the sweep; if the sweep goes stale anyway, `check_scraper_health.py`'s `alt_model:v4f_sweep` check (10-day threshold) emails once on the state change.
   - Alt-model monthly review email, 1st 08:30: `30 8 1 * * cd /var/www/cross-strait-signal && venv/bin/python scripts/alt_model_monthly_report.py >> /var/log/alt-model-report.log 2>&1` — live aggregates vs the frozen write-up table (see the script docstring for the review procedure).
 
