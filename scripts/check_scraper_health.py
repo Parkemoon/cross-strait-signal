@@ -94,6 +94,10 @@ TABLE_CHECKS = [
     ("invest:tw_to_prc",
      "SELECT MAX(period) FROM investment_by_industry WHERE direction='tw_to_prc'", 150,
      "MAC monthly CSV, ~2-3mo lag"),
+    ("alt_model:v4f_sweep",
+     "SELECT MAX(created_at) FROM alt_model_analysis "
+     "WHERE model='deepseek/deepseek-v4-flash' AND outcome='ok'", 10,
+     "weekly incremental sweep (Sun 04:00) keeps the alt-model comparison live"),
 ]
 
 
