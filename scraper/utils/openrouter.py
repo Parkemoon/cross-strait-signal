@@ -62,6 +62,15 @@ ARMS = {
         "neutral":    ["Fireworks", "Together", "BaseTen"],
         "originator": ["Moonshot AI"],
     },
+    # R1-generation checkpoint for the direct-question arm (tests whether the
+    # zero-refusal result is generational rather than prompt-shape). DeepInfra
+    # is already the primary V4F host, so no new provider dependency — but it
+    # serves R1-0528 at fp4 quantisation (verified 2026-08-12); record that in
+    # RUN_NOTES wherever this arm's results are used. No originator arm: the
+    # account data-policy 404 that dropped V4F's originator applies here too.
+    "deepseek/deepseek-r1-0528": {
+        "neutral":    ["DeepInfra"],
+    },
 }
 
 # Keys the Tier-1 schema makes mandatory; a JSON response missing any of
@@ -76,6 +85,7 @@ REQUIRED_KEYS = ("topic_primary", "sentiment", "summary_en")
 DEFAULT_MAX_TOKENS = 8000
 MAX_TOKENS = {
     "moonshotai/kimi-k3": 24000,
+    "deepseek/deepseek-r1-0528": 24000,  # reasoning model — same headroom rule
 }
 
 # Refusal boilerplate (CJK + EN). Matched only AFTER JSON parsing fails —
