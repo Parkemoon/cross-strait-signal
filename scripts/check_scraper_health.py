@@ -96,8 +96,9 @@ TABLE_CHECKS = [
      "MAC monthly CSV, ~2-3mo lag"),
     ("alt_model:v4f_sweep",
      "SELECT MAX(created_at) FROM alt_model_analysis "
-     "WHERE model='deepseek/deepseek-v4-flash' AND outcome='ok'", 10,
-     "weekly incremental sweep (Sun 04:00) keeps the alt-model comparison live"),
+     "WHERE model='deepseek/deepseek-v4-flash' AND outcome='ok'", 5,
+     "daily full-window incremental sweep (04:00); rows only land when new "
+     "approvals exist, so the threshold allows a few review-free days"),
 ]
 
 
