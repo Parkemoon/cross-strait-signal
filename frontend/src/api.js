@@ -391,6 +391,16 @@ export async function fetchPositions() {
   return request("/api/positions/");
 }
 
+// Inline content editing (admin) — replaces one string field in
+// positions.json, addressed by its JSON path from the file root.
+export async function patchPositionsText(path, value) {
+  return request("/api/positions/text", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ path, value }),
+  });
+}
+
 export async function fetchDiplomacyStatements(params = {}) {
   const query = new URLSearchParams();
   ["days", "start", "end", "country", "tier", "side", "official_only", "limit"].forEach((k) => {

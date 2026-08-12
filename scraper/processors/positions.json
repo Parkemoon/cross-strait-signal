@@ -1,13 +1,10 @@
 {
   "_comment": "Curated content for the Positions & Legal Status page (/api/positions -> PositionsTab). HAND-CURATED ONLY — never AI-generate or bulk-edit content in this file; misstating a legal position is the same credibility risk class as misattributing a key-figure quote. Editorial stance: DESCRIPTIVE, NOT ADJUDICATIVE — every claim is an actor's STATED position anchored to a dated primary source (statute text, communique, official transcript; news only as fallback); the page never rules on which position is correct. Prose is English; every key formulation carries the original Chinese (_zh) plus romanisation — Wade-Giles/Tongyong for Taiwan-coined terms, Hanyu Pinyin for PRC-coined terms, per house rules. Script convention: simplified characters for PRC-origin text, traditional for Taiwan-origin and third-party text. Empty-string fields render as 'entry pending' placeholders; fill them in co-writing sessions. tests/test_positions_content.py validates this file's shape on every pytest run — run it after editing.",
-
   "_meta": {
     "version": 1,
-    "last_reviewed": "2026-07-10"
+    "last_reviewed": "2026-08-12"
   },
-
   "_comment_actors": "One object per actor. depth 'full' renders expandable sections (legal_foundation / current_position / sub_positions / misconceptions); depth 'brief' renders a single compact card from intro_en + current_position. legal_foundation = what is legally or constitutionally on the books (changes rarely; anchored on effective_date). current_position = the actor's current official line (changes a few times a year; each item anchored to a dated formulation via as_stated + stated_by). not_say_en / nuance_en are the 'what this is commonly assumed to say but doesn't' fields — they are the point of the page, use them. sub_positions = intra-actor splits (Taiwan's DPP/KMT/TPP); 'party' keys into frontend/src/partyColours.js PARTY_COLOURS. hooks = future live integrations, rendered by nothing in v1. sources[] items are {label, url, date, lang}.",
-
   "actors": [
     {
       "id": "prc",
@@ -70,7 +67,6 @@
         "entity_names_en": []
       }
     },
-
     {
       "id": "taiwan",
       "name_en": "Republic of China (Taiwan)",
@@ -150,7 +146,6 @@
         "entity_names_en": []
       }
     },
-
     {
       "id": "us",
       "name_en": "United States",
@@ -169,9 +164,24 @@
           "effective_date": "1972-02-28",
           "not_say_en": "'Acknowledges' is not 'accepts'. In all three texts the US notes the Chinese position without stating its own agreement — and the gap is contested in translation: the Chinese text of the 1979 communiqué renders 'acknowledges' as 承认 (chéngrèn, 'recognises'), a stronger verb; Washington has always held the English text controlling. Nothing in the communiqués recognises PRC sovereignty over Taiwan.",
           "sources": [
-            { "label": "Joint Communiqué (Shanghai), full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1972/", "date": "1972-02-28", "lang": "en" },
-            { "label": "Joint Communiqué on Normalization, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1979/", "date": "1979-01-01", "lang": "en" },
-            { "label": "August 17 Communiqué, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1982/", "date": "1982-08-17", "lang": "en" }
+            {
+              "label": "Joint Communiqué (Shanghai), full text — AIT",
+              "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1972/",
+              "date": "1972-02-28",
+              "lang": "en"
+            },
+            {
+              "label": "Joint Communiqué on Normalization, full text — AIT",
+              "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1979/",
+              "date": "1979-01-01",
+              "lang": "en"
+            },
+            {
+              "label": "August 17 Communiqué, full text — AIT",
+              "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1982/",
+              "date": "1982-08-17",
+              "lang": "en"
+            }
           ]
         },
         {
@@ -183,7 +193,12 @@
           "effective_date": "1979-04-10",
           "not_say_en": "It contains no commitment to defend Taiwan — no Article 5 analogue. The TRA obliges arms provision and the maintenance of American capacity to resist coercion; whether that capacity would ever be used is left to the president and Congress of the day. That statutory silence is where 'strategic ambiguity' lives. (The US–ROC Mutual Defense Treaty that did carry a commitment was terminated on 1 January 1980, and nothing replaced it.)",
           "sources": [
-            { "label": "Taiwan Relations Act, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/taiwan-relations-act/", "date": "1979-04-10", "lang": "en" }
+            {
+              "label": "Taiwan Relations Act, full text — AIT",
+              "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/taiwan-relations-act/",
+              "date": "1979-04-10",
+              "lang": "en"
+            }
           ]
         },
         {
@@ -195,7 +210,12 @@
           "effective_date": "1982-07-14",
           "not_say_en": "The fifth assurance is routinely misread as support for Taipei's claim. Its content is agnosticism: the 'position on sovereignty' it preserves is precisely that the US has none.",
           "sources": [
-            { "label": "The Six Assurances declassified cables — AIT", "url": "https://www.ait.org.tw/six-assurances-1982/", "date": "2020-08-31", "lang": "en" }
+            {
+              "label": "The Six Assurances declassified cables — AIT",
+              "url": "https://www.ait.org.tw/six-assurances-1982/",
+              "date": "2020-08-31",
+              "lang": "en"
+            }
           ]
         }
       ],
@@ -210,9 +230,24 @@
           "stated_by": "Marco Rubio, US Secretary of State, at the Trump–Xi Beijing summit",
           "nuance_en": "In February 2025 the State Department deleted the sentence 'we do not support Taiwan independence' from its Taiwan fact sheet, calling the edit routine and the policy unchanged. Deleting the sentence is not asserting its opposite — no official has voiced support for independence — but the published formulation now opposes only 'unilateral changes to the status quo from either side'. The same sentence was briefly dropped and restored once before, in mid-2022: the fact-sheet wording is actively managed, and its movements are read on both sides of the strait as signals.",
           "sources": [
-            { "label": "CRS IF10275, Taiwan: Background and U.S. Relations", "url": "https://www.congress.gov/crs-product/IF10275", "date": "2024-02-23", "lang": "en" },
-            { "label": "Focus Taiwan: fact sheet removes Taiwan-independence line", "url": "https://focustaiwan.tw/politics/202502160006", "date": "2025-02-16", "lang": "en" },
-            { "label": "Global Taiwan Institute: How Taiwan fared at the 2026 Trump–Xi summit", "url": "https://globaltaiwan.org/2026/05/how-taiwan-fared-during-the-trump-xi-summit/", "date": "2026-05-21", "lang": "en" }
+            {
+              "label": "CRS IF10275, Taiwan: Background and U.S. Relations",
+              "url": "https://www.congress.gov/crs-product/IF10275",
+              "date": "2024-02-23",
+              "lang": "en"
+            },
+            {
+              "label": "Focus Taiwan: fact sheet removes Taiwan-independence line",
+              "url": "https://focustaiwan.tw/politics/202502160006",
+              "date": "2025-02-16",
+              "lang": "en"
+            },
+            {
+              "label": "Global Taiwan Institute: How Taiwan fared at the 2026 Trump–Xi summit",
+              "url": "https://globaltaiwan.org/2026/05/how-taiwan-fared-during-the-trump-xi-summit/",
+              "date": "2026-05-21",
+              "lang": "en"
+            }
           ]
         },
         {
@@ -225,8 +260,18 @@
           "stated_by": "Donald Trump, Fox News interview after the Trump–Xi Beijing summit",
           "nuance_en": "Strategic ambiguity is a description of practice, not a written doctrine — no document commits the US to it, which is why a single presidential remark in either direction (Biden's 'yes', Trump's 'it depends') dominates headlines without changing any written position. The 2026 novelty is different in kind: offering to discuss arms sales with Beijing cuts against the second of the Six Assurances (no prior consultation with Beijing) — an erosion of the canon itself, not merely of the ambiguity.",
           "sources": [
-            { "label": "CRS IF10275, Taiwan: Background and U.S. Relations", "url": "https://www.congress.gov/crs-product/IF10275", "date": "2024-02-23", "lang": "en" },
-            { "label": "Global Taiwan Institute: How Taiwan fared at the 2026 Trump–Xi summit", "url": "https://globaltaiwan.org/2026/05/how-taiwan-fared-during-the-trump-xi-summit/", "date": "2026-05-21", "lang": "en" }
+            {
+              "label": "CRS IF10275, Taiwan: Background and U.S. Relations",
+              "url": "https://www.congress.gov/crs-product/IF10275",
+              "date": "2024-02-23",
+              "lang": "en"
+            },
+            {
+              "label": "Global Taiwan Institute: How Taiwan fared at the 2026 Trump–Xi summit",
+              "url": "https://globaltaiwan.org/2026/05/how-taiwan-fared-during-the-trump-xi-summit/",
+              "date": "2026-05-21",
+              "lang": "en"
+            }
           ]
         }
       ],
@@ -237,8 +282,18 @@
           "myth_en": "The United States recognises Taiwan as part of the People's Republic of China.",
           "actually_en": "It never has. The communiqués 'acknowledge' the Chinese position — diplomatic language chosen to note a claim without adopting it — and the Six Assurances record that the US position on sovereignty over Taiwan is to have no position. What the US recognises is the PRC as the sole legal government of China; whose territory Taiwan ultimately is, it deliberately leaves unresolved.",
           "sources": [
-            { "label": "Joint Communiqué (Shanghai), full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1972/", "date": "1972-02-28", "lang": "en" },
-            { "label": "The Six Assurances declassified cables — AIT", "url": "https://www.ait.org.tw/six-assurances-1982/", "date": "2020-08-31", "lang": "en" }
+            {
+              "label": "Joint Communiqué (Shanghai), full text — AIT",
+              "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/u-s-prc-joint-communique-1972/",
+              "date": "1972-02-28",
+              "lang": "en"
+            },
+            {
+              "label": "The Six Assurances declassified cables — AIT",
+              "url": "https://www.ait.org.tw/six-assurances-1982/",
+              "date": "2020-08-31",
+              "lang": "en"
+            }
           ]
         },
         {
@@ -246,7 +301,12 @@
           "myth_en": "The Taiwan Relations Act commits the United States to defend Taiwan militarily.",
           "actually_en": "The TRA commits the US to sell Taiwan defensive arms and to maintain its own capacity to resist coercion in the Strait — it is silent on whether that capacity would be used. The mutual defence treaty that did carry a commitment was terminated in 1980. Intervention remains an open presidential choice; that openness is what 'strategic ambiguity' names.",
           "sources": [
-            { "label": "Taiwan Relations Act, full text — AIT", "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/taiwan-relations-act/", "date": "1979-04-10", "lang": "en" }
+            {
+              "label": "Taiwan Relations Act, full text — AIT",
+              "url": "https://www.ait.org.tw/our-relationship/policy-history/key-u-s-foreign-policy-documents-region/taiwan-relations-act/",
+              "date": "1979-04-10",
+              "lang": "en"
+            }
           ]
         },
         {
@@ -254,8 +314,18 @@
           "myth_en": "The US 'One China policy' endorses Beijing's 'One China principle'.",
           "actually_en": "Beijing's principle holds that there is one China, that Taiwan is part of it, and that the PRC is its sole legal government. US policy accepts only the last clause, acknowledges the rest without endorsing it, and adds elements Beijing rejects outright — the TRA's arms-sales mandate and the Six Assurances. When US officials enumerate their policy they put the TRA first; Beijing's readings put the communiqués first and omit the rest. The two phrases are not translations of each other; they are competing constructions.",
           "sources": [
-            { "label": "CRS IF10275, Taiwan: Background and U.S. Relations", "url": "https://www.congress.gov/crs-product/IF10275", "date": "2024-02-23", "lang": "en" },
-            { "label": "U.S. Relations With Taiwan fact sheet (2021–25 archive)", "url": "https://2021-2025.state.gov/u-s-relations-with-taiwan/", "date": "", "lang": "en" }
+            {
+              "label": "CRS IF10275, Taiwan: Background and U.S. Relations",
+              "url": "https://www.congress.gov/crs-product/IF10275",
+              "date": "2024-02-23",
+              "lang": "en"
+            },
+            {
+              "label": "U.S. Relations With Taiwan fact sheet (2021–25 archive)",
+              "url": "https://2021-2025.state.gov/u-s-relations-with-taiwan/",
+              "date": "",
+              "lang": "en"
+            }
           ]
         }
       ],
@@ -264,7 +334,6 @@
         "entity_names_en": []
       }
     },
-
     {
       "id": "japan",
       "name_en": "Japan",
@@ -294,7 +363,6 @@
         "entity_names_en": []
       }
     },
-
     {
       "id": "eu",
       "name_en": "European Union",
@@ -325,9 +393,7 @@
       }
     }
   ],
-
   "_comment_concepts": "Cross-cutting contested concepts — things that are not any one actor's position; the disagreement IS the content. Each renders as a neutral what_en paragraph followed by the actors' readings side by side. readings[].actor_id must be an actor id or a sub_position id (e.g. 'tw-kmt').",
-
   "concepts": [
     {
       "id": "1992-consensus",
@@ -336,9 +402,27 @@
       "romanisation": "Chiu-erh Kung-shih",
       "what_en": "",
       "readings": [
-        { "actor_id": "prc",    "label_en": "PRC reading", "reading_en": "", "formulation_zh": "", "sources": [] },
-        { "actor_id": "tw-kmt", "label_en": "KMT reading", "reading_en": "", "formulation_zh": "", "sources": [] },
-        { "actor_id": "tw-dpp", "label_en": "DPP reading", "reading_en": "", "formulation_zh": "", "sources": [] }
+        {
+          "actor_id": "prc",
+          "label_en": "PRC reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "tw-kmt",
+          "label_en": "KMT reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "tw-dpp",
+          "label_en": "DPP reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
       ]
     },
     {
@@ -348,9 +432,27 @@
       "romanisation": "",
       "what_en": "",
       "readings": [
-        { "actor_id": "prc",    "label_en": "PRC reading",    "reading_en": "", "formulation_zh": "", "sources": [] },
-        { "actor_id": "taiwan", "label_en": "Taiwan reading", "reading_en": "", "formulation_zh": "", "sources": [] },
-        { "actor_id": "us",     "label_en": "US reading",     "reading_en": "", "formulation_zh": "", "sources": [] }
+        {
+          "actor_id": "prc",
+          "label_en": "PRC reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "taiwan",
+          "label_en": "Taiwan reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "us",
+          "label_en": "US reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
       ]
     },
     {
@@ -360,9 +462,27 @@
       "romanisation": "wei-ch'ih hsien-chuang",
       "what_en": "",
       "readings": [
-        { "actor_id": "prc",    "label_en": "PRC usage",    "reading_en": "", "formulation_zh": "", "sources": [] },
-        { "actor_id": "taiwan", "label_en": "Taiwan usage", "reading_en": "", "formulation_zh": "", "sources": [] },
-        { "actor_id": "us",     "label_en": "US usage",     "reading_en": "", "formulation_zh": "", "sources": [] }
+        {
+          "actor_id": "prc",
+          "label_en": "PRC usage",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "taiwan",
+          "label_en": "Taiwan usage",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "us",
+          "label_en": "US usage",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
       ]
     },
     {
@@ -372,8 +492,20 @@
       "romanisation": "yī guó liǎng zhì",
       "what_en": "",
       "readings": [
-        { "actor_id": "prc",    "label_en": "PRC position",    "reading_en": "", "formulation_zh": "", "sources": [] },
-        { "actor_id": "taiwan", "label_en": "Taiwan position", "reading_en": "", "formulation_zh": "", "sources": [] }
+        {
+          "actor_id": "prc",
+          "label_en": "PRC position",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "taiwan",
+          "label_en": "Taiwan position",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
       ]
     }
   ]
