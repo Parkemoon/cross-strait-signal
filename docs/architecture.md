@@ -363,5 +363,5 @@ relevance gate, taxonomy boundary disputes), not political filtering.
 Gemini remains the production engine on quality and operational
 grounds; the audit lives in
 [`[redacted]`](../[redacted])
-and stays comparable over time via a weekly incremental sweep
+and stays comparable over time via a daily incremental sweep
 (admin-only Alt Models tab + feed model lens).
