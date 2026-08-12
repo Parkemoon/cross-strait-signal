@@ -262,7 +262,10 @@ def main():
             if model == GEMINI_CONTROL:
                 continue
             body = build_request_body(model, "Reply with the word OK and nothing else.", arm)
-            body["max_tokens"] = MAX_TOKENS.get(model, 4)  # reasoning models need thought headroom even for 'OK'
+            # Reasoning models spend budget on thought even for 'OK' — give
+            # them modest headroom; 4 would exhaust mid-thought and the probe
+            # would falsely read as broken. Non-reasoning models stay at 4.
+            body["max_tokens"] = 2000 if model in MAX_TOKENS else 4
             resp = httpx.post("https://openrouter.ai/api/v1/chat/completions",
                               headers={"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"},
                               json=body, timeout=120)
