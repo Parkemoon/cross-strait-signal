@@ -200,9 +200,10 @@ server {
 # Scraper staleness monitor (daily 08:15 — emails on state changes only)
 15 8 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/check_scraper_health.py >> /var/log/scraper-health.log 2>&1
 
-# Alt-model experiment: weekly incremental v4f sweep (Sun 04:00, probe-guarded,
-# self-heals last week's transient provider failures)
-0 4 * * 0 cd /var/www/cross-strait-signal && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --probe && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --retry-errors --days 10 --limit 400 >> /var/log/cross-strait-v4f-sweep.log 2>&1
+# Alt-model experiment: daily full-window incremental v4f sweep (04:00,
+# probe-guarded, self-heals transient provider failures; full-corpus window
+# so no approved article ever ages out unswept)
+0 4 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --probe && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --retry-errors --days 3650 --limit 1000 >> /var/log/cross-strait-v4f-sweep.log 2>&1
 
 # Alt-model monthly review email (1st 08:30 — live aggregates vs frozen write-up)
 30 8 1 * * cd /var/www/cross-strait-signal && venv/bin/python scripts/alt_model_monthly_report.py >> /var/log/alt-model-report.log 2>&1
