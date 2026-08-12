@@ -94,6 +94,9 @@ function EditModal({ target, onSaved, onClose }) {
     } catch (e) {
       setError(e.message || "Save failed");
       setSaving(false);
+      // Fields before the failing one are already on disk — refresh the page
+      // behind the modal so it can't render stale content.
+      onSaved();
     }
   }
 
