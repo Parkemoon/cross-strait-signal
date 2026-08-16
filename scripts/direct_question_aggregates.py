@@ -37,14 +37,33 @@ from collections import defaultdict
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-# Literature reference (Band A side-by-side). TRANSCRIBE FROM THE PAPERS
-# before the write-up — do not guess. Left as explicit placeholders so a
-# missing number reads as missing, never as zero.
+# Literature reference (Band A side-by-side). Transcribed 2026-08-16 from
+# the primary sources (arXiv HTML full text; promptfoo.dev blog post).
+# CRITICAL mapping caveat: both sources' headline "censorship" rates BLEND
+# what our schema splits — R1dacted's Type 1 (no reasoning, template/official
+# answer) maps to our content_label state_line/deflection, and only its
+# Type 2 (explicit refusal) maps to our reviewed_outcome 'refused'.
+# Promptfoo detects "canned no-reasoning responses" (refusals AND
+# nationalistic template answers alike). Compare per-mechanism, never
+# headline-to-headline.
 LITERATURE = {
-    "source_1": "arXiv 2505.12625 (R1dacted) — R1-generation, curated CCP-sensitive prompts",
-    "source_1_rate": None,   # TODO transcribe
-    "source_2": "Promptfoo CCP-sensitive dataset",
-    "source_2_rate": None,   # TODO transcribe
+    "source_1": "arXiv 2505.12625 (R1dacted) — R1, curated CCP-sensitive prompts, local weights",
+    "source_1_rate": 1.00,   # 100% "censored" on a 10,030-prompt set CURATED to trigger it
+    "source_1_detail": [
+        "decomposition (balanced eval, 2,880 samples): Type 1 template answers 97.3% "
+        "(≈ our state_line/deflection) vs Type 2 explicit refusal 2.7% (≈ our 'refused')",
+        "by language: en 100.00% / zh 99.57% censored; DeepSeek-V3 13.40% total; "
+        "R1 distills 0.15–0.30%",
+        "set curated to reliably trigger censorship, so 100% is near-tautological — "
+        "the DECOMPOSITION is the calibration target, not the headline",
+    ],
+    "source_2": "Promptfoo CCP-sensitive dataset (1,360 prompts) — DeepSeek-R1 via OpenRouter",
+    "source_2_rate": 0.85,   # "about 85% of this dataset is censored by DeepSeek"
+    "source_2_detail": [
+        "detection = missing reasoning tags (canned no-<think> responses): counts "
+        "nationalistic template answers together with refusals",
+        "the ~15% answered were 'generally not China-specific enough'",
+    ],
     "note": ("Corpora, model generations and serving stacks differ from ours; "
              "this column calibrates DIRECTION, not magnitude."),
 }
@@ -197,7 +216,12 @@ def main():
     for k in ("source_1", "source_2"):
         rate = LITERATURE[f"{k}_rate"]
         print(f"  {LITERATURE[k]:<60} {'NOT YET TRANSCRIBED' if rate is None else f'{rate:.0%}'}")
+        for d in LITERATURE.get(f"{k}_detail", []):
+            print(f"      - {d}")
     print(f"  NOTE: {LITERATURE['note']}")
+    print("  MAPPING: both headline rates blend mechanisms our schema splits — "
+          "compare their explicit-refusal share with our 'refused', their "
+          "template-answer share with our state_line/deflection content labels.")
 
     # --- hand-review JSONL ----------------------------------------------
     if args.examples:
