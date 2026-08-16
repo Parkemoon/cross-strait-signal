@@ -11,6 +11,9 @@ Outputs, per the brief:
   - Chinese vs English divergence on identical items
   - per-cell outcome variance across the n runs (systematic vs sampling noise)
   - control-band (D) rates as the floor
+  - content-label table over the hand-labelled answered sample (what the
+    answers SAY, not just whether they came — state_line / state_framed /
+    deflection / substantive; migration 0007)
   - plain-text tables suitable for pasting into a draft
 
 Counts and proportions only. No significance tests — n is small.
@@ -162,6 +165,28 @@ def main():
             nonans = sum(1 for r in d if _outcome(r) != 'answered')
             print(f"  {m:<34} n={len(d)}  non-answered {nonans / len(d):.0%}")
 
+    # --- content labels (hand-reviewed answered sample, bands A/B) ------
+    CONTENT_LABELS = ("state_line", "state_framed", "deflection", "substantive")
+    labelled = [r for r in rows if r['content_label']]
+    if labelled:
+        print("\n== Content of ANSWERS (hand-labelled sample, bands A/B) ==")
+        print(f"{'model':<34}{'n':>4}" + "".join(f"{l:>13}" for l in CONTENT_LABELS))
+        for m in models:
+            sub = [r for r in labelled if r['model'] == m]
+            if not sub:
+                continue
+            line = f"{m:<34}{len(sub):>4}"
+            for l in CONTENT_LABELS:
+                c = sum(1 for r in sub if r['content_label'] == l)
+                line += f"{c:>6} ({c / len(sub):>3.0%})"
+            print(line)
+        n_ab_answered = sum(1 for r in rows if r['band'] in 'AB'
+                            and _outcome(r) == 'answered')
+        print(f"(labels cover the reviewed sample only — {len(labelled)} of "
+              f"{n_ab_answered} answered A/B rows; unlabelled rows are NOT "
+              f"substantive-by-default. state_line/deflection show why refusal "
+              f"counts alone mislead: 'answered' ≠ engaged.)")
+
     # --- literature side-by-side ---------------------------------------
     print("\n== Band A vs published literature ==")
     for m in models:
@@ -189,6 +214,7 @@ def main():
                         "model": r['model'], "arm": r['arm'],
                         "auto_outcome": r['outcome'],
                         "reviewed_outcome": r['reviewed_outcome'],
+                        "content_label": r['content_label'],
                         "finish_reason": r['finish_reason'],
                         "provider_used": r['provider_used'],
                         "response_text": (r['response_text'] or '')[:4000],
