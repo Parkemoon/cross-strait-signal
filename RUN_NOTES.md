@@ -63,3 +63,41 @@ own decoding config.
   - moonshotai/kimi-k3 [neutral]: {"provider": "Fireworks", "name": "Fireworks | moonshotai/kimi-k3-20260715", "quantization": "unknown", "context_length": 1048576}
   - deepseek/deepseek-r1-0528 [neutral]: {"provider": "DeepInfra", "name": "DeepInfra | deepseek/deepseek-r1-0528", "quantization": "fp4", "context_length": 163840}
   - gemini-control: `gemini-3.1-flash-lite` via Gemini API; bands A/B/D config `{temperature: 0.1, max_output_tokens: 8000}` (no JSON MIME, no thinking override); band C = production _TIER1_GEN_CONFIG
+
+## Direct-question sweep — 2026-08-13 15:37 UTC
+- DB: `/var/www/cross-strait-signal/db/cross_strait_signal.db` · battery `/var/www/cross-strait-signal-staging/scripts/../data/direct_questions.json` (v1) · n=5 per cell · temperature 0.1 (sent; endpoints may ignore — see per-run variance in the aggregates) · endpoint https://openrouter.ai/api/v1/chat/completions + Gemini API (control)
+- Planned calls by arm: {'deepseek/deepseek-r1-0528[neutral]': 4}
+- Provider endpoint metadata at run time (revision / quantisation):
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "DigitalOcean", "name": "DigitalOcean | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "DeepInfra", "name": "DeepInfra | deepseek/deepseek-v4-flash-20260423", "quantization": "fp4", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "Parasail", "name": "Parasail | deepseek/deepseek-v4-flash-20260423", "quantization": "fp8", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "Fireworks", "name": "Fireworks | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "Cloudflare", "name": "Cloudflare | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 384000}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "CoreWeave", "name": "CoreWeave | deepseek/deepseek-v4-flash-20260423", "quantization": "fp8", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "DeepSeek", "name": "DeepSeek | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Fireworks", "name": "Fireworks | moonshotai/kimi-k3-20260715", "quantization": "unknown", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Together", "name": "Together | moonshotai/kimi-k3-20260715", "quantization": "unknown", "context_length": 1000000}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Moonshot AI", "name": "Moonshot AI | moonshotai/kimi-k3-20260715", "quantization": "mxfp4", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "BaseTen", "name": "BaseTen | moonshotai/kimi-k3-20260715", "quantization": "fp8", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Fireworks", "name": "Fireworks | moonshotai/kimi-k3-20260715", "quantization": "unknown", "context_length": 1048576}
+  - deepseek/deepseek-r1-0528 [neutral]: {"provider": "DeepInfra", "name": "DeepInfra | deepseek/deepseek-r1-0528", "quantization": "fp4", "context_length": 163840}
+  - gemini-control: `gemini-3.1-flash-lite` via Gemini API; bands A/B/D config `{temperature: 0.1, max_output_tokens: 8000}` (no JSON MIME, no thinking override); band C = production _TIER1_GEN_CONFIG
+
+## Direct-question sweep — 2026-08-13 15:40 UTC
+- DB: `/var/www/cross-strait-signal/db/cross_strait_signal.db` · battery `/var/www/cross-strait-signal-staging/scripts/../data/direct_questions.json` (v1) · n=5 per cell · temperature 0.1 (sent; endpoints may ignore — see per-run variance in the aggregates) · endpoint https://openrouter.ai/api/v1/chat/completions + Gemini API (control)
+- Planned calls by arm: {'moonshotai/kimi-k3[neutral]': 1}
+- Provider endpoint metadata at run time (revision / quantisation):
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "DigitalOcean", "name": "DigitalOcean | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "DeepInfra", "name": "DeepInfra | deepseek/deepseek-v4-flash-20260423", "quantization": "fp4", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "Parasail", "name": "Parasail | deepseek/deepseek-v4-flash-20260423", "quantization": "fp8", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "Fireworks", "name": "Fireworks | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "Cloudflare", "name": "Cloudflare | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 384000}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "CoreWeave", "name": "CoreWeave | deepseek/deepseek-v4-flash-20260423", "quantization": "fp8", "context_length": 1048576}
+  - deepseek/deepseek-v4-flash [neutral]: {"provider": "DeepSeek", "name": "DeepSeek | deepseek/deepseek-v4-flash-20260423", "quantization": "unknown", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Fireworks", "name": "Fireworks | moonshotai/kimi-k3-20260715", "quantization": "unknown", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Together", "name": "Together | moonshotai/kimi-k3-20260715", "quantization": "unknown", "context_length": 1000000}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Moonshot AI", "name": "Moonshot AI | moonshotai/kimi-k3-20260715", "quantization": "mxfp4", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "BaseTen", "name": "BaseTen | moonshotai/kimi-k3-20260715", "quantization": "fp8", "context_length": 1048576}
+  - moonshotai/kimi-k3 [neutral]: {"provider": "Fireworks", "name": "Fireworks | moonshotai/kimi-k3-20260715", "quantization": "unknown", "context_length": 1048576}
+  - deepseek/deepseek-r1-0528 [neutral]: {"provider": "DeepInfra", "name": "DeepInfra | deepseek/deepseek-r1-0528", "quantization": "fp4", "context_length": 163840}
+  - gemini-control: `gemini-3.1-flash-lite` via Gemini API; bands A/B/D config `{temperature: 0.1, max_output_tokens: 8000}` (no JSON MIME, no thinking override); band C = production _TIER1_GEN_CONFIG
