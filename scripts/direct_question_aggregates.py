@@ -4,9 +4,9 @@ Direct-question arm aggregates — deterministic, read-only, re-runnable
 
 Outputs, per the brief:
   - refusal + deflection rate by arm, by band, by language
-  - Band A next to the published literature's reported rates (placeholders
-    until transcribed from the papers — corpora and generations differ, the
-    table says so explicitly)
+  - Band A next to the published literature's reported rates (transcribed
+    2026-08-16 from the primary sources; both headlines blend mechanisms our
+    schema splits — the printed mapping caveat says how to compare)
   - Band A/B vs Band C within the same model (THE core comparison)
   - Chinese vs English divergence on identical items
   - per-cell outcome variance across the n runs (systematic vs sampling noise)
