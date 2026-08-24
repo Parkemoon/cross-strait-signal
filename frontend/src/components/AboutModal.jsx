@@ -2,10 +2,20 @@ const BIAS_ROWS = [
   { label: "green",             color: "#15803d", text: "#fff",     desc: "Explicitly pro-independence editorial line (e.g. Liberty Times)" },
   { label: "green_leaning",     color: "#4ade80", text: "#14532d",  desc: "State-controlled under DPP-led government (e.g. CNA, YDN)" },
   { label: "blue",              color: "#1d4ed8", text: "#fff",     desc: "Consistent KMT-aligned editorial line (e.g. UDN)" },
+  { label: "blue_leaning",      color: "#93c5fd", text: "#1e3a5f",  desc: "Blue-leaning commercial outlet (e.g. ETtoday)" },
   { label: "centrist",          color: "#6b7280", text: "#fff",     desc: "Editorially independent, either local or international (e.g. Zaobao)" },
   { label: "china_centrist",    color: "#a86a6a", text: "#fff",     desc: "Editorially moderate but Beijing-accommodating (e.g. Ming Pao)" },
-  { label: "state_official",    color: "#dc2626", text: "#fff",     desc: "PRC state media or government organ (e.g. Xinhua, MFA, TAO)" },
+  { label: "state_official",    color: "#dc2626", text: "#fff",     desc: "PRC state media or government organ (e.g. Xinhua, MFA, TAO); also applied to RTHK post-NSL" },
   { label: "state_nationalist", color: "#b91c1c", text: "#fff",     desc: "PRC nationalist commentary (e.g. Global Times, Guancha)" },
+];
+
+const TABS = [
+  { name: "Military",     desc: "Daily PLA activity around Taiwan from MND briefings (2020–present), plus a reviewed tracker of named exercises on a live map." },
+  { name: "Economy",      desc: "Cross-strait trade, investment, and macro indicators, with a verification angle: the same flows as reported by Taipei, by Beijing, and by Hong Kong, side by side. Where the reporters diverge, that divergence is the signal." },
+  { name: "Trade access", desc: "The asymmetric regulatory picture: Taiwan's import bans on PRC goods against the PRC's ECFA suspensions and food-registration blocks." },
+  { name: "People",       desc: "Visitor flows, residence and settlement permits, and the mainland-spouse population, in both directions." },
+  { name: "Polls",        desc: "Taiwanese public opinion across pollsters on one set of canonical questions, anchored by NCCU's identity and unification series (1992–present)." },
+  { name: "Diplomacy",    desc: "A world map of third-country stances on the Taiwan question, split between official government positions and non-official voices such as legislators." },
 ];
 
 export default function AboutModal({ onClose }) {
@@ -101,13 +111,14 @@ export default function AboutModal({ onClose }) {
         <h3 style={sectionHead}>What this is</h3>
         <p style={body}>
           Cross-Strait Signal is an open-source intelligence dashboard monitoring PRC–Taiwan cross-strait
-          dynamics through automated bilingual media analysis. It scrapes dozens of active sources across
-          the People's Republic of China, Taiwan, Hong Kong, and international Chinese-language outlets — Chinese-language outlets are treated as
-          primary, since they break stories earlier and with greater analytical depth than English media on
-          either side of the strait, while mainstream international media does great work and often has
-          exclusives, access to that information is easy for English speakers, while access to what the
-          people who are most impacted think is often lost. Articles are processed through a multi-tier AI
-          pipeline, human-reviewed for accuracy, and structured into a filterable intelligence feed.
+          dynamics through automated bilingual media analysis. It scrapes 37 active sources across the
+          People's Republic of China, Taiwan, Hong Kong, and international Chinese-language outlets.
+          Chinese-language sources are treated as primary: they break stories earlier and in greater depth
+          than English-language media on either side of the strait. International outlets do strong work
+          and often land exclusives, but that reporting is already easy for English speakers to reach —
+          what gets lost is what the people most affected are reading and saying. Articles are processed
+          through a multi-tier AI pipeline, human-reviewed for accuracy, and structured into a filterable
+          intelligence feed.
         </p>
         <p style={{ ...body, marginTop: "12px" }}>
           There is also a social feed covering for the moment the top 50 trending on Weibo and the
@@ -121,6 +132,24 @@ export default function AboutModal({ onClose }) {
           Taiwanese "status quo" alongside PRC military activity and nationalist rhetoric. It is
           deliberately not supposed to imply one side's positive or negative activity is a one-way street.
         </p>
+
+        {/* Beyond the feed */}
+        <h3 style={sectionHead}>Beyond the feed</h3>
+        <p style={body}>
+          The article feed is one instrument among several. The dashboard also tracks:
+        </p>
+        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {TABS.map(({ name, desc }) => (
+            <div key={name} style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px", alignItems: "baseline" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                {name}
+              </span>
+              <span style={{ fontSize: "13px", fontFamily: "var(--font-body)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                {desc}
+              </span>
+            </div>
+          ))}
+        </div>
 
         {/* Sentiment axis */}
         <h3 style={sectionHead}>Sentiment axis</h3>
@@ -147,7 +176,19 @@ export default function AboutModal({ onClose }) {
         </div>
         <p style={{ ...body, marginTop: "12px", fontSize: "13px", color: "var(--text-muted)" }}>
           For PRC sources: how does the article portray Taiwan? For Taiwan sources: how does it portray
-          the PRC?
+          the PRC? Third-country statements about Taiwan are deliberately excluded from this axis — they
+          feed the Diplomacy map instead.
+        </p>
+
+        {/* Diplomacy stance axis */}
+        <h3 style={sectionHead}>Diplomacy stance axis</h3>
+        <p style={body}>
+          The Diplomacy map uses a separate scale, scored −1.0 to +1.0: how far a third country's
+          statement leans toward Beijing's position or Taipei's. It deliberately uses different colours —
+          red toward Beijing, green toward Taipei, following each side's own political conventions — so
+          it cannot be misread as the purple/amber sentiment axis. Country fill reflects the average of
+          official-tier statements (governments and heads of state); pins mark the aggregate of
+          non-official voices, which often diverge from the government line.
         </p>
 
         {/* Source bias */}
@@ -179,11 +220,13 @@ export default function AboutModal({ onClose }) {
         <h3 style={sectionHead}>AI pipeline & human oversight</h3>
         <p style={body}>
           Articles pass through a three-tier pipeline: Gemini 3.1 Flash Lite handles initial
-          classification (topic, sentiment, urgency, named entities, key quotes); Gemini 2.5 Flash
-          re-reviews escalation-flagged articles; a human review queue catches cases where the two
-          models disagree. Every article requires explicit analyst approval before appearing on this
-          feed. Translations and classifications can be corrected inline by the analyst, and corrected
-          fields are marked as human-verified.
+          classification (topic, sentiment, urgency, named entities, key quotes); Gemini 3.5 Flash
+          independently re-reviews escalation-flagged articles without seeing the first tier's answers;
+          a human review queue catches cases where the two disagree. Every article requires explicit
+          analyst approval before appearing on this feed, and the same editorial gate applies to every
+          derived record — military exercises, poll extractions, diplomacy statements, and quotes
+          attributed to key figures all sit in analyst review queues until approved. Translations and
+          classifications can be corrected inline, and corrected fields are marked as human-verified.
         </p>
 
         {/* Key Terms */}
@@ -192,11 +235,7 @@ export default function AboutModal({ onClose }) {
           {[
             { term: "PRC", def: "People's Republic of China — the government in Beijing, which has governed mainland China since 1949." },
             { term: "ROC", def: "Republic of China — the government in Taipei. The ROC was founded in 1912, lost the civil war to the CCP in 1949, and retreated to Taiwan. It continues to govern Taiwan, Kinmen, and Matsu." },
-            { term: "Green / Blue", def: "Taiwan's two political camps. Green refers to the DPP and its allies, who broadly favour preserving or advancing Taiwan's separate identity. Blue refers to the KMT and its allies, who favour closer cross-strait engagement. Neither camp formally advocates immediate independence or unification." },
-            { term: "DPP", def: "Democratic Progressive Party (民主進步黨) — Taiwan's centre-left ruling party, associated with the green camp. Founded in 1986 during Taiwan's democratisation." },
-            { term: "KMT", def: "Kuomintang (中國國民黨), or Chinese Nationalist Party — Taiwan's main opposition, associated with the blue camp. Governed Taiwan from 1949 until losing power to the DPP in 2000." },
-            { term: "TPP", def: "Taiwan People's Party (台灣民眾黨) — Taiwan's third-largest party, founded in 2019 by former Taipei mayor Ko Wen-je. Positions itself between green and blue on cross-strait issues." },
-            { term: "統獨 (Tǒng-Dú)", def: "The unification–independence spectrum. 統 (tǒng) refers to unification with the mainland; 獨 (dú) refers to formal independence. Most Taiwanese public opinion sits in the middle, favouring maintaining the status quo." },
+            { term: "Green / Blue", def: "Taiwan's two political camps. Green refers to the DPP (民主進步黨) and its allies, who broadly favour preserving or advancing Taiwan's separate identity; Blue to the KMT (中國國民黨) and its allies, who favour closer cross-strait engagement. The smaller TPP (台灣民眾黨) positions itself between the two." },
             { term: "TAO", def: "Taiwan Affairs Office (國台辦) — the PRC government body responsible for Taiwan policy. Its statements are closely watched as signals of Beijing's current posture." },
             { term: "MAC", def: "Mainland Affairs Council (陸委會) — Taiwan's counterpart to the TAO, overseeing cross-strait policy from Taipei." },
             { term: "ADIZ", def: "Air Defence Identification Zone — airspace where a country requires aircraft to identify themselves. PLA incursions into Taiwan's ADIZ are a routine but significant signal of military pressure." },
@@ -213,6 +252,18 @@ export default function AboutModal({ onClose }) {
             </div>
           ))}
         </div>
+
+        {/* Data sources */}
+        <h3 style={sectionHead}>Data sources</h3>
+        <p style={body}>
+          News analysis is built on the 37-source roster. Structured data comes from: Taiwan's Mainland
+          Affairs Council open datasets (trade, investment, visitor flows, polling); UN Comtrade
+          (PRC-reported trade, discontinued by Beijing after Dec 2024); Hong Kong Census &amp; Statistics
+          Department; Taiwan MND daily briefings, with 2020–2026 history backfilled from PLATracker;
+          Taiwan NIA residence statistics; BOFT and ECFA notifications plus the PRC's CIFER registry;
+          NCCU Election Study Center long-series polling alongside TVBS, My-Formosa, ETtoday and MAC
+          surveys; Natural Earth map data.
+        </p>
 
         {/* Author */}
         <h3 style={sectionHead}>Author</h3>
