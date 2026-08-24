@@ -39,9 +39,10 @@ from scraper.processors.ai_pipeline import (
 )
 from scraper.processors.social_translator import translate_social_pulse
 
-# Add scripts dir to path for cluster_events import
+# Add scripts dir to path for cluster_events / dedup_articles imports
 sys.path.insert(0, os.path.dirname(__file__))
 from cluster_events import cluster_recent_articles
+from dedup_articles import dedup_recent_articles
 
 
 _FAILURES = []
@@ -158,6 +159,15 @@ async def main():
     # the 最新消息 listing on the presence of a 配布表 attachment, which only
     # poll releases carry.
     await _arun('mac_polls', asyncio.to_thread(scrape_mac_polls))
+
+    # Step 2m: Same-outlet duplicate hiding (deterministic, no AI). Runs
+    # after every article scraper and BEFORE Tier-1 selection so an SEO
+    # re-push (new URL, same story, same outlet) is hidden before it can
+    # cost a Gemini call or reach the feed. Cross-outlet duplication is
+    # signal and untouched; detection rules + measured thresholds in
+    # shared/article_dedup.py. 8-day window covers R1's 7-day rule.
+    print("\n--- STEP 2m: Same-outlet dedup ---")
+    _run('article_dedup', lambda: dedup_recent_articles(days=8, apply=True))
 
     # Step 3: Analyse unprocessed articles
     total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_taiwan_cn

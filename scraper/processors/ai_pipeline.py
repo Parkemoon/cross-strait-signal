@@ -1200,6 +1200,7 @@ def process_unanalysed_articles(limit=10):
         FROM articles
         JOIN sources ON articles.source_id = sources.id
         WHERE articles.ai_processed = 0
+          AND articles.is_hidden = 0
           AND articles.content_original != ''
           AND (articles.published_at IS NULL OR articles.published_at >= datetime('now', '-180 days'))
         ORDER BY articles.published_at DESC
@@ -1323,6 +1324,7 @@ def _select_tier1_candidates(conn, limit):
         FROM articles
         JOIN sources ON articles.source_id = sources.id
         WHERE articles.ai_processed = 0
+          AND articles.is_hidden = 0
           AND articles.content_original != ''
           AND (articles.published_at IS NULL OR articles.published_at >= datetime('now', '-180 days'))
           AND articles.id NOT IN (
@@ -1870,6 +1872,7 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
             LEFT JOIN ai_analysis ai ON ai.article_id = a.id
             WHERE {source_clause}
               AND a.ai_processed = 1
+              AND a.is_hidden = 0
               AND a.content_original != ''
               AND ai.id IS NULL
               AND a.exercise_scanned_at IS NULL
@@ -2184,6 +2187,7 @@ def process_poll_only_articles(days=14, limit=30):
             LEFT JOIN ai_analysis ai ON ai.article_id = a.id
             WHERE s.place = 'TW'
               AND a.ai_processed = 1
+              AND a.is_hidden = 0
               AND a.content_original != ''
               AND ai.id IS NULL
               AND a.poll_scanned_at IS NULL
