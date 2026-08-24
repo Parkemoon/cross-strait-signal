@@ -507,6 +507,112 @@
           "sources": []
         }
       ]
+    },
+    {
+      "id": "one-china-policy-vs-principle",
+      "title_en": "One-China policy vs one-China principle",
+      "title_zh": "一個中國政策與一個中國原則",
+      "romanisation": "yīgè Zhōngguó zhèngcè / yuánzé",
+      "what_en": "",
+      "readings": [
+        {
+          "actor_id": "prc",
+          "label_en": "PRC principle",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "taiwan",
+          "label_en": "Taiwan reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "us",
+          "label_en": "US policy",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "ecfa",
+      "title_en": "ECFA — Economic Cooperation Framework Agreement (2010)",
+      "title_zh": "海峽兩岸經濟合作架構協議",
+      "romanisation": "Hǎixiá liǎng'àn jīngjì hézuò jiàgòu xiéyì",
+      "what_en": "",
+      "readings": [
+        {
+          "actor_id": "prc",
+          "label_en": "PRC usage",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "taiwan",
+          "label_en": "Taiwan reading",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "grey-zone",
+      "title_en": "Grey-zone coercion",
+      "title_zh": "灰色地帶行動",
+      "romanisation": "huīsè dìdài xíngdòng",
+      "what_en": "",
+      "readings": [
+        {
+          "actor_id": "taiwan",
+          "label_en": "Taiwan framing",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "prc",
+          "label_en": "PRC framing",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "us",
+          "label_en": "US framing",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "median-line",
+      "title_en": "The Taiwan Strait median line",
+      "title_zh": "海峽中線",
+      "romanisation": "Hǎixiá zhōngxiàn",
+      "what_en": "",
+      "readings": [
+        {
+          "actor_id": "taiwan",
+          "label_en": "Taiwan position",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        },
+        {
+          "actor_id": "prc",
+          "label_en": "PRC position",
+          "reading_en": "",
+          "formulation_zh": "",
+          "sources": []
+        }
+      ]
     }
   ]
 }
