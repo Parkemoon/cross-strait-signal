@@ -106,6 +106,7 @@ def cluster_recent_articles(hours=48):
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
           AND a.ai_processed = 1
+          AND a.is_hidden = 0
         ORDER BY a.published_at ASC
     """, (f'-{hours} hours',)).fetchall()
 
