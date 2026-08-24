@@ -82,7 +82,7 @@ def lead_splitscreen(conn, start, end):
                COUNT(*)           AS total
         FROM articles a JOIN sources s ON s.id = a.source_id
         WHERE a.published_at >= ? AND a.published_at < ?
-          AND a.analyst_approved = 1 AND a.event_cluster_id IS NOT NULL
+          AND a.analyst_approved = 1 AND a.is_hidden = 0 AND a.event_cluster_id IS NOT NULL
         GROUP BY a.event_cluster_id
         HAVING prc_n >= 1 AND tw_n >= 1
         ORDER BY total DESC LIMIT 1
@@ -100,7 +100,7 @@ def lead_splitscreen(conn, start, end):
         FROM articles a
         JOIN sources s ON s.id = a.source_id
         LEFT JOIN ai_analysis an ON an.article_id = a.id
-        WHERE a.event_cluster_id = ? AND a.analyst_approved = 1
+        WHERE a.event_cluster_id = ? AND a.analyst_approved = 1 AND a.is_hidden = 0
         ORDER BY s.place, a.published_at
         """,
         (cluster_id,),
@@ -120,7 +120,7 @@ def lead_splitscreen(conn, start, end):
         FROM entities e
         JOIN articles a ON a.id = e.article_id
         JOIN sources s ON s.id = a.source_id
-        WHERE a.event_cluster_id = ? AND a.analyst_approved = 1
+        WHERE a.event_cluster_id = ? AND a.analyst_approved = 1 AND a.is_hidden = 0
           AND e.entity_name_en IS NOT NULL
         GROUP BY s.place, e.entity_name_en ORDER BY c DESC
         """,
@@ -145,7 +145,7 @@ def sentiment_divergence(conn, start, end, prior_start):
             SELECT s.place, AVG(an.sentiment_score), COUNT(*)
             FROM articles a JOIN sources s ON s.id = a.source_id
             JOIN ai_analysis an ON an.article_id = a.id
-            WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1
+            WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1 AND a.is_hidden = 0
               AND an.sentiment_score IS NOT NULL
             GROUP BY s.place
             """,
@@ -172,7 +172,7 @@ def sentiment_divergence(conn, start, end, prior_start):
             SELECT an.topic_primary, s.place, AVG(an.sentiment_score), COUNT(*)
             FROM articles a JOIN sources s ON s.id = a.source_id
             JOIN ai_analysis an ON an.article_id = a.id
-            WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1
+            WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1 AND a.is_hidden = 0
               AND an.sentiment_score IS NOT NULL AND s.place IN ('PRC','TW')
             GROUP BY an.topic_primary, s.place
             """,
@@ -220,7 +220,7 @@ def by_numbers(conn, start, end):
         """
         SELECT MAX(cluster_size), MAX(title_en)
         FROM articles
-        WHERE published_at >= ? AND published_at < ? AND analyst_approved = 1
+        WHERE published_at >= ? AND published_at < ? AND analyst_approved = 1 AND is_hidden = 0
           AND event_cluster_id IS NOT NULL
         GROUP BY event_cluster_id ORDER BY MAX(cluster_size) DESC LIMIT 6
         """,
@@ -230,7 +230,7 @@ def by_numbers(conn, start, end):
         """
         SELECT e.entity_name_en, e.entity_type, COUNT(*) c
         FROM entities e JOIN articles a ON a.id = e.article_id
-        WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1
+        WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1 AND a.is_hidden = 0
           AND e.entity_name_en IS NOT NULL
         GROUP BY e.entity_name_en ORDER BY c DESC LIMIT 10
         """,
@@ -245,7 +245,7 @@ def watchlist(conn, start, end):
         SELECT a.title_en, an.is_new_formulation, an.is_escalation_signal,
                an.escalation_note, a.url
         FROM articles a JOIN ai_analysis an ON an.article_id = a.id
-        WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1
+        WHERE a.published_at >= ? AND a.published_at < ? AND a.analyst_approved = 1 AND a.is_hidden = 0
           AND (an.is_new_formulation = 1 OR an.is_escalation_signal = 1)
         ORDER BY a.published_at DESC LIMIT 10
         """,
