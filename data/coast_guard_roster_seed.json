@@ -1,0 +1,32 @@
+{
+  "_comment": "Seed for the coast-guard hull roster (scripts/refresh_coast_guard_roster.py). CCG / CGA / USCG hulls are pattern-matched on their AIS names (CHINACOASTGUARD####, CG####, CGC …) and need no seed. JCG hulls broadcast plain ship names (MIZUHO, AKITSUSHIMA) that collide with ferries and merchant ships, so JCG membership is name IN this list AND flag JPN AND GFW vesselType not passenger/cargo/fishing. Names are the romanised AIS forms, uppercase, macrons dropped. Source: Wikipedia class articles (Shikishima/Reimei, Mizuho 1986, Tsugaru, Kunigami, Hateruma, Aso, Iwami, Hida), fetched 2026-08-25; Shiretoko-class omitted (all decommissioned by 2016 — but some of its names were reused by Kunigami/Hateruma hulls, which ARE included). Add PLH-41 MIZUHO / PLH-42 SHUNKO (2019–20) and PL-class newcomers by hand as they appear in the review queue.",
+  "JCG": {
+    "names": [
+      "SHIKISHIMA", "AKITSUSHIMA", "REIMEI", "AKATSUKI", "ASAZUKI",
+      "MIZUHO", "SHUNKO", "FUSO", "YASHIMA",
+      "TSUGARU", "SAGAMI", "URUMA", "ZAO", "OKINAWA", "SETTSU", "ECHIGO", "RYUKYU", "DAISEN",
+      "KUNISAKI", "BUKO", "TAKETOMI", "NAGURA", "KABIRA", "ZAMPA", "TARAMA", "IKEMA", "IRABU",
+      "TOKASHIKI", "AGUNI", "IZENA", "RISHIRI", "ESAN", "MOTOBU", "YONAKUNI", "OKI", "ERIMO",
+      "TSURUGA", "ECHIZEN",
+      "HATERUMA", "ISHIGAKI", "KUNIGAMI", "SHIMOKITA", "SHIRETOKO", "SHIKINE", "AMAGI", "SUZUKA", "KOSHIKI",
+      "ASO", "DEWA", "HAKUSAN",
+      "IWAMI", "REBUN", "KII", "MATSUSHIMA", "WAKASA", "SADO",
+      "HIDA", "AKAISHI", "KISO"
+    ],
+    "pennants": {
+      "SHIKISHIMA": "PLH-31", "AKITSUSHIMA": "PLH-32", "REIMEI": "PLH-33", "AKATSUKI": "PLH-34", "ASAZUKI": "PLH-35",
+      "MIZUHO": "PLH-41", "SHUNKO": "PLH-42", "FUSO": "PLH-21", "YASHIMA": "PLH-22",
+      "TSUGARU": "PLH-02", "SAGAMI": "PLH-03", "URUMA": "PLH-04", "ZAO": "PLH-05", "OKINAWA": "PLH-06",
+      "SETTSU": "PLH-07", "ECHIGO": "PLH-08", "RYUKYU": "PLH-09", "DAISEN": "PLH-10",
+      "KUNISAKI": "PL-09", "BUKO": "PL-10", "TAKETOMI": "PL-81", "NAGURA": "PL-82", "KABIRA": "PL-83",
+      "ZAMPA": "PL-84", "TARAMA": "PL-85", "IKEMA": "PL-86", "IRABU": "PL-87", "TOKASHIKI": "PL-88",
+      "AGUNI": "PL-89", "IZENA": "PL-90", "RISHIRI": "PL-11", "ESAN": "PL-12", "MOTOBU": "PL-13",
+      "YONAKUNI": "PL-14", "OKI": "PL-01", "ERIMO": "PL-02", "TSURUGA": "PL-91", "ECHIZEN": "PL-92",
+      "HATERUMA": "PL-61", "ISHIGAKI": "PL-62", "KUNIGAMI": "PL-63", "SHIMOKITA": "PL-64", "SHIRETOKO": "PL-65",
+      "SHIKINE": "PL-66", "AMAGI": "PL-67", "SUZUKA": "PL-68", "KOSHIKI": "PL-69",
+      "ASO": "PL-41", "DEWA": "PL-42", "HAKUSAN": "PL-43",
+      "IWAMI": "PL-71", "REBUN": "PL-72", "KII": "PL-73", "MATSUSHIMA": "PL-74", "WAKASA": "PL-75", "SADO": "PL-76",
+      "HIDA": "PL-51", "AKAISHI": "PL-52", "KISO": "PL-53"
+    }
+  }
+}
