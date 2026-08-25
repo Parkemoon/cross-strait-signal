@@ -33,6 +33,7 @@ from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.scrapers.tw_nia_population_scraper import scrape_tw_nia_population
 from scraper.scrapers.mnd_incursion_scraper import scrape_mnd_incursions
 from scraper.scrapers.gfw_coast_guard import pull_recent as pull_coast_guard_presence
+from scraper.scrapers.cga_stats_scraper import scrape_cga_stats
 from scraper.processors.ai_pipeline import (
     run_tier1,
     process_exercise_only_articles,
@@ -145,6 +146,8 @@ async def main():
     # Step 2n: coast-guard presence from Global Fishing Watch (trailing 10 days;
     # GFW lags ~5 days and back-fills late AIS, the upsert makes re-pulls idempotent).
     _run('coast_guard_presence', lambda: pull_coast_guard_presence(days=10))
+    # Step 2o: CGA enforcement statistics (monthly report; no-op until a new one is linked)
+    _run('cga_enforcement', scrape_cga_stats)
 
     # Step 2L: Pollster-direct ingestion (Playwright — ~30s startup each).
     # TVBS publishes one PDF per release, My-Formosa one article per release.

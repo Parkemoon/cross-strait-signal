@@ -108,7 +108,7 @@ DB: one migration `0008_coast_guard.sql` (four tables + indexes), mirrored in `s
 
 ---
 
-# Part B — CGA enforcement: the mirror series (scoped 2026-08-25)
+# Part B — CGA enforcement: the mirror series (scoped 2026-08-25; **BUILT same day** — migration 0009, `cga_stats_scraper.py`, backfill, `/enforcement` endpoint + summary KPI; 5 yearbooks + 9 monthly reports ingested)
 
 **Why.** Ed's challenge: the tracker as built counts PRC hulls inside lines Taiwan drew — one-directional by construction. The Taiwan-side coercive action in the same waters is the Coast Guard Administration's enforcement against PRC vessels: expulsions, detentions, fines, confiscations — thousands of boats a year, and the Feb 2024 Kinmen deaths were a CGA pursuit. Putting that series next to `coast_guard_presence` on the same chart, with dual-frame copy (Taipei: 越界/驅離 · Beijing: 兩岸漁民傳統作業 / 粗暴對待), is what makes the section bi-directional.
 
