@@ -64,7 +64,8 @@ def test_actor_shapes(content):
     seen = set()
     for a in content["actors"]:
         where = f"actor {a.get('id')}"
-        assert set(a) == ACTOR_KEYS, f"{where}: keys {set(a) ^ ACTOR_KEYS}"
+        # sub_positions_label is optional (overrides the "Party positions" heading, e.g. Europe's capitals)
+        assert set(a) - {"sub_positions_label"} == ACTOR_KEYS, f"{where}: keys {set(a) ^ ACTOR_KEYS}"
         assert a["id"] not in seen, f"duplicate actor id {a['id']}"
         seen.add(a["id"])
         assert a["depth"] in ("full", "brief"), where
@@ -95,7 +96,8 @@ def test_actor_shapes(content):
 
         for sp in a["sub_positions"]:
             w = f"{where}.sub_positions.{sp.get('id')}"
-            assert sp["id"] and sp["label_en"] and sp["party"], w
+            # party may be "" for non-party groupings (Europe's member states)
+            assert sp["id"] and sp["label_en"] and "party" in sp, w
             for it in sp["items"]:
                 wi = f"{w}.{it.get('id')}"
                 assert set(it) == POSITION_KEYS, f"{wi}: keys {set(it) ^ POSITION_KEYS}"
@@ -139,7 +141,7 @@ def test_party_keys_are_known(content):
     known = {"DPP", "KMT", "TPP", "NPP", "TSP", "GPT", "NP", "PFP", "CUPP", "IND", "PRC"}
     for a in content["actors"]:
         for sp in a["sub_positions"]:
-            assert sp["party"] in known, f"{a['id']}.{sp['id']}: unknown party {sp['party']!r}"
+            assert sp["party"] == "" or sp["party"] in known, f"{a['id']}.{sp['id']}: unknown party {sp['party']!r}"
 
 
 def test_api_route_serves_content():
