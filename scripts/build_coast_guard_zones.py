@@ -161,15 +161,15 @@ KINMEN_EAST_SOUTH = [(_dms(*e), _dms(*n)) for i, e, n in KINMEN_OUTER_DMS if i <
 KINMEN_PROHIBITED_INDENT_M = 2500.0
 
 
-def kinmen_official_zones(islands):
+def kinmen_official_zones(islands, prc_m):
     land = to_m(unary_union(islands))
     outer = to_m(Polygon(KINMEN_OUTER)).buffer(0)
     east_south = to_m(LineString(KINMEN_EAST_SOUTH))
     # undo the county's outward buffer: 300 m everywhere, 1,000 m along 1→9
     restricted_outer = outer.buffer(-300).difference(east_south.buffer(700))
     prohibited = restricted_outer.difference(east_south.buffer(700 + KINMEN_PROHIBITED_INDENT_M))
-    restricted_outer = restricted_outer.difference(land).difference(prc_m_global)
-    prohibited = prohibited.difference(land).difference(prc_m_global)
+    restricted_outer = restricted_outer.difference(land).difference(prc_m)
+    prohibited = prohibited.difference(land).difference(prc_m)
     restricted = restricted_outer.difference(prohibited)
     return [
         ("kinmen_prohibited", "金門禁止水域", "kinmen", "prohibited", to_deg(prohibited)),
@@ -177,11 +177,7 @@ def kinmen_official_zones(islands):
     ]
 
 
-prc_m_global = None
-
-
 def build():
-    global prc_m_global
     print("fetching Natural Earth 10m …", file=sys.stderr)
     admin0 = _load(NE_URL)
     minor = _load(NE_MINOR_ISLANDS_URL)
@@ -202,7 +198,6 @@ def build():
     assert kinmen and matsu, "Natural Earth fetch returned no Kinmen/Matsu rings — check bboxes"
 
     prc_m = to_m(prc_land)
-    prc_m_global = prc_m
 
     def nearer_than_prc(land, dist_m, step_m=250.0):
         """Points within dist_m of `land` that are CLOSER to `land` than to PRC
@@ -228,7 +223,7 @@ def build():
         ]
 
     zones = []
-    zones += kinmen_official_zones(kinmen)
+    zones += kinmen_official_zones(kinmen, prc_m)
     zones += island_zones(matsu, "matsu", "馬祖")
 
     # Median line band: 12 nm on the Taiwan (east) side of the line.
