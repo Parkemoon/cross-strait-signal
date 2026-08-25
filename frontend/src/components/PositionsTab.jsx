@@ -308,7 +308,7 @@ function PartyChip({ party, label }) {
       fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
       color: "var(--text-primary)",
     }}>
-      <span style={{ width: "10px", height: "10px", background: colour, display: "inline-block" }} />
+      {party && <span style={{ width: "10px", height: "10px", background: colour, display: "inline-block" }} />}
       {label}
     </span>
   );
@@ -382,35 +382,7 @@ function ActorCard({ actor, basePath, openEdit }) {
         </>
       )}
 
-      {actor.sub_positions?.length > 0 && (
-        <>
-          <SubHead>Party positions</SubHead>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "8px" }}>
-            {actor.sub_positions.map((sp, spIdx) => (
-              <div key={sp.id} style={{ padding: "12px 14px", border: "1px solid var(--border-color)", background: "var(--bg-card)" }}>
-                <div style={{ marginBottom: "8px" }}>
-                  <PartyChip party={sp.party} label={sp.label_en} />
-                </div>
-                {sp.items?.length > 0
-                  ? sp.items.map((it, i) => (
-                      <div key={it.id} style={{ marginBottom: "10px" }}>
-                        <div style={{ marginBottom: "3px" }}>
-                          <Formulation en={it.formulation_en} zh={it.formulation_zh} rom={it.romanisation} />
-                          {edit && (
-                            <EditBtn onClick={() => edit(it, ["sub_positions", spIdx, "items", i], `${sp.label_en} — ${it.formulation_en}`)} />
-                          )}
-                        </div>
-                        <p style={PROSE}>{it.position_en || <Pending />}</p>
-                        <DateAnchor label="as stated" date={it.as_stated} by={it.stated_by} />
-                        <SourceLinks sources={it.sources} />
-                      </div>
-                    ))
-                  : <Pending />}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <SubPositions actor={actor} edit={edit} />
 
       {actor.misconceptions?.length > 0 && (
         <>
@@ -428,12 +400,53 @@ function ActorCard({ actor, basePath, openEdit }) {
   );
 }
 
+// Intra-actor splits: Taiwan's parties, Europe's capitals. Heading defaults to
+// "Party positions"; an actor can override it with sub_positions_label. Groups
+// with party "" render without a colour swatch.
+function SubPositions({ actor, edit }) {
+  if (!actor.sub_positions?.length) return null;
+  return (
+    <>
+      <SubHead>{actor.sub_positions_label || "Party positions"}</SubHead>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "8px" }}>
+        {actor.sub_positions.map((sp, spIdx) => (
+          <div key={sp.id} style={{ padding: "12px 14px", border: "1px solid var(--border-color)", background: "var(--bg-card)" }}>
+            <div style={{ marginBottom: "8px" }}>
+              <PartyChip party={sp.party} label={sp.label_en} />
+            </div>
+            {sp.items?.length > 0
+              ? sp.items.map((it, i) => (
+                  <div key={it.id} style={{ marginBottom: "10px" }}>
+                    <div style={{ marginBottom: "3px" }}>
+                      <Formulation en={it.formulation_en} zh={it.formulation_zh} rom={it.romanisation} />
+                      {edit && (
+                        <EditBtn onClick={() => edit(it, ["sub_positions", spIdx, "items", i], `${sp.label_en} — ${it.formulation_en}`)} />
+                      )}
+                    </div>
+                    <p style={PROSE}>{it.position_en || <Pending />}</p>
+                    {it.nuance_en && <p style={{ ...PROSE, color: "var(--text-muted)" }}>{it.nuance_en}</p>}
+                    <DateAnchor label="as stated" date={it.as_stated} by={it.stated_by} />
+                    <SourceLinks sources={it.sources} />
+                  </div>
+                ))
+              : <Pending />}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function BriefActorCard({ actor, basePath, openEdit }) {
   const edit = openEdit
     ? (obj, subPath, title) => openEdit(obj, [...basePath, ...subPath], title)
     : null;
   return (
-    <div style={{ padding: "14px 16px", border: "1px solid var(--border-color)", background: "var(--bg-card)", minWidth: 0, position: "relative" }}>
+    <div style={{
+      padding: "14px 16px", border: "1px solid var(--border-color)", background: "var(--bg-card)",
+      minWidth: 0, position: "relative",
+      gridColumn: actor.sub_positions?.length ? "1 / -1" : undefined,
+    }}>
       {edit && (
         <span style={{ position: "absolute", top: "8px", right: "8px" }}>
           <EditBtn onClick={() => edit(actor, [], actor.name_en)} />
@@ -461,6 +474,7 @@ function BriefActorCard({ actor, basePath, openEdit }) {
           <SourceLinks sources={it.sources} />
         </div>
       ))}
+      <SubPositions actor={actor} edit={edit} />
     </div>
   );
 }
