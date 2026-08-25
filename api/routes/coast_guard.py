@@ -105,8 +105,17 @@ def summary(days: int = Query(30, ge=7, le=365)):
         anomalies = conn.execute(
             "SELECT COUNT(*) FROM coast_guard_vessels WHERE anomaly_flags IS NOT NULL AND status != 'rejected'").fetchone()[0]
         pull = conn.execute("SELECT MAX(pulled_at) FROM coast_guard_pulls WHERE status='ok'").fetchone()[0]
+        # Mirror KPI: PRC vessels the CGA expelled / detained, trailing 12 reported months.
+        enf = conn.execute(
+            """SELECT MAX(period) AS latest, SUM(expelled) AS expelled, SUM(detained) AS detained, COUNT(*) AS n
+               FROM (SELECT period, expelled, detained FROM cga_enforcement
+                     WHERE region='TW' AND category='fishing_prc' AND granularity='month' AND source='monthly'
+                     ORDER BY period DESC LIMIT 12)""").fetchone()
+        enforcement = {"latest_month": enf["latest"], "months": enf["n"], "expelled": enf["expelled"] or 0,
+                       "detained": enf["detained"] or 0} if enf and enf["n"] else None
         return {"latest_date": latest, "window_start": start.isoformat(), "days": days, "forces": forces,
-                "zones": zones_out, "roster": roster, "anomalies": anomalies, "last_pull_at": pull}
+                "zones": zones_out, "roster": roster, "anomalies": anomalies, "last_pull_at": pull,
+                "enforcement": enforcement}
 
 
 @router.get("/daily")
@@ -242,6 +251,34 @@ def encounters(days: int = Query(30, ge=1, le=3660), zone: Optional[str] = None)
             d["other_names"] = [x for x in (d["other_names"] or "").split("|") if x]
             out.append(d)
         return {"latest_date": latest, "start": start, "rows": out}
+
+
+@router.get("/enforcement")
+def enforcement(region: str = Query("TW", description="'TW' national, or a county name e.g. 金門縣 / 連江縣 / 澎湖縣"),
+                category: str = Query("fishing_prc"), months: int = Query(60, ge=1, le=240)):
+    """The mirror series: vessels Taiwan's CGA expelled / detained for trespass
+    fishing (official CGA statistics — cga_enforcement). Returns three
+    series so the chart can choose: monthly national (表8-1), annual national
+    (表8-1 / yearbooks, plus the 護永專案 manual rows with fines/confiscations),
+    and the county year-to-date snapshots (表8-3, newest report wins)."""
+    with db_conn() as conn:
+        monthly = conn.execute(
+            """SELECT period, expelled, detained, cases, source, source_ref FROM cga_enforcement
+               WHERE region='TW' AND category=? AND granularity='month' AND source='monthly'
+               ORDER BY period DESC LIMIT ?""", (category, months)).fetchall()
+        annual = conn.execute(
+            """SELECT period, granularity, expelled, detained, fined_vessels, fines_ntd_m, confiscated, source, source_ref
+               FROM cga_enforcement WHERE region='TW' AND category=? AND granularity IN ('year','half')
+               ORDER BY period, CASE source WHEN 'yearbook' THEN 0 WHEN 'monthly' THEN 1 ELSE 2 END""",
+            (category,)).fetchall()
+        county = conn.execute(
+            """SELECT period, granularity, region, expelled, detained, source, source_ref FROM cga_enforcement
+               WHERE region=? AND category=? ORDER BY period""", (region, category)).fetchall() if region != "TW" else []
+        latest = conn.execute("SELECT MAX(period) FROM cga_enforcement WHERE granularity='month'").fetchone()[0]
+        return {"latest_month": latest, "region": region, "category": category,
+                "monthly": [dict(r) for r in reversed(monthly)],
+                "annual": [dict(r) for r in annual],
+                "county": [dict(r) for r in county]}
 
 
 @router.patch("/vessels/{mmsi}")
