@@ -104,3 +104,39 @@ DB: one migration `0008_coast_guard.sql` (four tables + indexes), mirrored in `s
 2. **Claude**: 24-hour bbox coverage test on staging (count distinct MMSIs by MID prefix + law-enforcement type, by sub-area) — go/no-go on the east coast and Pratas; check whether GFW's Vessels API resolves the CCG hulls we see.
 3. ⚑ **Ed**: decide zone set for v1 (proposal: Kinmen restricted+prohibited, Matsu restricted+prohibited, median line, 24 nm contiguous zone, east-coast box, Pratas 24 nm).
 4. Then build in the order in §6, on staging.
+
+
+---
+
+# Part B — CGA enforcement: the mirror series (scoped 2026-08-25)
+
+**Why.** Ed's challenge: the tracker as built counts PRC hulls inside lines Taiwan drew — one-directional by construction. The Taiwan-side coercive action in the same waters is the Coast Guard Administration's enforcement against PRC vessels: expulsions, detentions, fines, confiscations — thousands of boats a year, and the Feb 2024 Kinmen deaths were a CGA pursuit. Putting that series next to `coast_guard_presence` on the same chart, with dual-frame copy (Taipei: 越界/驅離 · Beijing: 兩岸漁民傳統作業 / 粗暴對待), is what makes the section bi-directional.
+
+## B1. What the CGA publishes (verified 2026-08-25)
+
+| Source | What | Cadence / depth | Format | Parse |
+|---|---|---|---|---|
+| **績效統計月報** (monthly performance report) — CGA site, `lp?ctNode=<month node>&mp=999`, chapters as `ct?xItem=…` pages | Ch. 捌 取締非法越區捕魚: **表8-1 by month** (cases; vessels total / 大陸籍 / 外國籍 / 無籍; split 扣留 detention vs 驅離 expelling; annual rows 2013→ plus each month of the current year), **表8-2 by unit**, **表8-3 by county** (金門縣 / 連江縣=Matsu / 澎湖縣 / …). Ch. 拾壹 其他海巡績效: **表11-1** incl. 取締越界非捕魚船舶 (dredgers and other non-fishing trespass). | Monthly; latest = 115年06月 (June 2026), released ~late July. Homepage sidebar links the latest ~5 months; the parent index node (8757) 404s to curl — ⚑ discover by walking the sidebar + remembering seen nodes, or by the newer-month node-id monotonicity. | PDF, one table per file, `public/Attachment/f<13-digit>.pdf` | `pdfplumber.extract_tables()` returns clean cells; digits are space-split in `extract_text()` ("1 ,141") — use the table cells, strip spaces/commas. Older reports (≤2024) were ONE narrative PDF (海巡績效統計概況) with the same Table 8 inside — the parser needs both shapes (⚑ find the cut-over). |
+| **海巡統計年報** (yearbook) 110–114年 (2021–2025), same chapter/table layout | Annual backfill: 表8-1 carries 2013→ annual totals in every edition; 表8-3 per-county per year | Yearly | PDF | same |
+| **護永專案 summary page** (`ct?xItem=101246`, updated 2026-04-20) | 2016H2→2026H1 annual: 驅離 (×10), 扣留, 裁罰, 罰鍰 NT$m, 沒入 for PRC fishing vessels; separate table for foreign vessels | Semi-annual | **Images** (PNG/JPG) | Transcribed by eye today (below) — validation set, not a scrape target |
+
+**Transcribed 護永專案 series (PRC fishing vessels, 2016-07 → 2026-06)** — 驅離 / 扣留 / 裁罰 / 罰鍰 NT$m / 沒入:
+2016H2 488/53/47/45.9/5 · 2017 718/77/49/43.0/22 · 2018 1,293/86/61/60.9/23 · 2019 1,003/81/67/54.8/20 · 2020 1,697/19/13/14.9/6 · 2021 1,786/28/23/36.1/5 · 2022 1,271/20/19/16.5/1 · 2023 1,009/28/26/22.0/2 · 2024 1,135/9/7/7.0/1 · 2025 907/15/4/4.0/10 · 2026H1 385/11/3/2.7/8 · total 11,692/427/319/307.8/103.
+Yearbook 表8-1 annual PRC 驅離 (calendar years): 2013 1,324 · 2014 2,334 · 2015 1,991 · 2016 1,282 · 2017 718 · 2018 1,293 · 2019 1,003 · 2020 1,697 · 2021 1,786 · 2022 1,271 · 2023 1,006 · 2024 1,135 · 2025 907 (consistent with the image series where they overlap). PRC 扣留: 2013 988 · 2014 648 · 2015 85 … 2025 15 — the 2013→2015 collapse in detentions (988 → 85) with expulsions steady is itself a policy story (the shift from seizure to expulsion).
+Dredgers: 4,649 expelled 2018–2020 (Audit report via LTN), 86% at Taiwan Shoal (Penghu) — lives in 表11 取締越界非捕魚船舶, not in Table 8.
+
+**Not published as statistics**: CCG incursion counts (the "117 since Feb 2024" figure is press-release prose) — that side stays with the GFW series.
+
+## B2. Design
+
+- **Table** `cga_enforcement` (period `YYYY-MM` or `YYYY` with `granularity`, `region` = national | county code, `category` = fishing_prc | fishing_foreign | fishing_stateless | nonfishing_trespass, `cases`, `expelled`, `detained`, `fined_vessels`, `fines_ntd_m`, `confiscated`, `source` = monthly | yearbook | manual, `source_url`, unique on (period, region, category, source)). Deterministic, no AI, no review gate (official statistics) — same status as `economic_indicators`.
+- **Scraper** `scraper/scrapers/cga_stats_scraper.py`: (1) homepage sidebar → newest month node; (2) chapter 捌 + 拾壹 pages → attachment PDFs; (3) pdfplumber tables → rows for the current year's months (national) + 表8-3 county rows for the year-to-date; (4) upsert. Pipeline step next to Step 2n (monthly cadence — skip unless a new node appears). Health check: `cga_enforcement` newest period ≤ 60 days old.
+- **Backfill** `scripts/backfill_cga_enforcement.py`: yearbooks 110–114 → annual 2013→ national + county; monthly 2021→ from whichever monthly reports remain reachable (⚑ index discovery); the 護永專案 transcription above seeded as `source='manual'` for 2016H2→ with the image URL as `source_url`.
+- **API** `/api/military/coast-guard/enforcement?region=&months=` + fold into `summary` (a second KPI: "PRC vessels expelled by CGA, trailing 12 months").
+- **Frontend**: the Coast Guard section opens with a **paired chart** — left: CCG hull-days in Kinmen/Matsu waters (GFW); right: PRC vessels expelled/detained by the CGA, Kinmen + Matsu counties (表8-3) — same time axis, same visual weight, per [[feedback-analyst-charts]] (no manufactured composite, symmetric summarisation). Zone cards carry both readings (Taipei / Beijing). Vocabulary in the UI: "presence" and "enforcement", not "incursion" and "expelled", except inside quoted official figures.
+- **Effort**: ~2 sittings (scraper + backfill + API = 1; frontend pairing folded into the Coast Guard frontend sitting).
+
+## B3. Caveats to carry into the UI
+- CGA counts are *enforcement events*, a function of patrol effort as much as of PRC behaviour (2020's spike coincided with the dredger surge AND a CGA fuel budget of NT$600m).
+- Counties ≠ zones: 表8-3 gives 金門縣 / 連江縣, not the restricted-waters polygons — the pairing is "same waters, different bookkeeping".
+- Neither side publishes the other's frame: the CGA has no "PRC coast guard incursions" table and the CCG publishes nothing at all — the tracker's two halves come from GFW (behaviour) and the CGA (enforcement), and the Beijing reading is copy, not data.
