@@ -32,6 +32,7 @@ from scraper.scrapers.hk_census_scraper import scrape_hk_census
 from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.scrapers.tw_nia_population_scraper import scrape_tw_nia_population
 from scraper.scrapers.mnd_incursion_scraper import scrape_mnd_incursions
+from scraper.scrapers.gfw_coast_guard import pull_recent as pull_coast_guard_presence
 from scraper.processors.ai_pipeline import (
     run_tier1,
     process_exercise_only_articles,
@@ -141,6 +142,9 @@ async def main():
     # Step 2k: MND daily PLA aircraft/vessel activity counts
     print("\n--- STEP 2k: MND PLA Incursions ---")
     await _arun('mnd_incursions', scrape_mnd_incursions())
+    # Step 2n: coast-guard presence from Global Fishing Watch (trailing 10 days;
+    # GFW lags ~5 days and back-fills late AIS, the upsert makes re-pulls idempotent).
+    _run('coast_guard_presence', lambda: pull_coast_guard_presence(days=10))
 
     # Step 2L: Pollster-direct ingestion (Playwright — ~30s startup each).
     # TVBS publishes one PDF per release, My-Formosa one article per release.
