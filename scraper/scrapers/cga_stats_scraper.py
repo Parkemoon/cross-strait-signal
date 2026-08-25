@@ -287,9 +287,10 @@ def ingest_report(conn, client: httpx.Client, rep: dict, kind: str) -> int:
     if TABLE_BY_COUNTY in tables:
         pdf = _get_bytes(client, tables[TABLE_BY_COUNTY])
         if kind == "monthly":
-            # year-to-date through the report month: store under the month period, granularity 'month'
-            # is wrong (it's cumulative) — use period 'YYYY' with granularity 'year' only for yearbooks;
-            # for monthly reports keep the YTD snapshot keyed by the report month so the newest wins.
+            # 表8-3 in a monthly report is a YEAR-TO-DATE snapshot through the
+            # report month (not that month's delta). It is keyed by the report
+            # month so consumers can pick the newest snapshot per year; the
+            # yearbook's 表8-3 (full year, granularity 'year') is the final word.
             rows = rows_by_county(pdf, f"{rep['year']}-{rep['month']:02d}", "month")
         else:
             rows = rows_by_county(pdf, str(rep["year"]), "year")
