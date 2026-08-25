@@ -437,7 +437,7 @@ function SubPositions({ actor, edit }) {
   );
 }
 
-function BriefActorCard({ actor, basePath, openEdit }) {
+function BriefActorCard({ actor, basePath, openEdit, span }) {
   const edit = openEdit
     ? (obj, subPath, title) => openEdit(obj, [...basePath, ...subPath], title)
     : null;
@@ -445,7 +445,7 @@ function BriefActorCard({ actor, basePath, openEdit }) {
     <div style={{
       padding: "14px 16px", border: "1px solid var(--border-color)", background: "var(--bg-card)",
       minWidth: 0, position: "relative",
-      gridColumn: actor.sub_positions?.length ? "1 / -1" : undefined,
+      gridColumn: span ? "1 / -1" : undefined,
     }}>
       {edit && (
         <span style={{ position: "absolute", top: "8px", right: "8px" }}>
@@ -555,6 +555,7 @@ export default function PositionsTab({ onOpenTab }) {
   const actors = (data.actors || []).map((actor, idx) => ({ actor, idx }));
   const fullActors = actors.filter(({ actor }) => actor.depth === "full");
   const briefActors = actors.filter(({ actor }) => actor.depth === "brief");
+  const plainBriefCount = briefActors.filter(({ actor }) => !actor.sub_positions?.length).length;
 
   const openEdit = READ_ONLY
     ? null
@@ -591,7 +592,15 @@ export default function PositionsTab({ onOpenTab }) {
           <SectionHeader>Other players</SectionHeader>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
             {briefActors.map(({ actor, idx }) => (
-              <BriefActorCard key={actor.id} actor={actor} basePath={["actors", idx]} openEdit={openEdit} />
+              <BriefActorCard
+                key={actor.id}
+                actor={actor}
+                basePath={["actors", idx]}
+                openEdit={openEdit}
+                // Cards carrying sub_positions need the full row; a lone plain card
+                // (currently Japan) also spans rather than sitting in a half-width slot.
+                span={actor.sub_positions?.length > 0 || plainBriefCount === 1}
+              />
             ))}
           </div>
         </>
