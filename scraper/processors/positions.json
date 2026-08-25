@@ -508,6 +508,54 @@
       }
     },
     {
+      "id": "russia",
+      "name_en": "Russia",
+      "name_zh": "俄羅斯",
+      "short_name": "Russia",
+      "depth": "brief",
+      "iso": "RU",
+      "intro_en": "The one major power that has signed Beijing's formulation in full. Where Washington, Tokyo and the European capitals 'acknowledge' or 'take note of' the PRC claim, Moscow adheres to the one-China principle, states that Taiwan is an inalienable part of China's territory, opposes 'any form' of Taiwan independence and — in the leaders' joint statements since 2022 — 'firmly supports' the Chinese government's measures to achieve national reunification. Nothing the Western register keeps open is kept open here; the language is the price of Beijing's reciprocal silence on Ukraine.",
+      "legal_foundation": [],
+      "current_position": [
+        {
+          "id": "russia-one-china-principle",
+          "position_en": "The May 2026 Putin–Xi joint statement has the Russian side 'reiterate its adherence to the one-China principle', recognise Taiwan as 'an inalienable part of China's territory' and the PRC government as 'the sole legitimate government representing all of China', 'resolutely oppose any form of Taiwan independence', hold that interference in the Taiwan question 'is to undermine peace and stability in the Taiwan Strait', and 'firmly support' the measures the Chinese government takes to safeguard sovereignty and 'achieve national reunification'. The wording has ratcheted since the February 2022 statement, which stopped at opposing 'any forms of independence of Taiwan'.",
+          "formulation_zh": "台湾是中国领土不可分割的一部分",
+          "romanisation": "Táiwān shì Zhōngguó lǐngtǔ bùkě fēngē de yī bùfen",
+          "formulation_en": "Taiwan is an inalienable part of China's territory",
+          "as_stated": "2026-05-20",
+          "stated_by": "Putin–Xi joint statement",
+          "nuance_en": "Endorsement, not enforcement: the statements commit Russia to a position, not to any action in a strait contingency, and Moscow keeps its own trade office in Taipei. At the May 2026 summit the formula sat in the signed document but Taiwan went unmentioned in the two leaders' press statements — a week after it had dominated Xi's meeting with Trump.",
+          "sources": [
+            {
+              "label": "PRC MFA: 中华人民共和国和俄罗斯联邦关于进一步加强全面战略协作、深化睦邻友好合作的联合声明 (official Chinese text)",
+              "url": "https://www.fmprc.gov.cn/zyxw/202605/t20260521_11914932.shtml",
+              "date": "2026-05-20",
+              "lang": "zh"
+            },
+            {
+              "label": "Kremlin: Joint Statement of the Russian Federation and the PRC on International Relations Entering a New Era (2022, full English text)",
+              "url": "http://en.kremlin.ru/supplement/5770",
+              "date": "2022-02-04",
+              "lang": "en"
+            },
+            {
+              "label": "PRC MFA: President Xi Jinping and President Putin meet the press (no Taiwan reference)",
+              "url": "https://www.fmprc.gov.cn/eng/xw/zyxw/202605/t20260520_11914662.html",
+              "date": "2026-05-20",
+              "lang": "en"
+            }
+          ]
+        }
+      ],
+      "sub_positions": [],
+      "misconceptions": [],
+      "hooks": {
+        "diplomacy_iso": "RU",
+        "entity_names_en": []
+      }
+    },
+    {
       "id": "eu",
       "name_en": "Europe",
       "name_zh": "歐洲",
