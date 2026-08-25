@@ -167,3 +167,7 @@ Used by `DiplomacyTab.jsx` (choropleth + KPI strip + stance-sorted country list 
 - `GET /article/{id}` — rows for the ArticleCard panel; `raw_response` deliberately excluded (large — inspect via sqlite3).
 - `GET /summary` — per (model, arm) aggregates joined vs `ai_analysis`: outcome counts, topic agreement, mean |Δscore|, signed score bias, refusals-by-topic. Sanitised-but-answered output shows up ONLY here, never in outcome counts.
 - `GET /refusals?model=&arm=&limit=` — refusal browser with article context (limit clamped ≤200).
+
+## `/api/military/coast-guard/*` (`api/routes/coast_guard.py`)
+
+`zones` (add `?geometry=1` for polygons), `summary?days=`, `daily?zone=|group=&force=&days=`, `monthly`, `vessels?force=&status=&anomalies=1`, `vessels/{mmsi}`, `encounters?days=` (v1 "encounter" = a CCG hull and a CGA/JCG/USCG hull in the SAME zone on the SAME day — co-presence, not interaction; label it so). Every aggregate applies `_NOT_REJECTED` (roster status). Admin `PATCH vessels/{mmsi}` (status/force/hull_no/notes) — changing `force` rewrites the hull's presence rows. `group` = zone area (kinmen/matsu/median/contiguous/pratas/east); `kind` = prohibited/restricted/band/sector/radius/box.
