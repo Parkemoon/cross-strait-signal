@@ -792,7 +792,7 @@
       "sub_positions_label": "Where the capitals stand"
     }
   ],
-  "_comment_concepts": "Cross-cutting contested concepts — things that are not any one actor's position; the disagreement IS the content. Each renders as a neutral what_en paragraph followed by the actors' readings side by side. readings[].actor_id must be an actor id or a sub_position id (e.g. 'tw-kmt').",
+  "_comment_concepts": "Cross-cutting contested concepts — things that are not any one actor's position; the disagreement IS the content. Each renders as a neutral what_en paragraph followed by the actors' readings side by side. readings[].actor_id must be an actor id or a sub_position id (e.g. 'tw-kmt'). A reading's formulation_zh MUST carry formulation_en (translation); romanisation follows the page house rule — pinyin with tone marks for terms, none for sentence-length formulations.",
   "concepts": [
     {
       "id": "1992-consensus",
@@ -806,6 +806,8 @@
           "label_en": "PRC reading",
           "reading_en": "Xi Jinping's January 2019 definition stripped the respective-interpretations half and welded the consensus to the end-state: both sides 'belong to one China and will work jointly toward national reunification', in the same speech that launched the one country, two systems Taiwan plan — collapsing the constructive ambiguity that had made the formula usable in Taipei.",
           "formulation_zh": "海峡两岸同属一个中国，共同努力谋求国家统一",
+          "formulation_en": "Both sides of the strait belong to one China and work together to seek national unification",
+          "romanisation": "",
           "sources": [
             {
               "label": "Xi Jinping speech, 40th anniversary of the Message to Compatriots in Taiwan (TAO official English)",
@@ -820,6 +822,8 @@
           "label_en": "KMT reading",
           "reading_en": "One China, respective interpretations (一中各表, yī zhōng gè biǎo): the consensus lets each side mean its own China — for the KMT, the ROC. Under Cheng Li-wun it is re-anchored as the 'common political foundation' with Beijing, paired with opposition to independence; observers note her usage leans on the shared-foundation half and rarely voices the respective-interpretations half.",
           "formulation_zh": "一中各表",
+          "formulation_en": "One China, respective interpretations",
+          "romanisation": "yī zhōng gè biǎo",
           "sources": [
             {
               "label": "Taipei Times: KMT head touts rapport at 823 memorial",
@@ -834,6 +838,8 @@
           "label_en": "DPP reading",
           "reading_en": "No consensus existed: the 1992 talks produced at most an agreement to disagree, and accepting the term today would concede the one-China frame on Beijing's definition. Tsai Ing-wen's January 2019 statement — that Taiwan 'has never accepted the 1992 Consensus' precisely because Beijing had just defined it as one China plus one country, two systems — remains the governing rejection.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "Office of the President: President Tsai's statement on Xi's Message to Compatriots in Taiwan",
@@ -857,6 +863,8 @@
           "label_en": "PRC reading",
           "reading_en": "The resolution 'is a political document encapsulating the one-China principle whose legal authority leaves no room for doubt' (2022 white paper): it settled China's representation AND Taiwan's status as part of China, making Taiwan's exclusion from the UN system a matter of settled law and any official participation a violation.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "PRC white paper: The Taiwan Question and China's Reunification in the New Era",
@@ -871,6 +879,8 @@
           "label_en": "Taiwan reading",
           "reading_en": "The resolution addressed only which government holds China's UN seat: it does not mention Taiwan, does not address Taiwanese representation, and never authorised the PRC to speak for Taiwan's people in the UN system — the core of MOFA's annual case against Beijing's 'distortion and misapplication' of the text.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "Taiwan MOFA: 2024 UN bid refutes distortion of UNGA Resolution 2758",
@@ -885,6 +895,8 @@
           "label_en": "US reading",
           "reading_en": "The State Department's formulation (March 2025): Resolution 2758 'puts no limits on any country's sovereign choice to engage substantively with Taiwan' and 'does not preclude Taiwan's meaningful participation in the United Nations system' — with Beijing's contrary reading called an 'intentional misuse and mischaracterization' of the resolution.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "VOA: US refutes China's characterization of UN Resolution 2758",
@@ -908,6 +920,8 @@
           "label_en": "PRC usage",
           "reading_en": "Beijing's status quo is a legal state, not a political arrangement: Taiwan is part of one China, so DPP governance, 'separatist' formulations and deepening foreign ties are the changes to the status quo, while PRC military and diplomatic pressure is its defence. The 2022 white paper frames the current situation as a phase en route to unification, not a state to be preserved.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "PRC white paper: The Taiwan Question and China's Reunification in the New Era",
@@ -922,6 +936,8 @@
           "label_en": "Taiwan usage",
           "reading_en": "Maintaining the status quo is the declared anchor of both Tsai's and Lai's cross-strait policy: no declaration of independence, no submission to unification, decisions about Taiwan's future only by its people. Lai's 2026 restatement — no independence declaration is needed because the ROC is already sovereign — is the formulation's current edge.",
           "formulation_zh": "維持現狀",
+          "formulation_en": "Maintain the status quo",
+          "romanisation": "wéichí xiànzhuàng",
           "sources": [
             {
               "label": "Taipei Times: ROC not subordinate to PRC, Lai says",
@@ -936,6 +952,8 @@
           "label_en": "US usage",
           "reading_en": "A symmetric process rule: the US 'opposes unilateral changes to the status quo by either side' — covering both a PRC use of force and a Taipei move to formal independence — while taking no position on the outcome provided it is reached peacefully and with the assent of Taiwan's people.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "CRS IF10275, Taiwan: Background and U.S. Relations",
@@ -959,6 +977,8 @@
           "label_en": "PRC position",
           "reading_en": "The basic policy for achieving unification: 'peaceful reunification and one country, two systems', with Taiwan-specific arrangements to be explored through 'democratic consultation' with parties and sectors of Taiwanese society. The 2022 white paper presents it as the most inclusive solution while omitting the troop-stationing and military-retention assurances of earlier versions.",
           "formulation_zh": "和平统一、一国两制",
+          "formulation_en": "Peaceful reunification; one country, two systems",
+          "romanisation": "hépíng tǒngyī, yī guó liǎng zhì",
           "sources": [
             {
               "label": "Xi Jinping speech, 40th anniversary of the Message to Compatriots in Taiwan (TAO official English)",
@@ -979,6 +999,8 @@
           "label_en": "Taiwan position",
           "reading_en": "Rejected across the political spectrum. Tsai Ing-wen's same-day response to Xi's 2019 speech — Taiwan 'resolutely opposes' one country, two systems, and the so-called 1992 Consensus as Beijing had just defined it amounts to the same thing — set the frame; the Hong Kong crackdown then emptied the formula's remaining credibility, and no major Taiwanese party defends it.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "Office of the President: President Tsai's statement on Xi's Message to Compatriots in Taiwan",
@@ -1002,6 +1024,8 @@
           "label_en": "PRC principle",
           "reading_en": "The principle is a three-part formula — one China in the world, Taiwan is a part of China, and the PRC government is the sole legal government representing the whole of China — treated in the 2022 white paper as 'the basis and prerequisite for peaceful reunification'. The same document asserts that UN General Assembly Resolution 2758 encapsulated the principle, and Beijing's practice treats any third country's one-China policy as acceptance of the full package.",
           "formulation_zh": "世界上只有一个中国，台湾是中国的一部分，中华人民共和国政府是代表全中国的唯一合法政府。",
+          "formulation_en": "There is only one China in the world, Taiwan is a part of China, and the government of the People's Republic of China is the sole legal government representing the whole of China.",
+          "romanisation": "",
           "sources": [
             {
               "label": "PRC white paper: The Taiwan Question and China's Reunification in the New Era",
@@ -1016,6 +1040,8 @@
           "label_en": "Taiwan reading",
           "reading_en": "The Lai administration rejects the principle outright: the ROC and the PRC are 'not subordinate to one another' (互不隸屬, hù bù lìshǔ), a formulation carried over from Tsai Ing-wen and restated by Lai Ching-te through 2026. Taipei simultaneously works to keep third countries' one-China policies distinct from Beijing's principle — accepting that partners recognise Beijing while contesting the inference that this concedes PRC sovereignty over Taiwan.",
           "formulation_zh": "中華民國與中華人民共和國互不隸屬",
+          "formulation_en": "The Republic of China and the People's Republic of China are not subordinate to each other.",
+          "romanisation": "",
           "sources": [
             {
               "label": "Taipei Times: ROC not subordinate to PRC, Lai says",
@@ -1030,6 +1056,8 @@
           "label_en": "US policy",
           "reading_en": "Washington's formulation has only ever 'acknowledged' the Chinese position — in 1972 that 'all Chinese on either side of the Taiwan Strait maintain there is but one China', in 1979 'the Chinese position that there is but one China and Taiwan is part of China' — without adopting it as the US view. The US one-China policy is defined by officials as the Taiwan Relations Act, the three Joint Communiqués and the Six Assurances, taking no position on Taiwan's ultimate status. The current fact-sheet wording dispute is covered in the US actor entry.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "AIT: US-PRC Joint Communiqué (1972, full text)",
@@ -1059,6 +1087,8 @@
           "label_en": "PRC usage",
           "reading_en": "Beijing frames the suspensions as lawful trade enforcement, not coercion: a MOFCOM trade-barrier investigation (April–December 2023) found Taiwan's import bans on 2,455 mainland products discriminatory and ECFA-inconsistent, after which tariff concessions were suspended on 12 petrochemical lines from January 2024 and a further 134 lines from June 2024. The political conditionality is explicit: TAO spokeswoman Zhu Fenglian said the DPP's refusal to recognise the 1992 Consensus 'damaged the political foundation' for talks, and that negotiations to resolve the trade disputes could begin immediately on that basis.",
           "formulation_zh": "台湾地区单方面对大陆产品出口采取歧视性的禁止、限制等措施，违反了ECFA条款。",
+          "formulation_en": "The Taiwan region's unilateral discriminatory bans and restrictions on mainland product exports violate the provisions of ECFA.",
+          "romanisation": "",
           "sources": [
             {
               "label": "Xinhua: TAO supports suspension of preferential tariffs (Zhu Fenglian presser)",
@@ -1085,6 +1115,8 @@
           "label_en": "Taiwan reading",
           "reading_en": "Taipei calls the suspensions economic coercion dressed as trade enforcement: the MOEA notes its import restrictions predate both sides' 2002 WTO accessions, rejects the trade-barrier investigation as unilateral and non-transparent, and says any genuine dispute belongs in WTO consultations — which Beijing has declined, preferring the cross-strait frame that keeps the matter 'domestic'.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "CNA (via GlobalSecurity): MOEA response to trade-barrier investigation",
@@ -1108,6 +1140,8 @@
           "label_en": "Taiwan framing",
           "reading_en": "Taiwan's 2025 National Defense Report identifies PRC grey-zone harassment — low-intensity, quasi-military actions below the armed-conflict threshold, integrating military, informational and economic pressure — as the most immediate and complex threat the country faces, and frames societal resilience against it, including against cognitive warfare, as a core defence task.",
           "formulation_zh": "灰色地帶襲擾",
+          "formulation_en": "Grey-zone harassment",
+          "romanisation": "huīsè dìdài xírǎo",
           "sources": [
             {
               "label": "TaiwanPlus: 2025 Defense Report warns of growing gray-zone threats",
@@ -1128,6 +1162,8 @@
           "label_en": "PRC framing",
           "reading_en": "Beijing does not use the grey-zone frame for its own activity. The operations Taipei logs under that heading are officially characterised as 'legitimate, necessary, reasonable' actions to safeguard sovereignty and territorial integrity and to punish 'Taiwan independence' separatism — the MND's standard formulation for the encirclement drills — while coast guard patrols are cast as ordinary law enforcement in Chinese waters. Within this framing there is no grey zone to speak of: the activity is domestic governance, and the provocation lies with Taipei and 'external forces'.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "SCIO/MND: drills around Taiwan 'legitimate move to defend China's national sovereignty'",
@@ -1148,6 +1184,8 @@
           "label_en": "US framing",
           "reading_en": "The Pentagon's annual China Military Power Report describes a sustained PRC pressure campaign against Taiwan built on calibrated escalation control and deniability — military manoeuvres, economic coercion and disinformation designed to wear down Taipei's resistance without crossing into open conflict — and treats countering it as part of cross-strait deterrence.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "DoD 2025 China Military Power Report (annual report to Congress, full PDF)",
@@ -1177,6 +1215,8 @@
           "label_en": "Taiwan position",
           "reading_en": "Taipei treats the line as load-bearing status-quo infrastructure: then-Foreign Minister Joseph Wu answered Beijing's 2020 denial by noting the tacit line had symbolised the status quo and kept the peace for decades, and the MND publishes daily crossing counts precisely to document the erosion — including firsts such as the July 2026 PLA helicopter transit of the R9 restricted zone east of the line.",
           "formulation_zh": "",
+          "formulation_en": "",
+          "romanisation": "",
           "sources": [
             {
               "label": "Taiwan News: China denies existence of median line",
@@ -1203,6 +1243,8 @@
           "label_en": "PRC position",
           "reading_en": "The MFA's September 2020 statement — 'Taiwan is an inalienable part of Chinese territory; there is no so-called median line of the strait' — converted decades of tacit observance into explicit denial. The subsequent normalisation of crossings operationalises the position: if the strait is domestic waters, there is no line to cross.",
           "formulation_zh": "台湾是中国领土不可分割的一部分，不存在所谓的“海峡中线”。",
+          "formulation_en": "Taiwan is an inalienable part of China's territory; there is no so-called 'median line' in the strait.",
+          "romanisation": "",
           "sources": [
             {
               "label": "Taiwan News: Wang Wenbin remarks denying the median line",

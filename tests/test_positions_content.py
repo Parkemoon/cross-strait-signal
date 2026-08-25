@@ -131,6 +131,8 @@ def test_concept_shapes_and_reading_refs(content):
             w = f"{where}.reading[{r.get('actor_id')}]"
             assert r["actor_id"] in valid_refs, f"{w}: unknown actor_id {r['actor_id']!r}"
             assert r["label_en"], w
+            if r.get("formulation_zh"):
+                assert r.get("formulation_en"), f"{w}: formulation_zh needs formulation_en (translation)"
             _check_sources(r["sources"], w)
             if r["reading_en"]:
                 assert r["sources"], f"{w}: filled reading needs >=1 source"
