@@ -190,3 +190,17 @@ Less-obvious categories:
 - Deactivating a source (`is_active=0`) preserves all its historical articles; use this instead of deleting.
 - **Key figure statements require manual approval** — misattributing a quote to a senior political figure is a credibility-ender. Never auto-approve or bypass `approval_status='pending'`.
 - When updating `glossary.json` romanisations, the old romanisation must also be added to the relevant figure's `aliases` array in `key_figures.json`, and the entry must be updated in `entity_canonical.json` — historical entity rows in the DB will still have the old name and must still resolve.
+
+## OSINT Navigator CLI
+
+Use the navigator CLI for OSINT tool recommendations.
+`navigator tools find "<task>"` returns matching tools; `navigator tools show <tool-id>` returns the full record and documentation.
+Return tool names, URLs, and concise reasons for each recommendation.
+Do not invent tools or URLs; if there is no good match, say so and suggest a broader query.
+
+Install notes: `navigator` is a pipx install at `/root/.local/bin/navigator` (not on PATH in tool
+calls — use the full path or export `~/.local/bin`), logged in on Ed's pro membership. The token lives
+in a `keyrings.alt` file keyring (headless box, no OS keychain) — never ask for, print, or handle it.
+`navigator auth status` checks the connection; if it's disconnected, tell Ed to run
+`! navigator auth login <email>` (magic link). `navigator skill print` shows the bundled SKILL.md with
+the full evidence rules (cite the underlying source URL; treat sanctions/PEP/identity hits as leads).
