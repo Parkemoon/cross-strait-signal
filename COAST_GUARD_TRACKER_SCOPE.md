@@ -2,6 +2,8 @@
 
 *Drafted 2026-08-25. Status: DESIGN, nothing built. Decision points marked ⚑.*
 
+> **Update 2026-08-25 (keys in, GFW probed):** the GFW Vessels API resolves CCG hulls with full identity history — `CHINACOASTGUARD` alone returns 50+ MMSI/name records with transmission date ranges, and IMO 9756028 (5901-class) shows MMSI 413482360 *ZHONGGUO HAIJING3901* 2015→2025-05-23 then MMSI 413875411 **"CAPTAIN ASLEEP"** 2025-05-23→2026-08-23 — identifier manipulation caught by registry fusion. So **GFW is the roster source and the historical identity layer (§3 is mostly solved); AISStream is needed only for live positions/events.** Gotcha: GFW's gateway sits behind Cloudflare and 403s (error 1010) on Python's default User-Agent — send a real UA. AISStream smoke test connected (19 positions/60 s across the full bbox — coverage test still pending).
+
 ## 1. What we're building
 
 A quantitative series for the one grey-zone actor that broadcasts its position on purpose: **coast guard presence around Taiwan**, from AIS. Four flags — China (CCG), Taiwan (CGA), Japan (JCG), US (USCG) — so the product reads as an *encounter* picture, not a China-only count.
@@ -26,7 +28,7 @@ Reference work we are reproducing, not inventing: AMTI *A New Normal for the CCG
 
 **Consequence:** no free source gives us the 2020–2026 back-history AMTI and CW analysed. Our series starts the day the listener starts. The AMTI/CW/CGA numbers become the *published baseline* we chart against, not something we reproduce.
 
-## 3. Hull roster (the hard part)
+## 3. Hull roster (largely solved by GFW — see update at top)
 
 No public MMSI list for any of the four coast guards was found (AMTI publishes militia lists, not CCG). Bootstrap from AIS itself:
 
