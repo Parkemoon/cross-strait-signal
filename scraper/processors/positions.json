@@ -697,37 +697,6 @@
           ]
         },
         {
-          "id": "eu-netherlands",
-          "label_en": "Netherlands",
-          "party": "",
-          "items": [
-            {
-              "id": "netherlands-position",
-              "position_en": "The government holds the standard one-China policy; the parliament is Europe's most forward. The Tweede Kamer was the first European chamber to pass an IPAC-model motion (Sept 2024, 146–4) stating that Resolution 2758 does not determine Taiwan's sovereignty, and renewed it in Sept 2025 (147–3) with a call to press for Taiwan's participation in the WHO, ICAO, UNFCCC and Interpol.",
-              "formulation_zh": "",
-              "romanisation": "",
-              "formulation_en": "Resolution 2758 does not determine Taiwan's status",
-              "as_stated": "2025-09-11",
-              "stated_by": "Tweede Kamer (House of Representatives)",
-              "nuance_en": "Parliamentary motions bind the government's advocacy, not its recognition line — the Hague's formal position has not changed. The ASML export-control file gives the Netherlands a China exposure out of proportion to its size.",
-              "sources": [
-                {
-                  "label": "Taipei Times: MOFA thanks Dutch parliament for Taiwan motion (147–3)",
-                  "url": "https://www.taipeitimes.com/News/taiwan/archives/2025/09/22/2003844213",
-                  "date": "2025-09-22",
-                  "lang": "en"
-                },
-                {
-                  "label": "IPAC: Dutch Parliament passes motion on UN Resolution 2758",
-                  "url": "https://www.ipac.global/campaigns/dutch-parliament-passes-motion-on-un-resolution-2758",
-                  "date": "2024-09-12",
-                  "lang": "en"
-                }
-              ]
-            }
-          ]
-        },
-        {
           "id": "eu-lithuania",
           "label_en": "Lithuania",
           "party": "",
