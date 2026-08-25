@@ -506,9 +506,9 @@ function ConceptBlock({ concept, basePath, openEdit }) {
             }}>
               {r.label_en}
             </div>
-            {r.formulation_zh && (
-              <div style={{ ...PROSE, color: "var(--text-primary)", marginBottom: "4px" }}>
-                {r.formulation_zh}
+            {(r.formulation_en || r.formulation_zh) && (
+              <div style={{ ...PROSE, marginBottom: "4px" }}>
+                <Formulation en={r.formulation_en} zh={r.formulation_zh} rom={r.romanisation} />
               </div>
             )}
             <p style={PROSE}>{r.reading_en || <Pending />}</p>
