@@ -31,7 +31,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
 
-from scraper.scrapers.gfw_coast_guard import GFWClient, FORCE_FLAGS, ROSTER_SEED_PATH, classify  # noqa: E402
+from scraper.scrapers.gfw_coast_guard import GFWClient, FORCE_FLAGS, ROSTER_SEED_PATH, classify  # noqa: E402, triage_roster
 from scraper.utils.db import get_connection  # noqa: E402
 
 # National MIDs (ITU). Taiwan 416; China 412/413/414; Japan 431/432; US 303 (Alaska), 338, 366–369.
@@ -159,6 +159,8 @@ def main():
     conn.commit()
     total = conn.execute("SELECT force, count(*) FROM coast_guard_vessels GROUP BY force").fetchall()
     print(f"roster: {n_new} new, {n_upd} updated, {anomalies} with anomaly flags; totals: {[tuple(t) for t in total]}")
+    t = triage_roster(conn)
+    print(f"triage: confirmed {t['confirmed']}, rejected {t['rejected']} (purged {t['purged_presence']} presence rows), left auto {t['left']}")
 
 
 if __name__ == "__main__":
