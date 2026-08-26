@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Copy } from "../copy";
 import {
   Bar, Line, ComposedChart, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, AreaChart, Area,
@@ -838,17 +839,16 @@ export default function MilitaryTab() {
         PLA Activity Around Taiwan
       </SectionHeader>
 
-      <p style={{
+      <Copy k="military.intro"
+            vars={{ mnd_from: rows.find((r) => r.source === "mnd")?.date || "—" }}
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "13px",
         color: "var(--text-secondary)",
         lineHeight: 1.55,
         margin: "0 0 18px",
-      }}>
-        Daily PLA aircraft and vessel activity as reported by Taiwan's Ministry of National Defence.
-        Live from <em>mnd.gov.tw</em> back to {rows[Math.max(0, rows.length - 1)] && rows.find((r) => r.source === "mnd")?.date};
-        historical incursion counts extended with the public PLATracker archive.
-      </p>
+      }}
+            fallback={"Daily PLA aircraft and vessel activity as reported by Taiwan's Ministry of National Defence. Live from mnd.gov.tw back to {mnd_from}; historical incursion counts extended with the public PLATracker archive."} />
 
       {/* KPI strip */}
       <div style={{
@@ -894,43 +894,31 @@ export default function MilitaryTab() {
         ADIZ Sector Activity
       </SectionHeader>
       <ADIZSchematic rows={rows} zoneLabels={zones} />
-      <p style={{
+      <Copy k="military.adiz_explainer"
+            lead="What is an ADIZ?"
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "11.5px",
         color: "var(--text-secondary)",
         lineHeight: 1.55,
         marginTop: "12px",
         maxWidth: "780px",
-      }}>
-        <strong style={{ color: "var(--text-primary)" }}>What is an ADIZ?</strong>{" "}
-        An Air Defence Identification Zone is a unilaterally-declared
-        airspace beyond a state's territorial sea (12 nm) in which the
-        declaring state demands identification of approaching civil and
-        military aircraft. Taiwan's ADIZ, declared by the US in the 1950s
-        and inherited by the ROC, notionally extends well west of the
-        median line over parts of Fujian — but the MND only counts PLA
-        activity in the eastern, southern, and northern portions of the
-        ADIZ, not over mainland China itself. Sorties that cross the
-        median line of the strait (the dashed line above) <em>or</em>
-        enter the monitored ADIZ flow into the "intruded" count. Sector
-        pills show the share of the last 30 reporting days in which any
-        aircraft entered each named MND sector
-        (北/中/西南/東南/東).
-      </p>
+      }}
+            fallback={"An Air Defence Identification Zone is a unilaterally-declared airspace beyond a state's territorial sea (12 nm) in which the declaring state demands identification of approaching civil and military aircraft. Taiwan's ADIZ, declared by the US in the 1950s and inherited by the ROC, notionally extends well west of the median line over parts of Fujian — but the MND only counts PLA activity in the eastern, southern, and northern portions of the ADIZ, not over mainland China itself. Sorties that cross the median line of the strait (the dashed line above) or enter the monitored ADIZ flow into the \"intruded\" count. Sector pills show the share of the last 30 reporting days in which any aircraft entered each named MND sector (北/中/西南/東南/東)."} />
 
       {/* Vessel + coast guard */}
       <SectionHeader right="MND-era only">
         PLA Vessels &amp; Coast Guard
       </SectionHeader>
-      <p style={{
+      <Copy k="military.vessels_note"
+            vars={{ vessels_from: rows.find((r) => r.vessels_total !== null && r.vessels_total !== undefined)?.date || "—" }}
+            style={{
         fontFamily: "var(--font-mono)",
         fontSize: "10.5px",
         color: "var(--text-muted)",
         margin: "0 0 4px",
-      }}>
-        Vessel counts begin when MND coverage starts ({rows.find((r) => r.vessels_total !== null && r.vessels_total !== undefined)?.date || "—"}).
-        PLATracker never published these.
-      </p>
+      }}
+            fallback={"Vessel counts begin when MND coverage starts ({vessels_from}). PLATracker never published these."} />
       <VesselSparkline rows={last90} />
 
       {/* 365-day heatmap */}
@@ -958,21 +946,15 @@ export default function MilitaryTab() {
         Exercise Tracker
       </SectionHeader>
 
-      <p style={{
+      <Copy k="military.exercises_intro"
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "13px",
         color: "var(--text-secondary)",
         lineHeight: 1.55,
         margin: "0 0 14px",
-      }}>
-        Cross-strait military exercises and drills extracted from MIL_EXERCISE
-        articles by the AI pipeline and editorially approved before display.
-        This is NOT a definitive list of all exercises in the area but a good
-        measure of significant events and what is being reported in local
-        media. Markers show where the activity took place; the list below
-        includes approved exercises whose location could not be confidently
-        geocoded. Performer pills filter both views.
-      </p>
+      }}
+            fallback={"Cross-strait military exercises and drills extracted from MIL_EXERCISE articles by the AI pipeline and editorially approved before display. This is NOT a definitive list of all exercises in the area but a good measure of significant events and what is being reported in local media. Markers show where the activity took place; the list below includes approved exercises whose location could not be confidently geocoded. Performer pills filter both views."} />
 
       <ExerciseFilters
         filters={exFilters}
@@ -1003,17 +985,15 @@ export default function MilitaryTab() {
         />
       </div>
 
-      <p style={{
+      <Copy k="military.exercise_map_note"
+            style={{
         fontFamily: "var(--font-mono)",
         fontSize: "10px",
         color: "var(--text-muted)",
         marginTop: "16px",
         lineHeight: 1.5,
-      }}>
-        Map basemap: CartoDB Positron (&copy; OpenStreetMap contributors, &copy; CARTO).
-        Coordinates are AI-extracted from article text and analyst-confirmed; exercises
-        without a confidently-parseable location appear in the list only.
-      </p>
+      }}
+            fallback={"Map basemap: CartoDB Positron (© OpenStreetMap contributors, © CARTO). Coordinates are AI-extracted from article text and analyst-confirmed; exercises without a confidently-parseable location appear in the list only."} />
 
       {reviewOpen && (
         <ExerciseReviewQueue

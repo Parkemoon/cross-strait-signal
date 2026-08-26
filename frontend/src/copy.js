@@ -91,13 +91,16 @@ function CopyEditModal({ k, value, onClose, onSaved }) {
 
 // `as` = wrapper element (default <p>); `style` applies to it. Renders nothing
 // while loading only if there is no fallback.
-export function Copy({ k, fallback = "", vars, as: Tag = "p", style }) {
+// `lead` renders a bold label before the text ("What is an ADIZ?") — the one
+// piece of inline markup prose blocks commonly need; `leadColor` overrides it.
+export function Copy({ k, fallback = "", vars, as: Tag = "p", style, lead, leadColor }) {
   const data = useCopy();
   const [editing, setEditing] = useState(false);
   const raw = data?.[k] ?? fallback;
   if (!raw) return null;
   return (
     <Tag style={{ position: "relative", ...style }}>
+      {lead && <><strong style={{ color: leadColor || "var(--text-primary)" }}>{lead}</strong>{" "}</>}
       {fill(raw, vars)}
       {!READ_ONLY && data && (
         <button onClick={() => setEditing(true)} title={`Edit copy · ${k}`}

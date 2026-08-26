@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Copy } from "../copy";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, Area, ComposedChart,
@@ -288,17 +289,15 @@ export default function EconomyTab() {
         Cross-Strait Economy
       </SectionHeader>
 
-      <p style={{
+      <Copy k="economy.intro"
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "13px",
         color: "var(--text-secondary)",
         marginBottom: "20px",
         lineHeight: 1.5,
-      }}>
-        Monthly trade, investment and people-flow indicators from Taiwan's Mainland Affairs
-        Council (via <em>data.gov.tw</em>). Trade balance is from Taiwan's perspective — positive
-        values are TW surplus with PRC.
-      </p>
+      }}
+            fallback={"Monthly trade, investment and people-flow indicators from Taiwan's Mainland Affairs Council (via data.gov.tw). Trade balance is from Taiwan's perspective — positive values are TW surplus with PRC."} />
 
       {/* KPI strip */}
       <div style={{
@@ -826,18 +825,16 @@ function InvestmentSection() {
         ))}
       </div>
 
-      <p style={{
+      <Copy k="economy.investment_summary"
+            vars={{ total_amount: formatInvestmentAmount(totalAmount), total_cases: totalCases.toLocaleString(), analytical: meta.analytical }}
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "12px",
         color: "var(--text-secondary)",
         marginBottom: "14px",
         lineHeight: 1.5,
-      }}>
-        Cumulative approved investment in this direction stands at{" "}
-        <strong>{formatInvestmentAmount(totalAmount)}</strong> across{" "}
-        <strong>{totalCases.toLocaleString()}</strong> approved cases.{" "}
-        {meta.analytical} Bar colour groups each industry into a coarse sector.
-      </p>
+      }}
+            fallback={"Cumulative approved investment in this direction stands at {total_amount} across {total_cases} approved cases. {analytical} Bar colour groups each industry into a coarse sector."} />
 
       <div style={{
         background: "var(--bg-card)",
@@ -1236,28 +1233,19 @@ function InvestmentVerification() {
         })}
       </div>
 
-      <p style={{
+      <Copy k="economy.investment_gap"
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "12px",
         color: "var(--text-secondary)",
         marginTop: "14px",
         lineHeight: 1.5,
-      }}>
-        The gap is structural. <strong>MAC counts at approval</strong>{" "}
-        (with annual flows from Taiwan's Investment Commission, cumulative
-        since 1991). <strong>MOFCOM counts at actual capital landing</strong>{" "}
-        attributed by <em>immediate</em> source country (cumulative since
-        records began ~1988 — coinciding with the 1988 国务院 document
-        encouraging Taiwanese investment). The two start dates differ by
-        ~3 years; 1988-1990 flows were small relative to the full window,
-        so this affects the comparison only marginally. The two-thirds
-        gap is driven by (1) approved-but-not-deployed investment, and
-        (2) Taiwanese capital routed via Cayman, BVI or HK subsidiaries
-        — which MOFCOM books under those source jurisdictions rather than
-        Taiwan. The utilisation ratio has fallen from ~50% in 2017 to
-        ~15% recently, suggesting the offshore-routing share is growing.
-      </p>
-      <p style={{
+      }}
+            fallback={"The gap is structural. MAC counts at approval (with annual flows from Taiwan's Investment Commission, cumulative since 1991). MOFCOM counts at actual capital landing attributed by immediate source country (cumulative since records began ~1988 — coinciding with the 1988 国务院 document encouraging Taiwanese investment). The two start dates differ by ~3 years; 1988-1990 flows were small relative to the full window, so this affects the comparison only marginally. The two-thirds gap is driven by (1) approved-but-not-deployed investment, and (2) Taiwanese capital routed via Cayman, BVI or HK subsidiaries — which MOFCOM books under those source jurisdictions rather than Taiwan. The utilisation ratio has fallen from ~50% in 2017 to ~15% recently, suggesting the offshore-routing share is growing."} />
+      <Copy k="economy.investment_scale_caveat"
+            lead="Scale caveat:"
+            leadColor="#991b1b"
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "12px",
         color: "var(--text-secondary)",
@@ -1267,25 +1255,8 @@ function InvestmentVerification() {
         padding: "10px 14px",
         background: "rgba(220,38,38,0.06)",
         border: "1px solid rgba(220,38,38,0.18)",
-      }}>
-        <strong style={{ color: "#991b1b" }}>Scale caveat:</strong> Both
-        figures likely undercount the true cross-strait flow. Academic
-        consensus (PIIE, China Quarterly) is that the majority of
-        Taiwanese FDI booked under <em>Hong Kong, Singapore and Caribbean
-        tax havens</em> in fact deploys in China — so MAC's $210B omits
-        a large share of capital that left Taiwan but was approved for
-        offshore destinations. For pace comparison: TSMC alone has
-        committed roughly <strong>US$165B to its Arizona expansion in
-        the past ~5 years</strong> — close to <em>80% of all the
-        Taiwan→PRC investment MAC has approved over the 35 years since
-        1991</em>, but compressed into a fraction of the time. Taiwanese
-        capex is migrating away from PRC and toward the US, Japan and
-        Southeast Asia post-2018. The story this chart tells is therefore
-        narrower than it appears — it's the gap between
-        Taiwanese-government-approved and PRC-government-claimed figures
-        for the subset of capital that <em>both sides acknowledge</em>;
-        the shadow flow is larger still.
-      </p>
+      }}
+            fallback={"Both figures likely undercount the true cross-strait flow. Academic consensus (PIIE, China Quarterly) is that the majority of Taiwanese FDI booked under Hong Kong, Singapore and Caribbean tax havens in fact deploys in China — so MAC's $210B omits a large share of capital that left Taiwan but was approved for offshore destinations. For pace comparison: TSMC alone has committed roughly US$165B to its Arizona expansion in the past ~5 years — close to 80% of all the Taiwan→PRC investment MAC has approved over the 35 years since 1991, but compressed into a fraction of the time. Taiwanese capex is migrating away from PRC and toward the US, Japan and Southeast Asia post-2018. The story this chart tells is therefore narrower than it appears — it's the gap between Taiwanese-government-approved and PRC-government-claimed figures for the subset of capital that both sides acknowledge; the shadow flow is larger still."} />
     </div>
   );
 }
@@ -1299,18 +1270,15 @@ function MacroSection({ seriesById, monthsLimit }) {
   return (
     <>
       <SectionHeader>Macro — TW vs PRC</SectionHeader>
-      <p style={{
+      <Copy k="economy.macro_intro"
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "12px",
         color: "var(--text-secondary)",
         marginBottom: "14px",
         lineHeight: 1.5,
-      }}>
-        The two economies side-by-side. Real GDP growth and consumer-price inflation
-        share a single axis; FX reserves and exchange rates use dual axes because TW
-        and PRC operate at very different scales. GDP appears quarterly (one dot per
-        quarter); other series are monthly.
-      </p>
+      }}
+            fallback={"The two economies side-by-side. Real GDP growth and consumer-price inflation share a single axis; FX reserves and exchange rates use dual axes because TW and PRC operate at very different scales. GDP appears quarterly (one dot per quarter); other series are monthly."} />
       {MACRO_PAIRS.map((pair) => (
         <MacroPairChart
           key={pair.id}

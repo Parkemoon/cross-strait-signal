@@ -15,7 +15,7 @@ export default function MaritimeTab() {
         Coast Guard Presence &amp; Enforcement
       </SectionHeader>
       <Copy k="maritime.intro" style={INTRO}
-            fallback="Law-enforcement vessels, not warships — coast guards assert jurisdiction without crossing a military threshold." />
+            fallback={"Law-enforcement vessels, not warships — coast guards assert jurisdiction without crossing a military threshold."} />
       <CoastGuardSection />
     </main>
   );
