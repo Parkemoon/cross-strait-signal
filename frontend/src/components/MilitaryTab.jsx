@@ -16,7 +16,6 @@ import { TAIWAN_PATHS, PRC_COAST_PATHS, MEDIAN_LINE } from "./taiwanStraitMap";
 import ExerciseMap, { PERFORMER_COLOUR, PERFORMER_LABEL } from "./ExerciseMap";
 import ExerciseReviewQueue from "./ExerciseReviewQueue";
 import ExerciseEditModal from "./ExerciseEditModal";
-import CoastGuardSection from "./CoastGuardSection";
 
 // Purple is the project's "hostile" colour (locked). PLA incursions are the
 // prototypical hostile cross-strait act, so the whole tab leans purple.
@@ -32,7 +31,7 @@ function fmtMonthDay(iso) {
   return `${MONTH_ABBR[Number(m) - 1]} ${Number(d)}`;
 }
 
-function SectionHeader({ children, right }) {
+export function SectionHeader({ children, right }) {
   return (
     <div style={{ marginBottom: "16px", marginTop: "28px" }}>
       <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
@@ -1015,12 +1014,6 @@ export default function MilitaryTab() {
         Coordinates are AI-extracted from article text and analyst-confirmed; exercises
         without a confidently-parseable location appear in the list only.
       </p>
-
-      {/* ============ COAST GUARD (Phase 2e) ============ */}
-      <SectionHeader right="AIS presence · CGA enforcement">
-        Coast Guard Presence &amp; Enforcement
-      </SectionHeader>
-      <CoastGuardSection />
 
       {reviewOpen && (
         <ExerciseReviewQueue
