@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchPositions, patchPositionsText } from "../api";
+import { Copy } from "../copy";
 import { PARTY_COLOURS } from "../partyColours";
 import { READ_ONLY } from "../readOnly";
 
@@ -575,16 +576,9 @@ export default function PositionsTab({ onOpenTab }) {
         Positions &amp; Legal Status
       </SectionHeader>
 
-      <p style={{ ...PROSE, maxWidth: "820px", marginBottom: "18px" }}>
-        What each side of the strait — and the powers around it —{" "}
-        <strong style={{ color: "var(--text-primary)" }}>formally claims, and what it has actually said</strong>.
-        Every entry below is a <em>stated</em> position anchored to a dated primary source:
-        the statute, communiqué, or transcript itself. This page describes; it does not
-        adjudicate. The distinctions here are routinely blurred in coverage — the
-        difference between Washington's One China <em>policy</em> and Beijing's One China{" "}
-        <em>principle</em>, or between what UN Resolution 2758 decided and what it is said
-        to have decided, is where most cross-strait misreading starts.
-      </p>
+      <Copy k="positions.intro"
+            style={{ ...PROSE, maxWidth: "820px", marginBottom: "18px" }}
+            fallback={"What each side of the strait — and the powers around it — formally claims, and what it has actually said. Every entry below is a stated position anchored to a dated primary source: the statute, communiqué, or transcript itself. This page describes; it does not adjudicate. The distinctions here are routinely blurred in coverage — the difference between Washington's One China policy and Beijing's One China principle, or between what UN Resolution 2758 decided and what it is said to have decided, is where most cross-strait misreading starts."} />
 
       {fullActors.map(({ actor, idx }) => (
         <ActorCard key={actor.id} actor={actor} basePath={["actors", idx]} openEdit={openEdit} />
@@ -609,10 +603,9 @@ export default function PositionsTab({ onOpenTab }) {
       )}
 
       <SectionHeader>Contested concepts</SectionHeader>
-      <p style={{ ...PROSE, maxWidth: "820px", marginBottom: "16px" }}>
-        Terms that carry a different meaning depending on who is speaking — the
-        disagreement over the term is itself the substance.
-      </p>
+      <Copy k="positions.concepts_intro"
+            style={{ ...PROSE, maxWidth: "820px", marginBottom: "16px" }}
+            fallback={"Terms that carry a different meaning depending on who is speaking — the disagreement over the term is itself the substance."} />
       {(data.concepts || []).map((c, i) => (
         <ConceptBlock key={c.id} concept={c} basePath={["concepts", i]} openEdit={openEdit} />
       ))}

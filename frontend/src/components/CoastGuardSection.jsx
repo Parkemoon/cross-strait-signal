@@ -298,7 +298,7 @@ export default function CoastGuardSection() {
   return (
     <>
       <Copy k="coast_guard.intro" style={{ fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 14px" }}
-            fallback="AIS-visible coast-guard presence in Taiwan-drawn zones, paired with the CGA's own enforcement statistics." />
+            fallback={"AIS-visible coast-guard presence in Taiwan-drawn zones, paired with the CGA's own enforcement statistics."} />
       <Caveats caveats={summary.caveats} scopes={["all"]} />
 
       {/* KPI strip — two per side, deliberately symmetric */}
@@ -349,11 +349,11 @@ export default function CoastGuardSection() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 12 }}>
         <div style={{ padding: "10px 12px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${FORCE_COLOUR.CGA}`, background: "var(--bg-card)" }}>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Taipei</div>
-          <Copy k="coast_guard.frame_taipei" as="div" style={FRAME} fallback="Taiwan's declared prohibited and restricted waters; CCG presence inside them is an incursion." />
+          <Copy k="coast_guard.frame_taipei" as="div" style={FRAME} fallback={"Taiwan's declared prohibited and restricted waters; CCG presence inside them is an incursion."} />
         </div>
         <div style={{ padding: "10px 12px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${FORCE_COLOUR.CCG}`, background: "var(--bg-card)" }}>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Beijing</div>
-          <Copy k="coast_guard.frame_beijing" as="div" style={FRAME} fallback="Beijing recognises no such waters and casts CCG patrols as law enforcement." />
+          <Copy k="coast_guard.frame_beijing" as="div" style={FRAME} fallback={"Beijing recognises no such waters and casts CCG patrols as law enforcement."} />
         </div>
       </div>
 
@@ -379,7 +379,7 @@ export default function CoastGuardSection() {
         </button>
       ) : "Last 30 days"}>Same-zone co-presence</SubHeader>
       <Copy k="coast_guard.copresence" style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.5 }}
-            fallback="A CCG hull and a CGA/JCG hull in the same zone on the same day — co-presence, not interaction." />
+            fallback={"A CCG hull and a CGA/JCG hull in the same zone on the same day — co-presence, not interaction."} />
       <Encounters rows={encounters} />
 
       <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "16px", lineHeight: 1.5 }}>
