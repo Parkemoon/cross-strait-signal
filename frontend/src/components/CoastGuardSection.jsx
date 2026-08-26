@@ -39,6 +39,21 @@ const fmtInt = (n) => (n === null || n === undefined ? "—" : Number(n).toLocal
 const addMonths = (ym, n) => { const [y, m] = ym.split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`; };
 
 const TICK = { fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" };
+
+// Every CGA number on this section comes from a specific report PDF (the
+// rows carry source_url); cite it with a link, never a bare "表8-1".
+function SrcLink({ href, children, muted }) {
+  if (!href) return <span>{children}</span>;
+  return (
+    <a href={href} target="_blank" rel="noreferrer"
+       style={{ color: muted ? "var(--text-muted)" : "var(--text-secondary)", textDecoration: "underline dotted", textUnderlineOffset: 2 }}>
+      {children}
+    </a>
+  );
+}
+const latestSource = (sources, table) =>
+  (sources || []).find((r) => r.source === "monthly" && r.source_ref.endsWith(table)) ||
+  (sources || []).find((r) => r.source_ref.endsWith(table));
 const TOOLTIP_STYLE = { background: "var(--bg-primary)", border: "1px solid var(--border-color)", fontFamily: "var(--font-mono)", fontSize: "11px" };
 
 // ---------------------------------------------------------------- shared bits
@@ -93,12 +108,13 @@ function Caveats({ caveats, scopes, compact }) {
 }
 
 // One force, one strip, one axis. `unit` names the measure for the tooltip.
-function MonthlyStrip({ data, dataKey, colour, title, unit, lineKey, lineLabel, syncId, height = 130 }) {
+function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, lineKey, lineLabel, syncId, height = 130 }) {
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--text-primary)", marginBottom: 2 }}>
         <span style={{ display: "inline-block", width: 10, height: 10, background: colour }} />
         {title}
+        {titleLink}
         {lineKey && <span style={{ color: "var(--text-muted)" }}>— line: {lineLabel}</span>}
       </div>
       <div style={{ height }}>
@@ -273,6 +289,10 @@ export default function CoastGuardSection() {
   const showPre2023 = paired.length && paired[0].month < "2023-01";
   const caveatScopes = ["all", group === "kinmen" ? "kinmen" : null, showPre2023 ? "CCG" : null].filter(Boolean);
   const zones = summary.zones || [];
+  const t81 = latestSource(enforcement?.sources, "表8-1");
+  const t81Link = t81 ? <SrcLink href={t81.source_url} muted>({t81.source_ref})</SrcLink> : null;
+  const reportLinks = (enforcement?.sources || []).filter((r) => r.source !== "manual" && r.source_ref.endsWith("表8-1"));
+  const huyong = (enforcement?.sources || []).find((r) => r.source === "manual");
 
   return (
     <>
@@ -294,9 +314,9 @@ export default function CoastGuardSection() {
         <KPICard label="Taiwan CG · 30 days" accent={FORCE_COLOUR.CGA} value={fmtInt(cga.hull_days)}
                  sublabel={`hull-days · ${fmtInt(cga.hulls)} hulls · ${deltaText(cga.hull_days, cga.prev_hull_days) || ""}`} />
         <KPICard label="PRC vessels expelled" accent={FORCE_COLOUR.CGA} value={enf ? fmtInt(enf.expelled) : "—"}
-                 sublabel={enf ? `by the CGA, ${enf.months} reported months to ${fmtMonth(enf.latest_month)}` : "no CGA data"} />
+                 sublabel={enf ? <>by the CGA, {enf.months} reported months to {fmtMonth(enf.latest_month)} · <SrcLink href={t81?.source_url}>表8-1</SrcLink></> : "no CGA data"} />
         <KPICard label="PRC vessels detained" accent={FORCE_COLOUR.CGA} value={enf ? fmtInt(enf.detained) : "—"}
-                 sublabel={enf ? "same window · CGA 表8-1" : "no CGA data"} />
+                 sublabel={enf ? <>same window · <SrcLink href={t81?.source_url}>CGA 表8-1</SrcLink></> : "no CGA data"} />
       </div>
 
       {/* Paired monthly strips */}
@@ -313,12 +333,21 @@ export default function CoastGuardSection() {
           <MonthlyStrip data={paired} dataKey="CGA" colour={FORCE_COLOUR.CGA} syncId="cg-paired" unit="hull-days"
                         title={`Taiwan Coast Guard hull-days · ${groupMeta.label}${groupMeta.zh ? ` ${groupMeta.zh}` : ""}`} />
           <MonthlyStrip data={paired} dataKey="expelled" colour={FORCE_COLOUR.CGA} syncId="cg-paired" unit="expelled"
-                        title="PRC fishing vessels expelled by the CGA · national, all waters (表8-1)" />
+                        title="PRC fishing vessels expelled by the CGA · national, all waters" titleLink={t81Link} />
           <MonthlyStrip data={paired} dataKey="detained" colour={FORCE_COLOUR.CGA} syncId="cg-paired" unit="detained" height={90}
-                        title="PRC fishing vessels detained by the CGA · national (表8-1)" />
+                        title="PRC fishing vessels detained by the CGA · national" titleLink={t81Link} />
         </>
       ) : (
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", padding: "12px 0" }}>Loading…</div>
+      )}
+      {reportLinks.length > 0 && (
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--text-muted)", marginTop: 4, lineHeight: 1.7 }}>
+          CGA report PDFs (表8-1):{" "}
+          {reportLinks.map((r, i) => (
+            <span key={r.source_ref}>{i > 0 && " · "}<SrcLink href={r.source_url} muted>{r.source_ref.replace(" 表8-1", "")}</SrcLink></span>
+          ))}
+          {huyong && <> · <SrcLink href={huyong.source_url} muted>護永專案 summary</SrcLink></>}
+        </div>
       )}
       <Caveats caveats={summary.caveats} scopes={caveatScopes.filter((s) => s !== "all")} compact />
 
@@ -368,11 +397,11 @@ export default function CoastGuardSection() {
       <Encounters rows={encounters} />
 
       <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "16px", lineHeight: 1.5 }}>
-        <strong style={{ color: "var(--text-secondary)" }}>Sources:</strong> Global Fishing Watch 4Wings presence
+        <strong style={{ color: "var(--text-secondary)" }}>Sources:</strong> <SrcLink href="https://globalfishingwatch.org/our-apis/" muted>Global Fishing Watch</SrcLink> 4Wings presence
         (AIS, per hull per day per 1-km cell; coverage from {summary.coverage_start}, ~5-day lag) · coast-guard rosters resolved from
         GFW's identity index with MID / flag / name-change anomaly flags ({fmtInt(summary.roster?.CCG)} CCG, {fmtInt(summary.roster?.CGA)} CGA,
         {" "}{fmtInt(summary.roster?.JCG)} JCG identities) · Kinmen zone from the county gazette's official control points, Matsu from the
-        MND 公告 bands · CGA 績效統計月報 / 海巡統計年報 表8-1 (national monthly), 表8-3 (county) and the 護永專案 summary.
+        MND 公告 bands · <SrcLink href={enforcement?.cga_stats_home} muted>CGA 績效統計月報 / 海巡統計年報</SrcLink> <SrcLink href={t81?.source_url} muted>表8-1</SrcLink> (national monthly), <SrcLink href={latestSource(enforcement?.sources, "表8-3")?.source_url} muted>表8-3</SrcLink> (county) and the <SrcLink href={huyong?.source_url} muted>護永專案</SrcLink> summary.
         Map basemap: CartoDB Positron (&copy; OpenStreetMap contributors, &copy; CARTO).
       </p>
 
