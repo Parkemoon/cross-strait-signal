@@ -455,3 +455,50 @@ export async function fetchAltModelRefusals(params = {}) {
   const query = new URLSearchParams(params).toString();
   return request(`/api/alt-models/refusals?${query}`, { headers: authHeaders() });
 }
+
+// Coast Guard tracker (Phase 2e) — AIS-visible presence from Global Fishing
+// Watch (coast_guard_presence) + the CGA's own enforcement statistics
+// (cga_enforcement). `summary.caveats` MUST be rendered next to any chart of
+// its scope (the series is a floor, not an activity index).
+const CG = "/api/military/coast-guard";
+
+export async function fetchCoastGuardSummary(days = 30) {
+  return request(`${CG}/summary?days=${days}`);
+}
+
+export async function fetchCoastGuardZones({ geometry = false } = {}) {
+  return request(`${CG}/zones${geometry ? "?geometry=1" : ""}`);
+}
+
+export async function fetchCoastGuardDaily(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${CG}/daily?${query}`);
+}
+
+export async function fetchCoastGuardMonthly(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${CG}/monthly?${query}`);
+}
+
+export async function fetchCoastGuardVessels(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${CG}/vessels?${query}`, { headers: authHeaders() });
+}
+
+export async function fetchCoastGuardEncounters(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${CG}/encounters?${query}`);
+}
+
+export async function fetchCoastGuardEnforcement(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${CG}/enforcement?${query}`);
+}
+
+export async function updateCoastGuardVessel(mmsi, patch) {
+  return request(`${CG}/vessels/${mmsi}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(patch),
+  });
+}
