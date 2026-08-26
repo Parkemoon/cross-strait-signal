@@ -55,10 +55,19 @@ def test_caveat_keys_exist():
     assert not missing, missing
 
 
-def test_patch_rejects_unknown_key_and_non_string():
-    from api.routes.copy import _load
-    data = _load()
-    assert "maritime.intro" in data
-    # the route-level guards are exercised through the API in the smoke test;
-    # here we just pin the contract that keys are pre-declared
-    assert all(not k.startswith("_comment") or isinstance(v, str) for k, v in data.items())
+def test_apply_edit_validation():
+    import pytest
+    from api.routes.copy import apply_edit
+    data = {"_comment": "doc", "a.b": "old", "n": 3}
+    assert apply_edit(data, "a.b", "new")["a.b"] == "new"
+    assert data["a.b"] == "old"                      # pure: input untouched
+    with pytest.raises(KeyError):
+        apply_edit(data, "missing", "x")             # keys are pre-declared → 404
+    with pytest.raises(KeyError):
+        apply_edit(data, "_comment", "x")            # authoring doc is not editable
+    with pytest.raises(KeyError):
+        apply_edit(data, "n", "x")                   # only string fields
+    with pytest.raises(ValueError):
+        apply_edit(data, "a.b", 5)                   # → 400
+    with pytest.raises(ValueError):
+        apply_edit(data, "a.b", "   ")               # empty → 400
