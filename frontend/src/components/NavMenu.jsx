@@ -91,7 +91,7 @@ function DesktopGroup({ group, view, onSelect, badges }) {
 // Mobile tabs = the desktop groups plus the two feed-only panels.
 const MOBILE_EXTRA = [{ id: "stats", label: "Stats", after: "feed" }, { id: "social", label: "Social", after: "politics" }];
 
-export function mobileTopLevel() {
+function mobileTopLevel() {
   const out = [];
   for (const g of NAV_GROUPS) {
     out.push({ id: g.id, label: g.label, group: g });

@@ -11,7 +11,8 @@ const BIAS_ROWS = [
 
 const TABS = [
   { name: "Military",     desc: "Daily PLA activity around Taiwan from MND briefings (2020–present), plus a reviewed tracker of named exercises on a live map." },
-  { name: "Economy",      desc: "Cross-strait trade, investment, and macro indicators, with a verification angle: the same flows as reported by Taipei, by Beijing, and by Hong Kong, side by side. Where the reporters diverge, that divergence is the signal." },
+  { name: "Maritime",     desc: "Coast-guard presence in Taiwan-drawn waters (China, Taiwan and Japan hulls seen on AIS via Global Fishing Watch, 2020–present) paired with Taiwan's own enforcement statistics. Law-enforcement vessels, not warships — kept beside Military, not inside it. AIS is a floor, and every chart carries its caveat." },
+  { name: "Indicators",   desc: "Cross-strait trade, investment, and macro indicators, with a verification angle: the same flows as reported by Taipei, by Beijing, and by Hong Kong, side by side. Where the reporters diverge, that divergence is the signal." },
   { name: "Trade access", desc: "The asymmetric regulatory picture: Taiwan's import bans on PRC goods against the PRC's ECFA suspensions and food-registration blocks." },
   { name: "People",       desc: "Visitor flows, residence and settlement permits, and the mainland-spouse population, in both directions." },
   { name: "Polls",        desc: "Taiwanese public opinion across pollsters on one set of canonical questions, anchored by NCCU's identity and unification series (1992–present)." },
@@ -260,7 +261,8 @@ export default function AboutModal({ onClose }) {
           Affairs Council open datasets (trade, investment, visitor flows, polling); UN Comtrade
           (PRC-reported trade, discontinued by Beijing after Dec 2024); Hong Kong Census &amp; Statistics
           Department; Taiwan MND daily briefings, with 2020–2026 history backfilled from PLATracker;
-          Taiwan NIA residence statistics; BOFT and ECFA notifications plus the PRC's CIFER registry;
+          Taiwan NIA residence statistics; Global Fishing Watch's AIS presence data and Taiwan CGA
+          statistical reports for the coast-guard tracker; BOFT and ECFA notifications plus the PRC's CIFER registry;
           NCCU Election Study Center long-series polling alongside TVBS, My-Formosa, ETtoday and MAC
           surveys; Natural Earth map data.
         </p>
