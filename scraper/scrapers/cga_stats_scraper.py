@@ -60,6 +60,10 @@ COL_NAMES = ["t_cases", "t_vessels", "t_prc", "t_foreign", "t_stateless",
              "e_cases", "e_vessels", "e_prc", "e_foreign", "e_stateless"]
 
 ROC_YEAR_RE = re.compile(r"^(\d{3})年")
+# The yearbook prints its OWN year's annual row as a bare Gregorian year ("2025",
+# no 年 prefix) — caught 2026-08-26: that row was skipped, so the months below it
+# inherited report_year-1 and the 114 yearbook overwrote 2024 with 2025 values.
+GREG_YEAR_RE = re.compile(r"^(20\d{2})$")
 MONTH_RE = re.compile(r"^(\d{1,2})月")
 COUNTY_RE = re.compile(r"^(總\s*計|全\s*國|[一-鿿]{2,3}(?:縣|市)|[一-鿿]+地區)")
 
@@ -218,8 +222,9 @@ def rows_by_month(pdf_bytes: bytes, report_year: int) -> list[dict]:
         if not v:
             continue
         m = ROC_YEAR_RE.match(label)
-        if m:
-            year_ctx = int(m.group(1)) + 1911
+        g = GREG_YEAR_RE.match(label)
+        if m or g:
+            year_ctx = int(m.group(1)) + 1911 if m else int(g.group(1))
             last_month = 0
             period, gran = str(year_ctx), "year"
         else:
