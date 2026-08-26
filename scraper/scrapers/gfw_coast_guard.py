@@ -307,5 +307,66 @@ def pull_recent(days: int = 10, db_path: str | None = None, zones: Iterable[str]
         n, k = pull_zone(conn, client, z, start.isoformat(), end.isoformat(), extra)
         print(f"  [coast-guard] {z['id']:20s} {start}..{end}: {n} rows, {k} coast-guard hull-days")
         total_kept += k
+    # Settle any hulls the presence pull added to the roster (source='presence').
+    triage_roster(conn)
     conn.close()
     return total_kept
+
+
+# --- roster triage --------------------------------------------------------
+# MID (Maritime Identification Digits) prefixes per force. The only review
+# question is "is this hull a coast-guard vessel?"; anomaly flags are facts
+# about the AIS stream and never a criterion here. See
+# scripts/triage_coast_guard_roster.py for the rules.
+FORCE_MIDS = {"CCG": {"412", "413", "414"}, "CGA": {"416"}, "JCG": {"431", "432"},
+              "USCG": {"303", "338", "366", "367", "368", "369"}}
+_EXPLICIT_NAME = {
+    "CCG": re.compile(r"CHINA\s*COAST\s*GUARD|ZHONGGUO\s*HAI|^CCG\s*\d", re.I),
+    "CGA": _CGA_NAME,
+    "USCG": _USCG_NAME,
+}
+
+
+def triage_verdict(name: str | None, flag: str | None, mmsi: str, force: str) -> tuple[str, str]:
+    """('reject'|'confirm'|'leave', reason) for one roster row."""
+    cls, _ = classify(name, flag)
+    if cls is None:
+        return "reject", "classifier no longer accepts name/flag"
+    if cls != force:
+        return "leave", f"classifier says {cls}"
+    n = (name or "").strip().upper()
+    pat = _EXPLICIT_NAME.get(force)
+    if pat and pat.search(n):
+        return "confirm", "explicit force name"
+    if mmsi[:3] in FORCE_MIDS.get(force, set()):
+        return "confirm", f"MID {mmsi[:3]} matches {force}"
+    if force == "JCG":            # JCG names are a curated class list; classify() already required JPN flag
+        return "confirm", "JCG class name under JPN flag"
+    return "leave", "weak name + foreign/junk MID"
+
+
+def triage_roster(conn, dry_run: bool = False, verbose: bool = False) -> dict:
+    """Apply triage_verdict to every status='auto' row. Idempotent."""
+    rows = conn.execute("SELECT mmsi, name, flag, force FROM coast_guard_vessels WHERE status='auto'").fetchall()
+    out = {"confirmed": 0, "rejected": 0, "purged_presence": 0, "left": 0}
+    for r in rows:
+        verdict, reason = triage_verdict(r["name"], r["flag"], r["mmsi"], r["force"])
+        if verdict == "leave":
+            out["left"] += 1
+            if verbose:
+                print(f"  leave   {r['force']} {r['mmsi']} {r['name']!r} flag={r['flag']} — {reason}")
+            continue
+        status = "confirmed" if verdict == "confirm" else "rejected"
+        out[status] += 1
+        if verbose and verdict == "reject":
+            print(f"  REJECT  {r['force']} {r['mmsi']} {r['name']!r} flag={r['flag']} — {reason}")
+        if dry_run:
+            continue
+        conn.execute("UPDATE coast_guard_vessels SET status=?, notes=COALESCE(notes, ?), updated_at=datetime('now') WHERE mmsi=?",
+                     (status, f"auto-triage: {reason}", r["mmsi"]))
+        if verdict == "reject":
+            cur = conn.execute("DELETE FROM coast_guard_presence WHERE mmsi=?", (r["mmsi"],))
+            out["purged_presence"] += cur.rowcount
+    if not dry_run:
+        conn.commit()
+    return out

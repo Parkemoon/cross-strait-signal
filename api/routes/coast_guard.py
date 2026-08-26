@@ -144,6 +144,12 @@ def summary(days: int = Query(30, ge=7, le=365)):
             "SELECT force, COUNT(*) AS n FROM coast_guard_vessels WHERE status != 'rejected' GROUP BY force")}
         anomalies = conn.execute(
             "SELECT COUNT(*) FROM coast_guard_vessels WHERE anomaly_flags IS NOT NULL AND status != 'rejected'").fetchone()[0]
+        # Hulls the deterministic triage could not settle AND that carry presence
+        # in the window — the only rows an analyst actually needs to look at.
+        unreviewed = conn.execute(
+            """SELECT COUNT(*) FROM coast_guard_vessels v WHERE v.status='auto'
+               AND EXISTS (SELECT 1 FROM coast_guard_presence p WHERE p.mmsi=v.mmsi AND p.date BETWEEN ? AND ?)""",
+            (start.isoformat(), end.isoformat())).fetchone()[0]
         pull = conn.execute("SELECT MAX(pulled_at) FROM coast_guard_pulls WHERE status='ok'").fetchone()[0]
         # Mirror KPI: PRC vessels the CGA expelled / detained, trailing 12 reported months.
         enf = conn.execute(
@@ -155,7 +161,7 @@ def summary(days: int = Query(30, ge=7, le=365)):
                        "detained": enf["detained"] or 0} if enf and enf["n"] else None
         first_date = conn.execute("SELECT MIN(date) FROM coast_guard_presence").fetchone()[0]
         return {"latest_date": latest, "window_start": start.isoformat(), "days": days, "forces": forces,
-                "zones": zones_out, "roster": roster, "anomalies": anomalies, "last_pull_at": pull,
+                "zones": zones_out, "roster": roster, "anomalies": anomalies, "unreviewed": unreviewed, "last_pull_at": pull,
                 "enforcement": enforcement, "coverage_start": first_date, "caveats": CAVEATS}
 
 

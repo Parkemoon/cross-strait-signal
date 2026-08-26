@@ -354,10 +354,11 @@ export default function CoastGuardSection() {
 
       {/* Co-presence + roster */}
       <SubHeader right={!READ_ONLY ? (
-        <button onClick={() => setRosterOpen(true)} style={{ fontFamily: "var(--font-mono)", fontSize: "10px", cursor: "pointer", padding: "2px 8px",
-                                                              background: "transparent", color: summary.anomalies ? "#b8860b" : "var(--text-secondary)",
-                                                              border: `1px solid ${summary.anomalies ? "#b8860b" : "var(--border-color)"}` }}>
-          ✎ Roster · {fmtInt(summary.anomalies)} anomalies
+        <button onClick={() => setRosterOpen(true)} title={`${fmtInt(summary.anomalies)} hulls carry AIS-identity anomaly flags (recorded facts, not a review queue)`}
+                style={{ fontFamily: "var(--font-mono)", fontSize: "10px", cursor: "pointer", padding: "2px 8px",
+                         background: "transparent", color: summary.unreviewed ? "#b8860b" : "var(--text-secondary)",
+                         border: `1px solid ${summary.unreviewed ? "#b8860b" : "var(--border-color)"}` }}>
+          ✎ Roster{summary.unreviewed ? ` · ${fmtInt(summary.unreviewed)} unreviewed` : ""}
         </button>
       ) : "Last 30 days"}>Same-zone co-presence</SubHeader>
       <p style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.5 }}>

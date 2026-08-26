@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scraper.scrapers import cga_stats_scraper as cga  # noqa: E402
-from scraper.scrapers.gfw_coast_guard import classify  # noqa: E402
+from scraper.scrapers.gfw_coast_guard import classify, triage_verdict  # noqa: E402
 
 
 def test_ccg_name_forms_under_chinese_or_spoofed_flags():
@@ -55,3 +55,13 @@ def test_monthly_report_month_wrap_advances_year(monkeypatch):
                                                         "expelled": v["e_prc"], "detained": v["d_prc"]}])
     rows = {r["period"]: r["expelled"] for r in cga.rows_by_month(b"", 2025) if r["granularity"] == "month"}
     assert rows["2024-10"] == 109 and rows["2025-10"] == 136 and rows["2025-01"] == 99
+
+
+def test_triage_confirms_on_explicit_name_or_matching_mid_never_on_anomaly():
+    # spoofed Venezuelan MID + explicit CCG name → confirmed coast guard (the anomaly is a fact, not a criterion)
+    assert triage_verdict("CHINACOASTGUARD14513", None, "766688888", "CCG")[0] == "confirm"
+    assert triage_verdict("HAI JING 2201", "CHN", "413875046", "CCG")[0] == "confirm"        # weak name, China MID
+    assert triage_verdict("HAI JING 12024", None, "12012024", "CCG")[0] == "leave"          # weak name, junk MID
+    assert triage_verdict("HAI JING NO.7", "TWN", "416006675", "CCG")[0] == "reject"        # Taiwanese vessel
+    assert triage_verdict("CG5002 HSINCHU", "TWN", "416001234", "CGA")[0] == "confirm"
+    assert triage_verdict("CGC MIDGETT", "USA", "366123456", "USCG")[0] == "confirm"
