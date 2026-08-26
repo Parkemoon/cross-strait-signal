@@ -25,6 +25,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from api.auth import require_admin
 from api.database import db_conn
+from api.routes.copy import get_copy
 
 router = APIRouter(prefix="/api/military/coast-guard", tags=["coast-guard"])
 
@@ -45,36 +46,25 @@ _VESSEL_JOIN = "LEFT JOIN coast_guard_vessels v ON v.mmsi = p.mmsi"
 _HULL_KEY = "COALESCE(p.force || ':' || v.hull_no, p.force || ':' || NULLIF(TRIM(p.name), ''), p.mmsi)"
 
 # Data caveats the UI must render next to the series — structured so the
-# frontend can't draw the chart without them. Derived from the 2020→ backfill
-# audit (2026-08-26, SESSION_LOG); re-check when the backfill extends to 2017.
-CAVEATS = [
-    {"key": "ais_floor", "scope": "all",
-     "en": "Counts are AIS-visible presence only — a floor, not activity. AIS is self-reported; the CCG "
-           "switches transponders off on some Kinmen runs and Taiwan's CGA broadcasts only ~38 of its hulls.",
-     "zh": "所有數字僅計入 AIS 可見的存在，為下限而非實際活動量。AIS 為船舶自行播報；海警部分金門航次關閉應答器，海巡署亦僅約 38 艘船播報。"},
-    {"key": "kinmen_go_dark", "scope": "kinmen",
-     "en": "Kinmen: the AIS-visible CCG series falls from ~15–23 hull-days/month (H1 2024) to 2–8/month (2025–26) "
-           "while the CGA reports a steady ~4 incursions/month. Read the gap as go-dark behaviour, not de-escalation.",
-     "zh": "金門：AIS 可見的海警船日從 2024 上半年每月約 15–23 降至 2025–26 年每月 2–8，而海巡署通報每月約 4 次侵擾未減。差距應解讀為關閉應答器，而非降溫。"},
-    {"key": "ccg_pre_2023", "scope": "CCG",
-     "en": "CCG hull-days step up ~5× in 2023 as GFW's satellite-AIS coverage and CCG east-of-Taiwan patrols both "
-           "grew; pre-2023 CCG figures are unreliably low and not comparable.",
-     "zh": "2023 年海警船日躍升約 5 倍，同時反映 GFW 衛星 AIS 覆蓋擴大與海警東部巡航增加；2023 年前的海警數字偏低且不可比較。"},
-    {"key": "uscg_absent", "scope": "USCG",
-     "en": "US Coast Guard cutters do not broadcast AIS in theatre — 2 hull-days since 2020. Not a signal.",
-     "zh": "美國海岸防衛隊船艦在此海域不播報 AIS，2020 年以來僅 2 船日，不具訊號意義。"},
-    {"key": "jcg_east_only", "scope": "JCG",
-     "en": "Japan Coast Guard presence is almost entirely the east-coast box — Yonaguni/Senkaku patrols brushing the "
-           "polygon, not Taiwan-related activity.",
-     "zh": "日本海上保安廳的存在幾乎全在東部海域框，屬與那國／尖閣巡航掠過多邊形，非涉台活動。"},
-    {"key": "cga_home_waters", "scope": "CGA",
-     "en": "Most CGA hull-days are routine patrols inside Taiwan's own contiguous zone; only the Kinmen, Matsu, "
-           "Pratas and median-line zones carry meaning.",
-     "zh": "海巡署船日多為本國鄰接區內例行巡邏；僅金門、馬祖、東沙與海峽中線區域具分析意義。"},
-    {"key": "hours_coarse", "scope": "all",
-     "en": "Hours are GFW's integer hour-cells (floor 1 h per hull-day); data lags ~5 days.",
-     "zh": "小時數為 GFW 整數小時格（每船日下限 1 小時）；資料延遲約 5 天。"},
-]
+# frontend can't draw the chart without them. Scope lives here (it's logic);
+# the TEXT lives in data/site_copy.json (coast_guard.caveat.<key>) so an
+# editor can reword it in the admin UI. Derived from the 2020→ backfill audit
+# (2026-08-26, SESSION_LOG); re-check when the backfill extends to 2017.
+CAVEAT_SCOPES = {
+    "ais_floor": "all",
+    "kinmen_go_dark": "kinmen",
+    "ccg_pre_2023": "CCG",
+    "uscg_absent": "USCG",
+    "jcg_east_only": "JCG",
+    "cga_home_waters": "CGA",
+    "hours_coarse": "all",
+}
+
+
+def caveats() -> list[dict]:
+    text = get_copy()
+    return [{"key": k, "scope": scope, "en": text.get(f"coast_guard.caveat.{k}", "")}
+            for k, scope in CAVEAT_SCOPES.items() if text.get(f"coast_guard.caveat.{k}")]
 
 
 def _zones_fc() -> dict:
@@ -162,7 +152,7 @@ def summary(days: int = Query(30, ge=7, le=365)):
         first_date = conn.execute("SELECT MIN(date) FROM coast_guard_presence").fetchone()[0]
         return {"latest_date": latest, "window_start": start.isoformat(), "days": days, "forces": forces,
                 "zones": zones_out, "roster": roster, "anomalies": anomalies, "unreviewed": unreviewed, "last_pull_at": pull,
-                "enforcement": enforcement, "coverage_start": first_date, "caveats": CAVEATS}
+                "enforcement": enforcement, "coverage_start": first_date, "caveats": caveats()}
 
 
 @router.get("/daily")
