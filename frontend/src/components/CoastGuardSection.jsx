@@ -10,6 +10,7 @@ import { READ_ONLY } from "../readOnly";
 import CoastGuardMap from "./CoastGuardMap";
 import { FORCE_COLOUR, FORCE_LABEL, Pill } from "./coastGuardShared";
 import CoastGuardRosterModal from "./CoastGuardRosterModal";
+import { Copy } from "../copy";
 
 // Coast Guard section of the Military tab (Phase 2e). Two halves, always shown
 // together (Ed's standing rule for this tracker): AIS-visible coast-guard
@@ -40,6 +41,7 @@ const fmtDay = (iso) => { if (!iso) return ""; const [, m, d] = iso.split("-"); 
 const fmtInt = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString());
 const addMonths = (ym, n) => { const [y, m] = ym.split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`; };
 
+const FRAME = { fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 };
 const TICK = { fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" };
 
 // Every CGA number on this section comes from a specific report PDF (the
@@ -295,15 +297,8 @@ export default function CoastGuardSection() {
 
   return (
     <>
-      <p style={{ fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 14px" }}>
-        Two series that describe the same water from opposite shores. <strong>Presence</strong> is where coast-guard hulls
-        of four flags were seen on AIS inside Taiwan-drawn zones (Kinmen and Matsu prohibited/restricted waters, the
-        median-line band, the 24 nm contiguous zone, Pratas, an east-coast box), from Global Fishing Watch's daily 1-km
-        presence data. <strong>Enforcement</strong> is what Taiwan's Coast Guard Administration says it did — PRC fishing
-        vessels expelled or detained for crossing the same lines. Neither is an incident count: presence is an
-        AIS-visible floor, enforcement is a self-report. Read together they show pressure and response; read apart,
-        each misleads.
-      </p>
+      <Copy k="coast_guard.intro" style={{ fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 14px" }}
+            fallback="AIS-visible coast-guard presence in Taiwan-drawn zones, paired with the CGA's own enforcement statistics." />
       <Caveats caveats={summary.caveats} scopes={["all"]} />
 
       {/* KPI strip — two per side, deliberately symmetric */}
@@ -354,17 +349,11 @@ export default function CoastGuardSection() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 12 }}>
         <div style={{ padding: "10px 12px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${FORCE_COLOUR.CGA}`, background: "var(--bg-card)" }}>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Taipei</div>
-          <div style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-            The zones are Taiwan's declared prohibited and restricted waters (MND 公告, 2004/2018). Any CCG hull inside them is an
-            incursion into waters Taiwan administers; the CGA's expulsion count is routine law enforcement against trespass fishing.
-          </div>
+          <Copy k="coast_guard.frame_taipei" as="div" style={FRAME} fallback="Taiwan's declared prohibited and restricted waters; CCG presence inside them is an incursion." />
         </div>
         <div style={{ padding: "10px 12px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${FORCE_COLOUR.CCG}`, background: "var(--bg-card)" }}>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Beijing</div>
-          <div style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-            Beijing recognises no prohibited or restricted waters off Kinmen and Matsu (TAO, Feb 2024) and casts CCG patrols as
-            law enforcement in Chinese waters; Taiwan's expulsions of mainland fishermen are the provocation, the patrols the response.
-          </div>
+          <Copy k="coast_guard.frame_beijing" as="div" style={FRAME} fallback="Beijing recognises no such waters and casts CCG patrols as law enforcement." />
         </div>
       </div>
 
@@ -389,10 +378,8 @@ export default function CoastGuardSection() {
           ✎ Roster{summary.unreviewed ? ` · ${fmtInt(summary.unreviewed)} unreviewed` : ""}
         </button>
       ) : "Last 30 days"}>Same-zone co-presence</SubHeader>
-      <p style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.5 }}>
-        A CCG hull and a Taiwanese or Japanese coast-guard hull inside the same zone on the same day. Daily 1-km data cannot
-        show an intercept, so this is co-presence, not interaction.
-      </p>
+      <Copy k="coast_guard.copresence" style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.5 }}
+            fallback="A CCG hull and a CGA/JCG hull in the same zone on the same day — co-presence, not interaction." />
       <Encounters rows={encounters} />
 
       <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "16px", lineHeight: 1.5 }}>
