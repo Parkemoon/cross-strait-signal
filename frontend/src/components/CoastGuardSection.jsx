@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Bar, Line, ComposedChart, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  Bar, ComposedChart, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
   fetchCoastGuardSummary, fetchCoastGuardDaily, fetchCoastGuardMonthly,
@@ -108,14 +108,13 @@ function Caveats({ caveats, scopes, compact }) {
 }
 
 // One force, one strip, one axis. `unit` names the measure for the tooltip.
-function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, lineKey, lineLabel, syncId, height = 130 }) {
+function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, syncId, height = 130 }) {
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--text-primary)", marginBottom: 2 }}>
         <span style={{ display: "inline-block", width: 10, height: 10, background: colour }} />
         {title}
         {titleLink}
-        {lineKey && <span style={{ color: "var(--text-muted)" }}>— line: {lineLabel}</span>}
       </div>
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -124,9 +123,8 @@ function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, lineKey, 
             <XAxis dataKey="month" tick={TICK} stroke="var(--border-color)" tickFormatter={fmtMonth} interval="preserveStartEnd" minTickGap={48} />
             <YAxis tick={TICK} stroke="var(--border-color)" width={38} allowDecimals={false} />
             <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={fmtMonth}
-                     formatter={(v, key) => [fmtInt(v), key === lineKey ? lineLabel : unit]} />
+                     formatter={(v) => [fmtInt(v), unit]} />
             <Bar dataKey={dataKey} fill={colour} maxBarSize={9} />
-            {lineKey && <Line type="monotone" dataKey={lineKey} stroke="var(--text-primary)" strokeWidth={1.5} dot={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
