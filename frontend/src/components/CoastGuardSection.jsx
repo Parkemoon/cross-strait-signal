@@ -8,6 +8,7 @@ import {
 } from "../api";
 import { READ_ONLY } from "../readOnly";
 import CoastGuardMap from "./CoastGuardMap";
+import { FORCE_COLOUR, FORCE_LABEL, Pill } from "./coastGuardShared";
 import CoastGuardRosterModal from "./CoastGuardRosterModal";
 
 // Coast Guard section of the Military tab (Phase 2e). Two halves, always shown
@@ -19,8 +20,6 @@ import CoastGuardRosterModal from "./CoastGuardRosterModal";
 // `summary.caveats`, and CCG / CGA never share a stacked or grouped mark
 // (the locked red/green side palette fails the CVD check when adjacent), so
 // each force gets its own strip with the label carrying identity.
-const FORCE_COLOUR = { CCG: "#dc2626", CGA: "#16a34a", JCG: "#14B8A6", USCG: "#1d4ed8" };
-const FORCE_LABEL  = { CCG: "China Coast Guard", CGA: "Taiwan Coast Guard", JCG: "Japan Coast Guard", USCG: "US Coast Guard" };
 const CHART_FORCES = ["CCG", "CGA", "JCG"];          // USCG hidden — 2 hull-days since 2020 (caveat uscg_absent)
 const GROUPS = [
   { id: "kinmen",     label: "Kinmen",       zh: "金門" },
@@ -50,17 +49,6 @@ function SubHeader({ children, right }) {
                      textTransform: "uppercase", color: "var(--text-primary)" }}>{children}</span>
       {right && <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>{right}</span>}
     </div>
-  );
-}
-
-function Pill({ active, onClick, children, colour }) {
-  return (
-    <button onClick={onClick} style={{
-      fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.05em", cursor: "pointer",
-      padding: "3px 9px", background: active ? (colour || "var(--text-primary)") : "transparent",
-      color: active ? "var(--bg-primary)" : "var(--text-secondary)",
-      border: `1px solid ${active ? (colour || "var(--text-primary)") : "var(--border-color)"}`,
-    }}>{children}</button>
   );
 }
 

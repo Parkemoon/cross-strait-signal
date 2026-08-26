@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchCoastGuardVessels, updateCoastGuardVessel } from "../api";
+import { FORCES, FORCE_COLOUR, Pill } from "./coastGuardShared";
 
 // Analyst roster review for the Coast Guard tracker. The failure mode of a
 // name-based classifier is a civilian hull named "COAST GUARD" (or a Taiwanese
@@ -9,24 +10,11 @@ import { fetchCoastGuardVessels, updateCoastGuardVessel } from "../api";
 // are surfaced as chips — they are findings, not errors (spoofed MIDs are part
 // of the behaviour), so the default action on an anomaly is "confirm", not
 // "reject".
-const FORCES = ["CCG", "CGA", "JCG", "USCG"];
-const FORCE_COLOUR = { CCG: "#dc2626", CGA: "#16a34a", JCG: "#14B8A6", USCG: "#1d4ed8" };
 const FLAG_LABEL = {
   mid_mismatch: "MID ≠ force",
   flag_mismatch: "flag ≠ force",
   name_change: "name changed",
 };
-
-function Pill({ active, onClick, children, colour }) {
-  return (
-    <button onClick={onClick} style={{
-      fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.05em", cursor: "pointer",
-      padding: "3px 8px", background: active ? (colour || "var(--text-primary)") : "transparent",
-      color: active ? "var(--bg-primary)" : "var(--text-secondary)",
-      border: `1px solid ${active ? (colour || "var(--text-primary)") : "var(--border-color)"}`,
-    }}>{children}</button>
-  );
-}
 
 function StatusTag({ status }) {
   const c = status === "confirmed" ? "#16a34a" : status === "rejected" ? "#dc2626" : "var(--text-muted)";
