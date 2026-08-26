@@ -1,11 +1,10 @@
 import copy
-import json
 import os
-import threading
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from api.auth import require_admin
+from api.json_store import JsonFileStore
 
 router = APIRouter(prefix="/api/positions", tags=["positions"])
 
@@ -17,18 +16,11 @@ _CONTENT_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "scraper", "processors", "positions.json"
 )
 
-_lock = threading.Lock()
-_cache = {"mtime": None, "data": None}
+_store = JsonFileStore(_CONTENT_PATH)
 
 
 def _load():
-    mtime = os.path.getmtime(_CONTENT_PATH)
-    with _lock:
-        if _cache["mtime"] != mtime:
-            with open(_CONTENT_PATH, encoding="utf-8") as f:
-                _cache["data"] = json.load(f)
-            _cache["mtime"] = mtime
-        return _cache["data"]
+    return _store.load()
 
 
 @router.get("/")
@@ -98,28 +90,16 @@ def _apply_text_edit(data, path, value):
     return new_data
 
 
-def _write(data):
-    """Atomic rewrite of the content file (json.dumps-normalised formatting)."""
-    tmp = _CONTENT_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    os.replace(tmp, _CONTENT_PATH)
-
-
 @router.patch("/text")
 def patch_text(payload: dict = Body(...), _admin: None = Depends(require_admin)):
     """Replace one string field, addressed by its JSON path from the file root.
 
     Body: {"path": ["actors", 0, "intro_en"], "value": "…"}.
     """
-    _load()  # ensure cache is current before we copy-edit it
-    with _lock:
+    with _store.lock:
         try:
-            new_data = _apply_text_edit(_cache["data"], payload.get("path"), payload.get("value"))
+            new_data = _apply_text_edit(_store.load(), payload.get("path"), payload.get("value"))
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        _write(new_data)
-        _cache["data"] = new_data
-        _cache["mtime"] = os.path.getmtime(_CONTENT_PATH)
+        _store.write(new_data)
     return {"status": "ok", "path": payload["path"]}

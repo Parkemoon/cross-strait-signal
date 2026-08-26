@@ -6,36 +6,28 @@ as a flat key -> string map, served whole (public) and rewritten one key at a
 time by the admin UI (the same inline-editing flow as positions.json).
 Labels, buttons and axis titles are NOT here — they stay in code.
 
-Mirrors api/routes/positions.py: mtime-reload cache, atomic rewrite, strings
-only, keys must already exist (adding a key is a code change so the frontend
+Same JsonFileStore as api/routes/positions.py (mtime-reload cache, atomic
+rewrite); strings only, keys must already exist (adding a key is a code change so the frontend
 and tests/test_site_copy.py stay in step).
 """
 from __future__ import annotations
 
-import json
 import os
-import threading
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from api.auth import require_admin
+from api.json_store import JsonFileStore
 
 router = APIRouter(prefix="/api/copy", tags=["copy"])
 
 COPY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "site_copy.json")
 
-_lock = threading.Lock()
-_cache: dict = {"mtime": None, "data": None}
+_store = JsonFileStore(COPY_PATH)
 
 
 def _load() -> dict:
-    mtime = os.path.getmtime(COPY_PATH)
-    with _lock:
-        if _cache["mtime"] != mtime:
-            with open(COPY_PATH, encoding="utf-8") as f:
-                _cache["data"] = json.load(f)
-            _cache["mtime"] = mtime
-        return _cache["data"]
+    return _store.load()
 
 
 def get_copy() -> dict:
@@ -45,14 +37,6 @@ def get_copy() -> dict:
 
 def copy_text(key: str, default: str = "") -> str:
     return get_copy().get(key, default)
-
-
-def _write(data: dict) -> None:
-    tmp = COPY_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    os.replace(tmp, COPY_PATH)
 
 
 @router.get("/")
@@ -79,15 +63,12 @@ def apply_edit(data: dict, key: str, value) -> dict:
 @router.patch("/{key}")
 def patch_copy(key: str, payload: dict = Body(...), _admin: None = Depends(require_admin)):
     """Replace one string. Body: {"value": "…"}. The key must already exist."""
-    data = _load()
-    with _lock:
+    with _store.lock:
         try:
-            new_data = apply_edit(data, key, payload.get("value"))
+            new_data = apply_edit(_store.load(), key, payload.get("value"))
         except KeyError as e:
             raise HTTPException(404, str(e.args[0]))
         except ValueError as e:
             raise HTTPException(400, str(e))
-        _write(new_data)
-        _cache["data"] = new_data
-        _cache["mtime"] = os.path.getmtime(COPY_PATH)
+        _store.write(new_data)
     return {"key": key, "value": payload.get("value")}
