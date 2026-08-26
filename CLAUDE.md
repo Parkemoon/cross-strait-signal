@@ -109,6 +109,10 @@ Parallel pipelines (no AI processing):
     CIFER portal (Playwright, monthly) → cifer_snapshots → /api/trade-access/cifer-snapshot
     TW NIA + curated PRC data → cross_strait_population → /api/economy/people-records
     MND daily briefing + PLATracker backfill → pla_incursions → /api/military/*
+    GFW 4Wings presence (Step 2n, nightly) → coast_guard_presence/vessels/pulls
+        → roster triage (deterministic) → /api/military/coast-guard/* (Maritime tab)
+    CGA 績效統計月報 / 年報 PDFs (Step 2o) → cga_enforcement → /api/military/coast-guard/enforcement
+        (the Taiwan-side MIRROR of the presence series — always charted together)
 
 Exercise-only pass (Step 3b):
     YDN military articles the keyword pre-filter rejected → Tier 1 exercise
@@ -191,6 +195,8 @@ Less-obvious categories:
 - The human review queue and inline analyst overrides exist because political classification requires editorial judgment — AI output is a starting point, not the final word.
 - Deactivating a source (`is_active=0`) preserves all its historical articles; use this instead of deleting.
 - **Key figure statements require manual approval** — misattributing a quote to a senior political figure is a credibility-ender. Never auto-approve or bypass `approval_status='pending'`.
+- **Site prose is editable in the admin UI** (`data/site_copy.json` → `GET /api/copy/` → `<Copy k=…>`; admin ✎ → `PATCH /api/copy/{key}`). Adding a block = add the key to the JSON first (`tests/test_site_copy.py` enforces it). Edits land on the SERVER's copy of the file (prod when editing prod) and dirty that tree — sync prod → staging before content changes, same as `positions.json`. Chrome (labels/buttons) stays in code. **Chinese on the page only when it is the source's own words** — never translated chrome (`.claude/rules/frontend.md`).
+- **Navigation is grouped** (`frontend/src/navGroups.js`): Feed · Security ▾ (Military, Maritime) · Economy ▾ (Indicators, Trade Access, People) · Politics ▾ (Polls, Diplomacy, Positions) · Admin ▾. Maritime sits beside Military on purpose — coast guards are law enforcement, not military. Adding a tab = one `NAV_GROUPS` entry + a render branch in `App.js`.
 - When updating `glossary.json` romanisations, the old romanisation must also be added to the relevant figure's `aliases` array in `key_figures.json`, and the entry must be updated in `entity_canonical.json` — historical entity rows in the DB will still have the old name and must still resolve.
 
 ## OSINT Navigator CLI
