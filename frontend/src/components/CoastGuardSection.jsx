@@ -20,15 +20,17 @@ import CoastGuardRosterModal from "./CoastGuardRosterModal";
 // `summary.caveats`, and CCG / CGA never share a stacked or grouped mark
 // (the locked red/green side palette fails the CVD check when adjacent), so
 // each force gets its own strip with the label carrying identity.
+// Chinese appears only where it is the source's own term (gazetted zone names,
+// CGA table names) — never as translated chrome; see frontend.md.
 const CHART_FORCES = ["CCG", "CGA", "JCG"];          // USCG hidden — 2 hull-days since 2020 (caveat uscg_absent)
 const GROUPS = [
-  { id: "kinmen",     label: "Kinmen",       zh: "金門" },
-  { id: "matsu",      label: "Matsu",        zh: "馬祖" },
-  { id: "median",     label: "Median line",  zh: "海峽中線" },
-  { id: "contiguous", label: "24 nm zone",   zh: "鄰接區" },
-  { id: "pratas",     label: "Pratas",       zh: "東沙" },
-  { id: "east",       label: "East box",     zh: "東部海域" },
-  { id: "",           label: "All zones",    zh: "全部" },
+  { id: "kinmen",     label: "Kinmen", },
+  { id: "matsu",      label: "Matsu", },
+  { id: "median",     label: "Median line", },
+  { id: "contiguous", label: "24 nm zone", },
+  { id: "pratas",     label: "Pratas", },
+  { id: "east",       label: "East box", },
+  { id: "",           label: "All zones", },
 ];
 const RANGES = [{ label: "3Y", months: 36 }, { label: "5Y", months: 60 }, { label: "All", months: 200 }];
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -100,7 +102,6 @@ function Caveats({ caveats, scopes, compact }) {
         <div key={c.key} style={{ marginBottom: 3 }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "#b8860b", marginRight: 6 }}>⚑ CAVEAT</span>
           {c.en}
-          <span style={{ display: "block", color: "var(--text-muted)", fontSize: "10.5px" }}>{c.zh}</span>
         </div>
       ))}
     </div>
@@ -327,9 +328,9 @@ export default function CoastGuardSection() {
       {paired.length ? (
         <>
           <MonthlyStrip data={paired} dataKey="CCG" colour={FORCE_COLOUR.CCG} syncId="cg-paired" unit="hull-days"
-                        title={`China Coast Guard hull-days · ${groupMeta.label}${groupMeta.zh ? ` ${groupMeta.zh}` : ""}`} />
+                        title={`China Coast Guard hull-days · ${groupMeta.label}`} />
           <MonthlyStrip data={paired} dataKey="CGA" colour={FORCE_COLOUR.CGA} syncId="cg-paired" unit="hull-days"
-                        title={`Taiwan Coast Guard hull-days · ${groupMeta.label}${groupMeta.zh ? ` ${groupMeta.zh}` : ""}`} />
+                        title={`Taiwan Coast Guard hull-days · ${groupMeta.label}`} />
           <MonthlyStrip data={paired} dataKey="expelled" colour={FORCE_COLOUR.CGA} syncId="cg-paired" unit="expelled"
                         title="PRC fishing vessels expelled by the CGA · national, all waters" titleLink={t81Link} />
           <MonthlyStrip data={paired} dataKey="detained" colour={FORCE_COLOUR.CGA} syncId="cg-paired" unit="detained" height={90}
@@ -352,14 +353,14 @@ export default function CoastGuardSection() {
       {/* Dual-frame reading — both, always */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 12 }}>
         <div style={{ padding: "10px 12px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${FORCE_COLOUR.CGA}`, background: "var(--bg-card)" }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Taipei · 台北視角</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Taipei</div>
           <div style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
             The zones are Taiwan's declared prohibited and restricted waters (MND 公告, 2004/2018). Any CCG hull inside them is an
             incursion into waters Taiwan administers; the CGA's expulsion count is routine law enforcement against trespass fishing.
           </div>
         </div>
         <div style={{ padding: "10px 12px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${FORCE_COLOUR.CCG}`, background: "var(--bg-card)" }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Beijing · 北京視角</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Read from Beijing</div>
           <div style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
             Beijing recognises no prohibited or restricted waters off Kinmen and Matsu (TAO, Feb 2024) and casts CCG patrols as
             law enforcement in Chinese waters; Taiwan's expulsions of mainland fishermen are the provocation, the patrols the response.
