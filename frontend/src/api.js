@@ -495,6 +495,19 @@ export async function fetchCoastGuardEnforcement(params = {}) {
   return request(`${CG}/enforcement?${query}`);
 }
 
+// Editable site prose (data/site_copy.json) — see src/copy.js.
+export async function fetchCopy() {
+  return request(`/api/copy/`);
+}
+
+export async function patchCopy(key, value) {
+  return request(`/api/copy/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ value }),
+  });
+}
+
 export async function updateCoastGuardVessel(mmsi, patch) {
   return request(`${CG}/vessels/${mmsi}`, {
     method: "PATCH",
