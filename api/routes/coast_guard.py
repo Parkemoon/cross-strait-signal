@@ -35,6 +35,46 @@ FORCE_LABELS = {"CCG": "China Coast Guard", "CGA": "Taiwan Coast Guard", "JCG": 
 
 # Presence rows for hulls an analyst rejected are excluded everywhere.
 _NOT_REJECTED = "p.mmsi NOT IN (SELECT mmsi FROM coast_guard_vessels WHERE status='rejected')"
+# Distinct-hull key. Several CCG hulls broadcast under TWO MMSIs (the old
+# 412/413-7xx series and the 2023+ 41387-5xxx series — 2301–2305, 2501/2502,
+# 3301/3302, 3501, 8026 …), so COUNT(DISTINCT mmsi) overstates hulls by ~10%.
+# Key on force + hull number where the roster parsed one, else the AIS name
+# (JCG hulls carry no number), else the MMSI. Every query counting hulls must
+# carry _VESSEL_JOIN.
+_VESSEL_JOIN = "LEFT JOIN coast_guard_vessels v ON v.mmsi = p.mmsi"
+_HULL_KEY = "COALESCE(p.force || ':' || v.hull_no, p.force || ':' || NULLIF(TRIM(p.name), ''), p.mmsi)"
+
+# Data caveats the UI must render next to the series — structured so the
+# frontend can't draw the chart without them. Derived from the 2020→ backfill
+# audit (2026-08-26, SESSION_LOG); re-check when the backfill extends to 2017.
+CAVEATS = [
+    {"key": "ais_floor", "scope": "all",
+     "en": "Counts are AIS-visible presence only — a floor, not activity. AIS is self-reported; the CCG "
+           "switches transponders off on some Kinmen runs and Taiwan's CGA broadcasts only ~38 of its hulls.",
+     "zh": "所有數字僅計入 AIS 可見的存在，為下限而非實際活動量。AIS 為船舶自行播報；海警部分金門航次關閉應答器，海巡署亦僅約 38 艘船播報。"},
+    {"key": "kinmen_go_dark", "scope": "kinmen",
+     "en": "Kinmen: the AIS-visible CCG series falls from ~15–23 hull-days/month (H1 2024) to 2–8/month (2025–26) "
+           "while the CGA reports a steady ~4 incursions/month. Read the gap as go-dark behaviour, not de-escalation.",
+     "zh": "金門：AIS 可見的海警船日從 2024 上半年每月約 15–23 降至 2025–26 年每月 2–8，而海巡署通報每月約 4 次侵擾未減。差距應解讀為關閉應答器，而非降溫。"},
+    {"key": "ccg_pre_2023", "scope": "CCG",
+     "en": "CCG hull-days step up ~5× in 2023 as GFW's satellite-AIS coverage and CCG east-of-Taiwan patrols both "
+           "grew; pre-2023 CCG figures are unreliably low and not comparable.",
+     "zh": "2023 年海警船日躍升約 5 倍，同時反映 GFW 衛星 AIS 覆蓋擴大與海警東部巡航增加；2023 年前的海警數字偏低且不可比較。"},
+    {"key": "uscg_absent", "scope": "USCG",
+     "en": "US Coast Guard cutters do not broadcast AIS in theatre — 2 hull-days since 2020. Not a signal.",
+     "zh": "美國海岸防衛隊船艦在此海域不播報 AIS，2020 年以來僅 2 船日，不具訊號意義。"},
+    {"key": "jcg_east_only", "scope": "JCG",
+     "en": "Japan Coast Guard presence is almost entirely the east-coast box — Yonaguni/Senkaku patrols brushing the "
+           "polygon, not Taiwan-related activity.",
+     "zh": "日本海上保安廳的存在幾乎全在東部海域框，屬與那國／尖閣巡航掠過多邊形，非涉台活動。"},
+    {"key": "cga_home_waters", "scope": "CGA",
+     "en": "Most CGA hull-days are routine patrols inside Taiwan's own contiguous zone; only the Kinmen, Matsu, "
+           "Pratas and median-line zones carry meaning.",
+     "zh": "海巡署船日多為本國鄰接區內例行巡邏；僅金門、馬祖、東沙與海峽中線區域具分析意義。"},
+    {"key": "hours_coarse", "scope": "all",
+     "en": "Hours are GFW's integer hour-cells (floor 1 h per hull-day); data lags ~5 days.",
+     "zh": "小時數為 GFW 整數小時格（每船日下限 1 小時）；資料延遲約 5 天。"},
+]
 
 
 def _zones_fc() -> dict:
@@ -74,8 +114,8 @@ def summary(days: int = Query(30, ge=7, le=365)):
 
         def window(a: date, b: date):
             rows = conn.execute(
-                f"""SELECT p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours, COUNT(DISTINCT p.mmsi) AS hulls
-                    FROM coast_guard_presence p WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED}
+                f"""SELECT p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours, COUNT(DISTINCT {_HULL_KEY}) AS hulls
+                    FROM coast_guard_presence p {_VESSEL_JOIN} WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED}
                     GROUP BY p.force""", (a.isoformat(), b.isoformat())).fetchall()
             return {r["force"]: dict(r) for r in rows}
 
@@ -87,8 +127,8 @@ def summary(days: int = Query(30, ge=7, le=365)):
                            "hull_days": c.get("hull_days", 0), "hours": c.get("hours", 0.0), "hulls": c.get("hulls", 0),
                            "prev_hull_days": p.get("hull_days", 0)})
         zrows = conn.execute(
-            f"""SELECT p.zone_id, p.force, COUNT(*) AS hull_days, COUNT(DISTINCT p.mmsi) AS hulls
-                FROM coast_guard_presence p WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED}
+            f"""SELECT p.zone_id, p.force, COUNT(*) AS hull_days, COUNT(DISTINCT {_HULL_KEY}) AS hulls
+                FROM coast_guard_presence p {_VESSEL_JOIN} WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED}
                 GROUP BY p.zone_id, p.force""", (start.isoformat(), end.isoformat())).fetchall()
         by_zone: dict[str, dict] = {}
         for r in zrows:
@@ -113,9 +153,10 @@ def summary(days: int = Query(30, ge=7, le=365)):
                      ORDER BY period DESC LIMIT 12)""").fetchone()
         enforcement = {"latest_month": enf["latest"], "months": enf["n"], "expelled": enf["expelled"] or 0,
                        "detained": enf["detained"] or 0} if enf and enf["n"] else None
+        first_date = conn.execute("SELECT MIN(date) FROM coast_guard_presence").fetchone()[0]
         return {"latest_date": latest, "window_start": start.isoformat(), "days": days, "forces": forces,
                 "zones": zones_out, "roster": roster, "anomalies": anomalies, "last_pull_at": pull,
-                "enforcement": enforcement}
+                "enforcement": enforcement, "coverage_start": first_date, "caveats": CAVEATS}
 
 
 @router.get("/daily")
@@ -145,8 +186,8 @@ def daily(
         if force:
             where.append("p.force = ?"); args.append(force)
         rows = conn.execute(
-            f"""SELECT p.date, p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours, COUNT(DISTINCT p.mmsi) AS hulls
-                FROM coast_guard_presence p WHERE {' AND '.join(where)}
+            f"""SELECT p.date, p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours, COUNT(DISTINCT {_HULL_KEY}) AS hulls
+                FROM coast_guard_presence p {_VESSEL_JOIN} WHERE {' AND '.join(where)}
                 GROUP BY p.date, p.force ORDER BY p.date""", args).fetchall()
         return {"latest_date": latest, "start": start.isoformat(), "rows": [dict(r) for r in rows]}
 
@@ -166,8 +207,8 @@ def monthly(zone: Optional[str] = None, group: Optional[str] = None, force: Opti
             where.append("p.force = ?"); args.append(force)
         rows = conn.execute(
             f"""SELECT substr(p.date,1,7) AS month, p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours,
-                       COUNT(DISTINCT p.mmsi) AS hulls
-                FROM coast_guard_presence p WHERE {' AND '.join(where)}
+                       COUNT(DISTINCT {_HULL_KEY}) AS hulls
+                FROM coast_guard_presence p {_VESSEL_JOIN} WHERE {' AND '.join(where)}
                 GROUP BY month, p.force ORDER BY month DESC LIMIT ?""", args + [months * len(FORCES)]).fetchall()
         return {"rows": [dict(r) for r in reversed(rows)]}
 
@@ -240,7 +281,7 @@ def encounters(days: int = Query(30, ge=1, le=3660), zone: Optional[str] = None)
                        SUM(p.force='CCG') AS ccg, SUM(p.force='CGA') AS cga, SUM(p.force='JCG') AS jcg, SUM(p.force='USCG') AS uscg,
                        GROUP_CONCAT(CASE WHEN p.force='CCG' THEN p.name END, '|') AS ccg_names,
                        GROUP_CONCAT(CASE WHEN p.force!='CCG' THEN p.force||':'||p.name END, '|') AS other_names
-                FROM coast_guard_presence p WHERE {' AND '.join(where)}
+                FROM coast_guard_presence p {_VESSEL_JOIN} WHERE {' AND '.join(where)}
                 GROUP BY p.date, p.zone_id
                 HAVING ccg > 0 AND (cga + jcg + uscg) > 0
                 ORDER BY p.date DESC, p.zone_id""", args).fetchall()
@@ -258,13 +299,19 @@ def enforcement(region: str = Query("TW", description="'TW' national, or a count
                 category: str = Query("fishing_prc"), months: int = Query(60, ge=1, le=240)):
     """The mirror series: vessels Taiwan's CGA expelled / detained for trespass
     fishing (official CGA statistics — cga_enforcement). Returns three
-    series so the chart can choose: monthly national (表8-1), annual national
+    series so the chart can choose: monthly national (表8-1, monthly reports merged
+    over the yearbooks' month tables), annual national
     (表8-1 / yearbooks, plus the 護永專案 manual rows with fines/confiscations),
     and the county year-to-date snapshots (表8-3, newest report wins)."""
     with db_conn() as conn:
+        # One row per month: the monthly report wins where it exists (recent ~12
+        # months on the CGA site), the yearbooks' 表8-1 fill the back-history.
         monthly = conn.execute(
-            """SELECT period, expelled, detained, cases, source, source_ref FROM cga_enforcement
-               WHERE region='TW' AND category=? AND granularity='month' AND source='monthly'
+            """SELECT period, expelled, detained, cases, source, source_ref FROM cga_enforcement e
+               WHERE region='TW' AND category=? AND granularity='month' AND source IN ('monthly','yearbook')
+                 AND NOT EXISTS (SELECT 1 FROM cga_enforcement m WHERE m.period=e.period AND m.region=e.region
+                                   AND m.category=e.category AND m.granularity='month'
+                                   AND m.source='monthly' AND e.source='yearbook')
                ORDER BY period DESC LIMIT ?""", (category, months)).fetchall()
         annual = conn.execute(
             """SELECT period, granularity, expelled, detained, fined_vessels, fines_ntd_m, confiscated, source, source_ref

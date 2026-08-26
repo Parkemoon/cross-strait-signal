@@ -63,6 +63,7 @@ _CCG_HULL = re.compile(r"(\d{4,5})\s*$")
 _CGA_NAME = re.compile(r"^CG[\s-]?(\d{3,5})\b", re.I)            # CG5002 HSINCHU, CG-127, CG 129
 _USCG_NAME = re.compile(r"^(?:USCGC|CGC|CG)\s+[A-Z]", re.I)      # CGC MIDGETT, CG MYRTLE HAZARD, USCGC ELM
 _NOT_CG = re.compile(r"PILOT|CRUISE|EXPRESS|FERRY|TUG|CARGO", re.I)
+_NOT_CCG_FLAGS = {"TWN", "JPN", "USA", "KOR"}
 
 
 def _load_jcg_names() -> set[str]:
@@ -92,6 +93,12 @@ def classify(name: str | None, flag: str | None, vessel_type: str | None = None)
     if vessel_type and vessel_type.upper() in _NON_CG_TYPES and flag == "JPN":
         return None, None
     if _CCG_NAME.search(n) and not _USCG_NAME.match(n):
+        # "HAI JING" (海警) is also a Taiwanese ship name (416002727 HAI JING, TWN,
+        # 84 hull-days in the eastern contiguous zone — a false positive caught
+        # 2026-08-26). Only the explicit "CHINA …" forms are accepted under a
+        # TWN/JPN/USA/KOR flag; the spoofed-MID CCG hulls carry other flags or none.
+        if flag in _NOT_CCG_FLAGS and "CHINA" not in n and not n.startswith("CCG"):
+            return None, None
         m = _CCG_HULL.search(n)
         return "CCG", (m.group(1) if m else None)
     if flag == "TWN":
@@ -150,7 +157,9 @@ class GFWClient:
         entries = d.get("entries") or []
         if not entries:
             return []
-        first = entries[0]
+        first = entries[0] or {}
+        if not first:           # GFW returns [{}] for an empty period (was a StopIteration)
+            return []
         key = next(iter(first))
         return first.get(key) or []
 
