@@ -1,3 +1,5 @@
+import { Copy } from "../copy";
+
 const BIAS_ROWS = [
   { label: "green",             color: "#15803d", text: "#fff",     desc: "Explicitly pro-independence editorial line (e.g. Liberty Times)" },
   { label: "green_leaning",     color: "#4ade80", text: "#14532d",  desc: "State-controlled under DPP-led government (e.g. CNA, YDN)" },
@@ -110,35 +112,21 @@ export default function AboutModal({ onClose }) {
 
         {/* What this is */}
         <h3 style={sectionHead}>What this is</h3>
-        <p style={body}>
-          Cross-Strait Signal is an open-source intelligence dashboard monitoring PRC–Taiwan cross-strait
-          dynamics through automated bilingual media analysis. It scrapes 37 active sources across the
-          People's Republic of China, Taiwan, Hong Kong, and international Chinese-language outlets.
-          Chinese-language sources are treated as primary: they break stories earlier and in greater depth
-          than English-language media on either side of the strait. International outlets do strong work
-          and often land exclusives, but that reporting is already easy for English speakers to reach —
-          what gets lost is what the people most affected are reading and saying. Articles are processed
-          through a multi-tier AI pipeline, human-reviewed for accuracy, and structured into a filterable
-          intelligence feed.
-        </p>
-        <p style={{ ...body, marginTop: "12px" }}>
-          There is also a social feed covering for the moment the top 50 trending on Weibo and the
-          Taiwanese Reddit-style board PTT. Neither of these can be read as giving a representative view
-          of a broad swath of cross-strait public opinion, but at the moment it is very hard to access
-          data for the social media of choice on either side (WeChat and Douyin for the PRC; Threads,
-          Instagram and Facebook for Taiwan).
-        </p>
-        <p style={{ ...body, marginTop: "12px" }}>
-          The system is designed to surface signals from both sides of the strait — including changes to
-          Taiwanese "status quo" alongside PRC military activity and nationalist rhetoric. It is
-          deliberately not supposed to imply one side's positive or negative activity is a one-way street.
-        </p>
+        <Copy k="about.what"
+              style={body}
+              fallback={"Cross-Strait Signal is an open-source intelligence dashboard monitoring PRC–Taiwan cross-strait dynamics through automated bilingual media analysis. It scrapes 37 active sources across the People's Republic of China, Taiwan, Hong Kong, and international Chinese-language outlets. Chinese-language sources are treated as primary: they break stories earlier and in greater depth than English-language media on either side of the strait. International outlets do strong work and often land exclusives, but that reporting is already easy for English speakers to reach — what gets lost is what the people most affected are reading and saying. Articles are processed through a multi-tier AI pipeline, human-reviewed for accuracy, and structured into a filterable intelligence feed."} />
+        <Copy k="about.social"
+              style={{ ...body, marginTop: "12px" }}
+              fallback={"There is also a social feed covering for the moment the top 50 trending on Weibo and the Taiwanese Reddit-style board PTT. Neither of these can be read as giving a representative view of a broad swath of cross-strait public opinion, but at the moment it is very hard to access data for the social media of choice on either side (WeChat and Douyin for the PRC; Threads, Instagram and Facebook for Taiwan)."} />
+        <Copy k="about.bidirectional"
+              style={{ ...body, marginTop: "12px" }}
+              fallback={"The system is designed to surface signals from both sides of the strait — including changes to Taiwanese \"status quo\" alongside PRC military activity and nationalist rhetoric. It is deliberately not supposed to imply one side's positive or negative activity is a one-way street."} />
 
         {/* Beyond the feed */}
         <h3 style={sectionHead}>Beyond the feed</h3>
-        <p style={body}>
-          The article feed is one instrument among several. The dashboard also tracks:
-        </p>
+        <Copy k="about.beyond_intro"
+              style={body}
+              fallback={"The article feed is one instrument among several. The dashboard also tracks:"} />
         <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
           {TABS.map(({ name, desc }) => (
             <div key={name} style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px", alignItems: "baseline" }}>
@@ -154,10 +142,9 @@ export default function AboutModal({ onClose }) {
 
         {/* Sentiment axis */}
         <h3 style={sectionHead}>Sentiment axis</h3>
-        <p style={body}>
-          Each article is scored on a −1.0 to +1.0 scale measuring how the source frames the opposing
-          side of the strait.
-        </p>
+        <Copy k="about.sentiment_axis"
+              style={body}
+              fallback={"Each article is scored on a −1.0 to +1.0 scale measuring how the source frames the opposing side of the strait."} />
         <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", alignItems: "baseline" }}>
           {[
             { range: "−1.0 to −0.3", label: "Hostile",      color: "#7c3aed", desc: "Threatening, antagonistic, or confrontational framing of the other side" },
@@ -175,22 +162,15 @@ export default function AboutModal({ onClose }) {
             </>
           ))}
         </div>
-        <p style={{ ...body, marginTop: "12px", fontSize: "13px", color: "var(--text-muted)" }}>
-          For PRC sources: how does the article portray Taiwan? For Taiwan sources: how does it portray
-          the PRC? Third-country statements about Taiwan are deliberately excluded from this axis — they
-          feed the Diplomacy map instead.
-        </p>
+        <Copy k="about.sentiment_axis_detail"
+              style={{ ...body, marginTop: "12px", fontSize: "13px", color: "var(--text-muted)" }}
+              fallback={"For PRC sources: how does the article portray Taiwan? For Taiwan sources: how does it portray the PRC? Third-country statements about Taiwan are deliberately excluded from this axis — they feed the Diplomacy map instead."} />
 
         {/* Diplomacy stance axis */}
         <h3 style={sectionHead}>Diplomacy stance axis</h3>
-        <p style={body}>
-          The Diplomacy map uses a separate scale, scored −1.0 to +1.0: how far a third country's
-          statement leans toward Beijing's position or Taipei's. It deliberately uses different colours —
-          red toward Beijing, green toward Taipei, following each side's own political conventions — so
-          it cannot be misread as the purple/amber sentiment axis. Country fill reflects the average of
-          official-tier statements (governments and heads of state); pins mark the aggregate of
-          non-official voices, which often diverge from the government line.
-        </p>
+        <Copy k="about.diplomacy_axis"
+              style={body}
+              fallback={"The Diplomacy map uses a separate scale, scored −1.0 to +1.0: how far a third country's statement leans toward Beijing's position or Taipei's. It deliberately uses different colours — red toward Beijing, green toward Taipei, following each side's own political conventions — so it cannot be misread as the purple/amber sentiment axis. Country fill reflects the average of official-tier statements (governments and heads of state); pins mark the aggregate of non-official voices, which often diverge from the government line."} />
 
         {/* Source bias */}
         <h3 style={sectionHead}>Source bias labels</h3>
@@ -219,16 +199,9 @@ export default function AboutModal({ onClose }) {
 
         {/* AI pipeline */}
         <h3 style={sectionHead}>AI pipeline & human oversight</h3>
-        <p style={body}>
-          Articles pass through a three-tier pipeline: Gemini 3.1 Flash Lite handles initial
-          classification (topic, sentiment, urgency, named entities, key quotes); Gemini 3.5 Flash
-          independently re-reviews escalation-flagged articles without seeing the first tier's answers;
-          a human review queue catches cases where the two disagree. Every article requires explicit
-          analyst approval before appearing on this feed, and the same editorial gate applies to every
-          derived record — military exercises, poll extractions, diplomacy statements, and quotes
-          attributed to key figures all sit in analyst review queues until approved. Translations and
-          classifications can be corrected inline, and corrected fields are marked as human-verified.
-        </p>
+        <Copy k="about.pipeline"
+              style={body}
+              fallback={"Articles pass through a three-tier pipeline: Gemini 3.1 Flash Lite handles initial classification (topic, sentiment, urgency, named entities, key quotes); Gemini 3.5 Flash independently re-reviews escalation-flagged articles without seeing the first tier's answers; a human review queue catches cases where the two disagree. Every article requires explicit analyst approval before appearing on this feed, and the same editorial gate applies to every derived record — military exercises, poll extractions, diplomacy statements, and quotes attributed to key figures all sit in analyst review queues until approved. Translations and classifications can be corrected inline, and corrected fields are marked as human-verified."} />
 
         {/* Key Terms */}
         <h3 style={sectionHead}>Key Terms</h3>
@@ -256,16 +229,9 @@ export default function AboutModal({ onClose }) {
 
         {/* Data sources */}
         <h3 style={sectionHead}>Data sources</h3>
-        <p style={body}>
-          News analysis is built on the 37-source roster. Structured data comes from: Taiwan's Mainland
-          Affairs Council open datasets (trade, investment, visitor flows, polling); UN Comtrade
-          (PRC-reported trade, discontinued by Beijing after Dec 2024); Hong Kong Census &amp; Statistics
-          Department; Taiwan MND daily briefings, with 2020–2026 history backfilled from PLATracker;
-          Taiwan NIA residence statistics; Global Fishing Watch's AIS presence data and Taiwan CGA
-          statistical reports for the coast-guard tracker; BOFT and ECFA notifications plus the PRC's CIFER registry;
-          NCCU Election Study Center long-series polling alongside TVBS, My-Formosa, ETtoday and MAC
-          surveys; Natural Earth map data.
-        </p>
+        <Copy k="about.sources"
+              style={body}
+              fallback={"News analysis is built on the 37-source roster. Structured data comes from: Taiwan's Mainland Affairs Council open datasets (trade, investment, visitor flows, polling); UN Comtrade (PRC-reported trade, discontinued by Beijing after Dec 2024); Hong Kong Census & Statistics Department; Taiwan MND daily briefings, with 2020–2026 history backfilled from PLATracker; Taiwan NIA residence statistics; Global Fishing Watch's AIS presence data and Taiwan CGA statistical reports for the coast-guard tracker; BOFT and ECFA notifications plus the PRC's CIFER registry; NCCU Election Study Center long-series polling alongside TVBS, My-Formosa, ETtoday and MAC surveys; Natural Earth map data."} />
 
         {/* Author */}
         <h3 style={sectionHead}>Author</h3>

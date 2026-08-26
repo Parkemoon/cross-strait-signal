@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchTradeAccessItems, fetchTradeAccessSummary, fetchCiferSnapshot } from "../api";
+import { Copy } from "../copy";
 
 // Direction toggle. The DB stores who the importer is, so reading these
 // rows means "what does the importer admit". Labels frame it as a flow
@@ -599,22 +600,15 @@ export default function TradeAccessTab() {
         <ItemTable items={data.items} total={data.total} page={page} setPage={setPage} />
       )}
 
-      <p style={{
+      <Copy k="trade.sources"
+            style={{
         marginTop: "24px",
         fontFamily: "var(--font-body)",
         fontSize: "11px",
         color: "var(--text-muted)",
         lineHeight: 1.5,
-      }}>
-        Sources: BOFT (Taiwan Bureau of Foreign Trade) datasets 22674 (不准輸入)
-        and 22675 (有條件准許) for Taiwan-side import rules; MoF Customs
-        ECFA correspondence table (2024) for the early harvest list; PRC State
-        Council Tariff Commission Announcements 2023 No. 9 and 2024 No. 4 for
-        ECFA tariff suspension waves; curated list compiled from GACC
-        announcements and contemporary news for PRC's targeted agricultural
-        and food bans. HS codes are 8-digit, normalised to the importing
-        side's tariff schedule.
-      </p>
+      }}
+            fallback={"Sources: BOFT (Taiwan Bureau of Foreign Trade) datasets 22674 (不准輸入) and 22675 (有條件准許) for Taiwan-side import rules; MoF Customs ECFA correspondence table (2024) for the early harvest list; PRC State Council Tariff Commission Announcements 2023 No. 9 and 2024 No. 4 for ECFA tariff suspension waves; curated list compiled from GACC announcements and contemporary news for PRC's targeted agricultural and food bans. HS codes are 8-digit, normalised to the importing side's tariff schedule."} />
     </main>
   );
 }

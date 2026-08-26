@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Copy } from "../copy";
 import {
   fetchDiplomacyMap,
   fetchDiplomacySummary,
@@ -328,19 +329,9 @@ export default function DiplomacyTab() {
         Third-Country Diplomatic Stance
       </SectionHeader>
 
-      <p style={{ fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 18px", maxWidth: "820px" }}>
-        Where the rest of the world sits on the Taiwan question — a{" "}
-        <strong style={{ color: "var(--text-primary)" }}>separate axis</strong> from the
-        cross-strait sentiment instrument, which deliberately discards third-party
-        interactions. Each country is filled by the{" "}
-        <strong style={{ color: "var(--text-primary)" }}>average of its recent government / head-of-state statements</strong>{" "}
-        (the honest national posture, robust to any single stray quote). A{" "}
-        <span style={{ color: "#b8860b" }}>◆ gold dashed</span> border flags a{" "}
-        <strong style={{ color: "var(--text-primary)" }}>divergence</strong> — a legislator,
-        party, or sub-national voice pulling against the official line. Coverage begins in
-        late 2025 (the corpus start); an un-filled country is{" "}
-        <em>un-tracked in this window, not neutral</em>.
-      </p>
+      <Copy k="diplomacy.intro"
+            style={{ fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 18px", maxWidth: "820px" }}
+            fallback={"Where the rest of the world sits on the Taiwan question — a separate axis from the cross-strait sentiment instrument, which deliberately discards third-party interactions. Each country is filled by the average of its recent government / head-of-state statements (the honest national posture, robust to any single stray quote). A ◆ gold dashed border flags a divergence — a legislator, party, or sub-national voice pulling against the official line. Coverage begins in late 2025 (the corpus start); an un-filled country is un-tracked in this window, not neutral."} />
 
       {/* KPI strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>

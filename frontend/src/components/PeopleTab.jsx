@@ -4,6 +4,7 @@ import {
   BarChart, Bar, CartesianGrid, ReferenceLine,
 } from "recharts";
 import { fetchPeopleRecords } from "../api";
+import { Copy } from "../copy";
 
 const POLICY_DOT_COLOR = "var(--accent-amber)";
 
@@ -328,18 +329,15 @@ export default function PeopleTab() {
         Cross-Strait People &amp; Movement
       </SectionHeader>
 
-      <p style={{
+      <Copy k="people.intro"
+            style={{
         fontFamily: "var(--font-body)",
         fontSize: "13px",
         color: "var(--text-secondary)",
         marginBottom: "20px",
         lineHeight: 1.55,
-      }}>
-        How many people live on the other side of the strait, and how many cross it each month.
-        PRC residents in Taiwan are tracked by Taiwan's NIA via residence and settlement permits;
-        Taiwanese in PRC are only knowable through PRC bureaus — 台胞证 issuance counts, the 2020
-        census, and occasional NIA press releases. Stock first, flow below.
-      </p>
+      }}
+            fallback={"How many people live on the other side of the strait, and how many cross it each month. PRC residents in Taiwan are tracked by Taiwan's NIA via residence and settlement permits; Taiwanese in PRC are only knowable through PRC bureaus — 台胞证 issuance counts, the 2020 census, and occasional NIA press releases. Stock first, flow below."} />
 
       {/* Headline KPI strip */}
       <div style={{
@@ -411,18 +409,16 @@ export default function PeopleTab() {
             color: "var(--text-primary)",
             margin: 0,
           }}>New residence &amp; settlement permits</h3>
-          <p style={{
+          <Copy k="people.permits_note"
+                style={{
             fontFamily: "var(--font-body)",
             fontSize: "11.5px",
             color: "var(--text-secondary)",
             marginTop: "4px",
             marginBottom: "0",
             lineHeight: 1.45,
-          }}>
-            居留 (residence, teal) is the first-stage permit; 定居 (settlement, dark)
-            is the second-stage permit toward permanent residency. Both collapsed
-            during 2020–2022 (border closure) and rebounded in 2023.
-          </p>
+          }}
+                fallback={"居留 (residence, teal) is the first-stage permit; 定居 (settlement, dark) is the second-stage permit toward permanent residency. Both collapsed during 2020–2022 (border closure) and rebounded in 2023."} />
           <PeoplePermitsChart
             residence={prcInTw.permits_annual_residence}
             settlement={prcInTw.permits_annual_settlement}
@@ -457,18 +453,16 @@ export default function PeopleTab() {
             color: "var(--text-primary)",
             margin: 0,
           }}>台胞证 milestones &amp; regime changes</h3>
-          <p style={{
+          <Copy k="people.prc_counts_note"
+                style={{
             fontFamily: "var(--font-body)",
             fontSize: "11.5px",
             color: "var(--text-secondary)",
             marginTop: "4px",
             marginBottom: "10px",
             lineHeight: 1.45,
-          }}>
-            PRC bureaus publish absolute counts only at irregular intervals.
-            The cliff in 2020–2022 (border closure) reset the flow; 2024 partial
-            issuance suggests recovery is underway.
-          </p>
+          }}
+                fallback={"PRC bureaus publish absolute counts only at irregular intervals. The cliff in 2020–2022 (border closure) reset the flow; 2024 partial issuance suggests recovery is underway."} />
 
           <div style={{ display: "grid", gap: "8px", marginBottom: "16px" }}>
             {tbzPermits && (
@@ -581,30 +575,16 @@ export default function PeopleTab() {
               color: "var(--text-muted)",
             }}>觀光署 · persons / year</span>
           </div>
-          <p style={{
+          <Copy k="people.annual_flow_note"
+                style={{
             fontFamily: "var(--font-body)",
             fontSize: "11.5px",
             color: "var(--text-secondary)",
             marginTop: "4px",
             marginBottom: "0",
             lineHeight: 1.45,
-          }}>
-            Series begins 2008 because direct cross-strait flights opened that December
-            (大三通) — before then, travel had to route via Hong Kong, Macao, or third
-            countries, so a "TW→PRC visitors" annual count isn't meaningfully distinct
-            from outbound travel generally.{" "}
-            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>TW → PRC</span>{" "}
-            peaked at ~4.17M in 2018, collapsed to ~130K under COVID (2021), recovery to
-            ~3.24M by 2025 — back to ~78% of the 2018 high.{" "}
-            <span style={{ color: "var(--accent-teal, #14B8A6)", fontWeight: 600 }}>PRC → TW</span>{" "}
-            peaked earlier (~4.14M in 2015), declined under the 2019 自由行 ban, hit
-            ~13K in 2021, and has only rebuilt to ~620K — 15% of the 2015 high. The
-            asymmetric recovery is the analytical story. Both lines from 觀光署; PRC→TW
-            uses the 華僑 column under 居住地=中國大陸. 華僑 is an umbrella status
-            category by definition, but cross-checked against MAC 7887 it matches
-            within rounding — the umbrella's edge cases (港澳 / 無戶籍國民 with
-            residence in mainland) are negligible in practice.
-          </p>
+          }}
+                fallback={"Series begins 2008 because direct cross-strait flights opened that December (大三通) — before then, travel had to route via Hong Kong, Macao, or third countries, so a \"TW→PRC visitors\" annual count isn't meaningfully distinct from outbound travel generally. TW → PRC peaked at ~4.17M in 2018, collapsed to ~130K under COVID (2021), recovery to ~3.24M by 2025 — back to ~78% of the 2018 high. PRC → TW peaked earlier (~4.14M in 2015), declined under the 2019 自由行 ban, hit ~13K in 2021, and has only rebuilt to ~620K — 15% of the 2015 high. The asymmetric recovery is the analytical story. Both lines from 觀光署; PRC→TW uses the 華僑 column under 居住地=中國大陸. 華僑 is an umbrella status category by definition, but cross-checked against MAC 7887 it matches within rounding — the umbrella's edge cases (港澳 / 無戶籍國民 with residence in mainland) are negligible in practice."} />
           <AnnualFlowChart
             tw={data.annual_flows?.tw_to_prc}
             prc={data.annual_flows?.prc_to_tw}
@@ -639,23 +619,16 @@ export default function PeopleTab() {
             color: "var(--text-muted)",
           }}>MAC 7887 · 10k persons</span>
         </div>
-        <p style={{
+        <Copy k="people.monthly_flow_note"
+              style={{
           fontFamily: "var(--font-body)",
           fontSize: "11.5px",
           color: "var(--text-secondary)",
           marginTop: "4px",
           marginBottom: "0",
           lineHeight: 1.45,
-        }}>
-          <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>TW → PRC</span>{" "}
-          (dark) and{" "}
-          <span style={{ color: "var(--accent-teal, #14B8A6)", fontWeight: 600 }}>PRC → TW</span>{" "}
-          (teal). Dots show each MAC release. The PRC→TW line is monthly across 2017→
-          (pre-2019 ~250K/month, COVID floor near zero 2020–22, recovery still
-          incomplete). MAC only started carrying TW outbound in dataset 7887 in March
-          2024 (marked) and skips an occasional month — for the pre-2024 TW trend, see
-          the annual chart above.
-        </p>
+        }}
+              fallback={"TW → PRC (dark) and PRC → TW (teal). Dots show each MAC release. The PRC→TW line is monthly across 2017→ (pre-2019 ~250K/month, COVID floor near zero 2020–22, recovery still incomplete). MAC only started carrying TW outbound in dataset 7887 in March 2024 (marked) and skips an occasional month — for the pre-2024 TW trend, see the annual chart above."} />
         <PeopleFlowChart tw={data.flows?.tw_visitors_to_prc} prc={data.flows?.prc_visitors_to_tw} />
       </div>
 
@@ -674,36 +647,27 @@ export default function PeopleTab() {
           color: "var(--text-muted)",
           marginBottom: "8px",
         }}>Why the two sides aren't symmetric</div>
-        <p style={{
+        <Copy k="people.methodology"
+              style={{
           fontFamily: "var(--font-body)",
           fontSize: "12px",
           color: "var(--text-secondary)",
           margin: 0,
           lineHeight: 1.55,
-        }}>
-          ROC household registration dropped the 籍貫 (ancestral home) field in 1992 to
-          dissolve 省籍情結, and DGBAS's modern census doesn't publish a 出生地 (place of
-          birth) cross-tab — the 109 census variables are population, age, sex,
-          households, residences, and indigenous status only. That means the 1949-era 外省
-          人 cohort and naturalised mainland spouses are statistically invisible from the
-          TW side. We approximate "PRC presence in TW" via NIA permits and the 大陸配偶
-          cumulative stock. On the PRC side, the 2020 census Bulletin No.8 does report
-          Taiwanese registered as 常住人口 (157,886) — the only directly comparable
-          stock figure.
-        </p>
+        }}
+              fallback={"ROC household registration dropped the 籍貫 (ancestral home) field in 1992 to dissolve 省籍情結, and DGBAS's modern census doesn't publish a 出生地 (place of birth) cross-tab — the 109 census variables are population, age, sex, households, residences, and indigenous status only. That means the 1949-era 外省 人 cohort and naturalised mainland spouses are statistically invisible from the TW side. We approximate \"PRC presence in TW\" via NIA permits and the 大陸配偶 cumulative stock. On the PRC side, the 2020 census Bulletin No.8 does report Taiwanese registered as 常住人口 (157,886) — the only directly comparable stock figure."} />
       </div>
 
-      <p style={{
+      <Copy k="people.sources"
+            vars={{ refresh: sources || "annual" }}
+            style={{
         fontFamily: "var(--font-mono)",
         fontSize: "9.5px",
         color: "var(--text-muted)",
         marginTop: "10px",
         lineHeight: 1.5,
-      }}>
-        Sources: TW NIA datasets 167829 (居留/定居 permits) and 13503 (大陸/港澳配偶) via
-        opdadm.moi.gov.tw; PRC公安部 / 國家移民管理局 press releases (curated milestones);
-        2020 PRC Census Bulletin No.8; MAC dataset 7887 for monthly visitor flows. Refresh: {sources || "annual"}.
-      </p>
+      }}
+            fallback={"Sources: TW NIA datasets 167829 (居留/定居 permits) and 13503 (大陸/港澳配偶) via opdadm.moi.gov.tw; PRC公安部 / 國家移民管理局 press releases (curated milestones); 2020 PRC Census Bulletin No.8; MAC dataset 7887 for monthly visitor flows. Refresh: {refresh}."} />
     </main>
   );
 }
