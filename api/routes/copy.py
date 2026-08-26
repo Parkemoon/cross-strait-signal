@@ -60,21 +60,34 @@ def read_copy():
     return {"copy": get_copy()}
 
 
+def apply_edit(data: dict, key: str, value) -> dict:
+    """Return a copy of ``data`` with ``key`` replaced. Pure — the validation
+    the route enforces, testable without the file (same shape as
+    positions._apply_text_edit). KeyError = unknown key (→ 404), ValueError =
+    bad value (→ 400)."""
+    if not isinstance(value, str):
+        raise ValueError("value must be a string")
+    if not value.strip():
+        raise ValueError("value must not be empty")
+    if not isinstance(key, str) or key.startswith("_comment") or key not in data or not isinstance(data[key], str):
+        raise KeyError(f"unknown copy key {key!r} — add it to data/site_copy.json first")
+    new_data = dict(data)
+    new_data[key] = value
+    return new_data
+
+
 @router.patch("/{key}")
 def patch_copy(key: str, payload: dict = Body(...), _admin: None = Depends(require_admin)):
     """Replace one string. Body: {"value": "…"}. The key must already exist."""
-    value = payload.get("value")
-    if not isinstance(value, str):
-        raise HTTPException(400, "value must be a string")
-    if not value.strip():
-        raise HTTPException(400, "value must not be empty")
     data = _load()
     with _lock:
-        if key.startswith("_comment") or key not in data or not isinstance(data[key], str):
-            raise HTTPException(404, f"unknown copy key {key!r} — add it to data/site_copy.json first")
-        new_data = dict(data)
-        new_data[key] = value
+        try:
+            new_data = apply_edit(data, key, payload.get("value"))
+        except KeyError as e:
+            raise HTTPException(404, str(e.args[0]))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
         _write(new_data)
         _cache["data"] = new_data
         _cache["mtime"] = os.path.getmtime(COPY_PATH)
-    return {"key": key, "value": value}
+    return {"key": key, "value": payload.get("value")}
