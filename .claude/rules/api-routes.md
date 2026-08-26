@@ -170,7 +170,7 @@ Used by `DiplomacyTab.jsx` (choropleth + KPI strip + stance-sorted country list 
 
 ## `/api/copy/*` (`api/routes/copy.py`)
 
-Editable site prose from `data/site_copy.json` (flat key → string; mtime-reload cache like positions). `GET /api/copy/` → `{copy: {...}}` minus `_comment*` (public). Admin `PATCH /api/copy/{key}` body `{value}` — string, non-empty, **key must already exist** (404 otherwise: adding a key is a code change so the frontend + `tests/test_site_copy.py` stay in step); atomic rewrite. `get_copy()` / `copy_text(key)` are importable by other routes (coast_guard.py builds its `caveats` from `coast_guard.caveat.<key>` + `CAVEAT_SCOPES`). Chrome (labels/buttons) is NOT here.
+Editable site prose from `data/site_copy.json` (flat key → string). Both this route and `positions.py` sit on `api/json_store.py` `JsonFileStore` — one mtime-reload cache + atomic-write + lock implementation; use it for any future hand-edited-JSON-served-by-API content rather than re-rolling the cache. `GET /api/copy/` → `{copy: {...}}` minus `_comment*` (public). Admin `PATCH /api/copy/{key}` body `{value}` — string, non-empty, **key must already exist** (404 otherwise: adding a key is a code change so the frontend + `tests/test_site_copy.py` stay in step); atomic rewrite. `get_copy()` / `copy_text(key)` are importable by other routes (coast_guard.py builds its `caveats` from `coast_guard.caveat.<key>` + `CAVEAT_SCOPES`). Chrome (labels/buttons) is NOT here.
 
 ## `/api/military/coast-guard/*` (`api/routes/coast_guard.py`)
 
