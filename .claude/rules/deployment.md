@@ -58,3 +58,12 @@ The `chromium-bundled` tag is required — CT sections use Puppeteer to render c
 `src/readOnly.js` exports `READ_ONLY = process.env.REACT_APP_READ_ONLY === 'true'`. The public build runs `npm run build:public` which sets `REACT_APP_READ_ONLY=true` and `BUILD_PATH=build-public`. Nginx also blocks POST/PATCH on the public server at the edge.
 
 The admin build (`npm run build`) bakes in `REACT_APP_ADMIN_TOKEN` at build time. Never run it without sourcing `.env` first — see `frontend/.claude/rules` (frontend.md) for the env-sourcing pattern.
+
+## Coast Guard tracker — deploy-time data steps (2026-08-26)
+
+Migrations 0008/0009 create the tables but ship them EMPTY. After a first deploy to a fresh DB, from the target worktree (its venv + its `.env` for `GFW_API_TOKEN`): `scripts/backfill_cga_enforcement.py` (seconds) → `scripts/refresh_coast_guard_roster.py` (minutes; runs the deterministic triage at the end) → `scripts/backfill_coast_guard.py --start 2020-01-01` **detached** (`setsid nohup`, ~880 pulls / ~5 h, log `/var/log/coast-guard-backfill-prod.log`, resumable — periods logged `ok` in `coast_guard_pulls` are skipped). Roster BEFORE presence: the presence pull widens its GFW flag filter from the roster's spoofed-MID hulls. Nightly pipeline Steps 2n/2o keep both series current afterwards; `check_scraper_health.py` carries `coast_guard:gfw_pull` (3 d), `coast_guard:presence` (12 d) and `cga_enforcement:monthly` checks. Prod backfill launched 2026-08-26 09:20 UTC.
+
+## Hand-edited JSON content that the admin UI rewrites
+
+`scraper/processors/positions.json` and `data/site_copy.json` are committed files that the running API rewrites in place on admin edits (`JsonFileStore`). Consequence: edits made on prod dirty the PROD tree. Before any content change on staging, copy prod's file over staging's and commit both together; `server_deploy.sh`'s `git pull` will refuse to run over a dirty prod tree, so check `git -C /var/www/cross-strait-signal status` first.
+
