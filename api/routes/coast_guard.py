@@ -328,7 +328,15 @@ def enforcement(region: str = Query("TW", description="'TW' national, or a count
             """SELECT period, granularity, region, expelled, detained, source, source_ref FROM cga_enforcement
                WHERE region=? AND category=? ORDER BY period""", (region, category)).fetchall() if region != "TW" else []
         latest = conn.execute("SELECT MAX(period) FROM cga_enforcement WHERE granularity='month'").fetchone()[0]
+        # Every row carries the PDF it was parsed from; hand the distinct set
+        # to the UI so each 表8-1 / 表8-3 mention can link to the document.
+        sources = conn.execute(
+            """SELECT source, source_ref, source_url, MAX(period) AS latest_period FROM cga_enforcement
+               WHERE source_url IS NOT NULL GROUP BY source, source_ref, source_url
+               ORDER BY CASE source WHEN 'monthly' THEN 0 WHEN 'yearbook' THEN 1 ELSE 2 END, source_ref DESC""").fetchall()
         return {"latest_month": latest, "region": region, "category": category,
+                "sources": [dict(r) for r in sources],
+                "cga_stats_home": "https://www.cga.gov.tw/GipOpen/wSite/mp?mp=999",
                 "monthly": [dict(r) for r in reversed(monthly)],
                 "annual": [dict(r) for r in annual],
                 "county": [dict(r) for r in county]}
