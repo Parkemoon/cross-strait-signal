@@ -2,40 +2,47 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchCoastGuardVessels, updateCoastGuardVessel } from "../api";
 import { FORCES, FORCE_COLOUR, Pill } from "./coastGuardShared";
 
-// Analyst roster review for the Coast Guard tracker. The failure mode of a
-// name-based classifier is a civilian hull named "COAST GUARD" (or a Taiwanese
-// "HAI JING") counted as a coast-guard vessel, so every hull carries a status:
-// auto (classifier) / confirmed / rejected. Rejected hulls drop out of every
-// aggregate server-side. Identity anomalies (MID/flag mismatch, name change)
-// are surfaced as chips — they are findings, not errors (spoofed MIDs are part
-// of the behaviour), so the default action on an anomaly is "confirm", not
-// "reject".
-const FLAG_LABEL = {
-  mid_mismatch: "MID ≠ force",
-  flag_mismatch: "flag ≠ force",
-  name_change: "name changed",
+// Analyst roster review for the Coast Guard tracker. There is exactly ONE
+// question here — "is this hull a coast-guard vessel?" — because that's the
+// only thing answerable from a desk (name, hull number, where it's been
+// seen). A deterministic triage (scripts/triage_coast_guard_roster.py) settles
+// it for almost every hull; what's left is 'auto'. Anomaly flags (MID/flag
+// mismatch, name change) are recorded facts about the AIS stream — nobody can
+// verify from here whether a spoofed MID was deliberate — so they render as
+// read-only attributes and are never something the analyst signs off.
+// Rejected hulls drop out of every aggregate server-side.
+const STATUSES = [
+  { id: "auto", label: "unreviewed" },
+  { id: "confirmed", label: "coast guard" },
+  { id: "rejected", label: "not coast guard" },
+];
+const FLAG_INFO = {
+  mid_mismatch:  ["MID ≠ force", "The MMSI's first three digits are allocated to a different country than the force's — a spoofed or mis-set transponder. Recorded fact; not verifiable further."],
+  flag_mismatch: ["flag ≠ force", "GFW resolved a different flag state for this identity than the force's country. Recorded fact; not verifiable further."],
+  name_change:   ["name changed", "This MMSI has broadcast more than one ship name over time (renumbering, or a switch such as 5901 → 'CAPTAIN ASLEEP'). Recorded fact."],
 };
 
 function StatusTag({ status }) {
-  const c = status === "confirmed" ? "#16a34a" : status === "rejected" ? "#dc2626" : "var(--text-muted)";
-  return <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: c, letterSpacing: "0.05em" }}>{status.toUpperCase()}</span>;
+  const c = status === "confirmed" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#b8860b";
+  const label = STATUSES.find((s) => s.id === status)?.label || status;
+  return <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: c, letterSpacing: "0.05em" }}>{label.toUpperCase()}</span>;
 }
 
 export default function CoastGuardRosterModal({ onClose, onChanged }) {
   const [vessels, setVessels] = useState(null);
   const [force, setForce] = useState("CCG");
-  const [anomaliesOnly, setAnomaliesOnly] = useState(true);
+  const [status, setStatus] = useState("auto");
   const [activeOnly, setActiveOnly] = useState(true);
   const [busy, setBusy] = useState(null);
   const [notesDraft, setNotesDraft] = useState({});
 
   const load = () => {
     setVessels(null);
-    fetchCoastGuardVessels({ force, anomalies: anomaliesOnly ? "true" : "false", days: 365, limit: 800 })
+    fetchCoastGuardVessels({ force, status, days: 365, limit: 800 })
       .then((r) => setVessels(r.vessels || []))
       .catch(() => setVessels([]));
   };
-  useEffect(load, [force, anomaliesOnly]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [force, status]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const rows = useMemo(() => (vessels || []).filter((v) => !activeOnly || v.hull_days > 0), [vessels, activeOnly]);
 
@@ -74,11 +81,17 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
                                              color: "var(--text-muted)", fontSize: "16px", padding: "2px 4px" }}>✕</button>
         </div>
 
+        <div style={{ padding: "10px 16px 0", fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          One question per hull: <strong>is it a coast-guard vessel?</strong> A deterministic triage already settled every hull with an
+          explicit force name or a matching MID prefix; <em>unreviewed</em> lists what it couldn't. Anomaly chips are recorded facts about
+          the AIS broadcast, shown for context — they are not verifiable from here and not what you're confirming.
+        </div>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", padding: "10px 16px",
                       borderBottom: "1px solid var(--border-color)", alignItems: "center" }}>
           {FORCES.map((f) => <Pill key={f} active={force === f} colour={FORCE_COLOUR[f]} onClick={() => setForce(f)}>{f}</Pill>)}
           <span style={{ width: 8 }} />
-          <Pill active={anomaliesOnly} onClick={() => setAnomaliesOnly((x) => !x)}>anomalies only</Pill>
+          {STATUSES.map((s) => <Pill key={s.id} active={status === s.id} onClick={() => setStatus(s.id)}>{s.label}</Pill>)}
+          <span style={{ width: 8 }} />
           <Pill active={activeOnly} onClick={() => setActiveOnly((x) => !x)}>seen in 365 d</Pill>
         </div>
 
@@ -86,7 +99,9 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
           {!vessels ? (
             <div style={{ padding: "24px 16px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>Loading…</div>
           ) : rows.length === 0 ? (
-            <div style={{ padding: "24px 16px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>No hulls match.</div>
+            <div style={{ padding: "24px 16px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+              {status === "auto" ? "Nothing unreviewed — every seen hull is settled." : "No hulls match."}
+            </div>
           ) : rows.map((v) => (
             <div key={v.mmsi} style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 2fr) auto",
                                        gap: "8px 14px", padding: "10px 16px", borderBottom: "1px solid var(--border-color)",
@@ -104,14 +119,15 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
                 </div>
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6, alignItems: "center" }}>
+                  <StatusTag status={v.status} />
                   {(v.anomaly_flags || []).map((f) => (
-                    <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", padding: "1px 5px",
-                                           border: "1px solid #b8860b88", color: "#b8860b", background: "rgba(184,134,11,0.12)" }}>
-                      ⚑ {FLAG_LABEL[f] || f}
+                    <span key={f} title={FLAG_INFO[f]?.[1] || f}
+                          style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", padding: "1px 5px", cursor: "help",
+                                   border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
+                      ⚑ {FLAG_INFO[f]?.[0] || f}
                     </span>
                   ))}
-                  <StatusTag status={v.status} />
                 </div>
                 <textarea value={notesDraft[v.mmsi] ?? (v.notes || "")}
                           onChange={(e) => setNotesDraft((d) => ({ ...d, [v.mmsi]: e.target.value }))}
@@ -122,9 +138,10 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
                                    color: "var(--text-primary)", border: "1px solid var(--border-color)", padding: "4px 6px", resize: "vertical" }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "stretch" }}>
-                <Pill active={v.status === "confirmed"} colour="#16a34a" onClick={() => busy !== v.mmsi && patch(v, { status: "confirmed" })}>✓ confirm</Pill>
-                <Pill active={v.status === "rejected"} colour="#dc2626" onClick={() => busy !== v.mmsi && patch(v, { status: "rejected" })}>✕ reject</Pill>
+                <Pill active={v.status === "confirmed"} colour="#16a34a" onClick={() => busy !== v.mmsi && patch(v, { status: "confirmed" })}>✓ coast guard</Pill>
+                <Pill active={v.status === "rejected"} colour="#dc2626" onClick={() => busy !== v.mmsi && patch(v, { status: "rejected" })}>✕ not coast guard</Pill>
                 <select value={v.force} onChange={(e) => patch(v, { force: e.target.value })}
+                        title="Re-assign force (rewrites the hull's presence rows)"
                         style={{ fontFamily: "var(--font-mono)", fontSize: "10px", background: "var(--bg-primary)",
                                  color: "var(--text-secondary)", border: "1px solid var(--border-color)", padding: "2px 4px" }}>
                   {FORCES.map((f) => <option key={f} value={f}>{f}</option>)}
@@ -135,8 +152,8 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
         </div>
         <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border-color)", fontFamily: "var(--font-mono)",
                       fontSize: "10px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-          Reject removes the hull from every aggregate. Changing force rewrites its presence rows. Anomalies are findings
-          (spoofed MIDs, name switches) — confirm them unless the hull is plainly civilian.
+          "Not coast guard" removes the hull from every chart. Anomaly flags stay on the record either way — they are what the
+          hull broadcast, not what it did.
         </div>
       </div>
     </div>
