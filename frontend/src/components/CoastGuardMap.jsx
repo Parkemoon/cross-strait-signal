@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { fetchCoastGuardZones } from "../api";
+import { FORCE_COLOUR } from "./coastGuardShared";
 
 // Zone polygons for the Coast Guard tracker. Fill intensity = CCG hull-days in
 // the summary window (sequential, one hue — PRC red); the tooltip carries every
 // force so the map never reads as a one-sided instrument. Stroke encodes the
 // zone kind: prohibited = solid, restricted = dashed, everything else = dotted.
 // Same react-leaflet v4 / StrictMode-off caveats as ExerciseMap.
-const CCG_HUE = "220, 38, 38";
+// FORCE_COLOUR.CCG (#dc2626) as an rgb triple for alpha fills.
+const CCG_HUE = [1, 3, 5].map((i) => parseInt(FORCE_COLOUR.CCG.slice(i, i + 2), 16)).join(", ");
 const KIND_STROKE = {
   prohibited: { weight: 1.8, dashArray: null },
   restricted: { weight: 1.4, dashArray: "5 4" },
