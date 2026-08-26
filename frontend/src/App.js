@@ -15,11 +15,14 @@ import EconomyTab from "./components/EconomyTab";
 import TradeAccessTab from "./components/TradeAccessTab";
 import PeopleTab from "./components/PeopleTab";
 import MilitaryTab from "./components/MilitaryTab";
+import MaritimeTab from "./components/MaritimeTab";
 import PollsTab from "./components/PollsTab";
 import DiplomacyTab from "./components/DiplomacyTab";
 import PositionsTab from "./components/PositionsTab";
 import AltModelsTab from "./components/AltModelsTab";
 import AltModelLens from "./components/AltModelLens";
+import NavMenu from "./components/NavMenu";
+import { WIDE_VIEWS } from "./navGroups";
 
 export default function App() {
   const [filters, setFilters] = useState({});
@@ -31,9 +34,9 @@ export default function App() {
   // (both side by side). Display-only — same fetch either way, so it lives
   // outside altLens to avoid a pointless refetch on toggle.
   const [altDual, setAltDual] = useState(false);
-  const [view, setView] = useState("feed"); // "feed" | "review" | "economy" | "trade" | "people" | "military" | "polls" | "diplomacy" | "positions"
+  const [view, setView] = useState("feed"); // "feed" | any view in navGroups.js (WIDE_VIEWS)
   const [showAbout, setShowAbout] = useState(false);
-  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "economy" | "trade" | "people" | "military" | "polls" | "diplomacy" | "positions" | "social" | "review"
+  const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | any view in navGroups.js
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
 
@@ -120,191 +123,7 @@ export default function App() {
 
         {/* Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: isMobile ? "0 16px" : "0 20px" }}>
-          {!isMobile && (
-            <button
-              onClick={() => setView(view === "economy" ? "feed" : "economy")}
-              style={{
-                padding: "5px 12px",
-                background: view === "economy" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "economy" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Economy
-            </button>
-          )}
-          {!isMobile && (
-            <button
-              onClick={() => setView(view === "trade" ? "feed" : "trade")}
-              style={{
-                padding: "5px 12px",
-                background: view === "trade" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "trade" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Trade Access
-            </button>
-          )}
-          {!isMobile && (
-            <button
-              onClick={() => setView(view === "people" ? "feed" : "people")}
-              style={{
-                padding: "5px 12px",
-                background: view === "people" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "people" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              People
-            </button>
-          )}
-          {!isMobile && (
-            <button
-              onClick={() => setView(view === "military" ? "feed" : "military")}
-              style={{
-                padding: "5px 12px",
-                background: view === "military" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "military" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Military
-            </button>
-          )}
-          {!isMobile && (
-            <button
-              onClick={() => setView(view === "polls" ? "feed" : "polls")}
-              style={{
-                padding: "5px 12px",
-                background: view === "polls" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "polls" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Polls
-            </button>
-          )}
-          {!isMobile && (
-            <button
-              onClick={() => setView(view === "diplomacy" ? "feed" : "diplomacy")}
-              style={{
-                padding: "5px 12px",
-                background: view === "diplomacy" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "diplomacy" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Diplomacy
-            </button>
-          )}
-          {/* Positions is admin-only until the curated content is reviewed —
-              un-gate (drop !READ_ONLY) to take it public. */}
-          {!isMobile && !READ_ONLY && (
-            <button
-              onClick={() => setView(view === "positions" ? "feed" : "positions")}
-              style={{
-                padding: "5px 12px",
-                background: view === "positions" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "positions" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Positions
-            </button>
-          )}
-          {/* Alt Models is a permanent admin-only experiment view. */}
-          {!isMobile && !READ_ONLY && (
-            <button
-              onClick={() => setView(view === "altmodels" ? "feed" : "altmodels")}
-              style={{
-                padding: "5px 12px",
-                background: view === "altmodels" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "altmodels" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Alt Models
-            </button>
-          )}
-          {!isMobile && !READ_ONLY && (
-            <button
-              onClick={() => setView(view === "review" ? "feed" : "review")}
-              style={{
-                padding: "5px 12px",
-                background: view === "review" ? "rgba(255,255,255,0.12)" : "transparent",
-                color: view === "review" ? "var(--header-text)" : "rgba(255,255,255,0.45)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                position: "relative",
-              }}
-            >
-              Review
-              {reviewPending > 0 && (
-                <span style={{
-                  position: "absolute",
-                  top: "-5px",
-                  right: "-5px",
-                  background: "#e67e22",
-                  color: "#fff",
-                  borderRadius: "50%",
-                  width: "14px",
-                  height: "14px",
-                  fontSize: "9px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "var(--font-mono)",
-                }}>
-                  {reviewPending}
-                </span>
-              )}
-            </button>
-          )}
+          {!isMobile && <NavMenu view={view} onSelect={setView} badges={{ review: reviewPending }} />}
           {!isMobile && (
             <button
               onClick={() => setShowAbout(true)}
@@ -351,64 +170,23 @@ export default function App() {
         </div>
       </header>
 
-      {/* Tab bar — mobile only */}
-      {isMobile && <nav style={{
-        position: "sticky",
-        top: 0,
-        background: "var(--header-bg)",
-        borderBottom: "1px solid rgba(255,255,255,0.1)",
-        display: "flex",
-        zIndex: 100,
-      }}>
-        {[
-          { id: "feed", label: "Feed" },
-          { id: "stats", label: "Stats" },
-          { id: "economy", label: "Economy" },
-          { id: "trade", label: "Trade" },
-          { id: "people", label: "People" },
-          { id: "military", label: "Military" },
-          { id: "polls", label: "Polls" },
-          { id: "diplomacy", label: "Diplomacy" },
-          ...(!READ_ONLY ? [{ id: "positions", label: "Positions" }] : []),
-          ...(!READ_ONLY ? [{ id: "altmodels", label: "Alt Models" }] : []),
-          { id: "social", label: "Social" },
-          ...(!READ_ONLY ? [{ id: "review", label: reviewPending > 0 ? `Review (${reviewPending})` : "Review" }] : []),
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setMobileTab(tab.id);
-              // feed/stats/social all share the "feed" view on mobile; every
-              // other tab maps to a view of the same id.
-              const FEED_TABS = ["feed", "stats", "social"];
-              setView(FEED_TABS.includes(tab.id) ? "feed" : tab.id);
-            }}
-            style={{
-              flex: 1,
-              padding: "14px 4px",
-              background: "transparent",
-              color: mobileTab === tab.id ? "var(--header-text)" : "rgba(255,255,255,0.4)",
-              border: "none",
-              borderBottom: mobileTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
-              fontSize: "12px",
-              fontFamily: "var(--font-mono)",
-              textTransform: "uppercase",
-              letterSpacing: "1px",
-              cursor: "pointer",
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>}
+      {/* Tab bar — mobile only (groups from navGroups.js; Stats/Social are mobile-only panels) */}
+      {isMobile && (
+        <NavMenu mobile tab={mobileTab} badges={{ review: reviewPending }}
+                 onSelect={(id) => {
+                   setMobileTab(id);
+                   // feed/stats/social all share the "feed" view on mobile; every other tab is a view id.
+                   setView(["feed", "stats", "social"].includes(id) ? "feed" : id);
+                 }} />
+      )}
 
-      {/* Main layout — collapses to 2 columns on the Economy and Trade
-          tabs so the wide tables and charts get the full width.
+      {/* Main layout — collapses to 2 columns on every section tab
+          (WIDE_VIEWS) so the wide tables and charts get the full width.
           NB: do NOT add `overflow: hidden` here — it breaks
           `position: sticky` on the sidebar children. */}
       <div style={{
         display: isMobile ? "block" : "grid",
-        gridTemplateColumns: (view === "economy" || view === "trade" || view === "people" || view === "military" || view === "polls" || view === "diplomacy" || view === "positions" || view === "altmodels")
+        gridTemplateColumns: WIDE_VIEWS.includes(view)
           ? "clamp(300px, 20vw, 420px) 1fr"
           : "clamp(300px, 20vw, 420px) 1fr 300px",
         minHeight: "calc(100vh - 52px)",
@@ -471,8 +249,8 @@ export default function App() {
           />
         </aside>
 
-        {/* Feed / Review / Economy / Trade / People — center column */}
-        <div style={{ display: isMobile ? ((mobileTab === "feed" || mobileTab === "review" || mobileTab === "economy" || mobileTab === "trade" || mobileTab === "people" || mobileTab === "military" || mobileTab === "polls" || mobileTab === "diplomacy" || mobileTab === "positions" || mobileTab === "altmodels") ? "block" : "none") : "block", minWidth: 0 }}>
+        {/* Feed / Review / section tabs — center column */}
+        <div style={{ display: isMobile ? ((mobileTab === "feed" || WIDE_VIEWS.includes(mobileTab)) ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
             <ReviewQueue onClose={() => setView("feed")} />
           ) : view === "economy" ? (
@@ -483,6 +261,8 @@ export default function App() {
             <PeopleTab />
           ) : view === "military" ? (
             <MilitaryTab />
+          ) : view === "maritime" ? (
+            <MaritimeTab />
           ) : view === "polls" ? (
             <PollsTab />
           ) : view === "diplomacy" ? (
@@ -687,7 +467,7 @@ export default function App() {
             maxHeight: "calc(100vh - 52px)",
             overflowY: "auto",
             minWidth: 0,
-            display: (view === "economy" || view === "trade" || view === "people" || view === "military" || view === "polls" || view === "diplomacy" || view === "positions" || view === "altmodels")
+            display: WIDE_VIEWS.includes(view)
               ? "none"
               : (isMobile ? (mobileTab === "social" ? "block" : "none") : "block"),
           }}
