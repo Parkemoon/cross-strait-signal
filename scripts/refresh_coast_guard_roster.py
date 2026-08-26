@@ -31,7 +31,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
 
-from scraper.scrapers.gfw_coast_guard import GFWClient, FORCE_FLAGS, ROSTER_SEED_PATH, classify  # noqa: E402, triage_roster
+from scraper.scrapers.gfw_coast_guard import GFWClient, FORCE_FLAGS, ROSTER_SEED_PATH, classify, triage_roster  # noqa: E402
 from scraper.utils.db import get_connection  # noqa: E402
 
 # National MIDs (ITU). Taiwan 416; China 412/413/414; Japan 431/432; US 303 (Alaska), 338, 366–369.
