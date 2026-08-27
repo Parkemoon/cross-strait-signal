@@ -4,6 +4,12 @@ Development history for Cross-Strait Signal. Items are grouped by
 delivery state rather than version — the project ships continuously
 to a single production deploy.
 
+**Maintenance rule: update this file at the end of every working session**, alongside
+`SESSION_LOG.md` — add a dated section under *Delivered* for what shipped (or landed on
+`staging`), and prune *In progress / planned*. `git log --since=<last entry date>` is
+the source; a session that only touches docs/memory still gets a one-liner. This file
+went stale for seven weeks (2026-07-08 → 2026-08-27) once — don't let it again.
+
 ## Delivered
 
 ### Pipeline + classification
@@ -80,12 +86,59 @@ Full remediation from a multi-agent review; work order + per-item status in `COD
 - **Diplomacy corpus maintenance scripts** — `dedup_diplomacy.py` (embedding clustering on `gemini-embedding-001`) + `audit_diplomacy_offaxis.py` (two-pass detect/confirm), promoted from scratchpad one-offs
 - Family-scoped poll-label canonicalisation (future race keys auto-inherit vote-intent semantics); MAC poll PDF shape assertions; notes API trimmed to the used POST (closing an ungated read of analyst commentary); loud startup banner when `ADMIN_TOKEN` is unset; 180-day age guard on guancha/fjsen
 
+### Review work order closed (2026-07-10)
+
+The three deferred structural items from `CODE_REVIEW_2026-07-03.md` — the work order is now fully applied.
+
+- **§4.6 One entity-normalisation semantics** (`0d88ea1`) — `shared/entity_norm.py`: a single resolver (exact → explicit `title_tokens` strip → opt-in `fold_prefixes`) shared by the pipeline write path and `scripts/renormalise_entities.py`; `entity_canonical.json` restructured to `{canonical, title_tokens, fold_prefixes}`. The old bidirectional prefix match had done far more damage than the review's examples (`中華民國`→"ROC Armed Forces" ×336, `韓國`→"Han Kuo-yu" ×87, `福建`→the carrier ×165); staging repaired (6,311 rows), prod via `renormalise_entities.py --db <prod> --apply`. 11 tests.
+- **§4.3 Unified review-queue state machine** (`549f55a`) — `api/review_queue.py`: `approve_row` / `dismiss_row` / `merge_row` primitives shared by the military, diplomacy, polls and key-figure queues (guards, `reviewed_at`/`reviewed_by` stamping, uniform responses). Migration `0004` adds `reviewed_by` + `merged_into_id` to `key_figure_statements`. Fixes en route: military `/merge` refuses dismissed/merged sources; kfs approve/dismiss 404 on a missing id. 7 tests.
+- **§3.3 Lean Tier-2 escalation prompt** (`71eefef`) — `ANALYSIS_SYSTEM_PROMPT` split into shared blocks (Tier-1 reassembly verified byte-identical) + a dedicated `_ESCALATION_REVIEW_PROMPT` built from the same blocks, so Tier 1/2 sentiment rules are identical by construction. Review stays blind to Tier-1 answers. A/B on 55 escalation articles against an old-vs-old noise floor: indistinguishable band agreement, two small rule-consistent fail-safe shifts. Prompt −43% / output −62%.
+- Also: NCCU 2026 June interim wave + `poll_results` constraint migration; poll scrapers can no longer poison `articles` with empty bodies; Somaliland statements no longer paint Somalia's polygon; **Positions & Legal Status page** schema + scaffold (admin-only).
+
+### Ops hardening (2026-07-21)
+
+- **Scraper staleness monitor** (`scripts/check_scraper_health.py`) — 48 per-source/per-table checks with tuned thresholds; emails on state change only (newly stale / recovered); daily cron 08:15
+- Shared browser UA bumped Chrome/124 → 143 (UDN was 403-ing stale UAs)
+- RSSHub chinatimes route patched in the container layer (upstream still broken — see `deployment.md`)
+
+### Alt-model comparison experiment (2026-07-28 → 2026-08-16)
+
+Do Chinese LLMs classify the same cross-strait articles differently from production Gemini? Everything side-tabled — never feeds editorial queues.
+
+- **Article sweep** (`scripts/sweep_alt_models.py`) — approved articles re-run through DeepSeek/Kimi/etc. via OpenRouter with the byte-identical Tier-1 prompt; three arms (`neutral` Western-hosted / `originator` creator endpoint / `gemini-control`); every outcome recorded incl. refusals and parse errors; `--probe` routing check; 5-min busy_timeout to survive prod write locks
+- **Analysis scripts** — `alt_model_aggregates.py` (agreement/sentiment deltas), `audit_terminology_markers.py` (spec-driven framing markers), `audit_summary_completeness.py` (omission-side check, §5.6) → `ALT_MODEL_EXPERIMENT_WRITEUP.md`, every number reproducible
+- **Direct-question arm** (`scripts/sweep_direct_questions.py`, `data/direct_questions.json`) — prompt-shape test: literature-calibration / cross-strait-direct / scaffold-hybrid / control bands, matched en/zh, n=5 per cell; content-label taxonomy (migration `0007`); literature reference rates transcribed → `DIRECT_QUESTION_WRITEUP.md`
+- **Admin UI** — per-article alt-model panel, Alt Models tab, Signal Feed model-lens toggle (lensed sidebar stats too)
+- **Ops** — daily full-corpus V4F incremental sweep cron, `alt_model:v4f_sweep` staleness check, monthly review email (`alt_model_monthly_report.py`) with the frozen write-up table
+- Fixes: K3 reasoning-token exhaustion misread as refusal; NOT_RELEVANT verdicts with empty summary; alt_models routes shared a sqlite connection across threadpool threads (rule: never `Depends()`-inject a connection)
+- **Tier-1 sentiment rules tightened (v2)** — actions, mockery and securitisation count as framing
+- 22 canonical entity corrections from the approved-corpus consistency audit
+
+### Positions page, dedup, About (2026-08-12 → 2026-08-25)
+
+- **Positions & Legal Status** — inline admin editing (co-writing without the chat round-trip); US entry (draft), Europe section (EU floor + six capitals), Russia card; concept readings carry `formulation_en` + romanisation; card-grid layout fixes
+- **Same-outlet duplicate article detection** (`shared/article_dedup.py`, `scripts/dedup_articles.py`, pipeline Step 2m) — identical-content / trigram-Jaccard / same-day-title rules measured against the YDN daily PLA report; dupes hidden (`is_hidden=1`) before Tier-1 pays for them; cross-outlet duplication untouched (it's signal)
+- About modal refresh + Positions concept scaffolds; OSINT Navigator CLI documented in `CLAUDE.md`
+
+### Coast Guard tracker → Maritime tab (2026-08-25 → 2026-08-26, Phase 2e)
+
+Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired with the Taiwan-side enforcement mirror so the chart is bidirectional.
+
+- **Data layer** — Global Fishing Watch 4Wings presence puller (Step 2n, nightly) → `coast_guard_presence` / `coast_guard_vessels` / `coast_guard_pulls`; official Kinmen control-point zones + Matsu bands, median-line band, 24 nm sectors, Pratas, east box (`scripts/build_coast_guard_zones.py`); four-flag roster (CCG/CGA/JCG/USCG) with recorded AIS identity anomalies; resumable monthly backfill from 2020
+- **CGA enforcement mirror** (Step 2o) — 績效統計月報 / 年報 PDFs → `cga_enforcement`; yearbook backfill + transcribed 護永專案 table; every table citation links to its report PDF
+- **Deterministic roster triage** — explicit force name or force-matching MID prefix confirms; classifier rejection purges; residual left `auto`; runs after every refresh/pull. The roster modal asks the analyst only the answerable question
+- **Frontend** — Presence & Enforcement section (monthly strip, zone map, roster modal); data-audit fixes (yearbook year offset, CCG classifier flag gate, hull-number keying, empty-period guard, structured caveats)
+- **Grouped navigation** (`frontend/src/navGroups.js`) — Feed · Security ▾ (Military, Maritime) · Economy ▾ (Indicators, Trade Access, People) · Politics ▾ (Polls, Diplomacy, Positions) · Admin ▾. Maritime gated to the admin build until the prod backfill completes
+- **Editable site prose** — `data/site_copy.json` → `/api/copy` → `<Copy k=…>`; admin ✎ → `PATCH /api/copy/{key}`; all 42 tab prose blocks migrated; `JsonFileStore` (mtime cache + atomic write) shared with `positions.json`. Rule: Chinese on the page only when it is the source's own words — never translated chrome
+
 ## In progress / planned
 
-- Deferred code-review items (bigger/structural) tracked in `CODE_REVIEW_2026-07-03.md`: unified review-queue mechanism (§4.3), one entity-normalisation semantics (§4.6), Tier-2 standalone lean prompt (§3.3 remainder). (Applied AND deployed to prod 2026-07-08: §3.1 scan markers, §3.5 Batch-API Tier 1, §3.7a shared prompt constants, §4.2 versioned migrations, §4.4/4.5/4.7/4.8/4.10, §4.9 shared scraper utils, §5 stragglers, plus the diplomacy dedup/off-axis maintenance scripts.)
+- **Maritime tab public un-gate** once the prod 2020→ presence backfill finishes; then the 2017 extension, militia/dredger layer, go-dark events
+- **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
+- Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
 - Incursion × exercise cross-reference — apply the verification angle to military data (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?)
 - Monthly-aggregated sentiment endpoint (revisit when 12+ months of data exists)
 - Audit trail for AI classifications — `topic_primary_ai_original` column or change log to unlock per-category accuracy measurement
 - Override-propagation race fix — optimistic concurrency control on the notes/review write paths, or frontend dirty-tracking on the override dropdowns
-- ADS-B / AIS data integration (Phase 3)
+- ADS-B / AIS data integration (Phase 3) — coast-guard AIS now covered; aircraft still open

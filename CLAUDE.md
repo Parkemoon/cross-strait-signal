@@ -16,6 +16,8 @@ Path-scoped rules in `.claude/rules/` cover subsystem details (loaded on demand 
 
 **Critical design intent**: The sentiment axis is bidirectional — destabilising signals from BOTH sides (PLA exercises AND DPP sovereignty moves) register equally. This is not a "China bad, Taiwan good" instrument.
 
+**Update `CHANGELOG.md` at the end of every session** (dated section under *Delivered*, prune *In progress / planned*) — it is the human-readable history; `git log --since=<last entry>` is the source. Companion to the gitignored `SESSION_LOG.md` handoff.
+
 **Major changes go on staging first.** The `/var/www/cross-strait-signal-staging` worktree (branch `staging`) is for structural work — new tables, new scrapers, new top-level UI sections, new API surface. Bug fixes, copy tweaks, and small doc edits can go on `main` directly. When in doubt, ask.
 
 ## Commands
