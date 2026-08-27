@@ -323,7 +323,7 @@ def _normalise_entity_name(entity):
 # The prompt now forbids this; this regex catches the residual and routes it
 # to the review queue. Anchored on the sentence subject so an outlet's OWN
 # framing (\"The article frames the PRC ...\") never trips it.
-_SPEECH_VERB = (r".{0,60}?\b(characteri[sz]|states?\b|said|says|accus|calls?\b|label|mock|ridicul|"
+_SPEECH_VERB = (r".{0,60}?\b(characteri[sz]|fram(?:es|ed|ing)|states?\b|said|says|accus|calls?\b|label|mock|ridicul|"
                 r"attack|describ|dismiss|reject|claim|assert|criticis|criticiz|condemn|denounc|declar|"
                 r"warn|urg|insist|refut|retort|hits? back|slam|blast|lash)")
 _REPORTED_SPEECH_SUBJECT = {
