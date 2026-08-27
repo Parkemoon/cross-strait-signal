@@ -27,8 +27,6 @@ Two types:
 | `mfa_scraper.py` | MFA Spokesperson (PRC) |
 | `tao_scraper.py` | Taiwan Affairs Office (PRC) |
 | `guancha_scraper.py` | Guancha 观察者网 |
-
-**Guancha gotcha (2026-08-27):** the dedicated Taiwan section `/taihaifengyun` (alias `/taiwan`) stopped being fed on 2026-08-10 while Taiwan stories kept running in 国际 / 军事 / 国内 — the scraper now scans those channels too, gated on a title keyword list (`TITLE_KEYWORDS`) so incidental 台湾 mentions in general PRC news don't reach Tier 1. `/gangaotai` looks like a 港澳台 section but is a generic columnist feed — don't add it. RSSHub's `/guancha/*` route 503s. Yield is low (~3–4/week outside the section); the health threshold stays at 14 days.
 | `fjsen_scraper.py` | Haixia Daobao 海峽導報 |
 | `pla_daily_scraper.py` | PLA Daily 解放軍報 (81.cn — HTTP only, not HTTPS) |
 | `weibo_hot_scraper.py` | Weibo Hot Search — top 50 from `weibo.com/ajax/side/hotSearch` JSON API → `social_pulse` |
@@ -36,6 +34,9 @@ Two types:
 | `ettoday_poll_scraper.py` | ETtoday ET民調 — httpx + BeautifulSoup against the `/news_search` results page for `keywords=ET民調`. Title-prefix filtered to `ET民調`. Feeds Step 3c via the existing `%民調%` title trigger. |
 | `tvbs_poll_scraper.py` | TVBS 民調中心 — Playwright enumerates `(title, pdf_url)` pairs from the CSR `/poll-center` table, then httpx + pdfplumber extract the first 4 PDF pages (cover + prose summary, skipping cross-tab matrices). Date parsed from the URL's `/YYYY/YYYYMMDD/` segment. |
 | `myformosa_poll_scraper.py` | My-Formosa 美麗島民調 — Playwright drives both list + article pages (article HTML is Big5-encoded). Title-prefix filtered to `美麗島民調`; non-prefixed entries on the topical page are commentary, not poll output. |
+
+
+**Guancha gotcha (2026-08-27):** the dedicated Taiwan section `/taihaifengyun` (alias `/taiwan`) stopped being fed on 2026-08-10 while Taiwan stories kept running in 国际 / 军事 / 国内 — the scraper now scans those channels too, gated on a title keyword list (`TITLE_KEYWORDS`) so incidental 台湾 mentions in general PRC news don't reach Tier 1. `/gangaotai` looks like a 港澳台 section but is a generic columnist feed — don't add it. RSSHub's `/guancha/*` route 503s. Yield is low (~3–4/week outside the section); the health threshold stays at 14 days.
 
 ## Non-article scrapers (feed dedicated tables, not `articles`)
 
