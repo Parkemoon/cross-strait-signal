@@ -137,6 +137,7 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - **Maritime tab un-gated for the public** (`88b0b5b`); Ed's inline Maritime/coast-guard intro prose committed from prod (`498446b`); deployed
 - `CHANGELOG.md` regenerated after seven stale weeks; every-session update rule added here, in `CLAUDE.md` and in the session-log memory
 - Prod article backlog cleared: 226 review-clean articles bulk-approved (manifest `bulk-approve-prod-20260827.manifest`); 1 review-flagged YDN editorial held for Ed
+- Guancha scraper: the Taiwan section went dormant site-side on 08-10; now also scans 国际/军事/国内 with a title-keyword gate
 - `scripts/bulk_approve_articles.py` — the feed-backlog clear as a real script (dry-run, consistency checks, attention report, manifest); replaces five ad-hoc runs
 - **Reported-speech sentiment axis fix** — a TW outlet quoting a TAO/MND/MFA attack was scored on the PRC's framing of Taiwan (18% of TW-source scores ≤ −0.6 over 90 days), double-counting the statement and flattening the per-side divergence. Prompt: REPORTED SPEECH rule, checklist step (0) on source side, reasoning-subject constraint, worked examples (Tier 1 + Tier 2 by construction). Validator: `_reported_speech_problem()` routes the residual to review (subject-anchored regex; actions and passive outlet framing excluded). A/B vs an old-vs-old noise floor: no control collateral, prompt alone fixes ~half. Prod history re-scored with a manifest: 59 of 170 flagged rows → neutral, mean −0.63 → −0.37; 35 residual hits in the 90-day corpus
 
