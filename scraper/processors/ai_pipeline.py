@@ -315,10 +315,66 @@ def _normalise_entity_name(entity):
     return entity
 
 
-def _validate_sentiment(sentiment, score, reasoning):
+# Reported-speech axis check. Measured 2026-08-27: 18% of TW-source articles
+# scored <= -0.6 had a sentiment_reasoning whose grammatical SUBJECT was a PRC
+# official (\"The PRC TAO spokesperson characterises the DPP as ...\") — the
+# model scored the quoted attack on Taiwan, not the outlet's framing of the
+# PRC, so the same TAO line counted as hostile on both sides of the strait.
+# The prompt now forbids this; this regex catches the residual and routes it
+# to the review queue. Anchored on the sentence subject so an outlet's OWN
+# framing (\"The article frames the PRC ...\") never trips it.
+_SPEECH_VERB = (r".{0,60}?\b(characteri[sz]|states?\b|said|says|accus|calls?\b|label|mock|ridicul|"
+                r"attack|describ|dismiss|reject|claim|assert|criticis|criticiz|condemn|denounc|declar|"
+                r"warn|urg|insist|refut|retort|hits? back|slam|blast|lash)")
+_REPORTED_SPEECH_SUBJECT = {
+    # Speaking PRC actors only — "The PRC military's incursions constitute a
+    # hostile act" is an ACTION (scores legitimately on a TW source) and must
+    # not match; nor must the passive "The PRC is characterised as ...", which
+    # is the outlet's own framing.
+    # Unqualified ministries/spokespersons are ambiguous (Taiwan has a MOFA and
+    # an MND too) — those need an explicit PRC/Chinese/Beijing/mainland qualifier;
+    # only unambiguously PRC bodies may appear bare.
+    'TW': re.compile(
+        r"^\W*(the\s+)?(?:"
+        r"(?:prc'?s?|china'?s?|chinese|beijing'?s?|mainland(?:\s+china'?s?)?)\s+"
+        r"(?:tao|taiwan affairs office|mfa|mnd|ministry of (?:foreign affairs|national defen[cs]e)|"
+        r"(?:foreign|defen[cs]e) ministry|spokes\w+|state(?:-run)? media|embassy|official)"
+        r"|tao|taiwan affairs office|guotaiban|xinhua|global times|people'?s daily|cctv|kan taihai)\b"
+        + _SPEECH_VERB, re.I),
+    'PRC': re.compile(
+        r"^\W*(the\s+)?(?:"
+        r"(?:taiwan'?s?|taiwanese|taipei'?s?|roc|dpp)\s+"
+        r"(?:mac|mainland affairs council|mofa|ministry of foreign affairs|presidential office|spokes\w+|"
+        r"government|authorities|premier)"
+        r"|mac|mainland affairs council|(?:president\s+)?lai ching-te|president lai|tsai ing-wen)\b"
+        + _SPEECH_VERB, re.I),
+}
+_REPORTED_SPEECH_MIN_SCORE = -0.5
+
+
+def _reported_speech_problem(source_place, sentiment, score, reasoning):
+    """Return a problem string when a hostile score on a TW/PRC-source article is
+    justified by the OTHER side's quoted characterisation (see note above);
+    None otherwise. Only the hostile direction is checked — cooperative
+    reported speech (\"TAO welcomes ...\") is rare and low-stakes."""
+    pat = _REPORTED_SPEECH_SUBJECT.get(source_place or '')
+    if pat is None or sentiment != 'hostile' or score is None or score > _REPORTED_SPEECH_MIN_SCORE:
+        return None
+    if not pat.match(reasoning or ''):
+        return None
+    other = 'PRC' if source_place == 'TW' else 'Taiwan'
+    return (f"Reported-speech axis: {source_place} source scored {score:.1f} on a "
+            f"{other}-side actor's characterisation, not the outlet's own framing")
+
+
+def _validate_sentiment(sentiment, score, reasoning, source_place=None):
     """Check that sentiment label, numeric score, and reasoning are mutually consistent.
-    Returns a list of problem strings (empty = consistent)."""
+    Returns a list of problem strings (empty = consistent). `source_place`
+    (sources.place: TW/PRC/HK/SG/UK) enables the reported-speech axis check."""
     problems = []
+    rs = _reported_speech_problem(source_place, sentiment, score, reasoning)
+    if rs:
+        problems.append(rs)
     # The model can emit an explicit `"sentiment_score": null`; get(..., 0.0)
     # returns None (not the default) for a present-but-null key, and the
     # comparisons below would then raise TypeError. Treat null as 0.0 (neutral).
@@ -444,10 +500,11 @@ _SENTIMENT_RULES = """- sentiment_score measures cross-strait sentiment — how 
 - For PRC sources: how does the article portray Taiwan, Taiwanese actors, or cross-strait relations?
 - For Taiwan sources: how does the article portray the PRC, mainland actors, or cross-strait relations?
 - For international/SG sources: what is the overall tone toward cross-strait dynamics?
+- CRITICAL — REPORTED SPEECH BY THE OPPOSING SIDE DOES NOT SCORE: the SOURCE line tells you which side of the strait the outlet sits on. A Taiwan outlet reporting a hostile statement by a PRC official (TAO, MND, MFA, state media) is NOT itself framing the PRC hostilely — it is relaying the PRC's framing of Taiwan, which is captured when PRC outlets carry the same statement. Score a Taiwan-source article ONLY by how the outlet, its own voice, or Taiwan-side actors quoted in it characterise the PRC; score a PRC-source article ONLY by how the outlet or PRC-side actors characterise Taiwan. If the only cross-strait characterisation in the article is a quotation from the other side, and the outlet reports it without editorialising, score neutral. Score directional only when the outlet's own side responds in kind (e.g. MAC rebuts the TAO in confrontational terms → the MAC rebuttal is the Taiwan-side framing to score) or the outlet's own voice editorialises about the other side. Counting the same quoted statement as hostile on both sides of the strait double-counts it and corrupts the per-side comparison this instrument exists to make.
 - CRITICAL — third-party interactions are NOT cross-strait signals (both directions): Taiwan's interactions with any third party (US, Japan, EU, Australia, Czech Republic, UK, allies, etc.) — whether cooperative (visits, arms sales, joint exercises, parliamentary resolutions of support, official meetings) or hostile (third-party criticism of Taiwan) — are not cross-strait sentiment signals. Likewise, PRC interactions with third parties are not cross-strait sentiment signals unless Taiwan is directly framed in the article. Score sentiment ONLY by how the article frames the opposing side of the strait, never by how either side relates to a third country. An Australian MP visiting Taipei is neutral on the cross-strait axis unless the article explicitly characterises the PRC's reaction or framing.
 - CRITICAL — intra-society political conflict is NOT cross-strait hostility: Inter-party criticism within Taiwan (DPP vs KMT vs TPP) or factional/political conflict within the PRC belongs to POL_DOMESTIC_TW or POL_DOMESTIC_PRC and scores NEUTRAL on the cross-strait sentiment axis. A KMT politician attacking the DPP, or DPP figures criticising the KMT, is not cross-strait hostile — the dispute is internal. Only score hostile if the article shows one party explicitly characterising the OPPOSING SIDE OF THE STRAIT (not a domestic rival) in confrontational terms.
 - CRITICAL — anti-formal-independence ≠ anti-Taiwan / pro-PRC: A Taiwanese politician (KMT, TPP, or other) opposing formal Taiwan independence is expressing a mainstream within-Taiwan position — by itself this is NEUTRAL on the cross-strait axis. Score based solely on how the politician characterises the PRC in the article: silent or factual about PRC → neutral; positive about mainland engagement → cooperative; criticising the PRC → hostile. The asymmetry is deliberate: when the PRC (officials, state media, MFA, TAO) uses anti-independence language (e.g. "Taiwan independence is a dead end", "separatist forces"), this IS hostile — the PRC is asserting sovereignty framing over Taiwan's right to choose. Anti-independence rhetoric from a Taiwanese voice is a domestic position; the same rhetoric from a PRC voice is a cross-strait assertion.
-- DECISION CHECKLIST — before assigning a non-neutral sentiment, answer in order: (1) Who specifically in the article is characterising the other side, or ACTING toward the other side? Name them. (2) Is the target of that characterisation or action the opposing side of the strait — a PRC actor characterising/acting toward Taiwan, or a Taiwan actor characterising/acting toward the PRC? If no, score neutral. (3) Can you quote the specific sentence that frames the opposing side, OR the specific reported cross-strait action (see ACTIONS COUNT below)? If neither, score neutral. (4) If the article is about a Taiwanese politician's stance on independence or unification, is there any explicit characterisation OF THE PRC in the article? If no, score neutral regardless of how strongly the politician favours or opposes independence.
+- DECISION CHECKLIST — before assigning a non-neutral sentiment, answer in order: (0) Which side of the strait is the SOURCE outlet on (Taiwan / PRC / third-country)? Only characterisations and actions BY THAT SIDE may trigger the score: for a Taiwan outlet, the trigger must be a Taiwan actor (the outlet's own voice, MAC, MOFA, MND, the president, legislators, commentators) characterising the PRC, or a PRC ACTION directed at Taiwan; a quoted PRC official's words about Taiwan are NEVER the trigger on a Taiwan source. For a PRC outlet the mirror applies. (1) Who specifically on the SOURCE'S OWN side is characterising the other side, or which concrete action by the other side is reported? Name them. (2) Is the target of that characterisation or action the opposing side of the strait — a PRC actor characterising/acting toward Taiwan, or a Taiwan actor characterising/acting toward the PRC? If no, score neutral. (3) Can you quote the specific sentence that frames the opposing side, OR the specific reported cross-strait action (see ACTIONS COUNT below)? If neither, score neutral. (4) If the article is about a Taiwanese politician's stance on independence or unification, is there any explicit characterisation OF THE PRC in the article? If no, score neutral regardless of how strongly the politician favours or opposes independence.
 - ACTIONS COUNT AS FRAMING: a concrete action by one side of the strait directed at the other carries its own valence even when the article reports it in dry, factual language. PLA exercises, deployments and incursions, coast-guard or maritime-militia pressure, espionage and infiltration operations, sanctions or legal measures targeting the other side → hostile. Resumed links, purchase missions, exchange programmes, tariff concessions between the two sides → cooperative. Do NOT neutralise a hostile or cooperative act just because the reporting tone is calm. This applies ONLY to actions between the two sides of the strait — third-party actions remain neutral per the third-party rule above. This rule governs the SENTIMENT fields only — it does not change topic_primary: grey-zone coercion (coast-guard confrontations, maritime-militia pressure, cable incidents, dredging) is still LEGAL_GREY, not MIL_MOVEMENT, and every other topic keeps its normal definition.
 - MOCKERY AND DERISION COUNT AS FRAMING: ridicule, sarcasm, or triumphalist point-scoring aimed at the other side (state media mocking a Taiwanese official's claims, a Taiwanese outlet deriding mainland failures or framing the mainland as backward, inferior or uncivilised) is hostile framing even when no threat language appears. Likewise, celebratory coverage of one side's coercive actions toward the other (e.g. state media lionising patrols asserting jurisdiction over the other side) is hostile, not neutral.
 - SECURITISATION OF PEOPLE COUNTS AS FRAMING: coverage that frames people associated with the other side as an inherent threat because of that association — e.g. Taiwanese reporting that casts mainland spouses, students or residents as security risks, infiltration vectors or a fifth column, or PRC coverage casting Taiwanese businesspeople or civil-society figures as separatist agents — is hostile framing. Score the framing, not the population: a report on a specific named espionage prosecution is the action rule above; a blanket portrayal of a group as suspect is this rule.
@@ -495,6 +552,8 @@ _SENTIMENT_WORKED_EXAMPLES = """- SENTIMENT WORKED EXAMPLES (apply the same logi
   - "Ma Ying-jeou says 1992 Consensus is foundation for cross-strait peace, urges dialogue with Beijing" → POL_TONGDU, sentiment=cooperative, score=+0.5, reasoning="Ma Ying-jeou explicitly frames PRC engagement positively: '1992 Consensus is foundation for cross-strait peace'."
   - "MFA spokesperson: Taiwan independence is a dead end, separatist forces will face consequences" → DIP_STATEMENT, sentiment=hostile, score=-0.7, reasoning="PRC MFA characterises Taiwan's political direction in sovereignty-denying terms: 'Taiwan independence is a dead end'."
   - "DPP legislator accuses KMT chair of selling out Taiwan during mainland visit" → POL_DOMESTIC_TW, sentiment=neutral, score=0.0, reasoning="" — intra-Taiwan party conflict with no direct characterisation of PRC.
+  - SOURCE: UDN — "Defence budget passes NT$1 trillion; PRC MND: 'belligerent, hollowing out Taiwan'" → MIL_POLICY, sentiment=neutral, score=-0.1, reasoning="" — a Taiwan outlet relaying a PRC statement; the PRC's framing of Taiwan is scored on the PRC-source copies of the same statement, not here. (The same headline from Xinhua or Haixia Daobao → hostile, score=-0.8.)
+  - SOURCE: LTN — "TAO calls DPP 'troublemakers'; MAC: Beijing's threats expose its hegemonic ambitions" → DIP_STATEMENT, sentiment=hostile, score=-0.5, reasoning="MAC characterises the PRC in confrontational terms: 'hegemonic ambitions' — the Taiwan-side rebuttal is what scores, not the quoted TAO line."
   - "Global Times editorial calls Lai Ching-te a 'troublemaker' threatening regional peace" → INFO_WARFARE, sentiment=hostile, score=-0.8, reasoning="PRC state media characterises Taiwan's president hostilely: 'troublemaker threatening regional peace'."
   - "PLA deploys new air-defence battalion to coastal base opposite Taiwan; ministry declines comment" → sentiment=hostile, score=-0.5, reasoning="PRC military action directed at Taiwan — the deployment itself is the hostile act; calm, factual reporting does not neutralise it." (topic per its normal definition)
   - "PRC coast guard conducts 'law-enforcement patrol' inside restricted waters near Kinmen" → LEGAL_GREY, sentiment=hostile, score=-0.5, reasoning="PRC grey-zone action asserting jurisdiction toward Taiwan — the patrol is the hostile act regardless of reporting tone." — note the topic stays LEGAL_GREY; the action rule changes the sentiment, not the topic.
@@ -518,7 +577,7 @@ Analyse the following article and return a JSON object with this exact structure
   "topic_secondary": null,
   "sentiment": "one of: hostile, cooperative, neutral, mixed",
   "sentiment_score": 0.0,
-  "sentiment_reasoning": "ONE sentence: who is characterised how, toward whom across the strait, and quote the specific phrase that triggered the score. Empty string if sentiment is neutral with no explicit cross-strait framing.",
+  "sentiment_reasoning": "ONE sentence: who is characterised how, toward whom across the strait, and quote the specific phrase that triggered the score. The sentence's SUBJECT must be an actor on the SOURCE outlet's own side of the strait (or the outlet itself), or a concrete action by the other side — never a quoted official from the other side. Empty string if sentiment is neutral with no explicit cross-strait framing.",
   "urgency": "one of: flash, priority, routine",
   "key_quote": "most significant direct quote from the article in original language",
   "key_quote_en": "English translation of the key quote",
@@ -648,7 +707,7 @@ Analyse the following article and return a JSON object with this exact structure
   "topic_primary": "one of: """ + _TOPIC_ENUM + """",
   "sentiment": "one of: hostile, cooperative, neutral, mixed",
   "sentiment_score": 0.0,
-  "sentiment_reasoning": "ONE sentence: who is characterised how, toward whom across the strait, and quote the specific phrase that triggered the score. Empty string if sentiment is neutral with no explicit cross-strait framing.",
+  "sentiment_reasoning": "ONE sentence: who is characterised how, toward whom across the strait, and quote the specific phrase that triggered the score. The sentence's SUBJECT must be an actor on the SOURCE outlet's own side of the strait (or the outlet itself), or a concrete action by the other side — never a quoted official from the other side. Empty string if sentiment is neutral with no explicit cross-strait framing.",
   "urgency": "one of: flash, priority, routine",
   "is_escalation_signal": false,
   "escalation_note": null,
@@ -1074,6 +1133,7 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
         analysis.get('sentiment', 'neutral'),
         analysis.get('sentiment_score', 0.0),
         sentiment_reasoning,
+        source_place=article['source_place'],
     )
     tier1_review_reasons.extend(sentiment_problems)
     if tier1_review_reasons:
@@ -1128,6 +1188,7 @@ FULL TEXT:
                 analysis['sentiment'],
                 analysis['sentiment_score'],
                 analysis['sentiment_reasoning'],
+                source_place=article['source_place'],
             )
 
             # Update the database with Flash's assessment
