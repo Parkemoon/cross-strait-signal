@@ -12,7 +12,7 @@ const ALL_GROUPS = [
   { id: "feed", label: "Feed", view: "feed" },
   { id: "security", label: "Security", items: [
     { view: "military", label: "Military" },
-    { view: "maritime", label: "Maritime", adminOnly: true },   // TEMP gate until the prod 2020→ presence backfill completes (2026-08-26)
+    { view: "maritime", label: "Maritime" },
   ] },
   { id: "economy", label: "Economy", items: [
     { view: "economy", label: "Indicators" },
