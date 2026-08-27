@@ -27,6 +27,8 @@ Two types:
 | `mfa_scraper.py` | MFA Spokesperson (PRC) |
 | `tao_scraper.py` | Taiwan Affairs Office (PRC) |
 | `guancha_scraper.py` | Guancha 观察者网 |
+
+**Guancha gotcha (2026-08-27):** the dedicated Taiwan section `/taihaifengyun` (alias `/taiwan`) stopped being fed on 2026-08-10 while Taiwan stories kept running in 国际 / 军事 / 国内 — the scraper now scans those channels too, gated on a title keyword list (`TITLE_KEYWORDS`) so incidental 台湾 mentions in general PRC news don't reach Tier 1. `/gangaotai` looks like a 港澳台 section but is a generic columnist feed — don't add it. RSSHub's `/guancha/*` route 503s. Yield is low (~3–4/week outside the section); the health threshold stays at 14 days.
 | `fjsen_scraper.py` | Haixia Daobao 海峽導報 |
 | `pla_daily_scraper.py` | PLA Daily 解放軍報 (81.cn — HTTP only, not HTTPS) |
 | `weibo_hot_scraper.py` | Weibo Hot Search — top 50 from `weibo.com/ajax/side/hotSearch` JSON API → `social_pulse` |
