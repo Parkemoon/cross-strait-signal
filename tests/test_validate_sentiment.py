@@ -80,3 +80,50 @@ def test_mixed_label_does_not_trigger_band_check():
     """Mixed is allowed to have any score — no band assertion fires."""
     assert _validate_sentiment("mixed", -0.5, "both sides") == []
     assert _validate_sentiment("mixed", 0.5, "both sides") == []
+
+
+# --- reported-speech axis check (2026-08-27) ---------------------------------
+
+def test_tw_source_scored_on_prc_official_quote_is_flagged():
+    problems = _validate_sentiment(
+        "hostile", -0.8,
+        "The PRC Ministry of National Defense explicitly characterises the Taiwanese government as 'belligerent'.",
+        source_place="TW")
+    assert len(problems) == 1 and "Reported-speech axis" in problems[0]
+
+
+def test_tw_source_scored_on_its_own_framing_passes():
+    assert _validate_sentiment(
+        "hostile", -0.6,
+        "The article frames the PRC coast guard patrols as 'malicious harassment'.",
+        source_place="TW") == []
+
+
+def test_tw_source_scored_on_mac_rebuttal_passes():
+    assert _validate_sentiment(
+        "hostile", -0.5,
+        "MAC characterises Beijing's threats as exposing 'hegemonic ambitions'.",
+        source_place="TW") == []
+
+
+def test_prc_source_scored_on_prc_official_passes():
+    # Same reasoning that trips a TW source is the correct axis for a PRC outlet.
+    assert _validate_sentiment(
+        "hostile", -0.8,
+        "The PRC TAO spokesperson explicitly characterises the DPP as 'destroyers of peace'.",
+        source_place="PRC") == []
+
+
+def test_prc_source_scored_on_taiwan_official_quote_is_flagged():
+    problems = _validate_sentiment(
+        "hostile", -0.6,
+        "President Lai Ching-te characterises the PRC as a 'foreign hostile force'.",
+        source_place="PRC")
+    assert len(problems) == 1 and "Reported-speech axis" in problems[0]
+
+
+def test_reported_speech_ignores_mild_scores_and_unknown_places():
+    reasoning = "The PRC TAO spokesperson mocks the DPP."
+    assert _validate_sentiment("hostile", -0.4, reasoning, source_place="TW") == []
+    assert _validate_sentiment("hostile", -0.8, reasoning, source_place="SG") == []
+    assert _validate_sentiment("hostile", -0.8, reasoning) == []
