@@ -131,6 +131,13 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - **Grouped navigation** (`frontend/src/navGroups.js`) — Feed · Security ▾ (Military, Maritime) · Economy ▾ (Indicators, Trade Access, People) · Politics ▾ (Polls, Diplomacy, Positions) · Admin ▾. Maritime un-gated 2026-08-27 once the prod 2020→ backfill completed
 - **Editable site prose** — `data/site_copy.json` → `/api/copy` → `<Copy k=…>`; admin ✎ → `PATCH /api/copy/{key}`; all 42 tab prose blocks migrated; `JsonFileStore` (mtime cache + atomic write) shared with `positions.json`. Rule: Chinese on the page only when it is the source's own words — never translated chrome
 
+### Maritime public + backlog (2026-08-27)
+
+- Prod GFW presence backfill verified complete (880 pulls, 4h32m); three months lost to `database is locked` / a truncated GFW response re-pulled (`contiguous_s` 2020-02 + 2022-06, `contiguous_n` 2022-04)
+- **Maritime tab un-gated for the public** (`88b0b5b`); Ed's inline Maritime/coast-guard intro prose committed from prod (`498446b`); deployed
+- `CHANGELOG.md` regenerated after seven stale weeks; every-session update rule added here, in `CLAUDE.md` and in the session-log memory
+- Prod article backlog cleared: 226 review-clean articles bulk-approved (manifest `bulk-approve-prod-20260827.manifest`); 1 review-flagged YDN editorial held for Ed
+
 ## In progress / planned
 
 - **Maritime tab**: the 2017 extension, militia/dredger layer, go-dark events
