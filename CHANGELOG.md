@@ -128,12 +128,12 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - **CGA enforcement mirror** (Step 2o) — 績效統計月報 / 年報 PDFs → `cga_enforcement`; yearbook backfill + transcribed 護永專案 table; every table citation links to its report PDF
 - **Deterministic roster triage** — explicit force name or force-matching MID prefix confirms; classifier rejection purges; residual left `auto`; runs after every refresh/pull. The roster modal asks the analyst only the answerable question
 - **Frontend** — Presence & Enforcement section (monthly strip, zone map, roster modal); data-audit fixes (yearbook year offset, CCG classifier flag gate, hull-number keying, empty-period guard, structured caveats)
-- **Grouped navigation** (`frontend/src/navGroups.js`) — Feed · Security ▾ (Military, Maritime) · Economy ▾ (Indicators, Trade Access, People) · Politics ▾ (Polls, Diplomacy, Positions) · Admin ▾. Maritime gated to the admin build until the prod backfill completes
+- **Grouped navigation** (`frontend/src/navGroups.js`) — Feed · Security ▾ (Military, Maritime) · Economy ▾ (Indicators, Trade Access, People) · Politics ▾ (Polls, Diplomacy, Positions) · Admin ▾. Maritime un-gated 2026-08-27 once the prod 2020→ backfill completed
 - **Editable site prose** — `data/site_copy.json` → `/api/copy` → `<Copy k=…>`; admin ✎ → `PATCH /api/copy/{key}`; all 42 tab prose blocks migrated; `JsonFileStore` (mtime cache + atomic write) shared with `positions.json`. Rule: Chinese on the page only when it is the source's own words — never translated chrome
 
 ## In progress / planned
 
-- **Maritime tab public un-gate** once the prod 2020→ presence backfill finishes; then the 2017 extension, militia/dredger layer, go-dark events
+- **Maritime tab**: the 2017 extension, militia/dredger layer, go-dark events
 - **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
 - Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
