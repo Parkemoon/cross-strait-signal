@@ -141,7 +141,7 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - `scripts/bulk_approve_articles.py` — the feed-backlog clear as a real script (dry-run, consistency checks, attention report, manifest); replaces five ad-hoc runs
 - **Reported-speech sentiment axis fix** — a TW outlet quoting a TAO/MND/MFA attack was scored on the PRC's framing of Taiwan (18% of TW-source scores ≤ −0.6 over 90 days), double-counting the statement and flattening the per-side divergence. Prompt: REPORTED SPEECH rule, checklist step (0) on source side, reasoning-subject constraint, worked examples (Tier 1 + Tier 2 by construction). Validator: `_reported_speech_problem()` routes the residual to review (subject-anchored regex; actions and passive outlet framing excluded). A/B vs an old-vs-old noise floor: no control collateral, prompt alone fixes ~half. Prod history re-scored with a manifest: 59 of 170 flagged rows → neutral, mean −0.63 → −0.37; 35 residual hits in the 90-day corpus
 
-### Alt-model originator arm + Substack draft (2026-08-28, staging, uncommitted)
+### Alt-model originator arm + Substack draft (2026-08-28, staging `4240814`/`1916bc3`, not yet on main)
 
 - **Originator arm unblocked**: the 07-2x 404 was an OpenRouter account *guardrail* (provider allowlist), not the privacy toggle — it also hides DeepSeek from the model's endpoint listing. Cleared by Ed; `--probe` routes via DeepSeek.
 - **Direct-question battery on DeepSeek's own endpoint** (150 calls, $0.06): PRC host refuses 21/25 Chinese calibration questions (Tiananmen/Xinjiang/Xi/Falun Gong 5/5 each) vs 10/25 Western-hosted; spreads to the ROC-status question (3/5 zh) and once to a neutral control (D-01 zh). Taiwan-status never refused on either host — state line verbatim. English 8/25 (Xi 0/5, answered with the recital). **Band C (Tier-1 scaffold): 20/20 answered** — the scaffold holds on the PRC host; two C-01 runs scored a TW 統獨 column +0.4 where every Western run said −0.6 (hand-review verdict: dropped — coherent alternative reading of a blue column). Originator hand review complete: 33 refused / 2 caveat / 1 answered; 10% FN sample clean.
@@ -152,7 +152,7 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 ## In progress / planned
 
 - **Maritime tab**: the 2017 extension, militia/dredger layer, go-dark events
-- Alt-model write-ups: fold the originator-arm findings into `DIRECT_QUESTION_WRITEUP.md` + the Substack draft; optional originator paired-set article sweep (279 articles, <$1)
+- Alt-model: fold §4b of `DIRECT_QUESTION_WRITEUP.md` into the Substack draft (a short "on the PRC host" section after the direct-question tables); FF staging → main when Ed is happy; optional originator paired-set article sweep (279 articles, <$1)
 - **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
 - Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
