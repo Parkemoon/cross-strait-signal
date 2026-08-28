@@ -235,3 +235,12 @@ scraper/processors/*.json.lock
 US_ENTRY_DRAFT.md
 V3_SENTIMENT_DRAFT.md
 approved_ids_*.json
+
+# Private working documents + the analyst-only backlog tool (untracked 2026-08-28;
+# local copies stay in both worktrees — copy by hand when setting up a new one)
+ALT_MODEL_EXPERIMENT_WRITEUP.md
+DIRECT_QUESTION_WRITEUP.md
+SUBSTACK_DRAFT_*.md
+CLAUDE_WEB_BRIEF_*.md
+scripts/bulk_approve_articles.py
+tests/test_bulk_approve_articles.py
