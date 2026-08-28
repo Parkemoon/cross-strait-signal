@@ -44,6 +44,11 @@ _REFUSE_RE = re.compile(
     r"|(?:抱歉|对不起|對不起)[^。]{0,30}(?:无法|無法|不能|不便)"
     r"|(?:无法|無法|不能|不便)(?:回答|讨论|討論|评论|評論|提供|作答)"
     r"|不予置[评評]|无可奉告|無可奉告"
+    # DeepSeek's first-party endpoint refuses with the app template
+    # 「对不起，我还没有学会回答这个问题」 (2026-08-28 originator run: 25/150
+    # rows, none on the Western hosts) — no 无法/不能, so the line above
+    # misses it and every such row read as 'answered'.
+    r"|(?:还没有|還沒有)(?:学会|學會)回答"
     r"|(?:作为|作為)(?:一个|一個)?(?:人工智能|AI)(?:助手|助理)?[^。]{0,40}(?:无法|無法|不能)",
     re.IGNORECASE,
 )

@@ -87,12 +87,21 @@ MAX_TOKENS = {
     "moonshotai/kimi-k3": 24000,
     "deepseek/deepseek-r1-0528": 24000,  # reasoning model — same headroom rule
 }
+# Per-(model, arm) override. DeepSeek's first-party endpoint serves V4 Flash
+# in THINKING mode (~30k chars of reasoning per Tier-1 call, 2026-08-28) —
+# the Western hosts serve it without reasoning. At the 8k default the
+# originator arm exhausted its budget mid-thought on 15/20 Band C calls and
+# never emitted the JSON. Same headroom rule as the reasoning models.
+ARM_MAX_TOKENS = {
+    ("deepseek/deepseek-v4-flash", "originator"): 24000,
+}
 
 # Refusal boilerplate (CJK + EN). Matched only AFTER JSON parsing fails —
 # an analysis that merely quotes refusal-like words still parses as JSON.
 _REFUSAL_RE = re.compile(
     r"无法回答|無法回答|不能回答|抱歉|作为(一个)?(人工智能|AI)|作為(一個)?(人工智能|AI)"
     r"|敏感(话题|内容|話題|內容)|不予置评|不予置評"
+    r"|(还没有|還沒有)(学会|學會)回答"  # DeepSeek first-party app template
     r"|I (cannot|can't|am unable to)|I'm sorry|I am sorry|as an AI",
     re.IGNORECASE,
 )
@@ -115,7 +124,8 @@ def build_request_body(model, prompt, arm):
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.1,
-        "max_tokens": MAX_TOKENS.get(model, DEFAULT_MAX_TOKENS),
+        "max_tokens": ARM_MAX_TOKENS.get((model, arm),
+                                         MAX_TOKENS.get(model, DEFAULT_MAX_TOKENS)),
         "usage": {"include": True},
         "provider": provider,
     }

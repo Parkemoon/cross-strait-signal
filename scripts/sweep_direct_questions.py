@@ -22,8 +22,10 @@ Classification is conservative (scraper/utils/direct_questions.py) and
 NOTHING classified 'refused' is publishable unread — export the hand-review
 JSONL with scripts/direct_question_aggregates.py --examples.
 
-Arms (all Western-hosted; provider pinning as the article sweep):
+Arms (provider pinning as the article sweep):
   deepseek/deepseek-v4-flash  neutral   (the article sweep's headline model)
+  deepseek/deepseek-v4-flash  originator (DeepSeek's own endpoint — PRC-hosted
+                                         comparison, added 2026-08-28)
   moonshotai/kimi-k3          neutral
   deepseek/deepseek-r1-0528   neutral   (R1-generation: prompt-shape vs
                                          generation disambiguation; DeepInfra
@@ -54,7 +56,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from scraper.utils.db import get_connection, DB_PATH
 from scraper.utils.direct_questions import (classify_direct_response,
                                             classify_direct_text, load_battery)
-from scraper.utils.openrouter import (ARMS, MAX_TOKENS, DEFAULT_MAX_TOKENS,
+from scraper.utils.openrouter import (ARMS, ARM_MAX_TOKENS, MAX_TOKENS, DEFAULT_MAX_TOKENS,
                                       build_request_body, chat_completion,
                                       classify_outcome, log_openrouter_usage)
 
@@ -65,10 +67,16 @@ RUN_NOTES_PATH = os.path.join(os.path.dirname(__file__), '..', 'RUN_NOTES.md')
 GEMINI_CONTROL = 'gemini-control'
 TEMPERATURE = 0.1  # matched to the article sweep / production Tier 1
 
-# (model, arm) cells this experiment runs. Neutral/Western-hosted only —
-# the originator arms stay dropped (account data-policy 404, see 07-2x log).
+# (model, arm) cells this experiment runs. The Western-hosted neutral arms
+# were the 2026-08 dataset; the V4F originator cell (DeepSeek's own
+# endpoint — data DOES touch a PRC server, that is the point of the arm)
+# was added 2026-08-28 for the PRC-host comparison. Its 07-2x 404 was an
+# OpenRouter account GUARDRAIL (provider allowlist) that also hides the
+# endpoint from /models/…/endpoints — not the privacy/data-policy toggle.
+# Fixed in the account settings 2026-08-28; always --probe first.
 DIRECT_ARMS = [
     ("deepseek/deepseek-v4-flash", "neutral"),
+    ("deepseek/deepseek-v4-flash", "originator"),
     ("moonshotai/kimi-k3", "neutral"),
     ("deepseek/deepseek-r1-0528", "neutral"),
     (GEMINI_CONTROL, "control"),
@@ -265,7 +273,10 @@ def main():
             # Reasoning models spend budget on thought even for 'OK' — give
             # them modest headroom; 4 would exhaust mid-thought and the probe
             # would falsely read as broken. Non-reasoning models stay at 4.
-            body["max_tokens"] = 2000 if model in MAX_TOKENS else 4
+            # Same rule for arms that serve a model in thinking mode
+            # (ARM_MAX_TOKENS — DeepSeek's own V4F endpoint).
+            reasoning = model in MAX_TOKENS or (model, arm) in ARM_MAX_TOKENS
+            body["max_tokens"] = 2000 if reasoning else 4
             resp = httpx.post("https://openrouter.ai/api/v1/chat/completions",
                               headers={"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"},
                               json=body, timeout=120)
