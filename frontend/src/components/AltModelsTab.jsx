@@ -151,9 +151,9 @@ export default function AltModelsTab() {
       )}
       {(summary || []).map((g) => <GroupCard key={`${g.model}|${g.arm}`} g={g} />)}
 
-      {/* Findings — distilled from ALT_MODEL_EXPERIMENT_WRITEUP.md (frozen
-          2026-08 dataset; the cards above are live and include later sweep
-          extensions, so headline figures can differ a few points). */}
+      {/* Findings — distilled from ALT_MODEL_EXPERIMENT_WRITEUP.md (refreshed
+          2026-08-28 against the full 15.4k-row corpus; the cards above are live,
+          so headline figures can drift a point or two as the daily sweep runs). */}
       {summary && summary.length > 0 && (
         <div style={{
           borderLeft: "3px solid var(--accent-teal)", padding: "12px 16px",
@@ -162,21 +162,21 @@ export default function AltModelsTab() {
           fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65,
         }}>
           <div style={{ ...tileLabel, marginBottom: "8px" }}>
-            Findings — 2026-08 write-up
+            Findings — 2026-08 write-up (refreshed 08-28)
           </div>
           <ul style={{ margin: 0, paddingLeft: "18px" }}>
             <li style={{ marginBottom: "6px" }}>
               <strong>The censorship hypothesis failed on this corpus.</strong> Zero refusals
-              across 13k+ articles including PLA drills and 台獨 rhetoric; no pinyin-isation of
-              Taiwanese names; the presidential title survived in ~99% of opportunities; and
+              across 15k+ articles including PLA drills and 台獨 rhetoric; no pinyin-isation of
+              Taiwanese names; a "Taiwan leader"-type formulation appeared in 0.3% of opportunities; and
               summary omission of sensitive entities sits at the Gemini rerun noise floor —
               with politically loaded entities omitted <em>less</em> than average.
             </li>
             <li style={{ marginBottom: "6px" }}>
               <strong>V4F's low headline agreement is mostly a stricter relevance gate, not
-              misclassification.</strong> It rules ~29% of articles NOT_RELEVANT — and the gate
+              misclassification.</strong> It rules ~31% of articles NOT_RELEVANT — and the gate
               cuts <em>against</em> the censorship story: ~6% NR on sovereignty-marked articles
-              vs ~35% on everything else. It keeps the sovereignty material and discards the
+              vs ~37% on everything else. It keeps the sovereignty material and discards the
               soft-topic fluff. Conditional on both models agreeing an article is relevant,
               agreement is ~60% against the ~78% same-model ceiling.
             </li>
@@ -184,8 +184,8 @@ export default function AltModelsTab() {
               <strong>No directional sentiment bias.</strong> V4F's signed score bias is the
               same magnitude as the control's own run-to-run drift — nobody is systematically
               softening or hardening the hostility axis. Remaining disagreements are boundary
-              disputes on our own fuzziest categories (LEGAL_GREY vs POL_DOMESTIC_TW,
-              CULTURE vs POL_TONGDU).
+              disputes on our own fuzziest categories (POL_DOMESTIC_TW vs POL_TONGDU,
+              CULTURE vs POL_TONGDU, LEGAL_GREY vs POL_DOMESTIC_TW).
             </li>
             <li>
               Full method, tables and caveats: <code>ALT_MODEL_EXPERIMENT_WRITEUP.md</code>

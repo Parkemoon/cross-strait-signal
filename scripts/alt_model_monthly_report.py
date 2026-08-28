@@ -24,16 +24,20 @@ from dotenv import load_dotenv
 
 REPO = Path(__file__).resolve().parent.parent
 
-# Frozen reference — ALT_MODEL_EXPERIMENT_WRITEUP.md §3-4 (2026-08 dataset).
+# Frozen reference — ALT_MODEL_EXPERIMENT_WRITEUP.md §3-4 + §5.6 (refreshed 2026-08-28).
 # Update this block whenever the write-up's headline table is revised, so the
 # email always compares live vs last-reviewed, not live vs forever-2026-08.
 FROZEN_REFERENCE = """\
-=== Frozen reference (write-up, 2026-08 dataset) ===
-  V4F topic agreement overall:            42.7%   (conditional on relevant: 60.2%)
-  V4F NOT_RELEVANT rate:                  29.1%   (sovereignty 6.5% vs other 35.4% — anti-selective)
-  V4F |dScore| (relevant rows):           0.101   signed bias +0.029
+=== Frozen reference (write-up, refreshed 2026-08-28; V4F n=15,418) ===
+  V4F topic agreement overall:            40.3%   (conditional on relevant: 58.8%)
+  V4F NOT_RELEVANT rate:                  31.5%   (sovereignty 6.1% vs other 36.7% — anti-selective)
+  V4F |dScore| (relevant rows):           0.142   signed bias +0.040
+  V4F urgency match:                      75.2%   esc flags 389 vs prod 240
   Gemini-control agreement (ceiling):     71.4%   (conditional: 78.5%)
   Refusals, all models:                   0
+  Completeness (audit_summary_completeness.py, not in the live block below):
+    V4F alt-only omission 5.7% (control 4.8%); sensitive slice 2.9% (control 8.8%, 8/91)
+    V4F extraction recall 75.8% (control 86.7%)
 Review trigger: conditional agreement, NR ratio or signed bias moving
 materially from these -> update AltModelsTab.jsx findings + the write-up.
 """

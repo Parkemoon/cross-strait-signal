@@ -148,6 +148,7 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - **Three confounds recorded in `RUN_NOTES.md`**: DeepSeek serves revision `-0731` (Western hosts `-20260423`), in thinking mode (Band C needed 24k tokens), with different refusal templates. The comparison is host × mode × revision.
 - Classifier fix: DeepSeek app template 「我还没有学会回答」 added to both refusal regexes (25 rows reclassified in place, manifest kept; neutral rows 0/390 changed). `ARM_MAX_TOKENS` per (model, arm) + arm-aware probe headroom. 2 tests added (44 pass).
 - Substack draft rewritten corpus-first (`SUBSTACK_DRAFT_refusal_v2.md`, untracked) with every corpus number re-run live (15,418 V4F rows).
+- **Write-up numbers refreshed to the full corpus** (evening session): every V4F cell in `ALT_MODEL_EXPERIMENT_WRITEUP.md` (untracked) re-derived from the 15,418-row sweep (was the 3,936 frozen on 08-02) — agreement 40.3%/58.8% conditional, NR 31.5% (sovereignty 6.1% vs 36.7%), sensitive-slice omission 2.9% (166/5,638), extraction recall 75.8% (down from 87.2% on the subset; not sensitivity-selective). `scripts/alt_model_monthly_report.py`'s frozen reference block and the Alt Models tab findings text updated to match. Substack draft fact-check: three errors caught — the control's sensitive-slice figure is 8.8% (8/91: Xi ×4, Lai ×3, Tsai ×1), not 9.1% (that is V4F's *reverse* cell); 台獨-mention count is 2,517 not 2,498; the "Taiwan authorities + so-called" rate is 9%/3% (PRC/TW) with both markers, 6%/2% with the first alone.
 
 ## In progress / planned
 
