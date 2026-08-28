@@ -24,6 +24,21 @@ def test_body_reasoning_model_gets_bigger_token_budget():
     assert body["max_tokens"] == orx.MAX_TOKENS["moonshotai/kimi-k3"] == 24000
 
 
+def test_body_arm_override_beats_model_default():
+    # DeepSeek's own endpoint serves V4F in thinking mode; the Western hosts
+    # don't — headroom is per (model, arm), not per model.
+    neutral = orx.build_request_body("deepseek/deepseek-v4-flash", "p", "neutral")
+    originator = orx.build_request_body("deepseek/deepseek-v4-flash", "p", "originator")
+    assert neutral["max_tokens"] == 8000
+    assert originator["max_tokens"] == orx.ARM_MAX_TOKENS[("deepseek/deepseek-v4-flash", "originator")] == 24000
+
+
+def test_deepseek_app_refusal_template_is_a_refusal():
+    from scraper.utils.direct_questions import classify_direct_text
+    outcome, _ = classify_direct_text("对不起，我还没有学会回答这个问题。如果你有其他问题，我非常乐意为你提供帮助。")
+    assert outcome == "refused"
+
+
 def test_body_data_collection_deny_neutral_only():
     neutral = orx.build_request_body("moonshotai/kimi-k3", "p", "neutral")
     originator = orx.build_request_body("moonshotai/kimi-k3", "p", "originator")
