@@ -49,7 +49,8 @@ _HULL_KEY = "COALESCE(p.force || ':' || v.hull_no, p.force || ':' || NULLIF(TRIM
 # frontend can't draw the chart without them. Scope lives here (it's logic);
 # the TEXT lives in data/site_copy.json (coast_guard.caveat.<key>) so an
 # editor can reword it in the admin UI. Derived from the 2020→ backfill audit
-# (2026-08-26, SESSION_LOG); re-check when the backfill extends to 2017.
+# (2026-08-26, SESSION_LOG); 2017→ extension launched 2026-08-30 — re-audit the
+# pre-2020 years (coverage step, USCG count) when it lands.
 CAVEAT_SCOPES = {
     "ais_floor": "all",
     "kinmen_go_dark": "kinmen",

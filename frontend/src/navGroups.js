@@ -22,6 +22,7 @@ const ALL_GROUPS = [
   { id: "politics", label: "Politics", items: [
     { view: "polls", label: "Polls" },
     { view: "diplomacy", label: "Diplomacy" },
+    { view: "visits", label: "Visits" },
     { view: "positions", label: "Positions", adminOnly: true },   // gated until the curated content is reviewed
   ] },
   { id: "admin", label: "Admin", adminOnly: true, items: [
