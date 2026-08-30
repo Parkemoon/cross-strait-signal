@@ -141,6 +141,12 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - `scripts/bulk_approve_articles.py` — the feed-backlog clear as a real script (dry-run, consistency checks, attention report, manifest); replaces five ad-hoc runs
 - **Reported-speech sentiment axis fix** — a TW outlet quoting a TAO/MND/MFA attack was scored on the PRC's framing of Taiwan (18% of TW-source scores ≤ −0.6 over 90 days), double-counting the statement and flattening the per-side divergence. Prompt: REPORTED SPEECH rule, checklist step (0) on source side, reasoning-subject constraint, worked examples (Tier 1 + Tier 2 by construction). Validator: `_reported_speech_problem()` routes the residual to review (subject-anchored regex; actions and passive outlet framing excluded). A/B vs an old-vs-old noise floor: no control collateral, prompt alone fixes ~half. Prod history re-scored with a manifest: 59 of 170 flagged rows → neutral, mean −0.63 → −0.37; 35 residual hits in the 90-day corpus
 
+### Cross-strait visits tracker + Maritime 2017 extension (2026-08-30, staging)
+
+- **Cross-strait visits tracker (Phase 2f)** — Politics ▾ **Visits**. New `cross_strait_visits` table (migration 0010) fed by a topic-gated pipeline pass (**Step 3e**, `scraper/processors/visits_extract.py`) over analysed `DIP_VISIT` / `PARTY_VISIT` articles — deliberately NOT in the unconditional Tier-1 prompt. Scope is cross-strait only (Ed's call): Taiwan↔third-country travel stays on the Diplomacy axis, and the rule is enforced in code (side derived from the affiliation enum, contradictory rows dropped) as well as in the prompt. Keeps planned / rumoured / cancelled / **blocked** visits as labelled rows. `/api/visits/*` (list / summary / monthly + admin queue with a same-direction ±21-day merge picker), `VisitsTab.jsx` (KPIs, monthly bars by direction, frequent travellers, month-grouped timeline, admin edit/dismiss), `scripts/backfill_cross_strait_visits.py`, `tests/test_visits_extract.py` (scope gate + API-enum mirror). Staging backfill (400 days) running; first dry-run: 8 articles → 3 rows, third-country visits correctly empty.
+- **Maritime 2017 extension** — `backfill_coast_guard.py --start 2017-01-01` launched detached on prod then staging (~400 new windows; also retries the four errored 2020–22 windows). Chart floor is now data-derived (`summary.coverage_start`) instead of a hardcoded 2020-01. Pre-2020 caveats (coverage step, USCG count) to be re-audited when the run lands.
+- Changelog planned list pruned: alt-model write-up done; Positions still under Ed's review.
+
 ### Alt-model originator arm + Substack draft (2026-08-28, staging `4240814`/`1916bc3`, not yet on main)
 
 - **Originator arm unblocked**: the 07-2x 404 was an OpenRouter account *guardrail* (provider allowlist), not the privacy toggle — it also hides DeepSeek from the model's endpoint listing. Cleared by Ed; `--probe` routes via DeepSeek.
@@ -152,8 +158,8 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 
 ## In progress / planned
 
-- **Maritime tab**: the 2017 extension, militia/dredger layer, go-dark events
-- Alt-model: fold §4b of `DIRECT_QUESTION_WRITEUP.md` into the Substack draft (a short "on the PRC host" section after the direct-question tables); FF staging → main when Ed is happy; optional originator paired-set article sweep (279 articles, <$1)
+- **Maritime tab**: 2017 extension backfill running (2026-08-30) → re-audit pre-2020 caveats when it lands; militia/dredger layer, go-dark events; long-view pairing of CGA annual expulsions (2011→) against the CCG series (the "enforcement pre-dates 2016, visible CCG presence doesn't" chart); a measurement-problem note for pre-2020 aircraft data
+- **Cross-strait visits tracker**: BUILT on staging 2026-08-30 — Ed to review the tab + queue, then prod backfill (`--db …/cross_strait_signal.db`) + deploy (migration 0010); later: link visits to feed clusters so both sides' coverage of one trip sits together
 - **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
 - Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
