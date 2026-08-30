@@ -156,6 +156,19 @@ Admin (all `Depends(require_admin)`):
 
 Used by `DiplomacyTab.jsx` (choropleth + KPI strip + stance-sorted country list + drill-in detail), `DiplomacyMap.jsx` (fill + voices pins), and `DiplomacyReviewQueue.jsx` (collapsible-by-country candidate triage).
 
+## `visits.py` — `/api/visits` (Phase 2f)
+
+Cross-strait visits tracker. Same gate shape as diplomacy: public reads show `approved` rows behind `_VISIBLE_ARTICLE`; admin routes are `Depends(require_admin)` and use the shared `approve_row` / `dismiss_row` / `merge_row`. Enums (`AFFILIATIONS`, `LEVELS`, `DIRECTIONS`, `STATUSES`) are duplicated from `visits_extract.py` because `api/` doesn't import `scraper/` — `tests/test_visits_extract.py` asserts they stay identical. Dates are on `effective_date = COALESCE(start_date, date(published_at))`.
+
+- `GET /api/visits/list` — params `days` (or `start`/`end`), `direction`, `affiliation`, `side` (TW|PRC), `level`, `status`, `figure`, `limit`. Newest first.
+- `GET /api/visits/summary?days=90` — `current` / `previous` window counts (`total`, `by_direction`, `by_status`), `by_affiliation` (this window), `frequent_visitors` (12 months, keyed on figure_id else name), `coverage` bounds.
+- `GET /api/visits/monthly?months=24` — per month × direction: `n` (reported/planned/rumoured) and `n_blocked` (cancelled+blocked) kept apart so the bars stay honest.
+- `GET /api/visits/candidates` (**admin**) — pending rows newest first + `merge_targets` (approved rows, last 365 days) for the queue's merge picker. No VISIBLE filter.
+- `GET /api/visits/candidates/count` (**admin**) — `{pending:N}`.
+- `POST /api/visits/{id}/approve|dismiss`, `POST /{id}/merge` (`{target_id}`; target must be approved), `PATCH /{id}` — analyst edits, enums validated, `visitor_side` recomputed from `visitor_affiliation` so the scope gate can't be edited away.
+
+Used by `VisitsTab.jsx` + `VisitsReviewQueue.jsx`.
+
 ## `positions.py` — `/api/positions`
 
 - `GET /api/positions/` — the whole curated Positions & Legal Status content (`scraper/processors/positions.json`), public, no DB. `_comment*` authoring-doc keys are stripped from the response. The file is re-read on mtime change (no restart needed during content co-writing sessions).

@@ -6,6 +6,7 @@ import traceback
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+from scraper.processors.visits_extract import process_visit_articles
 from scraper.scrapers.tao_scraper import scrape_tao
 from scraper.scrapers.rss_scraper import scrape_all_rss_sources
 from scraper.scrapers.mfa_scraper import scrape_mfa_spokesperson
@@ -200,6 +201,13 @@ async def main():
     # 30/run.
     print("\n--- STEP 3c: Poll-only extraction (TW poll-bearing titles) ---")
     _run('poll_only', lambda: process_poll_only_articles(days=14, limit=30), default=None)
+
+    # Step 3e: Cross-strait visits side-extract on analysed DIP_VISIT /
+    # PARTY_VISIT articles not yet visit-scanned (scan marker table, so
+    # zero-yield articles are never re-sent). Cross-strait scope only —
+    # see scraper/processors/visits_extract.py. Capped at 30/run.
+    print("\n--- STEP 3e: Cross-strait visits extraction ---")
+    _run('visits_only', lambda: process_visit_articles(days=14, limit=30), default=None)
 
     # Step 3d: Canonicalise poll-result option labels (drift-catcher). The
     # AI extraction prompt is the first line of defence (CANONICAL NO-OPINION

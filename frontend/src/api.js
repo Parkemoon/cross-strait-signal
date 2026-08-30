@@ -515,3 +515,58 @@ export async function updateCoastGuardVessel(mmsi, patch) {
     body: JSON.stringify(patch),
   });
 }
+
+// Cross-strait visits tracker (Phase 2f) — official/party-level visits in
+// both directions, cross-strait scope only. Same review shape as diplomacy.
+
+export async function fetchVisits(params = {}) {
+  const query = new URLSearchParams();
+  ["days", "start", "end", "direction", "affiliation", "side", "level", "status", "figure", "limit"].forEach((k) => {
+    if (params[k] !== undefined && params[k] !== "" && params[k] !== null) query.append(k, params[k]);
+  });
+  return request(`/api/visits/list?${query}`);
+}
+
+export async function fetchVisitsSummary(params = {}) {
+  const query = new URLSearchParams();
+  if (params.days) query.append("days", params.days);
+  return request(`/api/visits/summary${query.toString() ? `?${query}` : ""}`);
+}
+
+export async function fetchVisitsMonthly(params = {}) {
+  const query = new URLSearchParams();
+  if (params.months) query.append("months", params.months);
+  return request(`/api/visits/monthly${query.toString() ? `?${query}` : ""}`);
+}
+
+export async function fetchVisitCandidates() {
+  return request(`/api/visits/candidates`, { headers: authHeaders() });
+}
+
+export async function fetchVisitCandidatesCount() {
+  return request(`/api/visits/candidates/count`, { headers: authHeaders() });
+}
+
+export async function approveVisit(id) {
+  return request(`/api/visits/${id}/approve`, { method: "POST", headers: authHeaders() });
+}
+
+export async function dismissVisit(id) {
+  return request(`/api/visits/${id}/dismiss`, { method: "POST", headers: authHeaders() });
+}
+
+export async function mergeVisit(id, targetId) {
+  return request(`/api/visits/${id}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ target_id: targetId }),
+  });
+}
+
+export async function updateVisit(id, patch) {
+  return request(`/api/visits/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(patch),
+  });
+}

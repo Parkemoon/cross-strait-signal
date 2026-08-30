@@ -18,6 +18,7 @@ import MilitaryTab from "./components/MilitaryTab";
 import MaritimeTab from "./components/MaritimeTab";
 import PollsTab from "./components/PollsTab";
 import DiplomacyTab from "./components/DiplomacyTab";
+import VisitsTab from "./components/VisitsTab";
 import PositionsTab from "./components/PositionsTab";
 import AltModelsTab from "./components/AltModelsTab";
 import AltModelLens from "./components/AltModelLens";
@@ -267,6 +268,8 @@ export default function App() {
             <PollsTab />
           ) : view === "diplomacy" ? (
             <DiplomacyTab />
+          ) : view === "visits" ? (
+            <VisitsTab />
           ) : !READ_ONLY && view === "positions" ? (
             <PositionsTab onOpenTab={setView} />
           ) : !READ_ONLY && view === "altmodels" ? (

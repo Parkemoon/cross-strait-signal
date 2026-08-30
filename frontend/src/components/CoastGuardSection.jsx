@@ -260,7 +260,7 @@ export default function CoastGuardSection() {
     if (!monthly || !enforcement || !summary?.latest_date) return [];
     const latest = summary.latest_date.slice(0, 7);
     const start = addMonths(latest, -(range - 1));
-    const floor = "2020-01";                       // backfill start
+    const floor = (summary.coverage_start || "2017-01").slice(0, 7);   // series start (GFW covers 2017→)
     const from = start < floor ? floor : start;
     const byMonth = {};
     for (let m = from; m <= latest; m = addMonths(m, 1)) byMonth[m] = { month: m, CCG: 0, CGA: 0, JCG: 0, expelled: null, detained: null };
