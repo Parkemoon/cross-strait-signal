@@ -175,6 +175,11 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - `MonthlyStrip` generalised with `xKey`/`fmt` props (default unchanged) rather than a parallel annual component. Data is client-side aggregation of the existing `/monthly` (months=200, all zones) + `/enforcement` `annual` payloads — no API change.
 - Two new copy keys (`coast_guard.longview`, `coast_guard.longview_aircraft` — the queued pre-2020 aircraft measurement-problem note, pointing at MND's Sept-2020 series start). Prod's admin-edited `site_copy.json` synced over staging first, per the content-change rule.
 
+### Server security hardening (2026-08-31 evening, ops — server only, no repo change)
+
+- Cloudflare Security Center triage: HSTS enabled by Ed at the CF edge (all four hostnames now send `strict-transport-security`); `security.txt` now really served (the SPA catch-all had been returning index.html at that path) via an exact-match nginx location → `/var/www/security-txt/security.txt`, contacts = public GitHub repo + Substack, Expires 2027-08-31; "dangling A record" insights assessed false-positive (all four records proxied, origin correct); the analytics `/script.js` Access policy is the deliberate Umami tracker bypass.
+- **ufw enabled** (was inactive — origin answered 80/443 to the whole internet, bypassing CF): SSH open, 80/443 allowlisted to Cloudflare's 20 published v4+v6 ranges. If CF adds ranges and a host 522s, re-fetch cloudflare.com/ips and add the rule. Also same evening: Umami admin password reset (bcrypt UPDATE in the umami-db-1 postgres; username showmeasignal).
+
 ## In progress / planned
 
 - **Maritime tab**: militia/dredger layer, go-dark events
