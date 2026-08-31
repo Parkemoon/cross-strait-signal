@@ -167,7 +167,7 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 ## In progress / planned
 
 - **Maritime tab**: militia/dredger layer, go-dark events; long-view pairing of CGA annual expulsions (2011→) against the CCG series (the "enforcement pre-dates 2016, visible CCG presence doesn't" chart); a measurement-problem note for pre-2020 aircraft data
-- **Cross-strait visits tracker**: staging build reviewed by Ed 2026-08-31 (dedup + map added on review feedback); next = FF staging→main + deploy (migration 0010), detached prod backfill, `dedup_visits.py --apply` on prod, analyst pass over the residual queue; later: link visits to feed clusters so both sides' coverage of one trip sits together
+- **Cross-strait visits tracker**: DEPLOYED to prod 2026-08-31 (migration 0010; detached prod backfill + auto-dedup launched → `/var/log/visits-backfill-prod.log`); next = analyst pass over the deduped prod queue; later: link visits to feed clusters so both sides' coverage of one trip sits together
 - **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
 - Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
