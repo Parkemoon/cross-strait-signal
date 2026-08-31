@@ -11,6 +11,10 @@ import { PARTY_COLOURS } from "../partyColours";
 // Enums mirror scraper/processors/visits_extract.py + api/routes/visits.py.
 export const DIRECTIONS = ["TW_TO_PRC", "PRC_TO_TW", "THIRD_VENUE"];
 export const DIRECTION_LABEL = { TW_TO_PRC: "TW → PRC", PRC_TO_TW: "PRC → TW", THIRD_VENUE: "third venue" };
+// Direction colours (shared by the tab chart, timeline cards and map).
+// Not party colours (direction is not a party) and not the sentiment
+// purple/amber pair — two neutral tones that stay apart in both themes.
+export const DIR_COLOUR = { TW_TO_PRC: "#0e7490", PRC_TO_TW: "#b45309", THIRD_VENUE: "#64748b", blocked: "#9ca3af" };
 export const STATUSES = ["reported", "planned", "rumoured", "cancelled", "blocked"];
 export const LEVELS = [
   "head_of_state_govt", "party_leader", "party_senior", "minister", "legislator",
