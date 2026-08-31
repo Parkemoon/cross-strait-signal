@@ -169,9 +169,15 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - CT Politics / Military / Opinion went dark 2026-08-26 ~12:00 UTC (health cron had them `STALE`): chinatimes.com enabled a Cloudflare JS challenge (`cf-mitigated: challenge`, 403) on a subset of section list pages (politic/armament/opinion/star; chinese/money/realtimenews exempt). Not the July container patch — that was intact.
 - Fix: third minified edit to the RSSHub container's `chinatimes-CoSBu9wp.mjs` — category fetches now use the unchallenged 總覽 pagination endpoint (`/{category}/total?page=1&chdtv`), conditional so the default `realtimenews` route keeps its original URL (no `/total` there). Article pages were never challenged. All four CT feeds + realtimenews verified live; feed titles now "總覽 -政治" etc. Details in memory `rsshub_chinatimes_patch.md` — the patch lives in the container writable layer and dies on image re-pull.
 
+### Maritime long view — annual CGA enforcement vs CCG presence (2026-08-31 evening, staging)
+
+- New "The long view · annual" section on the Maritime tab, between the paired monthly strips and the dual-frame cards: two synced annual strips — CGA PRC-vessel expulsions per year (表8-1, constant methodology 2011→, spans the 2016 change of administration) and AIS-visible CCG hull-days per year, all zones (2017→). Full calendar years only (no asymmetric partial-year bars — the monthly strips above carry the recent period); pre-2017 CCG renders null, never zero (no coverage ≠ no activity); annual rows dedupe yearbook-first; the `ccg_pre_2023` caveat always renders with it.
+- `MonthlyStrip` generalised with `xKey`/`fmt` props (default unchanged) rather than a parallel annual component. Data is client-side aggregation of the existing `/monthly` (months=200, all zones) + `/enforcement` `annual` payloads — no API change.
+- Two new copy keys (`coast_guard.longview`, `coast_guard.longview_aircraft` — the queued pre-2020 aircraft measurement-problem note, pointing at MND's Sept-2020 series start). Prod's admin-edited `site_copy.json` synced over staging first, per the content-change rule.
+
 ## In progress / planned
 
-- **Maritime tab**: militia/dredger layer, go-dark events; long-view pairing of CGA annual expulsions (2011→) against the CCG series (the "enforcement pre-dates 2016, visible CCG presence doesn't" chart); a measurement-problem note for pre-2020 aircraft data
+- **Maritime tab**: militia/dredger layer, go-dark events
 - **Cross-strait visits tracker**: DEPLOYED to prod 2026-08-31 (migration 0010; detached prod backfill + auto-dedup launched → `/var/log/visits-backfill-prod.log`); next = analyst pass over the deduped prod queue; later: link visits to feed clusters so both sides' coverage of one trip sits together
 - **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
 - Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
