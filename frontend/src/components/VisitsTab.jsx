@@ -7,16 +7,13 @@ import {
   fetchVisits, fetchVisitsSummary, fetchVisitsMonthly, fetchVisitCandidatesCount,
   dismissVisit, updateVisit,
 } from "../api";
+import VisitsMap from "./VisitsMap";
 import VisitsReviewQueue, {
-  DIRECTION_LABEL, AFFILIATION_LABEL, LEVEL_LABEL, TW_AFFILIATIONS, PRC_AFFILIATIONS,
+  DIRECTION_LABEL, DIR_COLOUR, AFFILIATION_LABEL, LEVEL_LABEL, TW_AFFILIATIONS, PRC_AFFILIATIONS,
   affiliationColour, VisitFieldsGrid, visitDraftFrom, isVisitDraftDirty, buildVisitPatch,
 } from "./VisitsReviewQueue";
 import { READ_ONLY } from "../readOnly";
 
-// Direction colours. Not party colours (direction isn't a party) and not
-// the sentiment purple/amber pair — two neutral tones that stay apart in
-// both themes. Blocked/cancelled draws hatched-grey on top.
-const DIR_COLOUR = { TW_TO_PRC: "#0e7490", PRC_TO_TW: "#b45309", THIRD_VENUE: "#64748b", blocked: "#9ca3af" };
 const TICK = { fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" };
 const TOOLTIP_STYLE = { background: "var(--bg-primary)", border: "1px solid var(--border-color)", fontFamily: "var(--font-mono)", fontSize: "11px" };
 const RANGES = [{ label: "90d", days: 90 }, { label: "1Y", days: 365 }, { label: "All", days: 3650 }];
@@ -307,7 +304,7 @@ export default function VisitsTab() {
         </>
       )}
 
-      <SectionHeader right={visits ? `${visits.length} shown` : ""}>Timeline</SectionHeader>
+      <SectionHeader right={visits ? `${visits.length} shown` : ""}>Map & Timeline</SectionHeader>
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", marginBottom: "12px" }}>
         {RANGES.map((r) => <Pill key={r.days} active={range === r.days} onClick={() => setRange(r.days)}>{r.label}</Pill>)}
         <span style={{ width: "10px" }} />
@@ -332,6 +329,8 @@ export default function VisitsTab() {
           </button>
         )}
       </div>
+
+      <VisitsMap visits={visits || []} />
 
       {visits && visits.length === 0 && (
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>No approved visits in this window.</p>
