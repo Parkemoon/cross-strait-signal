@@ -32,6 +32,14 @@ router = APIRouter(prefix="/api/military/coast-guard", tags=["coast-guard"])
 _ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _ZONES_PATH = os.path.join(_ROOT, "data", "coast_guard_zones.geojson")
 FORCES = ("CCG", "CGA", "JCG", "USCG")
+# Displayed forces (Ed's call, 2026-08-31): JCG/USCG are still collected and
+# roster-classified (the GFW pull is zone-wide regardless, and classification
+# needs all four labels) but excluded from every public aggregate — JCG is
+# Senkaku/Yonaguni patrol overspill in the east box (>=93% of its hull-days
+# every year 2017->), USCG is 2 hull-days ever. Reversible: an explicit
+# ?force=JCG on /daily and /monthly still returns the hidden series.
+DISPLAY_FORCES = ("CCG", "CGA")
+_DISPLAY_FILTER = "p.force IN ('CCG','CGA')"
 FORCE_LABELS = {"CCG": "China Coast Guard", "CGA": "Taiwan Coast Guard", "JCG": "Japan Coast Guard", "USCG": "US Coast Guard"}
 
 # Presence rows for hulls an analyst rejected are excluded everywhere.
@@ -49,14 +57,11 @@ _HULL_KEY = "COALESCE(p.force || ':' || v.hull_no, p.force || ':' || NULLIF(TRIM
 # frontend can't draw the chart without them. Scope lives here (it's logic);
 # the TEXT lives in data/site_copy.json (coast_guard.caveat.<key>) so an
 # editor can reword it in the admin UI. Derived from the 2020→ backfill audit
-# (2026-08-26, SESSION_LOG); 2017→ extension launched 2026-08-30 — re-audit the
-# pre-2020 years (coverage step, USCG count) when it lands.
+# (2026-08-26, SESSION_LOG); 2017→ extension re-audited 2026-08-31.
 CAVEAT_SCOPES = {
     "ais_floor": "all",
     "kinmen_go_dark": "kinmen",
     "ccg_pre_2023": "CCG",
-    "uscg_absent": "USCG",
-    "jcg_east_only": "JCG",
     "cga_home_waters": "CGA",
     "hours_coarse": "all",
 }
@@ -106,20 +111,20 @@ def summary(days: int = Query(30, ge=7, le=365)):
         def window(a: date, b: date):
             rows = conn.execute(
                 f"""SELECT p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours, COUNT(DISTINCT {_HULL_KEY}) AS hulls
-                    FROM coast_guard_presence p {_VESSEL_JOIN} WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED}
+                    FROM coast_guard_presence p {_VESSEL_JOIN} WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED} AND {_DISPLAY_FILTER}
                     GROUP BY p.force""", (a.isoformat(), b.isoformat())).fetchall()
             return {r["force"]: dict(r) for r in rows}
 
         cur, prev = window(start, end), window(prev_start, prev_end)
         forces = []
-        for f in FORCES:
+        for f in DISPLAY_FORCES:
             c, p = cur.get(f, {}), prev.get(f, {})
             forces.append({"force": f, "label": FORCE_LABELS[f],
                            "hull_days": c.get("hull_days", 0), "hours": c.get("hours", 0.0), "hulls": c.get("hulls", 0),
                            "prev_hull_days": p.get("hull_days", 0)})
         zrows = conn.execute(
             f"""SELECT p.zone_id, p.force, COUNT(*) AS hull_days, COUNT(DISTINCT {_HULL_KEY}) AS hulls
-                FROM coast_guard_presence p {_VESSEL_JOIN} WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED}
+                FROM coast_guard_presence p {_VESSEL_JOIN} WHERE p.date BETWEEN ? AND ? AND {_NOT_REJECTED} AND {_DISPLAY_FILTER}
                 GROUP BY p.zone_id, p.force""", (start.isoformat(), end.isoformat())).fetchall()
         by_zone: dict[str, dict] = {}
         for r in zrows:
@@ -182,6 +187,8 @@ def daily(
             where.append(f"p.zone_id IN ({','.join('?' * len(ids))})"); args += ids
         if force:
             where.append("p.force = ?"); args.append(force)
+        else:
+            where.append(_DISPLAY_FILTER)
         rows = conn.execute(
             f"""SELECT p.date, p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours, COUNT(DISTINCT {_HULL_KEY}) AS hulls
                 FROM coast_guard_presence p {_VESSEL_JOIN} WHERE {' AND '.join(where)}
@@ -202,11 +209,13 @@ def monthly(zone: Optional[str] = None, group: Optional[str] = None, force: Opti
             where.append(f"p.zone_id IN ({','.join('?' * len(ids))})"); args += ids
         if force:
             where.append("p.force = ?"); args.append(force)
+        else:
+            where.append(_DISPLAY_FILTER)
         rows = conn.execute(
             f"""SELECT substr(p.date,1,7) AS month, p.force, COUNT(*) AS hull_days, ROUND(SUM(p.hours),1) AS hours,
                        COUNT(DISTINCT {_HULL_KEY}) AS hulls
                 FROM coast_guard_presence p {_VESSEL_JOIN} WHERE {' AND '.join(where)}
-                GROUP BY month, p.force ORDER BY month DESC LIMIT ?""", args + [months * len(FORCES)]).fetchall()
+                GROUP BY month, p.force ORDER BY month DESC LIMIT ?""", args + [months * len(DISPLAY_FORCES)]).fetchall()
         return {"rows": [dict(r) for r in reversed(rows)]}
 
 
@@ -261,7 +270,7 @@ def vessel(mmsi: str, days: int = Query(365, ge=1, le=3660)):
 
 @router.get("/encounters")
 def encounters(days: int = Query(30, ge=1, le=3660), zone: Optional[str] = None):
-    """v1 encounter = a CCG hull and a CGA/JCG/USCG hull present in the SAME
+    """v1 encounter = a CCG hull and a CGA hull present in the SAME
     zone on the SAME day. Daily/1-km data can't show a 5-nm intercept, so this
     is 'co-presence', not 'interaction' — label it that way."""
     with db_conn() as conn:
@@ -270,17 +279,17 @@ def encounters(days: int = Query(30, ge=1, le=3660), zone: Optional[str] = None)
             return {"rows": []}
         end = date.fromisoformat(latest)
         start = (end - timedelta(days=days - 1)).isoformat()
-        where, args = ["p.date >= ?", _NOT_REJECTED], [start]
+        where, args = ["p.date >= ?", _NOT_REJECTED, _DISPLAY_FILTER], [start]
         if zone:
             where.append("p.zone_id = ?"); args.append(zone)
         rows = conn.execute(
             f"""SELECT p.date, p.zone_id,
-                       SUM(p.force='CCG') AS ccg, SUM(p.force='CGA') AS cga, SUM(p.force='JCG') AS jcg, SUM(p.force='USCG') AS uscg,
+                       SUM(p.force='CCG') AS ccg, SUM(p.force='CGA') AS cga,
                        GROUP_CONCAT(CASE WHEN p.force='CCG' THEN p.name END, '|') AS ccg_names,
                        GROUP_CONCAT(CASE WHEN p.force!='CCG' THEN p.force||':'||p.name END, '|') AS other_names
                 FROM coast_guard_presence p {_VESSEL_JOIN} WHERE {' AND '.join(where)}
                 GROUP BY p.date, p.zone_id
-                HAVING ccg > 0 AND (cga + jcg + uscg) > 0
+                HAVING ccg > 0 AND cga > 0
                 ORDER BY p.date DESC, p.zone_id""", args).fetchall()
         out = []
         for r in rows:

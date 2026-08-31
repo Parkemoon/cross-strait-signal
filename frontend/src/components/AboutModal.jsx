@@ -13,7 +13,7 @@ const BIAS_ROWS = [
 
 const TABS = [
   { name: "Military",     desc: "Daily PLA activity around Taiwan from MND briefings (2020–present), plus a reviewed tracker of named exercises on a live map." },
-  { name: "Maritime",     desc: "Coast-guard presence in Taiwan-drawn waters (China, Taiwan and Japan hulls seen on AIS via Global Fishing Watch, 2017–present) paired with Taiwan's own enforcement statistics. Law-enforcement vessels, not warships — kept beside Military, not inside it. AIS is a floor, and every chart carries its caveat." },
+  { name: "Maritime",     desc: "Coast-guard presence in Taiwan-drawn waters (China and Taiwan hulls seen on AIS via Global Fishing Watch, 2017–present) paired with Taiwan's own enforcement statistics. Law-enforcement vessels, not warships — kept beside Military, not inside it. AIS is a floor, and every chart carries its caveat." },
   { name: "Indicators",   desc: "Cross-strait trade, investment, and macro indicators, with a verification angle: the same flows as reported by Taipei, by Beijing, and by Hong Kong, side by side. Where the reporters diverge, that divergence is the signal." },
   { name: "Trade access", desc: "The asymmetric regulatory picture: Taiwan's import bans on PRC goods against the PRC's ECFA suspensions and food-registration blocks." },
   { name: "People",       desc: "Visitor flows, residence and settlement permits, and the mainland-spouse population, in both directions." },

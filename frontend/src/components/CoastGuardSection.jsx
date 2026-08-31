@@ -14,7 +14,7 @@ import { Copy } from "../copy";
 
 // Coast Guard section of the Military tab (Phase 2e). Two halves, always shown
 // together (Ed's standing rule for this tracker): AIS-visible coast-guard
-// PRESENCE in Taiwan-drawn zones (GFW, four flags) and the CGA's own
+// PRESENCE in Taiwan-drawn zones (GFW) and the CGA's own
 // ENFORCEMENT statistics (PRC vessels expelled / detained) — "what the AIS
 // shows" next to "what Taipei reports". The series is a FLOOR, not an
 // activity index: every chart renders the scoped caveat from
@@ -23,7 +23,9 @@ import { Copy } from "../copy";
 // each force gets its own strip with the label carrying identity.
 // Chinese appears only where it is the source's own term (gazetted zone names,
 // CGA table names) — never as translated chrome; see frontend.md.
-const CHART_FORCES = ["CCG", "CGA", "JCG"];          // USCG hidden — 2 hull-days since 2017, both June 2023 (caveat uscg_absent)
+const CHART_FORCES = ["CCG", "CGA"];   // JCG/USCG still collected + roster-classified but not displayed (Ed, 2026-08-31):
+                                       // JCG is Senkaku/Yonaguni patrol overspill in the east box (>=93% of its hull-days
+                                       // every year 2017->), USCG is 2 hull-days ever (one cutter, June 2023).
 const GROUPS = [
   { id: "kinmen",     label: "Kinmen", },
   { id: "matsu",      label: "Matsu", },
@@ -217,7 +219,6 @@ function Encounters({ rows }) {
           <div>
             <span style={{ color: FORCE_COLOUR.CCG }}>CCG ×{r.ccg}</span>
             {r.cga > 0 && <span style={{ color: FORCE_COLOUR.CGA, marginLeft: 8 }}>CGA ×{r.cga}</span>}
-            {r.jcg > 0 && <span style={{ color: FORCE_COLOUR.JCG, marginLeft: 8 }}>JCG ×{r.jcg}</span>}
             <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>{r.ccg_names.slice(0, 4).join(", ")}{r.ccg_names.length > 4 ? "…" : ""}</span>
           </div>
         </div>
@@ -263,7 +264,7 @@ export default function CoastGuardSection() {
     const floor = (summary.coverage_start || "2017-01").slice(0, 7);   // series start (GFW covers 2017→)
     const from = start < floor ? floor : start;
     const byMonth = {};
-    for (let m = from; m <= latest; m = addMonths(m, 1)) byMonth[m] = { month: m, CCG: 0, CGA: 0, JCG: 0, expelled: null, detained: null };
+    for (let m = from; m <= latest; m = addMonths(m, 1)) byMonth[m] = { month: m, CCG: 0, CGA: 0, expelled: null, detained: null };
     for (const r of monthly) if (byMonth[r.month]) byMonth[r.month][r.force] = r.hull_days;
     for (const r of enforcement.monthly || []) if (byMonth[r.period]) { byMonth[r.period].expelled = r.expelled; byMonth[r.period].detained = r.detained; }
     return Object.values(byMonth);
@@ -272,7 +273,7 @@ export default function CoastGuardSection() {
   const dailyPivot = useMemo(() => {
     if (!daily) return [];
     const m = {};
-    for (const r of daily) { m[r.date] = m[r.date] || { date: r.date, CCG: 0, CGA: 0, JCG: 0 }; m[r.date][r.force] = r.hulls; }
+    for (const r of daily) { m[r.date] = m[r.date] || { date: r.date, CCG: 0, CGA: 0 }; m[r.date][r.force] = r.hulls; }
     return Object.values(m).sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [daily]);
 
@@ -360,7 +361,7 @@ export default function CoastGuardSection() {
       {/* Daily small multiples */}
       <SubHeader right="Last 90 days · all zones">Daily presence by flag</SubHeader>
       {CHART_FORCES.map((f) => <DailyStrip key={f} rows={dailyPivot} force={f} />)}
-      <Caveats caveats={summary.caveats} scopes={["JCG", "CGA", "USCG"]} compact />
+      <Caveats caveats={summary.caveats} scopes={["CGA"]} compact />
 
       {/* Map + zone table */}
       <SubHeader right={`${summary.window_start} → ${summary.latest_date}`}>Zones · 30-day window</SubHeader>
@@ -379,14 +380,13 @@ export default function CoastGuardSection() {
         </button>
       ) : "Last 30 days"}>Same-zone co-presence</SubHeader>
       <Copy k="coast_guard.copresence" style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.5 }}
-            fallback={"A CCG hull and a CGA/JCG hull in the same zone on the same day — co-presence, not interaction."} />
+            fallback={"A CCG hull and a CGA hull in the same zone on the same day — co-presence, not interaction."} />
       <Encounters rows={encounters} />
 
       <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "16px", lineHeight: 1.5 }}>
         <strong style={{ color: "var(--text-secondary)" }}>Sources:</strong> <SrcLink href="https://globalfishingwatch.org/our-apis/" muted>Global Fishing Watch</SrcLink> 4Wings presence
         (AIS, per hull per day per 1-km cell; coverage from {summary.coverage_start}, ~5-day lag) · coast-guard rosters resolved from
-        GFW's identity index with MID / flag / name-change anomaly flags ({fmtInt(summary.roster?.CCG)} CCG, {fmtInt(summary.roster?.CGA)} CGA,
-        {" "}{fmtInt(summary.roster?.JCG)} JCG identities) · Kinmen zone from the county gazette's official control points, Matsu from the
+        GFW's identity index with MID / flag / name-change anomaly flags ({fmtInt(summary.roster?.CCG)} CCG, {fmtInt(summary.roster?.CGA)} CGA identities) · Kinmen zone from the county gazette's official control points, Matsu from the
         MND 公告 bands · <SrcLink href={enforcement?.cga_stats_home} muted>CGA 績效統計月報 / 海巡統計年報</SrcLink> <SrcLink href={t81?.source_url} muted>表8-1</SrcLink> (national monthly), <SrcLink href={latestSource(enforcement?.sources, "表8-3")?.source_url} muted>表8-3</SrcLink> (county) and the <SrcLink href={huyong?.source_url} muted>護永專案</SrcLink> summary.
         Map basemap: CartoDB Positron (&copy; OpenStreetMap contributors, &copy; CARTO).
       </p>

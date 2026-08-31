@@ -60,7 +60,7 @@ export default function CoastGuardMap({ zoneStats, height = 380 }) {
     layer.bindTooltip(
       `<div style="font-family:var(--font-mono);font-size:11px;line-height:1.5">` +
       `<div style="font-weight:700">${p.label_en}</div><div style="color:#6b7280">${p.label_zh} · ${p.area_km2.toLocaleString()} km²</div>` +
-      line("CCG", "China CG") + line("CGA", "Taiwan CG") + line("JCG", "Japan CG") + `</div>`,
+      line("CCG", "China CG") + line("CGA", "Taiwan CG") + `</div>`,
       { sticky: true },
     );
   };
@@ -82,7 +82,7 @@ export default function CoastGuardMap({ zoneStats, height = 380 }) {
       <div style={{ position: "absolute", left: 8, bottom: 8, zIndex: 500, background: "var(--bg-primary)",
                     border: "1px solid var(--border-color)", padding: "5px 8px",
                     fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-        <div>Fill: China CG hull-days in window · hover for all forces</div>
+        <div>Fill: China CG hull-days in window · hover for both forces</div>
         <div>Solid = prohibited · dashed = restricted · dotted = 12/24 nm bands</div>
       </div>
     </div>
