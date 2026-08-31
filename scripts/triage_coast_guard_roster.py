@@ -20,7 +20,7 @@ Rules (in order, first match wins):
 
 Only rows with status='auto' are touched; analyst decisions are never
 overwritten. Idempotent. Runs after every roster refresh
-(refresh_coast_guard_roster.py) and after the nightly presence pull;
+(refresh_coast_guard_roster.py) and after each 6-hourly pipeline presence pull;
 also safe by hand:  python scripts/triage_coast_guard_roster.py [--db …] [--dry-run]
 """
 from __future__ import annotations
