@@ -319,6 +319,18 @@ export default function CoastGuardSection() {
   const t81Link = t81 ? <SrcLink href={t81.source_url} muted>({t81.source_ref})</SrcLink> : null;
   const yb81 = (enforcement?.sources || []).find((r) => r.source === "yearbook" && r.source_ref.endsWith("表8-1"));
   const yb81Link = yb81 ? <SrcLink href={yb81.source_url} muted>({yb81.source_ref})</SrcLink> : null;
+  // Every yearbook edition that actually supplied an annual bar. Each edition's
+  // 表8-1 prints only a ~12-year window, so the early bars (2011, 2012) come
+  // from OLDER editions than the one linked on the strip title — list them all.
+  const ybEditions = [];
+  for (const r of enforcement?.annual || []) {
+    if (r.granularity !== "year" || r.source !== "yearbook") continue;
+    const label = r.source_ref.replace(/ 表8-\d$/, "");
+    if (!ybEditions.some((e) => e.label === label)) {
+      const s = (enforcement.sources || []).find((x) => x.source_ref === r.source_ref);
+      ybEditions.push({ label, url: s?.source_url });
+    }
+  }
   const reportLinks = (enforcement?.sources || []).filter((r) => r.source !== "manual" && r.source_ref.endsWith("表8-1"));
   const huyong = (enforcement?.sources || []).find((r) => r.source === "manual");
 
@@ -382,6 +394,14 @@ export default function CoastGuardSection() {
                         xKey="year" fmt={(y) => y} title="China Coast Guard hull-days per year · all zones" />
           <MonthlyStrip data={longView} dataKey="expelled" colour={FORCE_COLOUR.CGA} syncId="cg-longview" unit="expelled"
                         xKey="year" fmt={(y) => y} title="PRC fishing vessels expelled by the CGA per year · national, all waters" titleLink={yb81Link} />
+          {ybEditions.length > 0 && (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--text-muted)", marginTop: 2, lineHeight: 1.7 }}>
+              Annual figures compiled across yearbook editions — each 表8-1 prints a ~12-year window:{" "}
+              {ybEditions.map((e, i) => (
+                <span key={e.label}>{i > 0 && " · "}<SrcLink href={e.url} muted>{e.label}</SrcLink></span>
+              ))}
+            </div>
+          )}
           <Caveats caveats={summary.caveats} scopes={["CCG"]} compact />
           <Copy k="coast_guard.longview_aircraft" as="div" style={{ fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.5 }}
                 fallback={"No comparable air-domain series exists for the earlier years: systematic PLA aircraft counts begin with the MND's September 2020 daily briefing."} />
