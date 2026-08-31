@@ -23,7 +23,7 @@ import { Copy } from "../copy";
 // each force gets its own strip with the label carrying identity.
 // Chinese appears only where it is the source's own term (gazetted zone names,
 // CGA table names) — never as translated chrome; see frontend.md.
-const CHART_FORCES = ["CCG", "CGA", "JCG"];          // USCG hidden — 2 hull-days since 2020 (caveat uscg_absent)
+const CHART_FORCES = ["CCG", "CGA", "JCG"];          // USCG hidden — 2 hull-days since 2017, both June 2023 (caveat uscg_absent)
 const GROUPS = [
   { id: "kinmen",     label: "Kinmen", },
   { id: "matsu",      label: "Matsu", },
