@@ -164,6 +164,11 @@ Coast-guard presence around Taiwan, framed as the AIS-visible *floor*, paired wi
 - **Visits pre-queue dedup** (`shared/visit_dedup.py`, `scripts/dedup_visits.py`, pipeline step straight after 3e) — one article per outlet per day of one trip flooded the queue: 495 of 522 staging backfill rows were a single Cheng Li-wun trip (both script variants). Clusters by direction + visitor (figure_id, else romanised name, else zh) with effective dates chained ≤21 days; richest keeper (approved rows anchor; cancelled/blocked/reported outrank planned/rumoured; location deliberately NOT a key). Staging apply: **520 pending → 16**; revert manifest kept. 7 unit tests (182 green).
 - **Visits map** (`VisitsMap.jsx`) — per-(place, direction) markers sized by visit count, resolved through an in-file gazetteer over the extraction prompt's English `location_label`; unresolvable labels ("Mainland China") stay timeline-only. Shares the timeline's filter pills; `DIR_COLOUR` moved to `VisitsReviewQueue.jsx` beside the other shared visit constants.
 
+### China Times Cloudflare outage fixed (2026-08-31 evening, ops — container only, no repo change)
+
+- CT Politics / Military / Opinion went dark 2026-08-26 ~12:00 UTC (health cron had them `STALE`): chinatimes.com enabled a Cloudflare JS challenge (`cf-mitigated: challenge`, 403) on a subset of section list pages (politic/armament/opinion/star; chinese/money/realtimenews exempt). Not the July container patch — that was intact.
+- Fix: third minified edit to the RSSHub container's `chinatimes-CoSBu9wp.mjs` — category fetches now use the unchallenged 總覽 pagination endpoint (`/{category}/total?page=1&chdtv`), conditional so the default `realtimenews` route keeps its original URL (no `/total` there). Article pages were never challenged. All four CT feeds + realtimenews verified live; feed titles now "總覽 -政治" etc. Details in memory `rsshub_chinatimes_patch.md` — the patch lives in the container writable layer and dies on image re-pull.
+
 ## In progress / planned
 
 - **Maritime tab**: militia/dredger layer, go-dark events; long-view pairing of CGA annual expulsions (2011→) against the CCG series (the "enforcement pre-dates 2016, visible CCG presence doesn't" chart); a measurement-problem note for pre-2020 aircraft data
