@@ -113,7 +113,7 @@ function Caveats({ caveats, scopes, compact }) {
 }
 
 // One force, one strip, one axis. `unit` names the measure for the tooltip.
-function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, syncId, height = 130 }) {
+function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, syncId, height = 130, xKey = "month", fmt = fmtMonth }) {
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--text-primary)", marginBottom: 2 }}>
@@ -125,9 +125,9 @@ function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, syncId, h
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} syncId={syncId} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="2 4" stroke="var(--border-color)" vertical={false} />
-            <XAxis dataKey="month" tick={TICK} stroke="var(--border-color)" tickFormatter={fmtMonth} interval="preserveStartEnd" minTickGap={48} />
+            <XAxis dataKey={xKey} tick={TICK} stroke="var(--border-color)" tickFormatter={fmt} interval="preserveStartEnd" minTickGap={48} />
             <YAxis tick={TICK} stroke="var(--border-color)" width={38} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={fmtMonth}
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={fmt}
                      formatter={(v) => [fmtInt(v), unit]} />
             <Bar dataKey={dataKey} fill={colour} maxBarSize={9} />
           </ComposedChart>
@@ -234,6 +234,7 @@ export default function CoastGuardSection() {
   const [encounters, setEncounters] = useState([]);
   const [enforcement, setEnforcement] = useState(null);
   const [monthly, setMonthly] = useState(null);
+  const [allMonthly, setAllMonthly] = useState(null);   // all zones, full series — feeds the annual long view
   const [group, setGroup] = useState("kinmen");
   const [range, setRange] = useState(60);
   const [rosterOpen, setRosterOpen] = useState(false);
@@ -246,6 +247,7 @@ export default function CoastGuardSection() {
       fetchCoastGuardDaily({ days: 90 }).then((d) => setDaily(d.rows || [])),
       fetchCoastGuardEncounters({ days: 30 }).then((d) => setEncounters(d.rows || [])),
       fetchCoastGuardEnforcement({ months: 240 }).then(setEnforcement),
+      fetchCoastGuardMonthly({ months: 200 }).then((d) => setAllMonthly(d.rows || [])),
     ]).catch(() => setError(true));
   }, []);
 
@@ -270,6 +272,28 @@ export default function CoastGuardSection() {
     return Object.values(byMonth);
   }, [monthly, enforcement, summary, range]);
 
+  // Annual long view: the CGA's constant-methodology expulsion series (表8-1,
+  // 2011→) beside AIS-visible CCG hull-days (2017→), on one year axis. Full
+  // calendar years only — the current partial year would under-report both
+  // series by different amounts (表8-1 lags months, GFW days), and this chart's
+  // job is the long arc; the monthly strips above carry the recent period.
+  // Pre-2017 CCG is null, NOT 0: there is no presence coverage before the
+  // series start, and a zero bar would invent a measurement. Annual rows
+  // dedupe on period first-seen — the API orders sources yearbook-first.
+  const longView = useMemo(() => {
+    if (!allMonthly || !enforcement) return [];
+    const thisYear = String(new Date().getUTCFullYear());
+    const ccg = {};
+    for (const r of allMonthly) if (r.force === "CCG") { const y = r.month.slice(0, 4); ccg[y] = (ccg[y] || 0) + r.hull_days; }
+    const expelled = {};
+    for (const r of enforcement.annual || []) {
+      if (r.granularity === "year" && !(r.period in expelled)) expelled[r.period] = r.expelled;
+    }
+    const years = [...new Set([...Object.keys(ccg), ...Object.keys(expelled)])].filter((y) => y < thisYear).sort();
+    const ccgStart = Object.keys(ccg).sort()[0];
+    return years.map((y) => ({ year: y, CCG: ccgStart && y >= ccgStart ? (ccg[y] || 0) : null, expelled: expelled[y] ?? null }));
+  }, [allMonthly, enforcement]);
+
   const dailyPivot = useMemo(() => {
     if (!daily) return [];
     const m = {};
@@ -293,6 +317,8 @@ export default function CoastGuardSection() {
   const zones = summary.zones || [];
   const t81 = latestSource(enforcement?.sources, "表8-1");
   const t81Link = t81 ? <SrcLink href={t81.source_url} muted>({t81.source_ref})</SrcLink> : null;
+  const yb81 = (enforcement?.sources || []).find((r) => r.source === "yearbook" && r.source_ref.endsWith("表8-1"));
+  const yb81Link = yb81 ? <SrcLink href={yb81.source_url} muted>({yb81.source_ref})</SrcLink> : null;
   const reportLinks = (enforcement?.sources || []).filter((r) => r.source !== "manual" && r.source_ref.endsWith("表8-1"));
   const huyong = (enforcement?.sources || []).find((r) => r.source === "manual");
 
@@ -345,6 +371,22 @@ export default function CoastGuardSection() {
         </div>
       )}
       <Caveats caveats={summary.caveats} scopes={caveatScopes.filter((s) => s !== "all")} compact />
+
+      {/* Long view — annual totals, full calendar years only */}
+      {longView.length > 0 && (
+        <>
+          <SubHeader right={`Full calendar years · ${longView[0].year} → ${longView[longView.length - 1].year}`}>The long view · annual</SubHeader>
+          <Copy k="coast_guard.longview" as="div" style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.5 }}
+                fallback={"Annual totals for the two series on one timeline. The CGA has published PRC-vessel expulsions on one methodology since 2011; AIS-visible CCG presence coverage starts in 2017."} />
+          <MonthlyStrip data={longView} dataKey="CCG" colour={FORCE_COLOUR.CCG} syncId="cg-longview" unit="hull-days"
+                        xKey="year" fmt={(y) => y} title="China Coast Guard hull-days per year · all zones" />
+          <MonthlyStrip data={longView} dataKey="expelled" colour={FORCE_COLOUR.CGA} syncId="cg-longview" unit="expelled"
+                        xKey="year" fmt={(y) => y} title="PRC fishing vessels expelled by the CGA per year · national, all waters" titleLink={yb81Link} />
+          <Caveats caveats={summary.caveats} scopes={["CCG"]} compact />
+          <Copy k="coast_guard.longview_aircraft" as="div" style={{ fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.5 }}
+                fallback={"No comparable air-domain series exists for the earlier years: systematic PLA aircraft counts begin with the MND's September 2020 daily briefing."} />
+        </>
+      )}
 
       {/* Dual-frame reading — both, always */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 12 }}>
