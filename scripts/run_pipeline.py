@@ -46,6 +46,7 @@ from scraper.processors.social_translator import translate_social_pulse
 sys.path.insert(0, os.path.dirname(__file__))
 from cluster_events import cluster_recent_articles
 from dedup_articles import dedup_recent_articles
+from dedup_visits import dedup_recent_visits
 
 
 _FAILURES = []
@@ -208,6 +209,14 @@ async def main():
     # see scraper/processors/visits_extract.py. Capped at 30/run.
     print("\n--- STEP 3e: Cross-strait visits extraction ---")
     _run('visits_only', lambda: process_visit_articles(days=14, limit=30), default=None)
+
+    # Step 3e follow-up: collapse per-article duplicate rows for the same
+    # trip BEFORE they reach the analyst queue (one keeper per visitor +
+    # direction + <=21-day date chain; logic in shared/visit_dedup.py,
+    # sweep CLI scripts/dedup_visits.py). 60-day window so late coverage
+    # of a trip still lands on its existing keeper.
+    print("\n--- STEP 3e (dedup): Visits pre-queue dedup ---")
+    _run('visits_dedup', lambda: dedup_recent_visits(days=60, apply=True))
 
     # Step 3d: Canonicalise poll-result option labels (drift-catcher). The
     # AI extraction prompt is the first line of defence (CANONICAL NO-OPINION
