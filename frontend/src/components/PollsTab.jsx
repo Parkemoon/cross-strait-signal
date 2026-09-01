@@ -22,35 +22,39 @@ const FLAGSHIPS = [
   { key: "approval_lai_overall", label: "President Lai Approval",   source: "Multi-pollster" },
 ];
 const FLAGSHIP_KEYS = new Set(FLAGSHIPS.map((f) => f.key));
+// Render slots — resolved by key, not array position, so reordering
+// FLAGSHIPS can't silently bind the Lai hero to the wrong question.
+const APPROVAL_FLAGSHIP = FLAGSHIPS.find((f) => f.key === "approval_lai_overall");
+const NCCU_FLAGSHIPS = FLAGSHIPS.filter((f) => f.key !== "approval_lai_overall");
 
 // Per-question option-order palettes. Hand-coded rather than computed
 // because each scale has its own natural colour story. Index order MUST
 // match the seeded option_order in nccu_esc_seed.json — the chart pivots
 // by position, not by label.
 //   * identity_nccu_3pt — seed order is Taiwanese / Both / Chinese / NR:
-//     green = Taiwanese, purple = Both, red = Chinese, grey = NR.
-//     Matches the project's broader palette (party-green for TW identity,
-//     party-red for PRC identity, purple for the mixed/ambivalent middle).
+//     green = Taiwanese, grey = Both (the ambivalent middle), red = Chinese,
+//     pale = NR. Purple left out deliberately — it now belongs to the
+//     hostile end of the sentiment axis and must not encode identity.
 //   * unification_nccu_6pt — 6-point scale from "unification ASAP" (red)
 //     to "independence ASAP" (green) through status-quo greys. Mirrors
 //     the published NCCU chart conventions.
 //   * approval_lai_overall — green = satisfied, red = dissatisfied,
 //     grey = no opinion. Standard approval-poll convention.
 const OPTION_PALETTES = {
-  identity_nccu_3pt: ["#16a34a", "#7c3aed", "#dc2626", "#94a3b8"],
+  identity_nccu_3pt: ["var(--green)", "var(--muted)", "var(--red)", "var(--pale)"],
   unification_nccu_6pt: [
-    "#dc2626", // 0 unification ASAP
-    "#f59e0b", // 1 SQ→unification
-    "#94a3b8", // 2 SQ decide later
-    "#6b7280", // 3 SQ indefinitely
-    "#84cc16", // 4 SQ→independence
-    "#16a34a", // 5 independence ASAP
-    "#cbd5e1", // 6 non-response (when present)
+    "var(--red)",   // 0 unification ASAP
+    "var(--rose)",  // 1 SQ→unification
+    "var(--pale)",  // 2 SQ decide later
+    "var(--muted)", // 3 SQ indefinitely
+    "var(--gsoft)", // 4 SQ→independence
+    "var(--green)", // 5 independence ASAP
+    "var(--dot)",   // 6 non-response (when present)
   ],
-  approval_lai_overall: ["#16a34a", "#dc2626", "#94a3b8"],
+  approval_lai_overall: ["var(--green)", "var(--red)", "var(--pale)"],
 };
 const FALLBACK_PALETTE = [
-  "#16a34a", "#dc2626", "#1d4ed8", "#f59e0b", "#7c3aed", "#14B8A6", "#94a3b8",
+  "var(--green)", "var(--red)", "var(--blue)", "var(--coop)", "var(--cyan)", "var(--rose)", "var(--pale)",
 ];
 
 // Pollster bias → chip colour. Mirrors SourceBadge's BIAS_COLORS so
@@ -61,13 +65,13 @@ const FALLBACK_PALETTE = [
 // current exec; a PRC state outlet gets red. Place comes from the
 // /api/polls/roster response.
 const POLLSTER_CHIP_COLOURS = {
-  academic:          { bg: "#475569", text: "#fff" },        // slate
-  state_nationalist: { bg: "#b91c1c", text: "#fff" },
-  green:             { bg: "#15803d", text: "#fff" },
-  green_leaning:     { bg: "#4ade80", text: "#14532d" },
-  blue:              { bg: "#1d4ed8", text: "#fff" },
-  blue_leaning:      { bg: "#93c5fd", text: "#1e3a5f" },
-  centrist:          { bg: "#6b7280", text: "#fff" },
+  academic:          { bg: "var(--muted)", text: "#fff" },        // slate
+  state_nationalist: { bg: "var(--nat)", text: "#fff" },
+  green:             { bg: "var(--green)", text: "#fff" },
+  green_leaning:     { bg: "var(--gsoft)", text: "#14532d" },
+  blue:              { bg: "var(--blue)", text: "#fff" },
+  blue_leaning:      { bg: "var(--bsoft)", text: "#1e3a5f" },
+  centrist:          { bg: "var(--muted)", text: "#fff" },
   unknown:           { bg: "#cbd5e1", text: "#1f2937" },
 };
 
@@ -77,10 +81,10 @@ export function pollsterChipColour(bias, place) {
     // when place is missing (legacy data; all current state_official
     // pollsters are TW-side per the seed roster).
     return place === "PRC"
-      ? { bg: "#dc2626", text: "#fff" }
-      : { bg: "#15803d", text: "#fff" };
+      ? { bg: "var(--red)", text: "#fff" }
+      : { bg: "var(--green)", text: "#fff" };
   }
-  return POLLSTER_CHIP_COLOURS[bias] || { bg: "#6b7280", text: "#fff" };
+  return POLLSTER_CHIP_COLOURS[bias] || { bg: "var(--muted)", text: "#fff" };
 }
 
 export const FAMILY_LABELS = {
@@ -112,30 +116,30 @@ function fmtPct(v) {
 
 function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px", marginTop: "28px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px", marginTop: "28px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
         <span style={{
           fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--text-primary)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
         }}>
-          {children}
+          {right}
         </span>
-        {right && (
-          <span style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            color: "var(--text-muted)",
-          }}>
-            {right}
-          </span>
-        )}
-      </div>
-      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+      )}
     </div>
   );
 }
@@ -165,11 +169,11 @@ function ProvenanceChip({ poll }) {
   //   - otherwise → manual analyst entry
   let label, bg;
   if (poll.source_article_id) {
-    label = "AI"; bg = "#7c3aed";
+    label = "AI"; bg = "var(--bsoft)";
   } else if (poll.reviewed_by && poll.reviewed_by.startsWith("backfill:")) {
-    label = "Backfill"; bg = "#475569";
+    label = "Backfill"; bg = "var(--muted)";
   } else {
-    label = "Manual"; bg = "#0f766e";
+    label = "Manual"; bg = "var(--cyan)";
   }
   return (
     <span style={{
@@ -297,7 +301,137 @@ function pivotByQuestion(payload) {
   return { data, series, pollsterCount: pollsterOrder.length };
 }
 
-function PollTrendChart({ payload, height = 240, onOpenColours }) {
+
+// Presidential approval hero — the redesign's "clear view" block: portrait,
+// big approve/disapprove numerals from the LATEST wave, delta vs the same
+// pollster's previous wave (never cross-pollster — different houses aren't
+// comparable), a stacked share bar, and the trend charts underneath.
+// Renders nothing until the approval question has waves.
+function PresidentialApproval({ payload }) {
+  const info = useMemo(() => {
+    if (!payload?.waves?.length) return null;
+    const pick = (wave, re, exclude) => {
+      const opt = (wave?.options || []).find((o) => {
+        const l = o.label_en || "";
+        return re.test(l) && (!exclude || !exclude.test(l));
+      });
+      return opt?.percentage ?? null;
+    };
+    const approveOf = (w) => pick(w, /satisf|approv/i, /dis/i);
+    const disapproveOf = (w) => pick(w, /dissatisf|disapprov/i);
+
+    const waves = [...payload.waves]
+      .map((w) => ({ ...w, anchor: w.fielded_end || w.fielded_start }))
+      .filter((w) => w.anchor && (approveOf(w) != null || disapproveOf(w) != null))
+      .sort((a, b) => a.anchor.localeCompare(b.anchor));
+    if (!waves.length) return null;
+
+    // Composite over the trailing 60 days (anchored on the newest wave, so
+    // the hero always reflects the last two months of AVAILABLE polling):
+    // each pollster's most recent wave in the window, averaged — one
+    // prolific house can't dominate. Falls back to single-poll display
+    // when only one poll lands in the window.
+    const dayShift = (iso, days) => {
+      const d = new Date(`${iso}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+    const latestAnchor = waves[waves.length - 1].anchor;
+    const winStart = dayShift(latestAnchor, -60);
+    const priorStart = dayShift(latestAnchor, -120);
+
+    const compositeOver = (from, to) => {
+      const byPollster = new Map();
+      for (const w of waves) {
+        if (w.anchor > to || w.anchor <= from) continue;
+        byPollster.set(w.pollster_slug, w); // waves sorted ASC → keeps latest
+      }
+      const picks = Array.from(byPollster.values());
+      if (!picks.length) return null;
+      const mean = (fn) => {
+        const vals = picks.map(fn).filter((v) => v != null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+      return {
+        approve: mean(approveOf),
+        disapprove: mean(disapproveOf),
+        polls: picks,
+      };
+    };
+
+    const cur = compositeOver(winStart, latestAnchor);
+    if (!cur || (cur.approve == null && cur.disapprove == null)) return null;
+    const prior = compositeOver(priorStart, winStart);
+
+    const single = cur.polls.length === 1 ? cur.polls[0] : null;
+    return {
+      approve: cur.approve,
+      disapprove: cur.disapprove,
+      dApprove: prior && cur.approve != null && prior.approve != null ? cur.approve - prior.approve : null,
+      dDisapprove: prior && cur.disapprove != null && prior.disapprove != null ? cur.disapprove - prior.disapprove : null,
+      caption: single
+        ? `${(single.pollster_name_en || "").toUpperCase()} · FIELDED TO ${single.anchor}`
+        : `AVG OF ${cur.polls.length} POLLSTERS' LATEST WAVES · TRAILING 60 DAYS TO ${latestAnchor}`,
+      deltaNote: prior ? " · CHANGE VS PRECEDING 60 DAYS" : "",
+    };
+  }, [payload]);
+
+  if (!info) return null;
+
+  const Delta = ({ d }) => d == null ? null : (
+    <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--faint)" }}>
+      {d >= 0 ? "\u25b2" : "\u25bc"} {d >= 0 ? "+" : "\u2212"}{Math.abs(d).toFixed(1)}
+    </span>
+  );
+  const Figure = ({ label, value, colour, delta }) => (
+    <div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.12em",
+                    color: "var(--faint)", marginBottom: "3px", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "7px" }}>
+        <span style={{ fontFamily: "var(--font-headline)", fontSize: "30px", fontWeight: 500,
+                       lineHeight: 1, color: colour }}>
+          {value == null ? "\u2014" : `${value.toFixed(1)}%`}
+        </span>
+        <Delta d={delta} />
+      </div>
+    </div>
+  );
+  const rest = Math.max(0, 100 - (info.approve || 0) - (info.disapprove || 0));
+
+  return (
+    <div style={{ maxWidth: "560px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginBottom: "14px" }}>
+        <img src="/figures/lai_chingte.jpg" alt="Lai Ching-te"
+             style={{ width: "52px", height: "52px", borderRadius: "50%", objectFit: "cover",
+                      objectPosition: "center top", flexShrink: 0 }} />
+        <div>
+          <div style={{ fontFamily: "var(--font-headline)", fontSize: "17px", fontWeight: 500, color: "var(--ink)" }}>
+            Lai Ching-te 賴清德
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.1em",
+                        color: "var(--party-dpp)", marginTop: "2px" }}>
+            DPP · PRESIDENT OF THE REPUBLIC OF CHINA (TAIWAN)
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: "24px", marginBottom: "14px" }}>
+        <Figure label="Approve" value={info.approve} colour="var(--green)" delta={info.dApprove} />
+        <Figure label="Disapprove" value={info.disapprove} colour="var(--muted)" delta={info.dDisapprove} />
+      </div>
+      <div style={{ height: "6px", display: "flex", marginBottom: "6px" }}>
+        <div style={{ width: `${info.approve || 0}%`, background: "var(--green)" }} />
+        <div style={{ width: `${info.disapprove || 0}%`, background: "var(--dot)" }} />
+        <div style={{ width: `${rest}%`, background: "var(--soft)" }} />
+      </div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", color: "var(--pale)",
+                    letterSpacing: "0.08em" }}>
+        {info.caption}{info.deltaNote}
+      </div>
+    </div>
+  );
+}
+
+function PollTrendChart({ payload, height = 240, onOpenColours, hideLegend }) {
   const { data, series, pollsterCount } = useMemo(() => pivotByQuestion(payload), [payload]);
 
   if (!payload) {
@@ -365,10 +499,12 @@ function PollTrendChart({ payload, height = 240, onOpenColours }) {
           labelFormatter={fmtDate}
           formatter={(v) => fmtPct(v)}
         />
-        <Legend
-          wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "10px" }}
-          iconType="line"
-        />
+        {!hideLegend && (
+          <Legend
+            wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "10px" }}
+            iconType="line"
+          />
+        )}
         {series.map((s) => (
           <Line
             key={s.dataKey}
@@ -390,7 +526,38 @@ function PollTrendChart({ payload, height = 240, onOpenColours }) {
   );
 }
 
-function FlagshipStrip({ flagship, payload, onOpenColours }) {
+// Latest-wave values as a swatch legend — the design's "numbers written
+// clearly next to the chart". Colours come from the SAME pivot the chart
+// uses, so legend and lines can't disagree.
+function CurrentValues({ payload }) {
+  const { series } = useMemo(() => pivotByQuestion(payload), [payload]);
+  const latest = payload?.waves?.length ? payload.waves[payload.waves.length - 1] : null;
+  if (!latest) return null;
+  const strokeFor = (label) =>
+    series.find((sr) => sr.dataKey === `${latest.pollster_slug}__${label}`)?.stroke || "var(--muted)";
+  const opts = [...(latest.options || [])].sort((a, b) => (a.option_order ?? 0) - (b.option_order ?? 0));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px" }}>
+      {opts.map((o) => {
+        const label = o.label_en || o.label_zh || `option_${o.option_order}`;
+        const colour = strokeFor(label);
+        return (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11.5px" }}>
+            <span style={{ width: "14px", height: "2px", background: colour, flexShrink: 0 }} />
+            <span style={{ color: "var(--body)", flex: 1, fontFamily: "var(--font-body)" }}>
+              {o.label_en}{o.label_zh && o.label_zh !== o.label_en ? <span style={{ color: "var(--pale)" }}> {o.label_zh}</span> : null}
+            </span>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: colour }}>
+              {o.percentage != null ? `${o.percentage.toFixed(1)}%` : "—"}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FlagshipStrip({ flagship, payload, onOpenColours, compact, hero }) {
   // Right-rail shows live state when data exists (wave count + latest
   // date) and falls back to the static source attribution when empty —
   // so the attribution never duplicates the subtitle below.
@@ -400,8 +567,13 @@ function FlagshipStrip({ flagship, payload, onOpenColours }) {
     ? `${waveCount} wave${waveCount === 1 ? "" : "s"} · latest ${fmtDate(latestWave.fielded_end || latestWave.fielded_start)}`
     : null;
 
+  const chart = (
+    <PollTrendChart payload={payload} height={compact ? 210 : 260}
+                    onOpenColours={onOpenColours} hideLegend={compact && !hero} />
+  );
+
   return (
-    <section style={{ marginBottom: "32px" }}>
+    <section style={{ marginBottom: compact ? 0 : "32px", minWidth: 0 }}>
       <SectionHeader right={rightRail}>{flagship.label}</SectionHeader>
       <div style={{
         fontFamily: "var(--font-mono)",
@@ -413,7 +585,18 @@ function FlagshipStrip({ flagship, payload, onOpenColours }) {
       }}>
         {flagship.source}
       </div>
-      <PollTrendChart payload={payload} height={260} onOpenColours={onOpenColours} />
+      {hero ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+                      gap: "20px 40px", alignItems: "center", marginBottom: "24px" }}>
+          <div style={{ minWidth: 0 }}>{hero}</div>
+          <div style={{ minWidth: 0 }}>{chart}</div>
+        </div>
+      ) : (
+        <>
+          {chart}
+          {compact && <CurrentValues payload={payload} />}
+        </>
+      )}
     </section>
   );
 }
@@ -726,7 +909,7 @@ export default function PollsTab() {
             letterSpacing: "0.01em",
             margin: 0,
           }}>
-            Poll Tracker
+            Taiwan Polling
           </h1>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px",
                         color: "var(--text-muted)", marginTop: "4px" }}>
@@ -760,9 +943,9 @@ export default function PollsTab() {
                       fontSize: "10px",
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",
-                      border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
-                      background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
-                      color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)",
+                      border: `1px solid ${pendingCount > 0 ? "var(--flag)" : "var(--border-color)"}`,
+                      background: pendingCount > 0 ? "color-mix(in srgb, var(--flag) 12%, transparent)" : "transparent",
+                      color: pendingCount > 0 ? "var(--flag)" : "var(--text-muted)",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                     }}>
@@ -774,19 +957,29 @@ export default function PollsTab() {
 
       {error && (
         <div style={{ padding: "10px 14px", marginTop: "16px",
-                      border: "1px solid #dc2626", background: "rgba(220, 38, 38, 0.08)",
-                      color: "#dc2626", fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+                      border: "1px solid var(--red)", background: "color-mix(in srgb, var(--red) 8%, transparent)",
+                      color: "var(--red)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>
           {error}
         </div>
       )}
 
-      {/* Flagship strips — three full-width charts, source-faithful (all
+      {/* Presidential approval — hero (latest-wave numbers + portrait) with
+          the cross-pollster trend chart beside it. */}
+      <FlagshipStrip flagship={APPROVAL_FLAGSHIP} payload={flagshipData[APPROVAL_FLAGSHIP.key]}
+                     onOpenColours={setColourPayload} compact
+                     hero={<PresidentialApproval payload={flagshipData[APPROVAL_FLAGSHIP.key]} />} />
+
+      {/* NCCU identity + unification — half-width, side by side, each with
+          the latest wave's numbers beside the chart. Source-faithful (all
           options visible). See [[feedback-analyst-charts]] for the rule
           against composite/summary lines on analyst charts. */}
-      {FLAGSHIPS.map((f) => (
-        <FlagshipStrip key={f.key} flagship={f} payload={flagshipData[f.key]}
-                       onOpenColours={setColourPayload} />
-      ))}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))",
+                    gap: "12px 44px", alignItems: "start", marginBottom: "32px" }}>
+        {NCCU_FLAGSHIPS.map((f) => (
+          <FlagshipStrip key={f.key} flagship={f} payload={flagshipData[f.key]}
+                         onOpenColours={setColourPayload} compact />
+        ))}
+      </div>
 
       {/* Other Trackers — two-tier: a category dropdown, then question pills
           within that category. Picking a category auto-opens its top

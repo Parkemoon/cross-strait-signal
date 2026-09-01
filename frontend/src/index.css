@@ -1,82 +1,123 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+/* Morning Brief redesign (2026-09) — warm-neutral briefing document.
+   Newsreader = headlines/numerals, Public Sans = body, Archivo = micro-caps
+   labels (deliberately replaces the old monospace — the mono look was the
+   "generic dashboard" tell the redesign removes; --font-mono is kept as an
+   alias so existing components restyle without a rename sweep). */
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Public+Sans:wght@400;500;600;700&family=Archivo:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #f0e9db;
-  --bg-secondary: #e6ddd0;
-  --bg-card: #f5f0e6;
-  --text-primary: #1a150e;
-  --text-secondary: #3c3628;
-  --text-muted: #7a7060;
-  --border-color: #c8bca8;
-  --accent-red: #c0392b;
-  --accent-amber: #b8860b;
-  --accent-green: #1e7a46;
-  --accent-blue: #2663a9;
-  --accent-teal: #1a7a6d;
-  --accent-purple: #6b4c9a;
-  --accent: #1a7a6d;
-  --tag-bg: #ddd4c2;
-  --tag-text: #5a5040;
-  --escalation-bg: #f8ece8;
-  --escalation-border: #c0392b;
-  --sidebar-bg: #e8e0d2;
-  --header-bg: #2e2010;
-  --header-text: #f0e9db;
-  --font-headline: 'DM Serif Display', Georgia, 'Times New Roman', serif;
-  --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', 'Consolas', 'Courier New', monospace;
+  /* ---- Ground (warm paper) ---- */
+  --bg:    #faf8f4;
+  --ink:   #1c1a16;
+  --body:  #3d382f;
+  --muted: #6f695e;
+  --faint: #8d867a;
+  --pale:  #b3ab9c;
+  --hair:  #e5dfd2;
+  --soft:  #efe9dc;
+  --dot:   #d4ccbc;
+
+  /* ---- System A: political alignment (who is speaking).
+     Filled marker = party or state organ; hollow = TW government body. ---- */
+  --green: #2e7d4f;   /* pan-Green / DPP */
+  --gsoft: #3f8c5c;   /* green_leaning (CNA, YDN) */
+  --blue:  #2650a9;   /* pan-Blue / KMT */
+  --bsoft: #4a6ec4;   /* blue_leaning (ETtoday) */
+  --red:   #b0392e;   /* PRC state / CCP */
+  --nat:   #7a2620;   /* state nationalist (Global Times tier) */
+  --rose:  #a05467;   /* china_centrist (Ming Pao) — muted rose, NOT --red */
+  --cyan:  #22808f;   /* TPP — freed from sentiment duty, party colour only */
+
+  /* ---- System B: framing sentiment (how the other side is framed).
+     Locked split kept from the original design: hostile = purple,
+     cooperative = amber, neutral = grey (±0.3 band). Never red/green. ---- */
+  --hostile: #6b4a9e;
+  --coop:    #b07c1e;
+  --neut:    #8d867a;
+
+  /* Editorial / admin attention (flags, pending, overrides) — same amber
+     family as the pre-redesign build; admin-facing only. */
+  --flag: #b07c1e;
+
+  /* ---- System C: party colours (poll charts, key figures, visit chips).
+     Majors ride the alignment tokens; minors are muted paper-register
+     derivatives of the Wikipedia canonicals in partyColours.js. ---- */
+  --party-dpp:  var(--green);
+  --party-kmt:  var(--blue);
+  --party-tpp:  var(--cyan);
+  --party-npp:  #a3891c;
+  --party-tsp:  #a73f24;
+  --party-gpt:  #35916b;
+  --party-np:   #8f7514;
+  --party-pfp:  #bf5a1f;
+  --party-cupp: #2c3a8c;
+  --party-ind:  var(--muted);
+  --party-prc:  var(--red);
+
+  /* ---- Legacy aliases — every pre-redesign component reads these. ---- */
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--soft);
+  --bg-card: var(--bg);
+  --text-primary: var(--ink);
+  --text-secondary: var(--body);
+  --text-muted: var(--muted);
+  --border-color: var(--hair);
+  --accent-red: var(--red);
+  --accent-amber: var(--coop);
+  --accent-green: var(--green);
+  --accent-blue: var(--blue);
+  --accent-teal: var(--cyan);
+  --accent-purple: var(--hostile);
+  --accent: var(--cyan);
+  --tag-bg: var(--soft);
+  --tag-text: var(--muted);
+  --escalation-bg: #f1ecf5;
+  --escalation-border: var(--hostile);
+  --sidebar-bg: var(--bg);
+  --header-bg: var(--bg);
+  --header-text: var(--ink);
+
+  --font-headline: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif; /* big stat numerals */
+  --font-body: 'Public Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Archivo', 'Segoe UI', system-ui, sans-serif; /* micro-caps labels — Archivo, not a monospace */
 }
 
 .dark {
-  --bg-primary: #0c0f16;
-  --bg-secondary: #131720;
-  --bg-card: #181d28;
-  --text-primary: #dde3f0;
-  --text-secondary: #7a8499;
-  --text-muted: #4a5268;
-  --border-color: #232838;
-  --accent-red: #e07060;
-  --accent-amber: #d4a94a;
-  --accent-green: #5cb87a;
-  --accent-blue: #5a9fd4;
-  --accent-teal: #4db8a8;
-  --accent-purple: #9b84c4;
-  --accent: #4a8fd4;
-  --tag-bg: #1c2134;
-  --tag-text: #6a7898;
-  --escalation-bg: #1a1018;
-  --escalation-border: #c0392b;
-  --sidebar-bg: #090c13;
-  --header-bg: #060810;
-  --header-text: #dde3f0;
-}
+  --bg:    #1a1815;
+  --ink:   #f4f0e8;
+  --body:  #d6d0c4;
+  --muted: #a29a8b;
+  --faint: #8b8375;
+  --pale:  #6d6659;
+  --hair:  #332e27;
+  --soft:  #2a251f;
+  --dot:   #3d372e;
 
-/* Inverted token set — used for Priority Signals section */
-/* In light mode this looks like dark mode, in dark mode like light mode */
-.signal-inverted {
-  --bg-primary: #2e2010;
-  --bg-secondary: #382816;
-  --bg-card: #402e18;
-  --text-primary: #f0e9db;
-  --text-secondary: #c8bca8;
-  --text-muted: #857870;
-  --border-color: #3c3228;
-  --tag-bg: #342c20;
-  --tag-text: #b0a090;
-}
+  --green: #5cb37a;
+  --gsoft: #6fcf97;
+  --blue:  #7ba1ea;
+  --bsoft: #93b0ee;
+  --red:   #dd6b62;
+  --nat:   #c4655a;
+  --rose:  #cf8ba0;
+  --cyan:  #57b8c4;
 
-.dark .signal-inverted {
-  --bg-primary: #e8e0d2;
-  --bg-secondary: #ddd4c2;
-  --bg-card: #f0e9db;
-  --text-primary: #1a150e;
-  --text-secondary: #3c3628;
-  --text-muted: #7a7060;
-  --border-color: #c0b4a0;
-  --tag-bg: #ddd4c2;
-  --tag-text: #5a5040;
+  --hostile: #a48cd4;
+  --coop:    #d6a552;
+  --neut:    #8b8375;
+  --flag:    #d6a552;
+
+  --party-npp:  #cdb44e;
+  --party-tsp:  #c8705a;
+  --party-gpt:  #63bd97;
+  --party-np:   #bfa348;
+  --party-pfp:  #dd8a55;
+  --party-cupp: #7d8ad6;
+
+  --escalation-bg: #241f2b;
 }
 
 * {
@@ -86,16 +127,27 @@
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg);
+  color: var(--ink);
   font-family: var(--font-body);
   transition: background-color 0.3s, color 0.3s;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--accent-teal);
-  color: #fff;
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* Motion — deliberately restrained: dropdowns fade up, the live dot pulses.
+   Nothing else animates. */
+@keyframes csspulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@keyframes fadeup {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* Hide scrollbars while preserving scroll */

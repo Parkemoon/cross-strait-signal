@@ -33,7 +33,7 @@ function TranslationField({ item, onSaved }) {
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
             border: "1px solid var(--border-color)",
-            borderRadius: "2px",
+            borderRadius: 0,
             fontFamily: "var(--font-mono)",
           }}
           autoFocus
@@ -44,10 +44,10 @@ function TranslationField({ item, onSaved }) {
           style={{
             fontSize: "10px",
             padding: "2px 6px",
-            background: "#d97706",
+            background: "var(--flag)",
             color: "#fff",
             border: "none",
-            borderRadius: "2px",
+            borderRadius: 0,
             cursor: "pointer",
           }}
         >
@@ -61,7 +61,7 @@ function TranslationField({ item, onSaved }) {
             background: "transparent",
             color: "var(--text-muted)",
             border: "1px solid var(--border-color)",
-            borderRadius: "2px",
+            borderRadius: 0,
             cursor: "pointer",
           }}
         >
@@ -75,7 +75,7 @@ function TranslationField({ item, onSaved }) {
     <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
       <span style={{
         fontSize: "11px",
-        color: (!READ_ONLY && isOverridden) ? "var(--accent-yellow, #d97706)" : "var(--text-muted)",
+        color: (!READ_ONLY && isOverridden) ? "var(--flag)" : "var(--text-muted)",
         fontStyle: displayTranslation ? "normal" : "italic",
       }}>
         {displayTranslation || "translating…"}
@@ -107,28 +107,23 @@ function WeiboItem({ item, onTranslationSaved }) {
   return (
     <div style={{
       padding: "6px 0",
-      borderBottom: "1px solid var(--border-color)",
+      borderBottom: "1px solid var(--soft)",
       opacity: highlight ? 1 : 0.55,
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
         <span style={{
-          background: highlight ? "#dc2626" : "var(--bg-primary)",
-          color: highlight ? "#fff" : "var(--text-muted)",
-          border: highlight ? "none" : "1px solid var(--border-color)",
+          color: highlight ? "var(--red)" : "var(--faint)",
           fontSize: "9px",
-          fontWeight: 700,
+          fontWeight: 600,
           fontFamily: "var(--font-mono)",
-          padding: "1px 4px",
-          borderRadius: "2px",
-          minWidth: "28px",
-          textAlign: "center",
+          minWidth: "24px",
           flexShrink: 0,
-          marginTop: "1px",
+          marginTop: "2px",
         }}>
           #{item.rank_position}
         </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "13px", fontWeight: highlight ? 500 : 400, color: highlight ? "var(--text-primary)" : "var(--text-muted)" }}>
+          <div style={{ fontSize: "12px", fontWeight: 500, color: highlight ? "var(--ink)" : "var(--muted)" }}>
             {item.title}
           </div>
           <TranslationField item={item} onSaved={onTranslationSaved} />
@@ -145,14 +140,14 @@ function WeiboItem({ item, onTranslationSaved }) {
 
 function PttItem({ item, onTranslationSaved }) {
   return (
-    <div style={{ padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
+    <div style={{ padding: "7px 0", borderBottom: "1px solid var(--soft)" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
         <div style={{ flexShrink: 0, textAlign: "center", minWidth: "32px", marginTop: "1px" }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "#16a34a", fontFamily: "var(--font-mono)" }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--green)", fontFamily: "var(--font-mono)" }}>
             ▲{item.push_count === 100 ? "爆" : item.push_count}
           </div>
           {item.boo_count > 0 && (
-            <div style={{ fontSize: "10px", color: "#dc2626", fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: "10px", color: "var(--red)", fontFamily: "var(--font-mono)" }}>
               ▼{item.boo_count}
             </div>
           )}
@@ -166,7 +161,7 @@ function PttItem({ item, onTranslationSaved }) {
               background: "var(--bg-primary)",
               border: "1px solid var(--border-color)",
               padding: "0 4px",
-              borderRadius: "2px",
+              borderRadius: 0,
               color: "var(--text-muted)",
               flexShrink: 0,
             }}>
@@ -176,7 +171,7 @@ function PttItem({ item, onTranslationSaved }) {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", textDecoration: "none" }}
+              style={{ fontSize: "12px", fontWeight: 500, color: "var(--ink)", textDecoration: "none" }}
             >
               {item.title}
             </a>
@@ -236,7 +231,7 @@ export default function SocialPulse({ column = false }) {
     <>
       <div style={{
         fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
-        letterSpacing: "0.06em", color: "#dc2626", marginBottom: "4px", textTransform: "uppercase",
+        letterSpacing: "0.06em", color: "var(--red)", marginBottom: "6px", textTransform: "uppercase",
       }}>
         PRC · Weibo 微博热搜
       </div>
@@ -256,7 +251,7 @@ export default function SocialPulse({ column = false }) {
     <>
       <div style={{
         fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
-        letterSpacing: "0.06em", color: "#1d4ed8", marginBottom: "4px", textTransform: "uppercase",
+        letterSpacing: "0.06em", color: "var(--blue)", marginBottom: "6px", textTransform: "uppercase",
       }}>
         TW · PTT 批踢踢
       </div>
@@ -276,23 +271,22 @@ export default function SocialPulse({ column = false }) {
   if (column) {
     return (
       <>
-        <div style={{ marginBottom: "16px" }}>
-          <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "8px" }} />
+        <div style={{ marginBottom: "12px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{
               fontFamily: "var(--font-mono)",
-              fontSize: "10px",
+              fontSize: "9px",
               fontWeight: 600,
-              letterSpacing: "0.14em",
+              letterSpacing: "0.2em",
               textTransform: "uppercase",
-              color: "var(--text-primary)",
+              color: "var(--ink)",
             }}>Social Pulse</span>
             <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
               {`Weibo ${crossStraitCount} · PTT ${pttItems.length}`}
             </span>
           </div>
         </div>
-        <div style={{ paddingBottom: "24px", borderBottom: "1px solid var(--border-color)", marginBottom: "20px" }}>
+        <div style={{ paddingBottom: "16px", marginBottom: "16px" }}>
           {weiboSection}
         </div>
         <div>
@@ -340,7 +334,7 @@ export default function SocialPulse({ column = false }) {
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0",
           background: "var(--bg-card)", border: "1px solid var(--border-color)",
-          borderTop: "3px solid #d97706", overflow: "hidden",
+          borderTop: "1px solid var(--hair)", overflow: "hidden",
         }}>
           <div style={{ padding: "12px 16px", borderRight: "1px solid var(--border-color)" }}>
             {weiboSection}

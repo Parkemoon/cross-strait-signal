@@ -1,3 +1,7 @@
+// Topic label — deliberately uncoloured since the Morning Brief restyle.
+// The metadata line colours exactly two things: the alignment tag (System A)
+// and the sentiment score (System B); giving topics their own hues was a
+// third colour system fighting the other two.
 const TOPIC_LABELS = {
   MIL_EXERCISE:    "Military Exercise",
   MIL_MOVEMENT:    "Force Movement",
@@ -28,48 +32,17 @@ const TOPIC_LABELS = {
   SCI_TECH:        "Sci/Tech",
 };
 
-const TOPIC_COLORS = {
-  MIL_EXERCISE:    "var(--accent-red)",
-  MIL_MOVEMENT:    "var(--accent-red)",
-  MIL_HARDWARE:    "var(--accent-red)",
-  MIL_POLICY:      "var(--accent-amber)",
-  DIP_STATEMENT:   "var(--accent-amber)",
-  DIP_VISIT:       "var(--accent-amber)",
-  DIP_SANCTIONS:   "var(--accent-amber)",
-  PARTY_VISIT:     "var(--accent-amber)",
-  ARMS_SALES:      "var(--accent-amber)",
-  ECON_TRADE:      "var(--accent-green)",
-  ECON_INVEST:     "var(--accent-green)",
-  ENERGY:          "var(--accent-green)",
-  SCI_TECH:        "var(--accent-green)",
-  POL_DOMESTIC_TW: "var(--accent-purple)",
-  POL_DOMESTIC_PRC:"var(--accent-purple)",
-  POL_TONGDU:      "var(--accent-red)",
-  INFO_WARFARE:    "var(--accent-red)",
-  CYBER:           "var(--accent-red)",
-  LEGAL_GREY:      "var(--accent-teal)",
-  TRANSPORT:       "var(--accent-teal)",
-  HK_MAC:          "var(--accent-teal)",
-  CULTURE:         "var(--accent-teal)",
-  SPORT:           "var(--accent-teal)",
-  INT_ORG:         "var(--accent-blue)",
-  HUMANITARIAN:    "var(--accent-blue)",
-  US_PRC:          "var(--accent-blue)",
-  US_TAIWAN:       "var(--accent-blue)",
-};
-
 export default function TopicPill({ topic, onClick }) {
-  const color = TOPIC_COLORS[topic] || "var(--text-muted)";
   const label = TOPIC_LABELS[topic] || topic?.replace(/_/g, " ");
 
   return (
     <span
       onClick={onClick ? (e) => { e.stopPropagation(); onClick(topic); } : undefined}
+      onMouseEnter={onClick ? (e) => { e.currentTarget.style.color = "var(--ink)"; } : undefined}
+      onMouseLeave={onClick ? (e) => { e.currentTarget.style.color = "var(--faint)"; } : undefined}
       style={{
-        borderLeft: `2px solid ${color}`,
-        color: color,
-        paddingLeft: "5px",
-        fontSize: "10px",
+        color: "var(--faint)",
+        fontSize: "9px",
         fontFamily: "var(--font-mono)",
         letterSpacing: "0.08em",
         textTransform: "uppercase",

@@ -260,7 +260,7 @@ function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone })
                 style={{
                   padding: "5px 12px", fontFamily: "var(--font-mono)",
                   fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                  background: "#16a34a", color: "#fff", border: "none", cursor: "pointer",
+                  background: "var(--green)", color: "#fff", border: "none", cursor: "pointer",
                 }}>
           {isDirty ? "Save & approve" : "Approve"}
         </button>
@@ -353,8 +353,8 @@ export default function ExerciseReviewQueue({ onClose, onResolveAll }) {
       <div style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-color)",
-        borderTop: "4px solid #7c3aed",
-        borderRadius: "4px",
+        borderTop: "3px solid var(--hostile)",
+        borderRadius: 0,
         width: 780, maxWidth: "94vw", maxHeight: "86vh",
         display: "flex", flexDirection: "column",
       }}>

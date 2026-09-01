@@ -29,14 +29,16 @@ const ALL_GROUPS = [
     { view: "review", label: "Review", badge: "review" },
     { view: "altmodels", label: "Alt Models" },
   ] },
+  { id: "about", label: "About", view: "about" },   // full page since the Morning Brief redesign (was a modal)
 ];
 
 export const NAV_GROUPS = ALL_GROUPS
   .filter((g) => !g.adminOnly || !READ_ONLY)
   .map((g) => (g.items ? { ...g, items: g.items.filter((i) => !i.adminOnly || !READ_ONLY) } : g));
 
-// Every non-feed view gets the two-column layout (Social aside hidden).
-export const WIDE_VIEWS = NAV_GROUPS.flatMap((g) => (g.items ? g.items.map((i) => i.view) : []));
+// Every non-feed view gets the single-column "document" layout (rails hidden).
+export const WIDE_VIEWS = NAV_GROUPS.flatMap((g) =>
+  g.items ? g.items.map((i) => i.view) : (g.view && g.view !== "feed" ? [g.view] : []));
 
 export function groupForView(view) {
   return NAV_GROUPS.find((g) => g.view === view || g.items?.some((i) => i.view === view)) || null;

@@ -56,8 +56,8 @@ export default function ExerciseEditModal({ exercise, onClose, onSaved, onDismis
       <div style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-color)",
-        borderTop: "4px solid #7c3aed",
-        borderRadius: "4px",
+        borderTop: "3px solid var(--hostile)",
+        borderRadius: 0,
         width: 720, maxWidth: "94vw", maxHeight: "86vh",
         display: "flex", flexDirection: "column",
       }}>
@@ -109,7 +109,7 @@ export default function ExerciseEditModal({ exercise, onClose, onSaved, onDismis
                   style={{
                     padding: "5px 14px", fontFamily: "var(--font-mono)",
                     fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                    background: isDirty ? "#16a34a" : "transparent",
+                    background: isDirty ? "var(--green)" : "transparent",
                     color: isDirty ? "#fff" : "var(--text-muted)",
                     border: isDirty ? "none" : "1px solid var(--border-color)",
                     cursor: busy || !isDirty ? "not-allowed" : "pointer",
@@ -120,8 +120,8 @@ export default function ExerciseEditModal({ exercise, onClose, onSaved, onDismis
                   style={{
                     padding: "5px 14px", fontFamily: "var(--font-mono)",
                     fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                    background: "transparent", color: "var(--accent-red, #dc2626)",
-                    border: "1px solid var(--accent-red, #dc2626)",
+                    background: "transparent", color: "var(--accent-red, var(--red))",
+                    border: "1px solid var(--accent-red, var(--red))",
                     cursor: busy ? "not-allowed" : "pointer",
                   }}>
             Dismiss

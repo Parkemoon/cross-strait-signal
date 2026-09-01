@@ -44,13 +44,16 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
   };
 
   const selectStyle = {
-    background: "var(--bg-card)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border-color)",
+    background: "transparent",
+    color: "var(--muted)",
+    border: "none",
+    borderBottom: "1px solid var(--hair)",
     borderRadius: 0,
-    padding: "7px 12px",
-    fontSize: "13px",
-    fontFamily: "var(--font-body)",
+    padding: "5px 2px",
+    fontSize: "10px",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    fontFamily: "var(--font-mono)",
     cursor: "pointer",
     appearance: "auto",
   };
@@ -61,8 +64,10 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
         display: "flex",
         gap: "8px",
         flexWrap: "wrap",
-        marginBottom: "20px",
+        marginBottom: "16px",
         alignItems: "center",
+        paddingBottom: "10px",
+        borderBottom: "1px solid var(--hair)",
       }}
     >
       <select
@@ -138,10 +143,12 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
           display: "flex",
           alignItems: "center",
           gap: "5px",
-          fontSize: "13px",
-          color: "var(--text-secondary)",
+          fontSize: "10px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "var(--muted)",
           cursor: "pointer",
-          fontFamily: "var(--font-body)",
+          fontFamily: "var(--font-mono)",
           padding: "0 4px",
         }}
       >
@@ -151,7 +158,7 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
           onChange={(e) =>
             update("escalation_only", e.target.checked || undefined)
           }
-          style={{ accentColor: "var(--accent-red)" }}
+          style={{ accentColor: "var(--ink)" }}
         />
         Signals only
       </label>
@@ -161,11 +168,12 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
           onClick={() => setFilters({})}
           style={{
             background: "transparent",
-            color: "var(--text-muted)",
-            border: "1px solid var(--border-color)",
-            borderRadius: 0,
-            padding: "7px 12px",
-            fontSize: "12px",
+            color: "var(--muted)",
+            border: "none",
+            padding: "5px 2px",
+            fontSize: "10px",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
             fontFamily: "var(--font-mono)",
             cursor: "pointer",
           }}
@@ -176,7 +184,7 @@ export default function FilterBar({ filters, setFilters, topEntities }) {
 
       <input
         type="text"
-        placeholder="Search articles..."
+        placeholder="SEARCH…"
         value={filters.search || ""}
         onChange={(e) => update("search", e.target.value)}
         style={{

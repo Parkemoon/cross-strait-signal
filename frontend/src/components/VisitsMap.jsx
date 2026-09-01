@@ -126,7 +126,7 @@ export default function VisitsMap({ visits }) {
                 {m.items.slice(0, 6).map((v) => (
                   <div key={v.id} style={{ color: "#333" }}>
                     {(v.start_date || v.effective_date || "").slice(0, 10)} · {v.visitor_name_en || v.visitor_name_zh || v.delegation_desc_en}
-                    {v.visit_status !== "reported" ? <span style={{ color: "#b45309" }}> ({v.visit_status})</span> : null}
+                    {v.visit_status !== "reported" ? <span style={{ color: "var(--flag)" }}> ({v.visit_status})</span> : null}
                   </div>
                 ))}
                 {m.items.length > 6 && <div style={{ color: "#888" }}>+{m.items.length - 6} more — see the timeline</div>}

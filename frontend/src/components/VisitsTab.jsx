@@ -5,7 +5,7 @@ import {
 import { Copy } from "../copy";
 import {
   fetchVisits, fetchVisitsSummary, fetchVisitsMonthly, fetchVisitCandidatesCount,
-  dismissVisit, updateVisit,
+  dismissVisit, updateVisit, fetchKeyFigures,
 } from "../api";
 import VisitsMap from "./VisitsMap";
 import VisitsReviewQueue, {
@@ -17,17 +17,34 @@ import { READ_ONLY } from "../readOnly";
 const TICK = { fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" };
 const TOOLTIP_STYLE = { background: "var(--bg-primary)", border: "1px solid var(--border-color)", fontFamily: "var(--font-mono)", fontSize: "11px" };
 const RANGES = [{ label: "90d", days: 90 }, { label: "1Y", days: 365 }, { label: "All", days: 3650 }];
-const STATUS_TONE = { planned: "#2563eb", rumoured: "#6b7280", cancelled: "#9ca3af", blocked: "#dc2626" };
+const STATUS_TONE = { planned: "var(--blue)", rumoured: "var(--muted)", cancelled: "var(--muted)", blocked: "var(--red)" };
 
 function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px", marginTop: "28px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em",
-                       textTransform: "uppercase", color: "var(--text-primary)" }}>{children}</span>
-        {right && <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>{right}</span>}
-      </div>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px", marginTop: "28px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
+        }}>
+          {right}
+        </span>
+      )}
     </div>
   );
 }
@@ -49,7 +66,7 @@ function Pill({ active, onClick, children, colour }) {
     <button onClick={onClick}
             style={{ padding: "3px 10px", fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.06em",
                      border: `1px solid ${active ? (colour || "var(--text-primary)") : "var(--border-color)"}`,
-                     background: active ? (colour ? `${colour}22` : "var(--bg-card)") : "transparent",
+                     background: active ? (colour ? `color-mix(in srgb, ${colour} 13%, transparent)` : "var(--bg-card)") : "transparent",
                      color: active ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer" }}>
       {children}
     </button>
@@ -75,61 +92,128 @@ function delta(cur, prev) {
 
 function fmtMonth(m) { return m ? `${m.slice(5, 7)}/${m.slice(2, 4)}` : ""; }
 
-function VisitCard({ v, admin, onEdit, onDismiss }) {
-  const who = v.visitor_name_en || v.visitor_name_zh || v.delegation_desc_en || "—";
-  const met = v.counterpart_name_en || v.counterpart_name_zh;
-  const dates = v.start_date ? (v.end_date && v.end_date !== v.start_date ? `${v.start_date} → ${v.end_date}` : v.start_date) : `~${v.effective_date}`;
-  const tone = STATUS_TONE[v.visit_status];
+// TW state bodies get the hollow marker (state, not party) — same rule as
+// the feed's alignment legend. Everything else with an affiliation is filled.
+const HOLLOW_AFFILIATIONS = new Set(["TW_GOV", "SEF", "TW_LEGISLATURE", "TW_LOCAL"]);
+
+function VisitAvatar({ v, portraitFor }) {
+  const colour = affiliationColour(v.visitor_affiliation) || "var(--muted)";
+  const fig = portraitFor?.(v.visitor_figure_id) || portraitFor?.(v.counterpart_figure_id);
+  if (fig?.portrait) {
+    return (
+      <img src={`/figures/${fig.portrait}`} alt={fig.name_en}
+           style={{ width: "44px", height: "44px", borderRadius: "50%", objectFit: "cover",
+                    objectPosition: "center top", flexShrink: 0 }} />
+    );
+  }
+  const en = v.visitor_name_en || "";
+  const initials = en
+    ? en.split(" ").slice(0, 2).map((w) => w[0]).join("")
+    : (v.visitor_name_zh || "·").slice(0, 1);
   return (
-    <div style={{ padding: "12px 14px", border: "1px solid var(--border-color)", background: "var(--bg-card)",
-                  borderLeft: `3px solid ${DIR_COLOUR[v.direction] || "var(--border-color)"}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline", flexWrap: "wrap" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", letterSpacing: "0.04em" }}>
-          {dates} · {DIRECTION_LABEL[v.direction]}{v.location_label ? ` · ${v.location_label}` : ""}
-          {tone && <span style={{ color: tone, marginLeft: "8px", textTransform: "uppercase", fontWeight: 600 }}>{v.visit_status}</span>}
+    <div style={{ width: "44px", height: "44px", borderRadius: "50%", flexShrink: 0,
+                  background: "color-mix(in srgb, " + colour + " 16%, transparent)",
+                  border: `1px solid ${colour}`,
+                  display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ color: colour, fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+        {initials}
+      </span>
+    </div>
+  );
+}
+
+// Labelled detail row — the review queue's clarity, public-facing.
+function VisitField({ label, children }) {
+  if (!children) return null;
+  return (
+    <div style={{ display: "flex", gap: "10px", alignItems: "baseline", marginTop: "3px" }}>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", letterSpacing: "0.12em",
+                     color: "var(--faint)", textTransform: "uppercase", width: "74px", flexShrink: 0 }}>
+        {label}
+      </span>
+      <span style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--body)",
+                     lineHeight: 1.5, minWidth: 0 }}>
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function VisitCard({ v, admin, onEdit, onDismiss, portraitFor }) {
+  const who = v.visitor_name_en || v.visitor_name_zh || v.delegation_desc_en || "Unnamed delegation";
+  const whoZh = v.visitor_name_en && v.visitor_name_zh ? v.visitor_name_zh : null;
+  const met = v.counterpart_name_en || v.counterpart_name_zh;
+  const metZh = v.counterpart_name_en && v.counterpart_name_zh ? v.counterpart_name_zh : null;
+  const dates = v.start_date
+    ? (v.end_date && v.end_date !== v.start_date ? `${v.start_date} → ${v.end_date}` : v.start_date)
+    : `~${v.effective_date}`;
+  const statusColour = STATUS_TONE[v.visit_status] || "var(--faint)";
+  const aff = v.visitor_affiliation;
+  const affColour = affiliationColour(aff) || "var(--muted)";
+  const marker = HOLLOW_AFFILIATIONS.has(aff) ? "□" : "■";
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "88px 44px 1fr", gap: "14px",
+                  padding: "16px 0", borderBottom: "1px solid var(--soft)", alignItems: "start" }}>
+      {/* Date + status + level */}
+      <div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
+                      letterSpacing: "0.06em", color: "var(--ink)" }}>{dates}</div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.1em",
+                      color: statusColour, marginTop: "3px", textTransform: "uppercase" }}>
+          {v.visit_status}
         </div>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.08em",
+                      color: "var(--pale)", marginTop: "3px", textTransform: "uppercase" }}>
           {LEVEL_LABEL[v.visit_level] || v.visit_level}
         </div>
       </div>
-      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", margin: "6px 0 4px" }}>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: "15px", color: "var(--text-primary)" }}>
-          {who}{v.visitor_name_en && v.visitor_name_zh ? <span style={{ color: "var(--text-muted)", fontSize: "12px", marginLeft: "6px" }}>{v.visitor_name_zh}</span> : null}
-        </span>
-        <Chip aff={v.visitor_affiliation} />
-        {v.visitor_title && <span style={{ fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-secondary)" }}>{v.visitor_title}</span>}
-        {met && (
-          <>
-            <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>→</span>
-            <span style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-primary)" }}>
-              {met}{v.counterpart_title ? <span style={{ color: "var(--text-secondary)" }}> · {v.counterpart_title}</span> : null}
-            </span>
-            <Chip aff={v.counterpart_affiliation} />
-          </>
-        )}
-      </div>
-      {v.event_name_en && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>
-          {v.event_name_en}{v.event_name_zh ? ` ${v.event_name_zh}` : ""}{v.delegation_desc_en ? ` · ${v.delegation_desc_en}` : ""}
+
+      <VisitAvatar v={v} portraitFor={portraitFor} />
+
+      {/* Who, what, where — every field labelled */}
+      <div style={{ borderLeft: `2px solid ${affColour}`, paddingLeft: "14px", minWidth: 0 }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.1em",
+                      color: affColour, fontWeight: 700, marginBottom: "4px", textTransform: "uppercase" }}>
+          {marker} {AFFILIATION_LABEL[aff] || aff || "Unattributed"} · {DIRECTION_LABEL[v.direction]}
         </div>
-      )}
-      {!v.event_name_en && v.delegation_desc_en && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>{v.delegation_desc_en}</div>
-      )}
-      {v.purpose_en && <p style={{ fontFamily: "var(--font-body)", fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5, margin: "4px 0 6px" }}>{v.purpose_en}</p>}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-        <a href={v.article?.url} target="_blank" rel="noreferrer"
-           style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textDecoration: "underline" }}>
-          {v.article?.source_name} · {v.article?.source_bias} · {v.article?.published_at?.slice(0, 10)}
-        </a>
-        {admin && (
-          <span style={{ display: "flex", gap: "6px" }}>
-            <button onClick={() => onEdit(v)} style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", padding: "2px 7px", cursor: "pointer",
-                    background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>✎ edit</button>
-            <button onClick={() => onDismiss(v)} style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", padding: "2px 7px", cursor: "pointer",
-                    background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>dismiss</button>
-          </span>
-        )}
+        <div style={{ fontFamily: "var(--font-headline)", fontSize: "17px", fontWeight: 500,
+                      lineHeight: 1.35, color: "var(--ink)", marginBottom: "2px" }}>
+          {who}{whoZh ? <span style={{ color: "var(--pale)", fontSize: "13px" }}> {whoZh}</span> : null}
+          {met ? <span style={{ fontWeight: 400 }}> met {met}</span> : null}
+          {met && metZh ? <span style={{ color: "var(--pale)", fontSize: "13px" }}> {metZh}</span> : null}
+        </div>
+        <VisitField label="Visitor">
+          {v.visitor_title || null}
+        </VisitField>
+        <VisitField label="Met with">
+          {met ? [v.counterpart_title,
+                  v.counterpart_affiliation && (AFFILIATION_LABEL[v.counterpart_affiliation] || v.counterpart_affiliation)]
+                  .filter(Boolean).join(" · ") || null : null}
+        </VisitField>
+        <VisitField label="Event">
+          {v.event_name_en ? <>{v.event_name_en}{v.event_name_zh ? <span style={{ color: "var(--pale)" }}> {v.event_name_zh}</span> : null}</> : null}
+        </VisitField>
+        <VisitField label="Place">{v.location_label || null}</VisitField>
+        <VisitField label="Delegation">{v.delegation_desc_en || null}</VisitField>
+        <VisitField label="Purpose">{v.purpose_en || null}</VisitField>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+                      gap: "8px", flexWrap: "wrap", marginTop: "7px" }}>
+          <a href={v.article?.url} target="_blank" rel="noreferrer"
+             style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.08em",
+                      color: "var(--pale)", textDecoration: "none", borderBottom: "1px solid var(--dot)",
+                      textTransform: "uppercase" }}>
+            Reported by {v.article?.source_name} · {v.article?.published_at?.slice(0, 10)}
+          </a>
+          {admin && (
+            <span style={{ display: "flex", gap: "6px" }}>
+              <button onClick={() => onEdit(v)} style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", padding: "2px 7px", cursor: "pointer",
+                      background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>✎ edit</button>
+              <button onClick={() => onDismiss(v)} style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", padding: "2px 7px", cursor: "pointer",
+                      background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>dismiss</button>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -159,7 +243,7 @@ function EditModal({ visit, onClose, onSaved }) {
         {error && <div style={{ color: "var(--accent-red)", fontFamily: "var(--font-mono)", fontSize: "10px" }}>{error}</div>}
         <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
           <button disabled={busy || !dirty} onClick={save} style={{ padding: "5px 12px", fontFamily: "var(--font-mono)", fontSize: "10px",
-                  textTransform: "uppercase", background: "#16a34a", color: "#fff", border: "none", cursor: "pointer", opacity: dirty ? 1 : 0.5 }}>Save</button>
+                  textTransform: "uppercase", background: "var(--green)", color: "#fff", border: "none", cursor: "pointer", opacity: dirty ? 1 : 0.5 }}>Save</button>
           <button onClick={onClose} style={{ padding: "5px 12px", fontFamily: "var(--font-mono)", fontSize: "10px", textTransform: "uppercase",
                   background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}>Cancel</button>
         </div>
@@ -180,6 +264,18 @@ export default function VisitsTab() {
   const [pendingCount, setPendingCount] = useState(0);
   const [editing, setEditing] = useState(null);
   const [nonce, setNonce] = useState(0);
+  // Key-figure portraits for the visit avatars — one fetch, id-keyed map.
+  // Most visitors are long-tail officials with no portrait; they get the
+  // initials medallion in their affiliation colour instead.
+  const [figureMap, setFigureMap] = useState({});
+  useEffect(() => {
+    fetchKeyFigures().then((d) => {
+      const m = {};
+      for (const f of d.figures || []) m[f.id] = { portrait: f.portrait, name_en: f.name_en };
+      setFigureMap(m);
+    }).catch(() => {});
+  }, []);
+  const portraitFor = (figId) => (figId != null ? figureMap[figId] : undefined);
 
   const loadPendingCount = () => {
     if (READ_ONLY) return;
@@ -322,9 +418,9 @@ export default function VisitsTab() {
         {!READ_ONLY && (
           <button onClick={() => setReviewOpen(true)} title={`${pendingCount} visits pending review`}
                   style={{ padding: "4px 11px", fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.06em",
-                           border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
-                           background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
-                           color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)", cursor: "pointer" }}>
+                           border: `1px solid ${pendingCount > 0 ? "var(--flag)" : "var(--border-color)"}`,
+                           background: pendingCount > 0 ? "color-mix(in srgb, var(--flag) 12%, transparent)" : "transparent",
+                           color: pendingCount > 0 ? "var(--flag)" : "var(--text-muted)", cursor: "pointer" }}>
             ✎ Review{pendingCount > 0 ? ` (${pendingCount})` : ""}
           </button>
         )}
@@ -341,7 +437,7 @@ export default function VisitsTab() {
             {g.month} · {g.items.length}
           </div>
           <div style={{ display: "grid", gap: "8px" }}>
-            {g.items.map((v) => <VisitCard key={v.id} v={v} admin={!READ_ONLY} onEdit={setEditing} onDismiss={onDismiss} />)}
+            {g.items.map((v) => <VisitCard key={v.id} v={v} admin={!READ_ONLY} onEdit={setEditing} onDismiss={onDismiss} portraitFor={portraitFor} />)}
           </div>
         </div>
       ))}

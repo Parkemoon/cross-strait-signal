@@ -1,15 +1,17 @@
-// Bias → background colour mapping
-// PRC: red shades  |  TW green: green shades  |  TW blue: blue shades
-// centrist: grey  |  china_centrist: muted rose (moderate but Beijing-leaning)
-const BIAS_COLORS = {
-  state_nationalist: { bg: "#b91c1c", text: "#fff" },   // deep red
-  state_official:    { bg: "#dc2626", text: "#fff" },   // red
-  green:             { bg: "#15803d", text: "#fff" },   // deep green
-  green_leaning:     { bg: "#4ade80", text: "#14532d" },// light green, dark text
-  blue:              { bg: "#1d4ed8", text: "#fff" },   // blue
-  blue_leaning:      { bg: "#93c5fd", text: "#1e3a5f" },// light blue, dark text
-  centrist:          { bg: "#6b7280", text: "#fff" },   // grey
-  china_centrist:    { bg: "#a86a6a", text: "#fff" },   // muted rose — Beijing-leaning centrist
+// Alignment tag — System A (who is speaking). A typographic marker + abbrev
+// in the alignment colour, replacing the old solid colour blocks.
+// Full-saturation squares = committed positions / state organs; softer dots =
+// leaning / centrist bands. The hollow square is reserved for TW government
+// bodies acting in a state capacity (entities/speakers, not outlets).
+export const BIAS_META = {
+  green:             { colour: "var(--green)", marker: "■", label: "Green" },
+  green_leaning:     { colour: "var(--gsoft)", marker: "●", label: "Green-leaning" },
+  blue:              { colour: "var(--blue)",  marker: "■", label: "Blue" },
+  blue_leaning:      { colour: "var(--bsoft)", marker: "●", label: "Blue-leaning" },
+  centrist:          { colour: "var(--muted)", marker: "●", label: "Centrist" },
+  china_centrist:    { colour: "var(--rose)",  marker: "●", label: "China-centrist" },
+  state_official:    { colour: "var(--red)",   marker: "■", label: "PRC state" },
+  state_nationalist: { colour: "var(--nat)",   marker: "■", label: "State nationalist" },
 };
 
 const SOURCE_ABBREV = {
@@ -54,7 +56,7 @@ const SOURCE_ABBREV = {
   "Guancha":       "GC",
   // HK — state_official (post-NSL)
   "RTHK Greater China": "RTHK",
-  // HK — centrist
+  // HK — china_centrist
   "Ming Pao Cross-Strait": "MP",
   "Ming Pao Editorial":    "MP",
   "Ming Pao Opinion":      "MP",
@@ -65,24 +67,23 @@ const SOURCE_ABBREV = {
 };
 
 export default function SourceBadge({ sourceName, bias }) {
-  const colors = BIAS_COLORS[bias] || { bg: "#6b7280", text: "#fff" };
+  const meta = BIAS_META[bias] || { colour: "var(--muted)", marker: "●", label: bias || "Unclassified" };
   const abbrev = SOURCE_ABBREV[sourceName] || sourceName?.slice(0, 4).toUpperCase();
 
   return (
     <span
-      title={sourceName}
+      title={`${sourceName} · ${meta.label}`}
       style={{
-        background: colors.bg,
-        color: colors.text,
-        padding: "2px 7px",
-        fontSize: "10px",
-        fontWeight: 600,
+        color: meta.colour,
+        fontSize: "9.5px",
+        fontWeight: 700,
         fontFamily: "var(--font-mono)",
-        letterSpacing: "0.5px",
+        letterSpacing: "0.08em",
         whiteSpace: "nowrap",
         cursor: "default",
       }}
     >
+      <span style={{ fontSize: "8px", marginRight: "4px", verticalAlign: "1px" }}>{meta.marker}</span>
       {abbrev}
     </span>
   );

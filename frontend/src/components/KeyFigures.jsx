@@ -10,7 +10,7 @@ import { READ_ONLY } from "../readOnly";
 import { PARTY_COLOURS } from "../partyColours";
 
 function figureAccent(figure) {
-  return PARTY_COLOURS[figure.party] || PARTY_COLOURS[figure.side] || "#6b7280";
+  return PARTY_COLOURS[figure.party] || PARTY_COLOURS[figure.side] || "var(--muted)";
 }
 
 function formatDate(ts) {
@@ -34,10 +34,11 @@ function Portrait({ portrait, nameEn, figure, attribution }) {
   if (error || !portrait) {
     return (
       <div style={{
-        width: 48, height: 48, borderRadius: "50%", background: accent,
+        width: 44, height: 44, borderRadius: "50%", background: accent,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        margin: "0 auto",
       }}>
-        <span style={{ color: "#fff", fontSize: "15px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+        <span style={{ color: "var(--bg)", fontSize: "14px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
           {initials}
         </span>
       </div>
@@ -51,9 +52,9 @@ function Portrait({ portrait, nameEn, figure, attribution }) {
       title={attribution || undefined}
       onError={() => setError(true)}
       style={{
-        width: 48, height: 48, borderRadius: "50%",
+        width: 44, height: 44, borderRadius: "50%",
         objectFit: "cover", objectPosition: "center top", flexShrink: 0,
-        border: `2px solid ${accent}`,
+        margin: "0 auto", display: "block",
       }}
     />
   );
@@ -90,8 +91,7 @@ function CandidateModal({ figure, candidates, onApprove, onDismiss, onClose }) {
       <div style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-color)",
-        borderTop: `4px solid ${accent}`,
-        borderRadius: "4px",
+        borderTop: `3px solid ${accent}`,
         width: 500, maxWidth: "92vw", maxHeight: "80vh",
         display: "flex", flexDirection: "column",
       }}>
@@ -139,9 +139,9 @@ function CandidateModal({ figure, candidates, onApprove, onDismiss, onClose }) {
                 <span style={{
                   fontSize: "9px", fontFamily: "var(--font-mono)", fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.05em",
-                  background: c.statement_kind === "quote" ? "#1d4ed820" : "#15803d20",
-                  color: c.statement_kind === "quote" ? "#1d4ed8" : "#15803d",
-                  padding: "1px 5px", borderRadius: "2px",
+                  background: "var(--soft)",
+                  color: "var(--muted)",
+                  padding: "1px 5px", borderRadius: 0,
                 }}>
                   {c.statement_kind}
                 </span>
@@ -176,8 +176,8 @@ function CandidateModal({ figure, candidates, onApprove, onDismiss, onClose }) {
                   disabled={processing === c.id}
                   style={{
                     fontSize: "11px", padding: "4px 12px",
-                    background: "#15803d", color: "#fff",
-                    border: "none", borderRadius: "2px", cursor: "pointer",
+                    background: "var(--ink)", color: "var(--bg)",
+                    border: "1px solid var(--ink)", cursor: "pointer",
                     opacity: processing === c.id ? 0.6 : 1,
                   }}
                 >
@@ -189,7 +189,7 @@ function CandidateModal({ figure, candidates, onApprove, onDismiss, onClose }) {
                   style={{
                     fontSize: "11px", padding: "4px 12px",
                     background: "transparent", color: "var(--text-muted)",
-                    border: "1px solid var(--border-color)", borderRadius: "2px", cursor: "pointer",
+                    border: "1px solid var(--border-color)", borderRadius: 0, cursor: "pointer",
                     opacity: processing === c.id ? 0.6 : 1,
                   }}
                 >
@@ -210,89 +210,82 @@ function FigureCard({ figure, pendingCount, onOpenCuration, onClearStatement }) 
 
   return (
     <div style={{
-      minWidth: "230px", maxWidth: "230px",
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-color)",
-      borderLeft: `4px solid ${accent}`,
-      borderRadius: "3px",
-      padding: "12px",
+      minWidth: "215px", maxWidth: "215px",
+      padding: "4px 12px 8px",
       flexShrink: 0,
       display: "flex", flexDirection: "column",
+      textAlign: "center",
+      position: "relative",
     }}>
-      {/* Header: portrait + name/role + curate icon */}
-      <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "8px" }}>
+      {/* Curate button — admin only, corner overlay */}
+      {!READ_ONLY && (
+        <button
+          onClick={onOpenCuration}
+          title={pendingCount > 0 ? `${pendingCount} pending candidate${pendingCount > 1 ? "s" : ""}` : "Curate statement"}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            padding: "2px", lineHeight: 1,
+            position: "absolute", top: 0, right: "4px", zIndex: 1,
+          }}
+        >
+          <span style={{ fontSize: "13px", color: pendingCount > 0 ? "var(--flag)" : "var(--pale)" }}>✎</span>
+          {pendingCount > 0 && (
+            <span style={{
+              color: "var(--flag)",
+              fontSize: "9px", fontWeight: 700, fontFamily: "var(--font-mono)",
+              marginLeft: "2px", verticalAlign: "top",
+            }}>
+              {pendingCount > 9 ? "9+" : pendingCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      <div style={{ marginBottom: "7px" }}>
         <Portrait portrait={portrait} nameEn={name_en} figure={figure} attribution={figure.attribution} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: "11px", fontFamily: "var(--font-mono)", fontWeight: 700,
-            letterSpacing: "0.07em", textTransform: "uppercase",
-            color: "var(--text-primary)", lineHeight: 1.3,
-          }}>
-            {name_en}
-          </div>
-          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px", lineHeight: 1.3 }}>
-            {name_zh} · {role}
-          </div>
-        </div>
-        {/* Curate button — admin only */}
-        {!READ_ONLY && (
-          <button
-            onClick={onOpenCuration}
-            title={pendingCount > 0 ? `${pendingCount} pending candidate${pendingCount > 1 ? "s" : ""}` : "Curate statement"}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              padding: "2px", flexShrink: 0, lineHeight: 1,
-              position: "relative",
-            }}
-          >
-            <span style={{ fontSize: "13px", color: pendingCount > 0 ? "#d97706" : "var(--text-muted)" }}>✎</span>
-            {pendingCount > 0 && (
-              <span style={{
-                position: "absolute", top: "-4px", right: "-4px",
-                background: "#d97706", color: "#fff",
-                fontSize: "8px", fontWeight: 700, fontFamily: "var(--font-mono)",
-                width: "14px", height: "14px", borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {pendingCount > 9 ? "9+" : pendingCount}
-              </span>
-            )}
-          </button>
-        )}
       </div>
 
-      {/* Quote / summary / empty state */}
+      {/* Quote / empty state */}
       {latest ? (
         <a
           href={latest.article_url}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ textDecoration: "none", color: "inherit", flex: 1 }}
+          style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", flexDirection: "column" }}
         >
           <div style={{
-            fontSize: "12px", lineHeight: 1.5, color: "var(--text-primary)",
-            fontStyle: latest.display_kind === "quote" ? "italic" : "normal",
-            marginBottom: "10px",
+            fontFamily: "var(--font-headline)",
+            fontSize: "13px", lineHeight: 1.5, color: "var(--body)",
+            fontStyle: "italic",
+            marginBottom: "6px",
+            flex: 1,
+            display: "-webkit-box",
+            WebkitLineClamp: 8,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}>
             {latest.display_kind === "quote"
               ? `\u201c${latest.display_text}\u201d`
               : latest.display_text}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "8.5px",
+            color: "var(--pale)", letterSpacing: "0.08em", lineHeight: 1.7,
+          }}>
+            <span style={{ color: accent, fontWeight: 700 }}>{name_en.toUpperCase()} {name_zh}</span>
+            <br />
+            <span style={{ color: accent }}>{role?.toUpperCase()}</span>
+            {" · "}
             <SourceBadge sourceName={latest.source_name} bias={latest.source_bias} />
-            <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-              {formatDate(latest.published_at)}
-            </span>
-            <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-              · {relativeTime(latest.published_at)}
-            </span>
+            {" "}
+            {formatDate(latest.published_at)?.toUpperCase()}
             {!READ_ONLY && (
               <button
                 onClick={(e) => { e.preventDefault(); onClearStatement(latest.statement_id); }}
                 title="Clear this statement"
                 style={{
-                  marginLeft: "auto", background: "none", border: "none", cursor: "pointer",
-                  color: "var(--text-muted)", fontSize: "11px", padding: "0 2px", lineHeight: 1,
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--pale)", fontSize: "10px", padding: "0 3px", lineHeight: 1,
                 }}
               >
                 ✕
@@ -301,20 +294,27 @@ function FigureCard({ figure, pendingCount, onOpenCuration, onClearStatement }) 
           </div>
         </a>
       ) : (
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{
-            fontSize: "12px", color: "var(--text-muted)", fontStyle: "italic", marginBottom: "10px",
+            fontFamily: "var(--font-headline)",
+            fontSize: "13px", color: "var(--pale)", fontStyle: "italic", marginBottom: "6px", flex: 1,
           }}>
             No curated statement yet
           </div>
-          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-            —
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "8.5px",
+            color: "var(--pale)", letterSpacing: "0.08em", lineHeight: 1.7,
+          }}>
+            <span style={{ color: accent, fontWeight: 700 }}>{name_en.toUpperCase()} {name_zh}</span>
+            <br />
+            <span style={{ color: accent }}>{role?.toUpperCase()}</span>
           </div>
         </div>
       )}
     </div>
   );
 }
+
 
 export default function KeyFigures() {
   const [figures, setFigures] = useState([]);
@@ -396,8 +396,8 @@ export default function KeyFigures() {
   const arrowStyle = {
     position: "absolute", top: "50%", transform: "translateY(-50%)",
     zIndex: 2,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border-color)",
+    background: "var(--bg)",
+    border: "1px solid var(--hair)",
     borderRadius: "50%",
     width: "28px", height: "28px",
     display: "flex", alignItems: "center", justifyContent: "center",
@@ -411,13 +411,15 @@ export default function KeyFigures() {
 
   return (
     <div style={{ marginBottom: "32px" }}>
-      <h3 style={{
-        fontFamily: "var(--font-headline)", fontSize: "13px", fontWeight: 600,
-        letterSpacing: "0.08em", textTransform: "uppercase",
-        color: "var(--text-muted)", margin: "0 0 8px 0",
-      }}>
-        Key Figures
-      </h3>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "14px" }}>
+        <span style={{
+          fontFamily: "var(--font-mono)", fontSize: "9.5px", fontWeight: 600,
+          letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--ink)",
+        }}>
+          Voices
+        </span>
+        <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      </div>
 
       <div className="key-figures-scroll-wrapper" style={{ position: "relative" }}>
         {/* Left scroll arrow */}

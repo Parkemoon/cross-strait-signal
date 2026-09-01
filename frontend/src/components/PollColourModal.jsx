@@ -89,7 +89,7 @@ export default function PollColourModal({ payload, onClose, onSaved }) {
     >
       <div style={{
         background: "var(--bg-card)", border: "1px solid var(--border-color)",
-        borderTop: "4px solid #0f766e", borderRadius: "4px",
+        borderTop: "4px solid var(--cyan)", borderRadius: 0,
         width: 620, maxWidth: "94vw", maxHeight: "88vh",
         display: "flex", flexDirection: "column",
       }}>
@@ -171,7 +171,7 @@ export default function PollColourModal({ payload, onClose, onSaved }) {
                       onChange={(e) => setRow(i, { colour: e.target.value.trim() })}
                       style={{
                         ...fieldStyle(),
-                        borderColor: r.colour && !HEX_RX.test(r.colour) ? "#dc2626" : undefined,
+                        borderColor: r.colour && !HEX_RX.test(r.colour) ? "var(--red)" : undefined,
                       }}
                     />
                   </div>
@@ -181,8 +181,8 @@ export default function PollColourModal({ payload, onClose, onSaved }) {
           )}
 
           {err && (
-            <div style={{ marginTop: "10px", padding: "8px 10px", border: "1px solid #dc2626",
-                          background: "rgba(220,38,38,0.08)", color: "#dc2626",
+            <div style={{ marginTop: "10px", padding: "8px 10px", border: "1px solid var(--red)",
+                          background: "color-mix(in srgb, var(--red) 8%, transparent)", color: "var(--red)",
                           fontFamily: "var(--font-mono)", fontSize: "11px" }}>
               {err}
             </div>
@@ -204,8 +204,8 @@ export default function PollColourModal({ payload, onClose, onSaved }) {
           <button onClick={save} disabled={busy || badHex || rows === null} style={{
             padding: "6px 14px", fontFamily: "var(--font-mono)", fontSize: "10px",
             letterSpacing: "0.06em", textTransform: "uppercase",
-            border: "1px solid #0f766e",
-            background: busy || badHex ? "transparent" : "#0f766e",
+            border: "1px solid var(--cyan)",
+            background: busy || badHex ? "transparent" : "var(--cyan)",
             color: busy || badHex ? "var(--text-muted)" : "#fff",
             cursor: busy || badHex ? "default" : "pointer",
           }}>

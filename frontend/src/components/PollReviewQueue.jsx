@@ -561,7 +561,7 @@ function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, revi
         <button disabled={busy} onClick={handleApprove} style={{
           padding: "5px 12px", fontFamily: "var(--font-mono)",
           fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-          background: "#16a34a", color: "#fff", border: "none",
+          background: "var(--green)", color: "#fff", border: "none",
           cursor: busy ? "not-allowed" : "pointer",
         }}>
           Approve
@@ -653,8 +653,8 @@ export default function PollReviewQueue({ onClose, onResolveAll, reviewedBy }) {
       <div style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-color)",
-        borderTop: "4px solid #d4a94a",
-        borderRadius: "4px",
+        borderTop: "4px solid var(--flag)",
+        borderRadius: 0,
         width: 880, maxWidth: "94vw", maxHeight: "88vh",
         display: "flex", flexDirection: "column",
       }}>

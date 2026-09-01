@@ -50,7 +50,7 @@ function formatPeriodLabel(period) {
 function DeltaChip({ pct }) {
   if (pct === null || pct === undefined) return null;
   const isPositive = pct > 0;
-  const color = isPositive ? "var(--accent-green)" : "var(--accent-red)";
+  const color = isPositive ? "var(--cyan)" : "var(--coop)"; // deltas are direction, not sentiment
   const arrow = isPositive ? "▲" : "▼";
   const sign = isPositive ? "+" : "";
   return (
@@ -236,17 +236,16 @@ export default function StatSpotlight({ onOpen }) {
   const slide = slides[idx];
 
   return (
-    <div ref={rootRef} style={{ marginBottom: "28px" }}>
-      <div style={{ marginBottom: "12px" }}>
-        <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "8px" }} />
+    <div ref={rootRef} style={{ marginBottom: "18px" }}>
+      <div style={{ marginBottom: "8px", borderTop: "1px solid var(--hair)", paddingTop: "14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{
             fontFamily: "var(--font-mono)",
-            fontSize: "10px",
+            fontSize: "9px",
             fontWeight: 600,
-            letterSpacing: "0.14em",
+            letterSpacing: "0.2em",
             textTransform: "uppercase",
-            color: "var(--text-primary)",
+            color: "var(--ink)",
           }}>
             {slide.eyebrow}
           </span>
@@ -278,9 +277,9 @@ export default function StatSpotlight({ onOpen }) {
         onBlur={() => setPaused(false)}
         style={{
           width: "100%",
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-color)",
-          padding: "12px 14px",
+          background: "transparent",
+          border: "none",
+          padding: "2px 0",
           cursor: "pointer",
           textAlign: "left",
           display: "flex",
@@ -306,7 +305,8 @@ export default function StatSpotlight({ onOpen }) {
           }}>
             <span style={{
               fontFamily: "var(--font-headline)",
-              fontSize: "22px",
+              fontSize: "24px",
+              fontWeight: 500,
               color: "var(--text-primary)",
               lineHeight: 1,
             }}>
@@ -351,13 +351,13 @@ export default function StatSpotlight({ onOpen }) {
               aria-label={`Show ${s.eyebrow}`}
               title={s.eyebrow}
               style={{
-                width: i === idx ? "18px" : "6px",
-                height: "6px",
-                borderRadius: "3px",
+                width: i === idx ? "16px" : "5px",
+                height: "5px",
+                borderRadius: 0,
                 border: "none",
                 padding: 0,
                 cursor: "pointer",
-                background: i === idx ? "var(--text-secondary)" : "var(--border-color)",
+                background: i === idx ? "var(--muted)" : "var(--dot)",
                 transition: "width 0.2s ease",
               }}
             />
