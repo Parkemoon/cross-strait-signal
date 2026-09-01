@@ -5,78 +5,44 @@ Production worktree: `/var/www/cross-strait-signal` (branch: `main`)
 
 ## Current state
 
-**Phase 1a + 1b** (`ce7b35e`): desktop 3-column layout with sticky
-independently-scrolling columns; editorial design refresh (parchment palette,
-thick-rule section headers, TopicPill flags, urgency stripes, masthead).
+See `CHANGELOG.md` (*Delivered* / *In progress*) and the gitignored
+`SESSION_LOG.md` for the live history — this file only documents the staging
+mechanics. As of 2026-09-01 the Morning Brief frontend redesign (phase 1) is
+deployed to prod; staging and prod are at the same commit.
 
-**Phase 2a**: Cross-strait economy tab with MAC + UN Comtrade verification.
-Sources turned out to be `data.gov.tw` dataset 7887 (the original DGBAS API
-plan was abandoned — geo-blocked + no public consumer API) plus UN Comtrade
-preview API for PRC-side trade data. `economic_indicators` table populated
-with ~9 years of monthly data; Economy tab includes KPI strip, main trade
-chart, indicator picker, and a verification section overlaying MAC (TW
-customs) vs PRC Customs figures — the gap is the analytical story.
+## How staging serves
 
-**Next up — Phase 2a.2 (optional)**: more MAC datasets — 7472 (TW surplus
-with PRC + HK, captures the HK transit story), 7478 (PRC investment in TW by
-industry), 7888 (GDP/CPI/FX side-by-side). Then **Phase 2b**: MND incursion
-tracker.
-
-## Restarting staging (if the tmux session has died)
-
-Check first — it may still be running:
-```bash
-tmux attach -t staging
-```
-
-If dead, restart both servers:
-
-## Starting the staging servers
-
-Open a tmux session on the server:
-
-```bash
-tmux new -s staging
-```
-
-Pane 1 — API on port 8001:
-```bash
-cd /var/www/cross-strait-signal-staging
-source venv/bin/activate
-uvicorn api.main:app --host 127.0.0.1 --port 8001 --reload
-```
-
-Split the pane (`Ctrl-b %`), Pane 2 — React dev server on port 3001:
-```bash
-cd /var/www/cross-strait-signal-staging/frontend
-npm start
-```
-Note: `DANGEROUSLY_DISABLE_HOST_CHECK=true` and `PORT=3001` are set in
-`frontend/.env.development` — no extra env flags needed. The dev server binds
-to `0.0.0.0:3001` but is only reachable via SSH tunnel.
+- **API**: uvicorn on `127.0.0.1:8001` (plain process, not a systemd unit).
+  If it's down: `cd /var/www/cross-strait-signal-staging && source venv/bin/activate
+  && uvicorn api.main:app --host 127.0.0.1 --port 8001` (background it or use tmux).
+- **UI**: nginx serves the BUILT admin bundle at `127.0.0.1:8082`
+  (`/etc/nginx/sites-available/cross-strait-staging-local` — root
+  `frontend/build`, proxies `/api/` to :8001). Rebuild after changes:
+  source `.env`, then `REACT_APP_ADMIN_TOKEN="$ADMIN_TOKEN" npm run build`
+  (see frontend.md for the env caveat). 8082 not 8081 — 8081 is taken on
+  Ed's local machine. CRA dev-server on :3001 also works for hot-reload
+  sessions (`frontend/.env.development` sets PORT/host-check).
 
 ## Accessing staging from your local machine
 
-SSH tunnel (run this locally, keep the terminal open):
 ```bash
-ssh -L 3001:127.0.0.1:3001 -L 8001:127.0.0.1:8001 root@<server-ip>
+ssh -N -L 8082:127.0.0.1:8082 root@<server-ip>
 ```
+Then open http://localhost:8082 (API is proxied — no second tunnel needed).
 
-Then open: http://localhost:3001
+## Databases are SEPARATE and diverged
 
-## Refreshing the database snapshot
-
-When you want to test against fresh prod data:
-```bash
-cp /var/www/cross-strait-signal/db/cross_strait_signal.db \
-   /var/www/cross-strait-signal-staging/db/cross_strait_signal.db
-```
+Staging and prod DBs have different row ids (including pollster ids) — do
+NOT blindly copy prod's DB over staging's (that swap happened once,
+2026-08-07→12, and had to be reverted). Target the prod DB from staging
+scripts with their `--db /var/www/cross-strait-signal/db/cross_strait_signal.db`
+flag instead. If a disposable prod snapshot is genuinely needed, copy it to a
+DIFFERENT filename and point uvicorn/scripts at it explicitly.
 
 ## Pipeline in staging
 
-The pipeline (scraper + AI) is intentionally **not scheduled** in staging.
-Check `crontab -l` to confirm — only the prod entry (`0 6,18 * * *`) should appear.
-To run the pipeline manually in staging if needed:
+The pipeline (scraper + AI) is intentionally **not scheduled** in staging —
+cron runs it from the prod worktree only (`0 */6 * * *`). To run manually:
 ```bash
 cd /var/www/cross-strait-signal-staging
 source venv/bin/activate
@@ -85,10 +51,12 @@ python scripts/run_pipeline.py
 
 ## Merging staging work to production
 
-When a phase is reviewed and approved in staging:
+When work is reviewed and approved in staging (this session runs ON the
+server, so skip `deploy.sh`'s SSH hop):
 ```bash
-# Back in the production worktree
-cd /var/www/cross-strait-signal
-git merge staging
-./deploy.sh
+cd /var/www/cross-strait-signal-staging && git push origin staging
+cd /var/www/cross-strait-signal && git merge --ff-only staging && git push origin main
+bash server_deploy.sh     # pull, migrations, both bundles, service restart
 ```
+Major/structural changes go through staging first; bug fixes and small doc
+edits can go straight to `main` (see CLAUDE.md).
