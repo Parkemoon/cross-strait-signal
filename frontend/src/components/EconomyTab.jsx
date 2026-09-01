@@ -112,30 +112,30 @@ function YoyChip({ yoy }) {
 
 function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
         <span style={{
           fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--text-primary)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
         }}>
-          {children}
+          {right}
         </span>
-        {right && (
-          <span style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            color: "var(--text-muted)",
-          }}>
-            {right}
-          </span>
-        )}
-      </div>
-      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+      )}
     </div>
   );
 }
@@ -680,28 +680,28 @@ function MacroPairChart({ pair, seriesById, monthsLimit }) {
 // not matched falls into "Other" (grey). Keep this list short and
 // economically meaningful — it's an interpretive overlay, not a taxonomy.
 const INDUSTRY_SECTOR = [
-  { sector: "Tech / electronics", color: "#2563eb",
+  { sector: "Tech / electronics", color: "var(--blue)",
     match: ["電子零組件", "電腦", "資訊軟體", "電信", "研究發展", "技術檢測"] },
-  { sector: "Heavy manufacturing", color: "#dc2626",
+  { sector: "Heavy manufacturing", color: "var(--red)",
     match: ["機械設備", "電力設備", "金屬製品", "化學製品", "化學材料", "塑膠製品",
             "汽車", "醫療器材", "基本金屬", "其他製造業", "其他電子", "橡膠", "電子產品",
             "光學製品", "運輸工具", "印刷", "皮革", "木竹", "紙漿", "家具", "紡織"] },
-  { sector: "Finance", color: "#7c3aed",
+  { sector: "Finance", color: "var(--hostile)",
     match: ["銀行", "證券", "保險", "創業投資", "金融"] },
-  { sector: "Services & retail", color: "#16a34a",
+  { sector: "Services & retail", color: "var(--green)",
     match: ["批發", "零售", "餐飲", "住宿", "會議", "支援", "教育", "藝術",
             "其他服務", "專業", "不動產", "出版", "醫療"] },
-  { sector: "Logistics / infra", color: "#f59e0b",
+  { sector: "Logistics / infra", color: "var(--coop)",
     match: ["港埠", "運輸及倉儲", "建築", "土木", "廢棄物", "農", "礦", "食品", "飲料",
             "產業用機械", "維修"] },
 ];
 
 function classifySector(zh) {
-  if (!zh) return { sector: "Other", color: "#6b7280" };
+  if (!zh) return { sector: "Other", color: "var(--muted)" };
   for (const s of INDUSTRY_SECTOR) {
     if (s.match.some((token) => zh.includes(token))) return s;
   }
-  return { sector: "Other", color: "#6b7280" };
+  return { sector: "Other", color: "var(--muted)" };
 }
 
 // Render a USD-thousands value at the right scale: $X.XK / M / B.
@@ -863,7 +863,7 @@ function InvestmentSection() {
         </div>
         {rows.map((r, i) => {
           const { sector, color } = r._isOther
-            ? { sector: "Mixed", color: "#9ca3af" }
+            ? { sector: "Mixed", color: "var(--muted)" }
             : classifySector(r.industry_zh);
           const widthPct = maxAmount ? (r.amount_usd_k / maxAmount) * 100 : 0;
           return (
@@ -1087,7 +1087,7 @@ function InvestmentVerification() {
               <div style={{
                 fontFamily: "var(--font-serif, Georgia, serif)",
                 fontSize: "20px",
-                color: "#dc2626",
+                color: "var(--red)",
               }}>
                 <strong>{cumRatio.toFixed(0)}%</strong>
               </div>
@@ -1127,11 +1127,11 @@ function InvestmentVerification() {
           alignItems: "center",
         }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
-            <span style={{ width: "10px", height: "10px", background: "#0d9488" }} />
+            <span style={{ width: "10px", height: "10px", background: "var(--cyan)" }} />
             MAC approved
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
-            <span style={{ width: "10px", height: "10px", background: "#dc2626" }} />
+            <span style={{ width: "10px", height: "10px", background: "var(--red)" }} />
             MOFCOM actually used
           </span>
           <span style={{ marginLeft: "auto" }}>USD billions, annual</span>
@@ -1172,7 +1172,7 @@ function InvestmentVerification() {
                       position: "absolute",
                       top: 0, left: 0, bottom: 0,
                       width: `${macW}%`,
-                      background: "#0d9488",
+                      background: "var(--cyan)",
                       opacity: 0.85,
                     }} />
                   </div>
@@ -1203,7 +1203,7 @@ function InvestmentVerification() {
                       position: "absolute",
                       top: 0, left: 0, bottom: 0,
                       width: `${mofW}%`,
-                      background: "#dc2626",
+                      background: "var(--red)",
                       opacity: 0.85,
                     }} />
                   </div>
@@ -1222,7 +1222,7 @@ function InvestmentVerification() {
                 textAlign: "right",
                 fontFamily: "var(--font-mono)",
                 fontSize: "11px",
-                color: p.utilisation_ratio_pct != null && p.utilisation_ratio_pct < 25 ? "#dc2626" : "var(--text-secondary)",
+                color: p.utilisation_ratio_pct != null && p.utilisation_ratio_pct < 25 ? "var(--red)" : "var(--text-secondary)",
               }}>
                 {p.utilisation_ratio_pct != null
                   ? `${p.utilisation_ratio_pct.toFixed(0)}% used`
@@ -1244,7 +1244,7 @@ function InvestmentVerification() {
             fallback={"The gap is structural. MAC counts at approval (with annual flows from Taiwan's Investment Commission, cumulative since 1991). MOFCOM counts at actual capital landing attributed by immediate source country (cumulative since records began ~1988 — coinciding with the 1988 国务院 document encouraging Taiwanese investment). The two start dates differ by ~3 years; 1988-1990 flows were small relative to the full window, so this affects the comparison only marginally. The two-thirds gap is driven by (1) approved-but-not-deployed investment, and (2) Taiwanese capital routed via Cayman, BVI or HK subsidiaries — which MOFCOM books under those source jurisdictions rather than Taiwan. The utilisation ratio has fallen from ~50% in 2017 to ~15% recently, suggesting the offshore-routing share is growing."} />
       <Copy k="economy.investment_scale_caveat"
             lead="Scale caveat:"
-            leadColor="#991b1b"
+            leadColor="var(--nat)"
             style={{
         fontFamily: "var(--font-body)",
         fontSize: "12px",
@@ -1253,8 +1253,8 @@ function InvestmentVerification() {
         marginBottom: "0",
         lineHeight: 1.5,
         padding: "10px 14px",
-        background: "rgba(220,38,38,0.06)",
-        border: "1px solid rgba(220,38,38,0.18)",
+        background: "color-mix(in srgb, var(--red) 6%, transparent)",
+        border: "1px solid color-mix(in srgb, var(--red) 18%, transparent)",
       }}
             fallback={"Both figures likely undercount the true cross-strait flow. Academic consensus (PIIE, China Quarterly) is that the majority of Taiwanese FDI booked under Hong Kong, Singapore and Caribbean tax havens in fact deploys in China — so MAC's $210B omits a large share of capital that left Taiwan but was approved for offshore destinations. For pace comparison: TSMC alone has committed roughly US$165B to its Arizona expansion in the past ~5 years — close to 80% of all the Taiwan→PRC investment MAC has approved over the 35 years since 1991, but compressed into a fraction of the time. Taiwanese capex is migrating away from PRC and toward the US, Japan and Southeast Asia post-2018. The story this chart tells is therefore narrower than it appears — it's the gap between Taiwanese-government-approved and PRC-government-claimed figures for the subset of capital that both sides acknowledge; the shadow flow is larger still."} />
     </div>

@@ -23,7 +23,7 @@ const FLAG_INFO = {
 };
 
 function StatusTag({ status }) {
-  const c = status === "confirmed" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#b8860b";
+  const c = status === "confirmed" ? "var(--green)" : status === "rejected" ? "var(--red)" : "var(--flag)";
   const label = STATUSES.find((s) => s.id === status)?.label || status;
   return <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: c, letterSpacing: "0.05em" }}>{label.toUpperCase()}</span>;
 }
@@ -64,7 +64,7 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex",
                   alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)",
-                    borderTop: "4px solid #7c3aed", borderRadius: "4px", width: 900, maxWidth: "94vw",
+                    borderTop: "3px solid var(--hostile)", width: 900, maxWidth: "94vw",
                     maxHeight: "86vh", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
                       padding: "14px 16px", borderBottom: "1px solid var(--border-color)" }}>
@@ -138,8 +138,8 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
                                    color: "var(--text-primary)", border: "1px solid var(--border-color)", padding: "4px 6px", resize: "vertical" }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "stretch" }}>
-                <Pill active={v.status === "confirmed"} colour="#16a34a" onClick={() => busy !== v.mmsi && patch(v, { status: "confirmed" })}>✓ coast guard</Pill>
-                <Pill active={v.status === "rejected"} colour="#dc2626" onClick={() => busy !== v.mmsi && patch(v, { status: "rejected" })}>✕ not coast guard</Pill>
+                <Pill active={v.status === "confirmed"} colour="var(--green)" onClick={() => busy !== v.mmsi && patch(v, { status: "confirmed" })}>✓ coast guard</Pill>
+                <Pill active={v.status === "rejected"} colour="var(--red)" onClick={() => busy !== v.mmsi && patch(v, { status: "rejected" })}>✕ not coast guard</Pill>
                 <select value={v.force} onChange={(e) => patch(v, { force: e.target.value })}
                         title="Re-assign force (rewrites the hull's presence rows)"
                         style={{ fontFamily: "var(--font-mono)", fontSize: "10px", background: "var(--bg-primary)",

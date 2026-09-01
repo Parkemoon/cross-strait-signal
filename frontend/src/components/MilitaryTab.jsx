@@ -20,8 +20,8 @@ import ExerciseEditModal from "./ExerciseEditModal";
 
 // Purple is the project's "hostile" colour (locked). PLA incursions are the
 // prototypical hostile cross-strait act, so the whole tab leans purple.
-const HOSTILE = "#7c3aed";
-const HOSTILE_DIM = "rgba(124, 58, 237, 0.20)";
+const HOSTILE = "var(--hostile)";
+const HOSTILE_DIM = "color-mix(in srgb, var(--hostile) 20%, transparent)";
 
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -34,30 +34,30 @@ function fmtMonthDay(iso) {
 
 export function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px", marginTop: "28px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px", marginTop: "28px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
         <span style={{
           fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--text-primary)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
         }}>
-          {children}
+          {right}
         </span>
-        {right && (
-          <span style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            color: "var(--text-muted)",
-          }}>
-            {right}
-          </span>
-        )}
-      </div>
-      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+      )}
     </div>
   );
 }
@@ -110,8 +110,8 @@ function YoYChip({ pct }) {
   // cooperative-amber; increase → hostile-purple. This mirrors the
   // sentiment palette so the chip semantics match the rest of the app.
   const positive = pct >= 0;
-  const colour = positive ? HOSTILE : "#b8860b";
-  const bg     = positive ? "rgba(124,58,237,0.12)" : "rgba(184,134,11,0.14)";
+  const colour = positive ? HOSTILE : "var(--flag)";
+  const bg     = positive ? "color-mix(in srgb, var(--hostile) 12%, transparent)" : "color-mix(in srgb, var(--flag) 14%, transparent)";
   return (
     <span style={{
       fontFamily: "var(--font-mono)",
@@ -119,7 +119,7 @@ function YoYChip({ pct }) {
       letterSpacing: "0.04em",
       color: colour,
       background: bg,
-      border: `1px solid ${colour}55`,
+      border: `1px solid color-mix(in srgb, ${colour} 33%, transparent)`,
       padding: "1px 5px",
       whiteSpace: "nowrap",
     }}>
@@ -333,7 +333,7 @@ function ADIZSchematic({ rows, zoneLabels }) {
           const days = totals[s.code];
           const intensity = days / maxTouch;
           const fill = days > 0
-            ? `rgba(124, 58, 237, ${0.20 + intensity * 0.65})`
+            ? `color-mix(in srgb, var(--hostile) ${Math.round((0.20 + intensity * 0.65) * 100)}%, transparent)`
             : "var(--bg-card)";
           const stroke = days > 0 ? HOSTILE : "var(--border-color)";
           return (
@@ -440,7 +440,7 @@ function Heatmap({ rows }) {
     const i = intensity(v);
     if (i === null) return "transparent";
     if (i === 0) return "var(--bg-card)";
-    return `rgba(124, 58, 237, ${0.18 + i * 0.7})`;
+    return `color-mix(in srgb, var(--hostile) ${Math.round((0.18 + i * 0.7) * 100)}%, transparent)`;
   }
 
   const monthLabels = [];
@@ -506,7 +506,7 @@ function Heatmap({ rows }) {
         {[0, 0.25, 0.5, 0.75, 1].map((i) => (
           <span key={i} style={{
             width: "12px", height: "12px",
-            background: i === 0 ? "var(--bg-card)" : `rgba(124, 58, 237, ${0.18 + i * 0.7})`,
+            background: i === 0 ? "var(--bg-card)" : `color-mix(in srgb, var(--hostile) ${Math.round((0.18 + i * 0.7) * 100)}%, transparent)`,
             border: i === 0 ? "1px solid var(--border-color)" : "none",
             display: "inline-block",
           }} />
@@ -538,7 +538,7 @@ function PerformerPill({ code, active, count, onToggle }) {
         fontSize: "10px",
         letterSpacing: "0.06em",
         border: `1px solid ${active ? colour : "var(--border-color)"}`,
-        background: active ? `${colour}22` : "transparent",
+        background: active ? `color-mix(in srgb, ${colour} 13%, transparent)` : "transparent",
         color: active ? colour : "var(--text-muted)",
         cursor: "pointer",
       }}
@@ -593,9 +593,9 @@ function ExerciseFilters({ filters, setFilters, counts, pendingCount, onOpenRevi
                   fontFamily: "var(--font-mono)",
                   fontSize: "10px",
                   letterSpacing: "0.06em",
-                  border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
-                  background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
-                  color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)",
+                  border: `1px solid ${pendingCount > 0 ? "var(--flag)" : "var(--border-color)"}`,
+                  background: pendingCount > 0 ? "color-mix(in srgb, var(--flag) 12%, transparent)" : "transparent",
+                  color: pendingCount > 0 ? "var(--flag)" : "var(--text-muted)",
                   cursor: "pointer",
                 }}>
           ✎ Review{pendingCount > 0 ? ` (${pendingCount})` : ""}
@@ -662,7 +662,7 @@ function ExerciseList({ rows, selectedId, onSelect, onEdit, onQuickDismiss }) {
               padding: "8px 12px",
               borderLeft: isSelected ? `3px solid ${colour}` : "3px solid transparent",
               borderBottom: "1px solid var(--border-color)",
-              background: isSelected ? `${colour}11` : "transparent",
+              background: isSelected ? `color-mix(in srgb, ${colour} 7%, transparent)` : "transparent",
               cursor: hasGeo ? "pointer" : "default",
               fontFamily: "var(--font-mono)",
               fontSize: "11px",
@@ -709,7 +709,7 @@ function ExerciseList({ rows, selectedId, onSelect, onEdit, onQuickDismiss }) {
                     ✎
                   </RowIconButton>
                   <RowIconButton title="Dismiss this exercise"
-                                 colour="var(--accent-red, #dc2626)"
+                                 colour="var(--accent-red, var(--red))"
                                  onClick={() => onQuickDismiss(ex)}>
                     ✕
                   </RowIconButton>

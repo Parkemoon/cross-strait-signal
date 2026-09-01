@@ -11,10 +11,10 @@ const TOPIC_OPTIONS = [
 ];
 
 const SENTIMENT_COLOURS = {
-  hostile: "#c0392b",
-  cooperative: "#27ae60",
+  hostile: "var(--red)",
+  cooperative: "var(--green)",
   neutral: "#7f8c8d",
-  mixed: "#e67e22",
+  mixed: "var(--flag)",
 };
 
 function ReviewCard({ item, onResolved }) {
@@ -61,14 +61,16 @@ function ReviewCard({ item, onResolved }) {
     }
   }
 
+  // Mirrors BIAS_META in SourceBadge.jsx — System A alignment colours.
   const biasColour = {
-    green: "#27ae60",
-    green_leaning: "#52be80",
-    blue: "#2980b9",
-    blue_leaning: "#5dade2",
-    china_centrist: "#a86a6a",
-    state_official: "#8e44ad",
-    state_nationalist: "#c0392b",
+    green: "var(--green)",
+    green_leaning: "var(--gsoft)",
+    blue: "var(--blue)",
+    blue_leaning: "var(--bsoft)",
+    centrist: "var(--muted)",
+    china_centrist: "var(--rose)",
+    state_official: "var(--red)",
+    state_nationalist: "var(--nat)",
   }[item.bias] || "var(--text-muted)";
 
   return (
@@ -76,8 +78,8 @@ function ReviewCard({ item, onResolved }) {
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border-color)",
-        borderLeft: "3px solid #e67e22",
-        borderRadius: "6px",
+        borderLeft: "3px solid var(--flag)",
+        borderRadius: 0,
         padding: "20px",
         marginBottom: "16px",
       }}
@@ -166,7 +168,7 @@ function ReviewCard({ item, onResolved }) {
             key={label}
             style={{
               background: "var(--bg-secondary)",
-              borderRadius: "4px",
+              borderRadius: 0,
               padding: "8px 12px",
             }}
           >
@@ -184,13 +186,13 @@ function ReviewCard({ item, onResolved }) {
       <div
         style={{
           background: "var(--bg-secondary)",
-          borderRadius: "4px",
+          borderRadius: 0,
           padding: "10px 12px",
           marginBottom: "14px",
-          borderLeft: "2px solid #e67e22",
+          borderLeft: "2px solid var(--flag)",
         }}
       >
-        <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#e67e22", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
+        <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--flag)", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
           Flagged reason
         </span>
         <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
@@ -203,7 +205,7 @@ function ReviewCard({ item, onResolved }) {
         <div
           style={{
             background: "var(--bg-secondary)",
-            borderRadius: "4px",
+            borderRadius: 0,
             padding: "14px",
             marginBottom: "14px",
             display: "grid",
@@ -212,7 +214,7 @@ function ReviewCard({ item, onResolved }) {
           }}
         >
           <div>
-            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
+            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--flag)", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
               Headline
             </label>
             <input
@@ -225,7 +227,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 fontSize: "13px",
                 fontFamily: "var(--font-body)",
                 boxSizing: "border-box",
@@ -233,7 +235,7 @@ function ReviewCard({ item, onResolved }) {
             />
           </div>
           <div>
-            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
+            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--flag)", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
               Summary
             </label>
             <textarea
@@ -246,7 +248,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 fontSize: "13px",
                 fontFamily: "var(--font-body)",
                 resize: "vertical",
@@ -255,7 +257,7 @@ function ReviewCard({ item, onResolved }) {
             />
           </div>
           <div>
-            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
+            <label style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--flag)", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "4px" }}>
               Key quote translation
             </label>
             <input
@@ -268,7 +270,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 fontSize: "13px",
                 fontFamily: "var(--font-body)",
                 boxSizing: "border-box",
@@ -283,7 +285,7 @@ function ReviewCard({ item, onResolved }) {
         <div
           style={{
             background: "var(--bg-secondary)",
-            borderRadius: "4px",
+            borderRadius: 0,
             padding: "14px",
             marginBottom: "14px",
             display: "grid",
@@ -304,7 +306,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 fontSize: "13px",
                 fontFamily: "var(--font-mono)",
               }}
@@ -326,7 +328,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 fontSize: "13px",
                 fontFamily: "var(--font-mono)",
               }}
@@ -348,7 +350,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 fontSize: "13px",
                 fontFamily: "var(--font-mono)",
               }}
@@ -373,7 +375,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 fontSize: "13px",
                 fontFamily: "var(--font-body)",
                 boxSizing: "border-box",
@@ -392,10 +394,10 @@ function ReviewCard({ item, onResolved }) {
               disabled={submitting}
               style={{
                 padding: "7px 16px",
-                background: "#27ae60",
+                background: "var(--green)",
                 color: "#fff",
                 border: "none",
-                borderRadius: "4px",
+                borderRadius: 0,
                 cursor: "pointer",
                 fontSize: "12px",
                 fontFamily: "var(--font-mono)",
@@ -411,7 +413,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 cursor: "pointer",
                 fontSize: "12px",
                 fontFamily: "var(--font-mono)",
@@ -427,7 +429,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-muted)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 cursor: "pointer",
                 fontSize: "12px",
                 fontFamily: "var(--font-mono)",
@@ -444,10 +446,10 @@ function ReviewCard({ item, onResolved }) {
               disabled={submitting}
               style={{
                 padding: "7px 16px",
-                background: "#2980b9",
+                background: "var(--blue)",
                 color: "#fff",
                 border: "none",
-                borderRadius: "4px",
+                borderRadius: 0,
                 cursor: "pointer",
                 fontSize: "12px",
                 fontFamily: "var(--font-mono)",
@@ -463,7 +465,7 @@ function ReviewCard({ item, onResolved }) {
                 background: "var(--bg-card)",
                 color: "var(--text-muted)",
                 border: "1px solid var(--border-color)",
-                borderRadius: "4px",
+                borderRadius: 0,
                 cursor: "pointer",
                 fontSize: "12px",
                 fontFamily: "var(--font-mono)",
@@ -525,7 +527,7 @@ export default function ReviewQueue({ onClose }) {
               background: "var(--bg-card)",
               color: "var(--text-secondary)",
               border: "1px solid var(--border-color)",
-              borderRadius: "4px",
+              borderRadius: 0,
               cursor: "pointer",
               fontSize: "12px",
               fontFamily: "var(--font-mono)",

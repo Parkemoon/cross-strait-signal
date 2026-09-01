@@ -33,11 +33,11 @@ function FlyToSelected({ targetId, rows, markerRefs }) {
 // Locked performer palette (matches the project's party-colour scheme where
 // it overlaps; MULTI is grey because it has no single owner).
 export const PERFORMER_COLOUR = {
-  PRC:   "#dc2626",
-  ROC:   "#16a34a",
-  US:    "#1d4ed8",
-  JP:    "#14B8A6",
-  MULTI: "#6b7280",
+  PRC:   "var(--red)",
+  ROC:   "var(--green)",
+  US:    "var(--blue)",
+  JP:    "var(--cyan)",
+  MULTI: "var(--muted)",
 };
 
 export const PERFORMER_LABEL = {
@@ -165,7 +165,7 @@ function MarkerPopup({ exercise, onEdit, onQuickDismiss }) {
       {article?.url && (
         <div style={{ marginTop: "6px" }}>
           <a href={article.url} target="_blank" rel="noreferrer"
-             style={{ color: "#1d4ed8", textDecoration: "underline" }}>
+             style={{ color: "var(--blue)", textDecoration: "underline" }}>
             {article.source_name || "source"}
           </a>
         </div>
@@ -186,7 +186,7 @@ function MarkerPopup({ exercise, onEdit, onQuickDismiss }) {
           )}
           {onQuickDismiss && (
             <PopupIconButton title="Dismiss this exercise"
-                             colour="#dc2626"
+                             colour="var(--red)"
                              onClick={() => onQuickDismiss(exercise)}>
               ✕ Dismiss
             </PopupIconButton>

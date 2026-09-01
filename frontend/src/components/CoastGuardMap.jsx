@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { fetchCoastGuardZones } from "../api";
-import { FORCE_COLOUR } from "./coastGuardShared";
 
 // Zone polygons for the Coast Guard tracker. Fill intensity = CCG hull-days in
 // the summary window (sequential, one hue — PRC red); the tooltip carries every
 // force so the map never reads as a one-sided instrument. Stroke encodes the
 // zone kind: prohibited = solid, restricted = dashed, everything else = dotted.
 // Same react-leaflet v4 / StrictMode-off caveats as ExerciseMap.
-// FORCE_COLOUR.CCG (#dc2626) as an rgb triple for alpha fills.
-const CCG_HUE = [1, 3, 5].map((i) => parseInt(FORCE_COLOUR.CCG.slice(i, i + 2), 16)).join(", ");
+// CCG red as a raw rgb triple for alpha fills. FORCE_COLOUR.CCG is now a
+// var() token and can't be hex-sliced; the map sits on light tiles in both
+// themes, so the light-mode --red (#b0392e) is pinned here as a literal.
+const CCG_HUE = "176, 57, 46";
 const KIND_STROKE = {
   prohibited: { weight: 1.8, dashArray: null },
   restricted: { weight: 1.4, dashArray: "5 4" },
@@ -59,7 +60,7 @@ export default function CoastGuardMap({ zoneStats, height = 380 }) {
     };
     layer.bindTooltip(
       `<div style="font-family:var(--font-mono);font-size:11px;line-height:1.5">` +
-      `<div style="font-weight:700">${p.label_en}</div><div style="color:#6b7280">${p.label_zh} · ${p.area_km2.toLocaleString()} km²</div>` +
+      `<div style="font-weight:700">${p.label_en}</div><div style="color:var(--muted)">${p.label_zh} · ${p.area_km2.toLocaleString()} km²</div>` +
       line("CCG", "China CG") + line("CGA", "Taiwan CG") + `</div>`,
       { sticky: true },
     );

@@ -14,7 +14,7 @@ export const DIRECTION_LABEL = { TW_TO_PRC: "TW → PRC", PRC_TO_TW: "PRC → TW
 // Direction colours (shared by the tab chart, timeline cards and map).
 // Not party colours (direction is not a party) and not the sentiment
 // purple/amber pair — two neutral tones that stay apart in both themes.
-export const DIR_COLOUR = { TW_TO_PRC: "#0e7490", PRC_TO_TW: "#b45309", THIRD_VENUE: "#64748b", blocked: "#9ca3af" };
+export const DIR_COLOUR = { TW_TO_PRC: "#0e7490", PRC_TO_TW: "var(--flag)", THIRD_VENUE: "#64748b", blocked: "var(--muted)" };
 export const STATUSES = ["reported", "planned", "rumoured", "cancelled", "blocked"];
 export const LEVELS = [
   "head_of_state_govt", "party_leader", "party_senior", "minister", "legislator",
@@ -40,7 +40,7 @@ export const AFFILIATION_LABEL = {
 export function affiliationColour(aff) {
   if (PARTY_COLOURS[aff]) return PARTY_COLOURS[aff];
   if (PRC_AFFILIATIONS.includes(aff)) return PARTY_COLOURS.PRC;
-  return "#475569";
+  return "var(--muted)";
 }
 
 function fieldStyle() {
@@ -198,7 +198,7 @@ function CandidateCard({ candidate, targets, onResolve }) {
       )}
 
       <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "8px", flexWrap: "wrap" }}>
-        {btn(dirty ? "Save & approve" : "Approve", "approve", { background: "#16a34a", color: "#fff", border: "none" })}
+        {btn(dirty ? "Save & approve" : "Approve", "approve", { background: "var(--green)", color: "#fff", border: "none" })}
         {btn("Dismiss", "dismiss", { background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)" })}
         {near.length > 0 && (
           <>
@@ -211,7 +211,7 @@ function CandidateCard({ candidate, targets, onResolve }) {
                 </option>
               ))}
             </select>
-            {mergeTarget && btn("Merge", "merge", { background: "#b8860b", color: "#fff", border: "none" })}
+            {mergeTarget && btn("Merge", "merge", { background: "var(--flag)", color: "#fff", border: "none" })}
           </>
         )}
       </div>

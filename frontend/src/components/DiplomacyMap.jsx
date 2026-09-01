@@ -10,7 +10,7 @@ import "leaflet/dist/leaflet.css";
 export const BAND_COLOUR = {
   pro_taipei:      "#1a8043",
   leaning_taipei:  "#8fc9a3",
-  neutral:         "#9aa0a6",
+  neutral:         "var(--muted)",
   leaning_beijing: "#e79a93",
   pro_beijing:     "#c1272d",
 };
@@ -47,7 +47,7 @@ const NO_DATA_FILL = "#ece7db";
 const NO_DATA_STROKE = "#c7c0ad";
 // Analyst-flagged divergence (a non-official voice opposing the official
 // fill) — gold dashed outline, the app's existing review-accent colour.
-const DIVERGENT_STROKE = "#d4a94a";
+const DIVERGENT_STROKE = "var(--flag)";
 const SELECTED_STROKE = "#2e2010"; // warm umber — matches header
 
 // Roster countries Natural Earth 1:110m has no polygon for (sub-pixel
@@ -252,7 +252,7 @@ export default function DiplomacyMap({ countries, selectedIso, onSelect, showPin
             && labelPoints.has(c.country_iso))
           .map((c) => {
             const pos = labelPoints.get(c.country_iso);
-            const colour = BAND_COLOUR[c.pins_label] || "#9aa0a6";
+            const colour = BAND_COLOUR[c.pins_label] || "var(--muted)";
             return (
               <CircleMarker
                 key={`pin-${c.country_iso}`}

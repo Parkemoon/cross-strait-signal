@@ -4,7 +4,7 @@
 // (PRC red, ROC green, JP teal, US blue — see ExerciseMap PERFORMER_COLOUR).
 // NOTE: red↔green fails the CVD validator when adjacent (ΔE 5.0 deutan), so
 // CCG and CGA must never share a stacked or grouped mark.
-export const FORCE_COLOUR = { CCG: "#dc2626", CGA: "#16a34a", JCG: "#14B8A6", USCG: "#1d4ed8" };
+export const FORCE_COLOUR = { CCG: "var(--red)", CGA: "var(--green)", JCG: "var(--cyan)", USCG: "var(--blue)" };
 export const FORCE_LABEL  = { CCG: "China Coast Guard", CGA: "Taiwan Coast Guard", JCG: "Japan Coast Guard", USCG: "US Coast Guard" };
 export const FORCES = ["CCG", "CGA", "JCG", "USCG"];
 

@@ -88,7 +88,7 @@ export default function AltModelLens({ lens, onChange, dual, onDualChange }) {
             background: "var(--bg-card)",
             color: "var(--text-primary)",
             border: "1px solid var(--border-color)",
-            borderRadius: "3px",
+            borderRadius: 0,
             fontSize: "12px",
             fontFamily: "var(--font-mono)",
             cursor: "pointer",
@@ -104,7 +104,7 @@ export default function AltModelLens({ lens, onChange, dual, onDualChange }) {
       <span style={{
         display: "inline-flex",
         border: "1px solid var(--border-color)",
-        borderRadius: "3px",
+        borderRadius: 0,
         overflow: "hidden",
       }}>
         {[
@@ -125,7 +125,7 @@ export default function AltModelLens({ lens, onChange, dual, onDualChange }) {
               // segments read as one button.
               borderLeft: i > 0 ? "1px solid var(--border-color)" : "none",
               background: mode === key
-                ? (key === "gemini" ? "#6b7280" : tint)
+                ? (key === "gemini" ? "var(--muted)" : tint)
                 : "transparent",
               color: mode === key ? "#fff" : "var(--text-muted)",
             }}

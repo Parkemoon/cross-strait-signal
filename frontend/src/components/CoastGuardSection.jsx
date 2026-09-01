@@ -104,7 +104,7 @@ function Caveats({ caveats, scopes, compact }) {
                   background: "var(--bg-card)", fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
       {rows.map((c) => (
         <div key={c.key} style={{ marginBottom: 3 }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "#b8860b", marginRight: 6 }}>⚑ CAVEAT</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--flag)", marginRight: 6 }}>⚑ CAVEAT</span>
           {c.en}
         </div>
       ))}
@@ -193,7 +193,7 @@ function ZoneTable({ zones }) {
             <tr key={z.zone_id} style={{ borderTop: "1px solid var(--border-color)" }}>
               <td style={{ padding: "5px 8px", fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                 {z.label_en}
-                {z.group === "kinmen" && <span title="AIS-visible floor — see Kinmen caveat" style={{ color: "#b8860b", marginLeft: 5, fontSize: "9.5px" }}>⚑</span>}
+                {z.group === "kinmen" && <span title="AIS-visible floor — see Kinmen caveat" style={{ color: "var(--flag)", marginLeft: 5, fontSize: "9.5px" }}>⚑</span>}
                 <span style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--text-muted)" }}>{z.label_zh}</span>
               </td>
               {CHART_FORCES.map((f) => cell(z, f))}
@@ -436,8 +436,8 @@ export default function CoastGuardSection() {
       <SubHeader right={!READ_ONLY ? (
         <button onClick={() => setRosterOpen(true)} title={`${fmtInt(summary.anomalies)} hulls carry AIS-identity anomaly flags (recorded facts, not a review queue)`}
                 style={{ fontFamily: "var(--font-mono)", fontSize: "10px", cursor: "pointer", padding: "2px 8px",
-                         background: "transparent", color: summary.unreviewed ? "#b8860b" : "var(--text-secondary)",
-                         border: `1px solid ${summary.unreviewed ? "#b8860b" : "var(--border-color)"}` }}>
+                         background: "transparent", color: summary.unreviewed ? "var(--flag)" : "var(--text-secondary)",
+                         border: `1px solid ${summary.unreviewed ? "var(--flag)" : "var(--border-color)"}` }}>
           ✎ Roster{summary.unreviewed ? ` · ${fmtInt(summary.unreviewed)} unreviewed` : ""}
         </button>
       ) : "Last 30 days"}>Same-zone co-presence</SubHeader>
