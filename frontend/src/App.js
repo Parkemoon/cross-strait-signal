@@ -3,7 +3,7 @@ import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
 import { useDashboardData } from "./hooks/useDashboardData";
 import ThemeToggle from "./components/ThemeToggle";
-import AboutModal from "./components/AboutModal";
+import AboutTab from "./components/AboutTab";
 import FlashTraffic from "./components/FlashTraffic";
 import KeyFigures from "./components/KeyFigures";
 import SocialPulse from "./components/SocialPulse";
@@ -24,6 +24,20 @@ import AltModelsTab from "./components/AltModelsTab";
 import AltModelLens from "./components/AltModelLens";
 import NavMenu from "./components/NavMenu";
 import { WIDE_VIEWS } from "./navGroups";
+import { bandColour } from "./sentimentBand";
+
+function fmtScore(score) {
+  if (score == null) return "—";
+  const v = score.toFixed(2).replace("-", "−");
+  return score > 0 ? `+${v}` : v;
+}
+
+const TICKER_TEXT = {
+  fontFamily: "var(--font-mono)",
+  fontSize: "9.5px",
+  letterSpacing: "0.08em",
+  color: "var(--muted)",
+};
 
 export default function App() {
   const [filters, setFilters] = useState({});
@@ -36,7 +50,6 @@ export default function App() {
   // outside altLens to avoid a pointless refetch on toggle.
   const [altDual, setAltDual] = useState(false);
   const [view, setView] = useState("feed"); // "feed" | any view in navGroups.js (WIDE_VIEWS)
-  const [showAbout, setShowAbout] = useState(false);
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | any view in navGroups.js
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
@@ -46,130 +59,95 @@ export default function App() {
     reviewPending, pendingApproval, setPendingApproval,
   } = useDashboardData(filters, page, READ_ONLY ? null : altLens);
 
+  const isSection = WIDE_VIEWS.includes(view);
+  const byPlace = {};
+  (stats?.sentiment_by_place ?? []).forEach((r) => { byPlace[r.place] = r.avg_score; });
+
+  const dateStr = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
-      {/* Header — masthead layout */}
-      <header
-        style={{
-          background: "var(--header-bg)",
-          color: "var(--header-text)",
-          display: "flex",
-          alignItems: "stretch",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-        }}
-      >
-        {/* Masthead block */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          padding: isMobile ? "12px 16px" : "12px 28px",
-          borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <h1 style={{
-            fontFamily: "var(--font-headline)",
-            fontSize: isMobile ? "18px" : "20px",
-            fontWeight: 400,
-            letterSpacing: "0.01em",
-            lineHeight: 1,
-          }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
+      {/* ============ Masthead — centred nameplate, briefing-document ============ */}
+      {!isMobile ? (
+        <header>
+          <div style={{ textAlign: "center", padding: "26px 24px 0", position: "relative", maxWidth: "1440px", margin: "0 auto" }}>
+            {/* abs left: date stamp */}
+            <div style={{ position: "absolute", left: "24px", top: "26px", textAlign: "left",
+                          fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--faint)",
+                          letterSpacing: "0.12em", lineHeight: 1.6 }}>
+              {dateStr}
+            </div>
+            {/* abs right: live dot · pending (admin) · theme */}
+            <div style={{ position: "absolute", right: "24px", top: "26px", display: "flex", gap: "10px",
+                          alignItems: "center", fontFamily: "var(--font-mono)", fontSize: "9px",
+                          color: "var(--faint)", letterSpacing: "0.12em" }}>
+              {!READ_ONLY && pendingApproval > 0 && (
+                <span style={{ color: "var(--flag)" }}>{pendingApproval} PENDING</span>
+              )}
+              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--cyan)",
+                               animation: "csspulse 2.4s infinite" }} />
+                MONITORING
+              </span>
+              <ThemeToggle />
+            </div>
+            {/* eyebrow — margins guard collision with the absolute corners */}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.22em",
+                          color: "var(--faint)", margin: "0 170px 8px" }}>
+              BILINGUAL · ANALYST-GATED · OPEN SOURCE
+            </div>
+            {/* nameplate */}
+            <h1 onClick={() => setView("feed")}
+                style={{ fontFamily: "var(--font-headline)", fontSize: "40px", fontWeight: 500,
+                         lineHeight: 1, letterSpacing: "0.01em", cursor: "pointer", margin: "0 160px",
+                         color: "var(--ink)" }}>
+              Cross-Strait Signal
+            </h1>
+            <div style={{ width: "64px", height: "1px", background: "var(--ink)", margin: "14px auto 10px" }} />
+            {/* nav row */}
+            <div style={{ paddingBottom: "12px" }}>
+              <NavMenu view={view} onSelect={setView} badges={{ review: reviewPending }} />
+            </div>
+            {/* double rule — the signature; used only here and above the footer */}
+            <div style={{ borderTop: "3px double var(--ink)", margin: "0 -24px" }} />
+            {/* ticker */}
+            <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 26px",
+                          padding: "7px 0", borderBottom: "1px solid var(--hair)", margin: "0 -24px", ...TICKER_TEXT }}>
+              <span>CONTINUOUS MONITOR · {(stats?.total_articles ?? total ?? 0).toLocaleString()} ARTICLES REVIEWED</span>
+              <span>·</span>
+              <span>{stats?.escalation_signals?.length || 0} ACTIVE SIGNALS</span>
+              <span>·</span>
+              <span>OVERALL <b style={{ color: bandColour(stats?.avg_sentiment_score), fontWeight: 600 }}>{fmtScore(stats?.avg_sentiment_score)}</b></span>
+              <span>·</span>
+              <span>
+                PRC <b style={{ color: bandColour(byPlace.PRC), fontWeight: 600 }}>{fmtScore(byPlace.PRC)}</b>
+                {" / "}
+                TW <b style={{ color: bandColour(byPlace.TW), fontWeight: 600 }}>{fmtScore(byPlace.TW)}</b>
+              </span>
+            </div>
+          </div>
+        </header>
+      ) : (
+        /* ============ Mobile header — compact nameplate ============ */
+        <header style={{ textAlign: "center", padding: "14px 16px 10px", position: "relative" }}>
+          <div style={{ position: "absolute", right: "12px", top: "12px", display: "flex", gap: "6px", alignItems: "center" }}>
+            <button onClick={() => { setView("about"); setMobileTab("about"); }}
+                    style={{ background: "none", border: "1px solid var(--hair)", width: "24px", height: "24px",
+                             cursor: "pointer", fontSize: "12px", color: "var(--faint)", padding: 0 }}
+                    title="About">i</button>
+            <ThemeToggle />
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "7.5px", letterSpacing: "0.2em",
+                        color: "var(--faint)", marginBottom: "4px" }}>
+            BILINGUAL · ANALYST-GATED · OPEN SOURCE
+          </div>
+          <h1 onClick={() => { setView("feed"); setMobileTab("feed"); }}
+              style={{ fontFamily: "var(--font-headline)", fontSize: "24px", fontWeight: 500, lineHeight: 1,
+                       letterSpacing: "0.01em", color: "var(--ink)", margin: "0 40px" }}>
             Cross-Strait Signal
           </h1>
-          {!isMobile && (
-            <span style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "9px",
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              opacity: 0.35,
-              marginTop: "5px",
-            }}>
-              PRC · Taiwan · Open-Source Intelligence
-            </span>
-          )}
-        </div>
-
-        {/* Centre strip — stats + pending */}
-        {!isMobile && (
-          <div style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            padding: "0 24px",
-            gap: "20px",
-          }}>
-            <span style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "10px",
-              opacity: 0.38,
-              letterSpacing: "0.06em",
-            }}>
-              {total} articles · {stats?.escalation_signals?.length || 0} signals
-            </span>
-            {!READ_ONLY && pendingApproval > 0 && (
-              <span style={{
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                color: "#f59e0b",
-                background: "rgba(245,158,11,0.1)",
-                border: "1px solid rgba(245,158,11,0.25)",
-                padding: "3px 8px",
-                letterSpacing: "0.06em",
-              }}>
-                {pendingApproval} pending
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: isMobile ? "0 16px" : "0 20px" }}>
-          {!isMobile && <NavMenu view={view} onSelect={setView} badges={{ review: reviewPending }} />}
-          {!isMobile && (
-            <button
-              onClick={() => setShowAbout(true)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-mono)",
-                color: "rgba(255,255,255,0.35)",
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                padding: "5px 8px",
-              }}
-            >
-              About
-            </button>
-          )}
-          {isMobile && (
-            <button
-              onClick={() => setShowAbout(true)}
-              style={{
-                background: "none",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: "50%",
-                width: "28px",
-                height: "28px",
-                cursor: "pointer",
-                fontSize: "13px",
-                color: "var(--header-text)",
-                opacity: 0.7,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                flexShrink: 0,
-              }}
-              title="About"
-            >
-              i
-            </button>
-          )}
-          <ThemeToggle />
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Tab bar — mobile only (groups from navGroups.js; Stats/Social are mobile-only panels) */}
       {isMobile && (
@@ -181,36 +159,38 @@ export default function App() {
                  }} />
       )}
 
-      {/* Main layout — collapses to 2 columns on every section tab
-          (WIDE_VIEWS) so the wide tables and charts get the full width.
-          NB: do NOT add `overflow: hidden` here — it breaks
-          `position: sticky` on the sidebar children. */}
+      {/* ============ Main layout ============
+          Feed: twin 280px rails around a centred reading column (the
+          "monitor"). Section views: single column, no rails (the
+          "document") — the monitor/document contrast is deliberate.
+          Mobile keeps the tab-controlled single column.
+          NB: do NOT add `overflow: hidden` to the grid — it breaks
+          `position: sticky` on the rail children. */}
       <div style={{
-        display: isMobile ? "block" : "grid",
-        gridTemplateColumns: WIDE_VIEWS.includes(view)
-          ? "clamp(300px, 20vw, 420px) 1fr"
-          : "clamp(300px, 20vw, 420px) 1fr 300px",
-        minHeight: "calc(100vh - 52px)",
+        display: isMobile ? "block" : (isSection ? "block" : "grid"),
+        gridTemplateColumns: isSection ? undefined : "280px minmax(0, 1fr) 280px",
+        maxWidth: "1440px",
+        margin: "0 auto",
+        minHeight: "calc(100vh - 160px)",
         alignItems: "start",
       }}>
-        {/* Stats sidebar — always visible on desktop, tab-controlled on
-            mobile. Sticky-top so it stays at viewport top throughout the
-            feed scroll; max-height + overflow-y:auto give it independent
-            scroll when the user hovers and wheels. hide-scrollbar keeps
-            the visible track suppressed. */}
+        {/* Left rail — alignment legend, gauges, trend, topics, sources,
+            entities. Hidden on section views (desktop); mobile Stats tab. */}
         <aside
           className={isMobile ? "" : "hide-scrollbar"}
           style={{
-            background: "var(--sidebar-bg)",
-            borderRight: isMobile ? "none" : "1px solid var(--border-color)",
-            padding: "24px 20px",
+            background: "var(--bg)",
+            borderRight: isMobile ? "none" : "1px solid var(--hair)",
+            padding: "20px 18px",
             position: isMobile ? "static" : "sticky",
             top: 0,
             alignSelf: "start",
-            maxHeight: isMobile ? "none" : "calc(100vh - 52px)",
+            maxHeight: isMobile ? "none" : "100vh",
             overflowY: isMobile ? "visible" : "auto",
             minWidth: 0,
-            display: isMobile ? (mobileTab === "stats" ? "block" : "none") : "block",
+            display: isMobile
+              ? (mobileTab === "stats" ? "block" : "none")
+              : (isSection ? "none" : "block"),
           }}
         >
           <StatsSidebar
@@ -253,33 +233,33 @@ export default function App() {
         {/* Feed / Review / section tabs — center column */}
         <div style={{ display: isMobile ? ((mobileTab === "feed" || WIDE_VIEWS.includes(mobileTab)) ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
-            <ReviewQueue onClose={() => setView("feed")} />
-          ) : view === "economy" ? (
-            <EconomyTab />
-          ) : view === "trade" ? (
-            <TradeAccessTab />
-          ) : view === "people" ? (
-            <PeopleTab />
-          ) : view === "military" ? (
-            <MilitaryTab />
-          ) : view === "maritime" ? (
-            <MaritimeTab />
-          ) : view === "polls" ? (
-            <PollsTab />
-          ) : view === "diplomacy" ? (
-            <DiplomacyTab />
-          ) : view === "visits" ? (
-            <VisitsTab />
-          ) : !READ_ONLY && view === "positions" ? (
-            <PositionsTab onOpenTab={setView} />
-          ) : !READ_ONLY && view === "altmodels" ? (
-            <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
-              <AltModelsTab />
-            </main>
+            <div style={{ maxWidth: "960px", margin: "0 auto", minWidth: 0 }}>
+              <ReviewQueue onClose={() => setView("feed")} />
+            </div>
+          ) : isSection && view !== "review" ? (
+            <div style={{ maxWidth: "1100px", margin: "0 auto", minWidth: 0 }}>
+              {view === "economy" ? <EconomyTab />
+                : view === "trade" ? <TradeAccessTab />
+                : view === "people" ? <PeopleTab />
+                : view === "military" ? <MilitaryTab />
+                : view === "maritime" ? <MaritimeTab />
+                : view === "polls" ? <PollsTab />
+                : view === "diplomacy" ? <DiplomacyTab />
+                : view === "visits" ? <VisitsTab />
+                : !READ_ONLY && view === "positions" ? <PositionsTab onOpenTab={setView} />
+                : view === "about" ? <AboutTab />
+                : !READ_ONLY && view === "altmodels" ? (
+                  <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
+                    <AltModelsTab />
+                  </main>
+                ) : null}
+            </div>
           ) : (
             <main style={{
-              padding: isMobile ? "16px" : "28px 32px",
+              padding: isMobile ? "16px" : "24px 48px 40px",
               minWidth: 0,
+              maxWidth: isMobile ? "none" : "820px",
+              margin: "0 auto",
               overflow: "hidden",
             }}>
                 {/* Priority Signals */}
@@ -292,29 +272,27 @@ export default function App() {
 
                 <KeyFigures />
 
-                {/* Section header */}
-                <div style={{ marginBottom: "20px" }}>
-                  <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      letterSpacing: "0.14em",
-                      textTransform: "uppercase",
-                      color: "var(--text-primary)",
-                    }}>
-                      Signal Feed
-                    </span>
-                    <span style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "10px",
-                      color: "var(--text-muted)",
-                    }}>
-                      {total} results
-                    </span>
-                  </div>
-                  <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+                {/* Section rule — THE FEED */}
+                <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "6px" }}>
+                  <span style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "9.5px",
+                    fontWeight: 600,
+                    letterSpacing: "0.24em",
+                    textTransform: "uppercase",
+                    color: "var(--ink)",
+                  }}>
+                    The Feed
+                  </span>
+                  <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+                  <span style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "9px",
+                    color: "var(--pale)",
+                    letterSpacing: "0.08em",
+                  }}>
+                    {total} RESULTS
+                  </span>
                 </div>
 
                 {/* Model lens — admin-only feed re-render through an alt-model sweep */}
@@ -345,19 +323,20 @@ export default function App() {
                 {loading ? (
                   <p
                     style={{
-                      color: "var(--text-muted)",
+                      color: "var(--muted)",
                       fontFamily: "var(--font-mono)",
-                      fontSize: "13px",
+                      fontSize: "11px",
+                      letterSpacing: "0.08em",
                       padding: "40px 0",
                     }}
                   >
-                    Loading...
+                    LOADING…
                   </p>
                 ) : articles.length === 0 ? (
                   <p
                     style={{
-                      color: "var(--text-muted)",
-                      fontFamily: "var(--font-mono)",
+                      color: "var(--muted)",
+                      fontFamily: "var(--font-body)",
                       fontSize: "13px",
                       padding: "40px 0",
                     }}
@@ -386,55 +365,52 @@ export default function App() {
                       />
                     ))}
 
-                    {/* Pagination */}
+                    {/* Pagination — typographic, no buttons-as-boxes */}
                     <div
                       style={{
                         display: "flex",
                         justifyContent: "center",
-                        gap: "12px",
+                        alignItems: "baseline",
+                        gap: "10px",
                         marginTop: "24px",
                         paddingBottom: isMobile ? "24px" : "40px",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "10px",
+                        letterSpacing: "0.1em",
                       }}
                     >
                       <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
                         style={{
-                          padding: "8px 20px",
-                          background: "var(--bg-card)",
-                          color: page <= 1 ? "var(--text-muted)" : "var(--text-secondary)",
-                          border: "1px solid var(--border-color)",
-                          cursor: page <= 1 ? "not-allowed" : "pointer",
-                          fontSize: "13px",
-                          fontFamily: "var(--font-body)",
+                          background: "none",
+                          border: "none",
+                          fontFamily: "inherit",
+                          fontSize: "inherit",
+                          letterSpacing: "inherit",
+                          color: page <= 1 ? "var(--pale)" : "var(--muted)",
+                          cursor: page <= 1 ? "default" : "pointer",
                         }}
                       >
-                        ← Previous
+                        ← PREVIOUS
                       </button>
-                      <span
-                        style={{
-                          padding: "8px 0",
-                          fontSize: "12px",
-                          color: "var(--text-muted)",
-                          fontFamily: "var(--font-mono)",
-                        }}
-                      >
-                        Page {page}
-                      </span>
+                      <span style={{ color: "var(--pale)" }}>·</span>
+                      <span style={{ color: "var(--faint)" }}>PAGE {page}</span>
+                      <span style={{ color: "var(--pale)" }}>·</span>
                       <button
                         onClick={() => setPage((p) => p + 1)}
                         disabled={articles.length < 20}
                         style={{
-                          padding: "8px 20px",
-                          background: "var(--bg-card)",
-                          color: articles.length < 20 ? "var(--text-muted)" : "var(--text-secondary)",
-                          border: "1px solid var(--border-color)",
-                          cursor: articles.length < 20 ? "not-allowed" : "pointer",
-                          fontSize: "13px",
-                          fontFamily: "var(--font-body)",
+                          background: "none",
+                          border: "none",
+                          fontFamily: "inherit",
+                          fontSize: "inherit",
+                          letterSpacing: "inherit",
+                          color: articles.length < 20 ? "var(--pale)" : "var(--muted)",
+                          cursor: articles.length < 20 ? "default" : "pointer",
                         }}
                       >
-                        Next →
+                        NEXT →
                       </button>
                     </div>
                   </>
@@ -443,7 +419,7 @@ export default function App() {
                 {/* Social Pulse — mobile only, below articles */}
                 {isMobile && (
                   <div style={{
-                    borderTop: "1px solid var(--border-color)",
+                    borderTop: "1px solid var(--hair)",
                     paddingTop: "16px",
                     marginTop: "8px",
                     paddingBottom: "40px",
@@ -455,22 +431,21 @@ export default function App() {
           )}
         </div>
 
-        {/* Social Pulse — right column, desktop only. Same sticky-top +
-            internal-scroll pattern as the left sidebar. Hidden on the
-            Economy and Trade tabs to give those wide panels room. */}
+        {/* Social Pulse — right rail, desktop feed only. Same sticky-top +
+            internal-scroll pattern as the left rail. */}
         <aside
           className="hide-scrollbar"
           style={{
-            background: "var(--sidebar-bg)",
-            borderLeft: "1px solid var(--border-color)",
-            padding: "24px 20px",
+            background: "var(--bg)",
+            borderLeft: "1px solid var(--hair)",
+            padding: "20px 18px",
             position: "sticky",
             top: 0,
             alignSelf: "start",
-            maxHeight: "calc(100vh - 52px)",
+            maxHeight: "100vh",
             overflowY: "auto",
             minWidth: 0,
-            display: WIDE_VIEWS.includes(view)
+            display: isSection
               ? "none"
               : (isMobile ? (mobileTab === "social" ? "block" : "none") : "block"),
           }}
@@ -480,24 +455,24 @@ export default function App() {
       </div>
 
 
-      {/* About modal */}
-      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
-
-      {/* Footer — desktop only */}
+      {/* Footer — desktop only; the second and last permitted double rule */}
       <footer
         style={{
-          borderTop: "1px solid var(--border-color)",
-          padding: "14px 28px",
+          borderTop: "3px double var(--ink)",
+          padding: "10px 24px",
           display: isMobile ? "none" : "flex",
           justifyContent: "space-between",
-          fontSize: "11px",
-          color: "var(--text-muted)",
           fontFamily: "var(--font-mono)",
-          background: "var(--bg-secondary)",
+          fontSize: "9px",
+          letterSpacing: "0.1em",
+          color: "var(--faint)",
+          background: "var(--bg)",
+          maxWidth: "1440px",
+          margin: "0 auto",
         }}
       >
-        <span>Cross-Strait Signal · Ed Moon</span>
-        <span>{stats?.total_articles || 0} articles processed</span>
+        <span>CROSS-STRAIT SIGNAL · ED MOON</span>
+        <span>{(stats?.total_articles || 0).toLocaleString()} ARTICLES PROCESSED</span>
       </footer>
     </div>
   );

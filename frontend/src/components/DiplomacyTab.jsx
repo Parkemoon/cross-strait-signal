@@ -17,22 +17,30 @@ const OFFICIAL_TIERS = new Set(["government", "head_of_state"]);
 
 function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px", marginTop: "28px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px", marginTop: "28px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
         <span style={{
-          fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
-          letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-primary)",
+          fontFamily: "var(--font-mono)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
         }}>
-          {children}
+          {right}
         </span>
-        {right && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
-            {right}
-          </span>
-        )}
-      </div>
-      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+      )}
     </div>
   );
 }
@@ -90,7 +98,7 @@ function StanceBar({ bands }) {
           display: "inline-flex", alignItems: "center", gap: "5px",
           fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)",
         }}>
-          <span style={{ width: "11px", height: "11px", border: "1.5px dashed #d4a94a", display: "inline-block" }} />
+          <span style={{ width: "11px", height: "11px", border: "1.5px dashed var(--flag)", display: "inline-block" }} />
           Divergence flagged
         </span>
       </div>
@@ -102,7 +110,7 @@ function StanceChip({ label }) {
   return (
     <span style={{
       fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.05em",
-      textTransform: "uppercase", color: "#fff", background: BAND_COLOUR[label] || "#9aa0a6",
+      textTransform: "uppercase", color: "#fff", background: BAND_COLOUR[label] || "var(--muted)",
       padding: "1px 6px", whiteSpace: "nowrap",
     }}>
       {BAND_LABEL[label] || label}
@@ -127,7 +135,7 @@ function CountryRow({ country, selected, onSelect }) {
       style={{
         padding: "8px 12px",
         borderLeft: selected
-          ? `3px solid ${country.fill ? BAND_COLOUR[country.fill.stance_label] : "#9aa0a6"}`
+          ? `3px solid ${country.fill ? BAND_COLOUR[country.fill.stance_label] : "var(--muted)"}`
           : "3px solid transparent",
         borderBottom: "1px solid var(--border-color)",
         background: selected ? "rgba(0,0,0,0.03)" : "transparent",
@@ -138,7 +146,7 @@ function CountryRow({ country, selected, onSelect }) {
         <span style={{ fontFamily: "var(--font-display, serif)", fontSize: "13px", color: "var(--text-primary)" }}>
           {country.country_name}
           {country.divergent && (
-            <span title="Divergence flagged" style={{ color: "#d4a94a", marginLeft: "6px" }}>◆</span>
+            <span title="Divergence flagged" style={{ color: "var(--flag)", marginLeft: "6px" }}>◆</span>
           )}
         </span>
         {country.fill
@@ -257,7 +265,7 @@ function SelectedDetail({ iso, country, onEdit, refreshNonce }) {
       )}
       <StatementList
         title="Non-official voices"
-        accent={country.divergent ? <span style={{ color: "#b8860b" }}>◆ Divergence · </span> : null}
+        accent={country.divergent ? <span style={{ color: "var(--flag)" }}>◆ Divergence · </span> : null}
         items={nonOfficial}
         loading={loading}
         onEdit={onEdit}
@@ -341,7 +349,7 @@ export default function DiplomacyTab() {
                  sublabel="pro + leaning" />
         <KPICard label="Leaning Beijing" value={beijing} accent={BAND_COLOUR.pro_beijing}
                  sublabel="pro + leaning" />
-        <KPICard label="Divergences" value={summary.divergent_count} accent="#b8860b"
+        <KPICard label="Divergences" value={summary.divergent_count} accent="var(--flag)"
                  sublabel="official vs other voices" />
       </div>
 
@@ -374,9 +382,9 @@ export default function DiplomacyTab() {
                   style={{
                     padding: "4px 11px", fontFamily: "var(--font-mono)", fontSize: "10px",
                     letterSpacing: "0.06em",
-                    border: `1px solid ${pendingCount > 0 ? "#d4a94a" : "var(--border-color)"}`,
-                    background: pendingCount > 0 ? "rgba(212,169,74,0.12)" : "transparent",
-                    color: pendingCount > 0 ? "#d4a94a" : "var(--text-muted)",
+                    border: `1px solid ${pendingCount > 0 ? "var(--flag)" : "var(--border-color)"}`,
+                    background: pendingCount > 0 ? "color-mix(in srgb, var(--flag) 12%, transparent)" : "transparent",
+                    color: pendingCount > 0 ? "var(--flag)" : "var(--text-muted)",
                     cursor: "pointer",
                   }}>
             ✎ Review{pendingCount > 0 ? ` (${pendingCount})` : ""}

@@ -45,8 +45,8 @@ function FieldEditor({ label, value, onSave }) {
             padding: "6px 8px",
             background: "var(--bg-primary)",
             color: "var(--text-primary)",
-            border: "1px solid #f59e0b",
-            borderRadius: "3px",
+            border: "1px solid var(--flag)",
+            borderRadius: 0,
             fontSize: "inherit",
             fontFamily: "inherit",
             lineHeight: "inherit",
@@ -61,10 +61,10 @@ function FieldEditor({ label, value, onSave }) {
             disabled={saving}
             style={{
               padding: "3px 10px",
-              background: "#f59e0b",
+              background: "var(--flag)",
               color: "#fff",
               border: "none",
-              borderRadius: "3px",
+              borderRadius: 0,
               fontSize: "11px",
               fontFamily: "var(--font-mono)",
               cursor: "pointer",
@@ -79,7 +79,7 @@ function FieldEditor({ label, value, onSave }) {
               background: "transparent",
               color: "var(--text-muted)",
               border: "1px solid var(--border-color)",
-              borderRadius: "3px",
+              borderRadius: 0,
               fontSize: "11px",
               fontFamily: "var(--font-mono)",
               cursor: "pointer",
@@ -140,7 +140,7 @@ function EntityTag({ articleId, entity, onEntityClick }) {
 
   if (editing) {
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--tag-bg)", padding: "3px 8px", borderRadius: "2px" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--tag-bg)", padding: "3px 8px", borderRadius: 0 }}>
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -148,21 +148,21 @@ function EntityTag({ articleId, entity, onEntityClick }) {
           style={{
             width: "140px", padding: "1px 4px", fontSize: "12px",
             fontFamily: "var(--font-body)", background: "var(--bg-primary)",
-            color: "var(--text-primary)", border: "1px solid #f59e0b",
-            borderRadius: "2px", outline: "none",
+            color: "var(--text-primary)", border: "1px solid var(--flag)",
+            borderRadius: 0, outline: "none",
           }}
           autoFocus
         />
         <button
           onClick={handleSave}
           disabled={saving}
-          style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: "2px", padding: "1px 6px", fontSize: "11px", cursor: "pointer" }}
+          style={{ background: "var(--flag)", color: "#fff", border: "none", borderRadius: 0, padding: "1px 6px", fontSize: "11px", cursor: "pointer" }}
         >
           {saving ? "…" : "✓"}
         </button>
         <button
           onClick={() => { setDraft(displayName); setEditing(false); }}
-          style={{ background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border-color)", borderRadius: "2px", padding: "1px 6px", fontSize: "11px", cursor: "pointer" }}
+          style={{ background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border-color)", borderRadius: 0, padding: "1px 6px", fontSize: "11px", cursor: "pointer" }}
         >
           ✕
         </button>
@@ -175,7 +175,7 @@ function EntityTag({ articleId, entity, onEntityClick }) {
       style={{
         display: "inline-flex", alignItems: "center", gap: "2px",
         background: "var(--tag-bg)", color: "var(--tag-text)",
-        padding: "3px 10px", borderRadius: "2px", fontSize: "12px",
+        padding: "3px 10px", borderRadius: 0, fontSize: "12px",
         fontFamily: "var(--font-body)",
       }}
     >
@@ -277,7 +277,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
     background: "var(--bg-card)",
     color: "var(--text-primary)",
     border: "1px solid var(--border-color)",
-    borderRadius: "3px",
+    borderRadius: 0,
     fontSize: "12px",
     fontFamily: "var(--font-mono)",
     cursor: "pointer",
@@ -322,15 +322,15 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         background: lensActive
           ? modelTintRgba(altLens.model, dualMode ? 0.04 : 0.05)
           : undefined,
-        borderBottom: "1px solid var(--border-color)",
+        borderBottom: "1px solid var(--soft)",
         borderLeft: article.urgency === "flash"
-          ? "3px solid var(--accent-red)"
+          ? "3px solid var(--hostile)"
           : article.urgency === "priority"
-          ? "3px solid var(--accent-amber)"
+          ? "3px solid var(--dot)"
           : isPending
-          ? "3px solid #f59e0b"
+          ? "3px solid var(--flag)"
           : "3px solid transparent",
-        padding: "14px 0 14px 12px",
+        padding: "16px 0 16px 12px",
         cursor: "pointer",
       }}
       onClick={handleExpand}
@@ -348,56 +348,60 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         >
           <span
             style={{
-              fontSize: "10px",
+              fontSize: "9px",
               fontFamily: "var(--font-mono)",
-              color: "#f59e0b",
+              color: "var(--flag)",
               textTransform: "uppercase",
-              letterSpacing: "1.5px",
+              letterSpacing: "0.14em",
               fontWeight: 600,
             }}
           >
-            ⚠ Pending Approval
+            ⚑ Pending Approval
           </span>
-          <div style={{ display: "flex", gap: "6px" }}>
+          <div style={{ display: "flex", gap: "8px" }}>
             <button
               onClick={handleApprove}
               style={{
-                padding: "3px 10px",
-                background: "#16a34a",
-                color: "#fff",
-                border: "none",
-                fontSize: "11px",
+                padding: "4px 14px",
+                background: "var(--ink)",
+                color: "var(--bg)",
+                border: "1px solid var(--ink)",
+                fontSize: "9px",
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
                 fontFamily: "var(--font-mono)",
                 fontWeight: 600,
                 cursor: "pointer",
               }}
             >
-              ✓ Approve
+              Approve
             </button>
             <button
               onClick={handleHide}
               style={{
-                padding: "3px 10px",
+                padding: "4px 14px",
                 background: "transparent",
-                color: "var(--text-muted)",
-                border: "1px solid var(--border-color)",
-                fontSize: "11px",
+                color: "var(--muted)",
+                border: "1px solid var(--hair)",
+                fontSize: "9px",
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
                 fontFamily: "var(--font-mono)",
                 cursor: "pointer",
               }}
             >
-              ✕ Dismiss
+              Dismiss
             </button>
           </div>
         </div>
       )}
-      {/* Metadata row */}
+      {/* Metadata line — source · alignment · topic · date · score */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: "10px",
-          marginBottom: "8px",
+          marginBottom: "6px",
           flexWrap: "wrap",
         }}
       >
@@ -405,6 +409,16 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
           sourceName={article.source_name}
           bias={article.bias}
         />
+        <span
+          style={{
+            color: "var(--faint)",
+            fontSize: "9px",
+            letterSpacing: "0.08em",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          {article.published_at?.slice(0, 10)}
+        </span>
         <TopicPill
           topic={swapMode ? article.alt_topic_primary : article.topic_primary}
           // Topic filtering runs on the production classification, so an alt
@@ -426,9 +440,9 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
               fontSize: "10px",
               fontFamily: "var(--font-mono)",
               padding: "1px 8px",
-              borderRadius: "2px",
-              color: "#f59e0b",
-              border: "1px solid #f59e0b",
+              borderRadius: 0,
+              color: "var(--flag)",
+              border: "1px solid var(--flag)",
             }}
           >
             ≠ Gemini
@@ -442,15 +456,15 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
               alignItems: "center",
               gap: "6px",
               padding: "2px 6px",
-              borderRadius: "2px",
-              border: `1px ${topicDiverges ? "solid #f59e0b" : "dashed var(--border-color)"}`,
-              background: topicDiverges ? "rgba(245,158,11,0.05)" : "transparent",
+              borderRadius: 0,
+              border: `1px ${topicDiverges ? "solid var(--flag)" : "dashed var(--border-color)"}`,
+              background: topicDiverges ? "color-mix(in srgb, var(--flag) 5%, transparent)" : "transparent",
             }}
           >
             <span style={{
               fontSize: "9px",
               fontFamily: "var(--font-mono)",
-              color: topicDiverges ? "#f59e0b" : "var(--text-muted)",
+              color: topicDiverges ? "var(--flag)" : "var(--text-muted)",
               textTransform: "uppercase",
               letterSpacing: "1px",
             }}>
@@ -469,12 +483,12 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
             fontFamily: "var(--font-mono)",
             fontWeight: 600,
             padding: "1px 8px",
-            borderRadius: "2px",
+            borderRadius: 0,
             textTransform: "uppercase",
             letterSpacing: "1px",
-            color: article.alt_outcome === "refused" ? "#dc2626" : "var(--text-muted)",
-            border: `1px solid ${article.alt_outcome === "refused" ? "#dc2626" : "var(--border-color)"}`,
-            background: article.alt_outcome === "refused" ? "rgba(220,38,38,0.06)" : "transparent",
+            color: article.alt_outcome === "refused" ? "var(--nat)" : "var(--text-muted)",
+            border: `1px solid ${article.alt_outcome === "refused" ? "var(--nat)" : "var(--border-color)"}`,
+            background: article.alt_outcome === "refused" ? "color-mix(in srgb, var(--nat) 6%, transparent)" : "transparent",
           }}>
             {article.alt_outcome === "refused"
               ? (article.alt_finish_reason === "content_filter" ? "Filtered by provider" : "Refused")
@@ -486,25 +500,14 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
             {swapMode ? article.alt_sentiment_reasoning : article.sentiment_reasoning}
           </span>
         )}
-        <span
-          style={{
-            color: "var(--text-muted)",
-            fontSize: "12px",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          {article.published_at?.slice(0, 10)}
-        </span>
         {article.cluster_size > 1 && (
           <span
             style={{
-              background: "var(--bg-secondary)",
-              color: "var(--accent-teal)",
-              border: "1px solid var(--accent-teal)",
-              padding: "1px 8px",
-              borderRadius: "2px",
-              fontSize: "10px",
+              color: "var(--pale)",
+              fontSize: "9px",
+              letterSpacing: "0.08em",
               fontFamily: "var(--font-mono)",
+              textTransform: "uppercase",
               cursor: "pointer",
             }}
           >
@@ -514,11 +517,11 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         {isSignal && (
           <span
             style={{
-              background: "var(--accent-red)",
-              color: "#fff",
-              padding: "1px 8px",
-              borderRadius: "2px",
-              fontSize: "10px",
+              color: "var(--hostile)",
+              border: "1px solid var(--hostile)",
+              padding: "0 7px",
+              fontSize: "9px",
+              letterSpacing: "0.12em",
               fontWeight: 600,
               fontFamily: "var(--font-mono)",
             }}
@@ -534,10 +537,9 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
               onClick={handleToggleSignal}
               title={isSignal ? "Remove signal flag" : "Mark as escalation signal"}
               style={{
-                background: isSignal ? "var(--accent-red)" : "transparent",
-                border: "1px solid var(--accent-red)",
-                color: isSignal ? "#fff" : "var(--accent-red)",
-                borderRadius: "2px",
+                background: isSignal ? "var(--hostile)" : "transparent",
+                border: "1px solid var(--hostile)",
+                color: isSignal ? "var(--bg)" : "var(--hostile)",
                 padding: "1px 7px",
                 fontSize: "10px",
                 fontFamily: "var(--font-mono)",
@@ -554,7 +556,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
                 background: "transparent",
                 border: "1px solid var(--border-color)",
                 color: "var(--text-muted)",
-                borderRadius: "2px",
+                borderRadius: 0,
                 padding: "1px 7px",
                 fontSize: "10px",
                 fontFamily: "var(--font-mono)",
@@ -569,15 +571,15 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
 
       </div>
 
-      {/* Headline */}
+      {/* Headline — Newsreader 20px */}
       <h3
         style={{
           fontFamily: "var(--font-headline)",
-          fontSize: "18px",
-          fontWeight: 400,
+          fontSize: "20px",
+          fontWeight: 500,
           lineHeight: 1.3,
-          marginBottom: "6px",
-          color: (!READ_ONLY && titleOverride) ? "#f59e0b" : "var(--text-primary)",
+          marginBottom: "3px",
+          color: (!READ_ONLY && titleOverride) ? "var(--flag)" : "var(--ink)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -588,13 +590,13 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         />
       </h3>
 
-      {/* Original language title */}
+      {/* Original-language title — the source's own words, own line */}
       {article.title_en && article.title_original !== article.title_en && (
         <p
           style={{
-            fontSize: "14px",
-            color: "var(--text-muted)",
-            marginBottom: "8px",
+            fontSize: "12.5px",
+            color: "var(--pale)",
+            marginBottom: "4px",
             fontFamily: "var(--font-body)",
           }}
         >
@@ -602,13 +604,14 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         </p>
       )}
 
-      {/* Summary */}
+      {/* Summary (dek) */}
       <p
         style={{
-          fontSize: "14px",
+          fontSize: "13.5px",
           fontFamily: "var(--font-body)",
-          color: (!READ_ONLY && summaryOverride) ? "#f59e0b" : "var(--text-secondary)",
+          color: (!READ_ONLY && summaryOverride) ? "var(--flag)" : "var(--body)",
           lineHeight: 1.65,
+          textWrap: "pretty",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -633,7 +636,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
           style={{
             marginTop: "8px",
             padding: "8px 10px",
-            borderLeft: `2px solid ${topicDiverges ? "#f59e0b" : "var(--border-color)"}`,
+            borderLeft: `2px solid ${topicDiverges ? "var(--flag)" : "var(--border-color)"}`,
             background: "var(--bg-secondary)",
           }}
           onClick={(e) => e.stopPropagation()}
@@ -726,7 +729,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
               </h4>
               <blockquote
                 style={{
-                  borderLeft: "3px solid var(--accent-teal)",
+                  borderLeft: "2px solid var(--dot)",
                   paddingLeft: "14px",
                   fontFamily: "var(--font-body)",
                   fontSize: "14px",
@@ -738,7 +741,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
                 {article.key_quote}
                 <p
                   style={{
-                    color: (!READ_ONLY && quoteOverride) ? "#f59e0b" : "var(--text-muted)",
+                    color: (!READ_ONLY && quoteOverride) ? "var(--flag)" : "var(--text-muted)",
                     marginTop: "4px",
                     fontStyle: "normal",
                     fontSize: "13px",
@@ -756,7 +759,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
           )}
 
           {/* Source link */}
-          <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--accent-teal)", textDecoration: "none" }}>
+          <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--muted)", textDecoration: "none", borderBottom: "1px solid var(--dot)" }}>
             {"View original source \u2192"}
           </a>
 
@@ -780,7 +783,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
               ) : clusterArticles?.map((c, i) => (
                 <div key={i} style={{
                   background: "var(--bg-secondary)",
-                  borderRadius: "3px",
+                  borderRadius: 0,
                   padding: "10px 12px",
                   marginBottom: "6px",
                   display: "flex",
@@ -792,7 +795,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
                     <div style={{
                       fontSize: "10px",
                       fontFamily: "var(--font-mono)",
-                      color: c.place === "PRC" ? "var(--accent-red)" : "var(--accent-blue)",
+                      color: c.place === "PRC" ? "var(--red)" : "var(--green)",
                       textTransform: "uppercase",
                       letterSpacing: "1px",
                       marginBottom: "4px",
@@ -813,10 +816,10 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
                       fontSize: "11px",
                       fontFamily: "var(--font-mono)",
                       color: c.sentiment_score > 0.3
-                        ? "#f59e0b"
+                        ? "var(--coop)"
                         : c.sentiment_score < -0.3
-                        ? "#7c3aed"
-                        : "#6b7280",
+                        ? "var(--hostile)"
+                        : "var(--neut)",
                       fontWeight: 600,
                     }}>
                       {c.sentiment_score > 0 ? "+" : ""}{c.sentiment_score?.toFixed(2)}
@@ -824,8 +827,9 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
                     <a href={c.url} target="_blank" rel="noopener noreferrer" style={{
                       fontSize: "10px",
                       fontFamily: "var(--font-mono)",
-                      color: "var(--accent-teal)",
+                      color: "var(--muted)",
                       textDecoration: "none",
+                      borderBottom: "1px solid var(--dot)",
                     }}>
                       {"Source \u2197"}
                     </a>
@@ -917,7 +921,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
                   background: "var(--bg-secondary)",
                   color: "var(--text-primary)",
                   border: "1px solid var(--border-color)",
-                  borderRadius: "3px",
+                  borderRadius: 0,
                   fontSize: "14px",
                   fontFamily: "var(--font-body)",
                   minHeight: "70px",
@@ -931,10 +935,10 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
                 style={{
                   marginTop: "8px",
                   padding: "7px 20px",
-                  background: noteSaved ? "var(--accent-green)" : "var(--accent-teal)",
+                  background: noteSaved ? "var(--gsoft)" : "var(--ink)",
                   color: "#fff",
                   border: "none",
-                  borderRadius: "3px",
+                  borderRadius: 0,
                   fontSize: "13px",
                   fontFamily: "var(--font-body)",
                   fontWeight: 600,

@@ -24,12 +24,12 @@ const STATUS_FILTERS = [
 // `partial_lift` uses teal — distinct from banned-red and ecfa-active-green
 // to flag the political-channel-mediated middle state.
 const STATUS_PILLS = {
-  banned:         { label: "Banned",          dot: "#dc2626", bg: "rgba(220,38,38,0.10)",   fg: "#991b1b", border: "rgba(220,38,38,0.30)" },
-  ecfa_suspended: { label: "ECFA suspended",  dot: "#f59e0b", bg: "rgba(245,158,11,0.10)",  fg: "#92400e", border: "rgba(245,158,11,0.35)" },
-  partial_lift:   { label: "Partial lift",    dot: "#0d9488", bg: "rgba(13,148,136,0.10)",  fg: "#115e59", border: "rgba(13,148,136,0.35)" },
+  banned:         { label: "Banned",          dot: "var(--red)", bg: "color-mix(in srgb, var(--red) 10%, transparent)",   fg: "var(--nat)", border: "color-mix(in srgb, var(--red) 30%, transparent)" },
+  ecfa_suspended: { label: "ECFA suspended",  dot: "var(--coop)", bg: "color-mix(in srgb, var(--coop) 10%, transparent)",  fg: "var(--coop)", border: "color-mix(in srgb, var(--coop) 35%, transparent)" },
+  partial_lift:   { label: "Partial lift",    dot: "var(--cyan)", bg: "rgba(13,148,136,0.10)",  fg: "#115e59", border: "rgba(13,148,136,0.35)" },
   conditional:    { label: "Conditional",     dot: "#0ea5e9", bg: "rgba(14,165,233,0.10)",  fg: "#0369a1", border: "rgba(14,165,233,0.30)" },
-  ecfa_active:    { label: "ECFA active",     dot: "#16a34a", bg: "rgba(22,163,74,0.10)",   fg: "#166534", border: "rgba(22,163,74,0.30)" },
-  allowed:        { label: "Allowed",         dot: "#6b7280", bg: "rgba(107,114,128,0.08)", fg: "#374151", border: "rgba(107,114,128,0.25)" },
+  ecfa_active:    { label: "ECFA active",     dot: "var(--green)", bg: "color-mix(in srgb, var(--green) 10%, transparent)",   fg: "#166534", border: "color-mix(in srgb, var(--green) 30%, transparent)" },
+  allowed:        { label: "Allowed",         dot: "var(--muted)", bg: "color-mix(in srgb, var(--muted) 8%, transparent)", fg: "#374151", border: "color-mix(in srgb, var(--muted) 25%, transparent)" },
 };
 
 // Where each source's underlying dataset / announcement lives, so users can
@@ -58,24 +58,30 @@ const PAGE_SIZE = 50;
 
 function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
         <span style={{
           fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--text-primary)",
-        }}>{children}</span>
-        {right && <span style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "10px",
-          color: "var(--text-muted)",
-        }}>{right}</span>}
-      </div>
-      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
+        }}>
+          {right}
+        </span>
+      )}
     </div>
   );
 }
@@ -141,7 +147,7 @@ function HeadlineStrip({ summary, cifer }) {
             color: "var(--text-primary)",
             lineHeight: 1.25,
           }}>
-            <strong style={{ color: "#dc2626" }}>{twBanned.toLocaleString()}</strong> HS lines banned
+            <strong style={{ color: "var(--red)" }}>{twBanned.toLocaleString()}</strong> HS lines banned
           </div>
           <div style={{
             fontFamily: "var(--font-body)",
@@ -167,7 +173,7 @@ function HeadlineStrip({ summary, cifer }) {
             color: "var(--text-primary)",
             lineHeight: 1.25,
           }}>
-            <strong style={{ color: "#dc2626" }}>{(cifer.suspended).toLocaleString()}</strong> food exporters suspended
+            <strong style={{ color: "var(--red)" }}>{(cifer.suspended).toLocaleString()}</strong> food exporters suspended
           </div>
           <div style={{
             fontFamily: "var(--font-mono)",
@@ -183,9 +189,9 @@ function HeadlineStrip({ summary, cifer }) {
             color: "var(--text-secondary)",
             marginTop: "6px",
           }}>
-            ECFA preferences: <strong style={{ color: "#16a34a" }}>{prcActive.toLocaleString()}</strong> active
+            ECFA preferences: <strong style={{ color: "var(--green)" }}>{prcActive.toLocaleString()}</strong> active
             <span style={{ color: "var(--text-muted)" }}> · </span>
-            <strong style={{ color: "#f59e0b" }}>{prcSuspended}</strong> suspended
+            <strong style={{ color: "var(--coop)" }}>{prcSuspended}</strong> suspended
             <span style={{ color: "var(--text-muted)" }}> · </span>
             {prcBanned} HS-8 lines targeted (agri/food)
           </div>
@@ -261,7 +267,7 @@ function SuspensionTimeline({ waves }) {
         {waves.map((w) => (
           <div key={w.wave} style={{
             flex: "1 1 280px",
-            borderLeft: "3px solid #f59e0b",
+            borderLeft: "3px solid var(--dot)",
             paddingLeft: "12px",
           }}>
             <div style={{

@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import ArticleCard from "./ArticleCard";
 
+// "Top of the Brief" — the active escalation signals, numbered like a
+// briefing document's lead items. Full ArticleCards inside (admin controls
+// intact); the big --dot numeral carries the hierarchy instead of the old
+// inverted colour plate.
 export default function FlashTraffic({ escalations: initialEscalations, onTopicClick, onEntityClick, onApprove }) {
   const [escalations, setEscalations] = useState(initialEscalations || []);
 
@@ -15,50 +19,58 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
   if (!escalations || escalations.length === 0) return null;
 
   return (
-    <div style={{ marginBottom: "32px" }}>
-      <div style={{ marginBottom: "14px" }}>
-        <div style={{ height: "3px", background: "var(--accent-red)", marginBottom: "8px" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            fontWeight: 600,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--accent-red)",
-          }}>
-            Priority Signals
-          </span>
-          <span style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            color: "var(--text-muted)",
-          }}>
-            {escalations.length} active
-          </span>
-        </div>
+    <div style={{ marginBottom: "28px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "12px" }}>
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "9.5px",
+          fontWeight: 600,
+          letterSpacing: "0.24em",
+          textTransform: "uppercase",
+          color: "var(--hostile)",
+        }}>
+          Top of the Brief
+        </span>
+        <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+        }}>
+          {escalations.length} ACTIVE {escalations.length === 1 ? "SIGNAL" : "SIGNALS"}
+        </span>
       </div>
 
-      <div
-        className="signal-inverted"
-        style={{
-          background: "var(--bg-primary)",
-          borderLeft: "3px solid var(--accent-red)",
-          padding: "4px 20px 4px 20px",
-          marginBottom: "24px",
-        }}
-      >
-        {escalations.map((item) => (
-          <ArticleCard
-            key={item.id}
-            article={item}
-            onTopicClick={onTopicClick}
-            onEntityClick={onEntityClick}
-            onSignalOff={handleSignalOff}
-            onApprove={onApprove}
-          />
-        ))}
-      </div>
+      {escalations.map((item, i) => (
+        <div key={item.id} style={{
+          display: "flex",
+          gap: "16px",
+          paddingTop: i > 0 ? "6px" : 0,
+          borderTop: i > 0 ? "1px solid var(--soft)" : "none",
+          marginTop: i > 0 ? "6px" : 0,
+        }}>
+          <span style={{
+            fontFamily: "var(--font-headline)",
+            fontSize: "30px",
+            color: "var(--dot)",
+            lineHeight: 1,
+            flexShrink: 0,
+            paddingTop: "16px",
+          }}>
+            {i + 1}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ArticleCard
+              article={item}
+              onTopicClick={onTopicClick}
+              onEntityClick={onEntityClick}
+              onSignalOff={handleSignalOff}
+              onApprove={onApprove}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

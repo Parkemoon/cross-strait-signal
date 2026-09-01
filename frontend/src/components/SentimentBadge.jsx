@@ -1,8 +1,11 @@
+// Framing-sentiment badge — System B colours (how the other side is framed):
+// hostile = purple, cooperative = amber, neutral/mixed = grey. Tokens live in
+// index.css; never reuse red/green here (those mean political alignment).
 const SENTIMENT_STYLES = {
-  hostile:     { color: "#7c3aed", label: "Hostile" },
-  cooperative: { color: "#f59e0b", label: "Cooperative" },
-  neutral:     { color: "#6b7280", label: "Neutral" },
-  mixed:       { color: "#94a3b8", label: "Mixed" },
+  hostile:     { color: "var(--hostile)", label: "Hostile" },
+  cooperative: { color: "var(--coop)", label: "Cooperative" },
+  neutral:     { color: "var(--neut)", label: "Neutral" },
+  mixed:       { color: "var(--neut)", label: "Mixed" },
 };
 
 export default function SentimentBadge({ sentiment, score }) {
@@ -12,16 +15,14 @@ export default function SentimentBadge({ sentiment, score }) {
     <span
       style={{
         color: style.color,
-        fontSize: "11px",
-        fontWeight: 500,
+        fontSize: "10px",
+        fontWeight: 600,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
         fontFamily: "var(--font-mono)",
       }}
     >
-      {style.label}
-      <span style={{ opacity: 0.6, marginLeft: "4px" }}>
-        {score > 0 ? "+" : ""}
-        {score?.toFixed(1)}
-      </span>
+      ◆ {score > 0 ? "+" : ""}{score?.toFixed(1)} {style.label}
     </span>
   );
 }

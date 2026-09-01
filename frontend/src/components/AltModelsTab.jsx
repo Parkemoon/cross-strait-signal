@@ -23,7 +23,7 @@ function GroupCard({ g }) {
   const isControl = g.arm === "control";
   return (
     <div style={{
-      border: "1px solid var(--border-subtle, rgba(0,0,0,0.1))", borderRadius: "6px",
+      border: "1px solid var(--border-subtle, rgba(0,0,0,0.1))", borderRadius: 0,
       padding: "16px", marginBottom: "16px", background: "var(--bg-card, transparent)",
     }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
@@ -35,8 +35,8 @@ function GroupCard({ g }) {
         </span>
         {isControl && (
           <span style={{
-            fontSize: "10px", fontFamily: "var(--font-mono)", color: "#2563eb",
-            border: "1px solid #2563eb", borderRadius: "2px", padding: "1px 8px",
+            fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--blue)",
+            border: "1px solid var(--blue)", borderRadius: 0, padding: "1px 8px",
           }}>
             noise floor — same model rerun; its agreement is the ceiling, not 100%
           </span>
@@ -47,13 +47,13 @@ function GroupCard({ g }) {
         <div>
           <div style={tileLabel}>Outcomes</div>
           <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", lineHeight: 1.7 }}>
-            ok {o.ok} · <span style={{ color: "#dc2626" }}>refused {o.refused}</span>
+            ok {o.ok} · <span style={{ color: "var(--red)" }}>refused {o.refused}</span>
             <br />parse {o.parse_error} · api {o.api_error}
           </div>
         </div>
         <div>
           <div style={tileLabel}>Refusal rate</div>
-          <div style={{ ...tileValue, color: refusalPct > 0.02 ? "#dc2626" : "inherit" }}>
+          <div style={{ ...tileValue, color: refusalPct > 0.02 ? "var(--red)" : "inherit" }}>
             {pct(refusalPct)}
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function AltModelsTab() {
 
       {/* Metric definitions — every number on the cards below */}
       <div style={{
-        border: "1px dashed var(--border-color)", borderRadius: "6px",
+        border: "1px dashed var(--border-color)", borderRadius: 0,
         padding: "12px 16px", marginBottom: "20px", maxWidth: "760px",
         fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65,
       }}>
@@ -143,7 +143,7 @@ export default function AltModelsTab() {
         </p>
       </div>
 
-      {error && <div style={{ color: "#dc2626", fontSize: "12px" }}>{error}</div>}
+      {error && <div style={{ color: "var(--red)", fontSize: "12px" }}>{error}</div>}
       {summary && summary.length === 0 && (
         <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
           No sweeps recorded yet — run <code>scripts/sweep_alt_models.py</code>.
@@ -158,7 +158,7 @@ export default function AltModelsTab() {
         <div style={{
           borderLeft: "3px solid var(--accent-teal)", padding: "12px 16px",
           marginTop: "8px", marginBottom: "8px", maxWidth: "760px",
-          background: "rgba(20,184,166,0.04)",
+          background: "color-mix(in srgb, var(--cyan) 4%, transparent)",
           fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65,
         }}>
           <div style={{ ...tileLabel, marginBottom: "8px" }}>
@@ -204,8 +204,8 @@ export default function AltModelsTab() {
           </h3>
           {refusals.map((r) => (
             <div key={r.id} style={{
-              borderLeft: "3px solid #dc2626", padding: "8px 12px", marginBottom: "10px",
-              background: "rgba(220,38,38,0.04)",
+              borderLeft: "3px solid var(--red)", padding: "8px 12px", marginBottom: "10px",
+              background: "color-mix(in srgb, var(--red) 4%, transparent)",
             }}>
               <div style={{ fontSize: "12px", fontWeight: 600 }}>
                 {r.title_en || r.title_original}

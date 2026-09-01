@@ -10,9 +10,9 @@ import { modelLabel, ARM_LABELS, isRetiredModel } from "../altModels";
 // nothing when the article hasn't been swept (most articles).
 
 const ARM_STYLE = {
-  neutral:    { label: ARM_LABELS.neutral, colour: "#6b7280" },
-  originator: { label: ARM_LABELS.originator, colour: "#dc2626" },
-  control:    { label: ARM_LABELS.control, colour: "#2563eb" },
+  neutral:    { label: ARM_LABELS.neutral, colour: "var(--muted)" },
+  originator: { label: ARM_LABELS.originator, colour: "var(--red)" },
+  control:    { label: ARM_LABELS.control, colour: "var(--blue)" },
 };
 
 function ArmChip({ arm }) {
@@ -21,7 +21,7 @@ function ArmChip({ arm }) {
     <span style={{
       fontSize: "9px", fontFamily: "var(--font-mono)", textTransform: "uppercase",
       letterSpacing: "1px", color: s.colour, border: `1px solid ${s.colour}`,
-      borderRadius: "3px", padding: "1px 6px",
+      borderRadius: 0, padding: "1px 6px",
     }}>
       {s.label}
     </span>
@@ -33,7 +33,7 @@ function AltRow({ row }) {
   return (
     <div style={{
       padding: "10px 12px", marginBottom: "8px",
-      background: "var(--bg-inset, rgba(0,0,0,0.04))", borderRadius: "4px",
+      background: "var(--bg-inset, rgba(0,0,0,0.04))", borderRadius: 0,
       border: "1px solid var(--border-subtle, rgba(0,0,0,0.08))",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
@@ -74,12 +74,12 @@ function AltRow({ row }) {
 
       {row.outcome === "refused" && (
         <div style={{
-          border: "1px solid #dc2626", borderRadius: "4px", padding: "8px 10px",
-          background: "rgba(220,38,38,0.06)",
+          border: "1px solid var(--red)", borderRadius: 0, padding: "8px 10px",
+          background: "color-mix(in srgb, var(--red) 6%, transparent)",
         }}>
           <span style={{
             fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
-            color: "#dc2626", textTransform: "uppercase", letterSpacing: "1px",
+            color: "var(--red)", textTransform: "uppercase", letterSpacing: "1px",
           }}>
             {row.finish_reason === "content_filter" ? "Filtered by provider" : "Refused"}
           </span>

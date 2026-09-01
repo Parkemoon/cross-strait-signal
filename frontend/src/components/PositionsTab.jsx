@@ -17,22 +17,30 @@ import { READ_ONLY } from "../readOnly";
 
 function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px", marginTop: "28px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px", marginTop: "28px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
         <span style={{
-          fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
-          letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-primary)",
+          fontFamily: "var(--font-mono)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
         }}>
-          {children}
+          {right}
         </span>
-        {right && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
-            {right}
-          </span>
-        )}
-      </div>
-      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+      )}
     </div>
   );
 }
@@ -128,7 +136,7 @@ function EditModal({ target, onSaved, onClose }) {
             <div style={{
               fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: draft[k] !== orig ? "#b8860b" : "var(--text-muted)",
+              color: draft[k] !== orig ? "var(--flag)" : "var(--text-muted)",
               marginBottom: "4px",
             }}>
               {k.replace(/_/g, " ")}{draft[k] !== orig ? " · edited" : ""}
@@ -147,7 +155,7 @@ function EditModal({ target, onSaved, onClose }) {
           </div>
         ))}
         {error && (
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-red, #dc2626)", marginBottom: "10px" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-red, var(--red))", marginBottom: "10px" }}>
             {error}
           </div>
         )}
@@ -264,7 +272,7 @@ function LegalItem({ item, onEdit }) {
         <p style={{ ...PROSE, marginTop: "8px" }}>
           <span style={{
             fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.05em",
-            textTransform: "uppercase", color: "#b8860b", marginRight: "6px",
+            textTransform: "uppercase", color: "var(--flag)", marginRight: "6px",
           }}>
             what it does not say
           </span>
@@ -288,7 +296,7 @@ function PositionItem({ item, onEdit }) {
         <p style={{ ...PROSE, marginTop: "8px" }}>
           <span style={{
             fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.05em",
-            textTransform: "uppercase", color: "#b8860b", marginRight: "6px",
+            textTransform: "uppercase", color: "var(--flag)", marginRight: "6px",
           }}>
             the nuance
           </span>
@@ -302,7 +310,7 @@ function PositionItem({ item, onEdit }) {
 }
 
 function PartyChip({ party, label }) {
-  const colour = PARTY_COLOURS[party] || "#6b7280";
+  const colour = PARTY_COLOURS[party] || "var(--muted)";
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "6px",
@@ -321,7 +329,7 @@ function MisconceptionItem({ item, onEdit }) {
       <p style={PROSE}>
         <span style={{
           fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.05em",
-          textTransform: "uppercase", color: "var(--accent-red, #dc2626)", marginRight: "6px",
+          textTransform: "uppercase", color: "var(--accent-red, var(--red))", marginRight: "6px",
         }}>
           often assumed
         </span>

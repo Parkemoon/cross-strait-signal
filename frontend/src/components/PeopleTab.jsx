@@ -23,30 +23,30 @@ function formatLargeNumber(n) {
 
 function SectionHeader({ children, right }) {
   return (
-    <div style={{ marginBottom: "16px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "9px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px" }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.24em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
         <span style={{
           fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--text-primary)",
+          fontSize: "9px",
+          color: "var(--pale)",
+          letterSpacing: "0.08em",
+          textAlign: "right",
         }}>
-          {children}
+          {right}
         </span>
-        {right && (
-          <span style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            color: "var(--text-muted)",
-          }}>
-            {right}
-          </span>
-        )}
-      </div>
-      <div style={{ height: "1px", background: "var(--border-color)", marginTop: "9px" }} />
+      )}
     </div>
   );
 }
@@ -127,7 +127,7 @@ function PeoplePermitsChart({ residence, settlement }) {
               key === "residence" ? "Residence (居留)" : "Settlement (定居)",
             ]}
           />
-          <Bar dataKey="residence" fill="var(--accent-teal, #14B8A6)" />
+          <Bar dataKey="residence" fill="var(--accent-teal, var(--cyan))" />
           <Bar dataKey="settlement" fill="var(--text-primary)" />
         </BarChart>
       </ResponsiveContainer>
@@ -176,8 +176,8 @@ function AnnualFlowChart({ tw, prc }) {
             labelFormatter={(y) => `Year ${y}`}
           />
           {prc?.series?.length > 0 && (
-            <Line type="monotone" dataKey="prc" stroke="var(--accent-teal, #14B8A6)"
-                  strokeWidth={1.5} dot={{ r: 2, fill: "var(--accent-teal, #14B8A6)" }}
+            <Line type="monotone" dataKey="prc" stroke="var(--accent-teal, var(--cyan))"
+                  strokeWidth={1.5} dot={{ r: 2, fill: "var(--accent-teal, var(--cyan))" }}
                   activeDot={{ r: 4 }} />
           )}
           <Line type="monotone" dataKey="tw" stroke="var(--text-primary)"
@@ -264,9 +264,9 @@ function PeopleFlowChart({ tw, prc }) {
           <Line
             type="monotone"
             dataKey="prc"
-            stroke="var(--accent-teal, #14B8A6)"
+            stroke="var(--accent-teal, var(--cyan))"
             strokeWidth={1.5}
-            dot={{ r: 1.6, fill: "var(--accent-teal, #14B8A6)", strokeWidth: 0 }}
+            dot={{ r: 1.6, fill: "var(--accent-teal, var(--cyan))", strokeWidth: 0 }}
             activeDot={{ r: 4 }}
           />
           <Line

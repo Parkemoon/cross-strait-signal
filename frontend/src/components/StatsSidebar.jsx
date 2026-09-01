@@ -1,6 +1,8 @@
 import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
 import StatSpotlight from "./StatSpotlight";
+import { BIAS_META } from "./SourceBadge";
 import { modelLabel, armLabel, modelTint, modelTintRgba } from "../altModels";
+import { bandColour } from "../sentimentBand";
 
 const PUBLICATION_NAMES = {
   // Liberty Times
@@ -42,17 +44,6 @@ const PUBLICATION_NAMES = {
   "Ming Pao Cross-Strait":   "Ming Pao",
   "Ming Pao Editorial":      "Ming Pao",
   "Ming Pao Opinion":        "Ming Pao",
-};
-
-const BIAS_COLORS = {
-  state_nationalist: "#b91c1c",
-  state_official:    "#dc2626",
-  green:             "#15803d",
-  green_leaning:     "#4ade80",
-  blue:              "#1d4ed8",
-  blue_leaning:      "#93c5fd",
-  centrist:          "#6b7280",
-  china_centrist:    "#a86a6a",
 };
 
 // Maps publication display name → DB source name prefix for API filtering
@@ -171,13 +162,32 @@ function groupSources(sources) {
   return Object.values(map).sort((a, b) => b.count - a.count);
 }
 
+// Rail section label — Archivo micro-caps over a hairline.
+function RailLabel({ title, right, first }) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      borderTop: first ? "none" : "1px solid var(--hair)",
+      paddingTop: first ? 0 : "14px",
+      marginBottom: "10px",
+    }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9px",
+        fontWeight: 600,
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+      }}>{title}</span>
+      {right}
+    </div>
+  );
+}
+
+// Hairline gauge — label over a 2px track with a positioned dot, score right.
 function StabilityGauge({ label, score, days, compact, globalScore, onClick, isActive }) {
-  const safeScore  = score ?? 0;
-  const color = safeScore > 0.3
-    ? "#f59e0b"
-    : safeScore < -0.3
-    ? "#7c3aed"
-    : "#6b7280";
+  const safeScore = score ?? 0;
+  const colour = bandColour(safeScore);
 
   // Show ghost only when global differs meaningfully from scoped
   const showGhost = globalScore !== undefined &&
@@ -189,120 +199,74 @@ function StabilityGauge({ label, score, days, compact, globalScore, onClick, isA
       onClick={onClick}
       title={onClick ? `Filter by ${label}` : undefined}
       style={{
-        background: "var(--bg-card)",
-        border: isActive ? `1px solid ${color}` : "1px solid var(--border-color)",
-        padding: compact ? "10px 12px" : "14px 16px",
-        marginBottom: "8px",
+        display: "grid",
+        gridTemplateColumns: "1fr 44px",
+        gap: "8px",
+        alignItems: "center",
         cursor: onClick ? "pointer" : "default",
-        transition: "border-color 0.15s",
       }}
     >
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "8px",
-      }}>
-        <span style={{
-          fontSize: "10px",
-          fontFamily: "var(--font-mono)",
-          color: "var(--text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "1px",
-        }}>
-          {label}
-        </span>
-        <span style={{
-          fontSize: compact ? "13px" : "16px",
-          fontFamily: "var(--font-mono)",
-          fontWeight: 600,
-          color,
-        }}>
-          {safeScore > 0 ? "+" : ""}{safeScore.toFixed(2)}
-        </span>
-      </div>
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        marginBottom: "6px",
-        fontSize: "9px",
-        fontFamily: "var(--font-mono)",
-        color: "var(--text-muted)",
-      }}>
-        <span>Hostile</span>
-        <span>Cooperative</span>
-      </div>
-      <div style={{
-        height: "4px",
-        background: "var(--bg-secondary)",
-        borderRadius: "3px",
-        position: "relative",
-      }}>
-        {/* Gradient track */}
+      <div>
         <div style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: "3px",
-          background: "linear-gradient(to right, #7c3aed, #6b7280, #f59e0b)",
-          opacity: 0.25,
-        }} />
-        {/* Ghost dot — global baseline position */}
-        {showGhost && (
+          fontSize: "10px",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: isActive ? "var(--ink)" : "var(--muted)",
+          fontWeight: isActive ? 600 : 400,
+          marginBottom: "3px",
+          fontFamily: "var(--font-body)",
+        }}>
+          {label}{days ? <span style={{ color: "var(--pale)", textTransform: "none", letterSpacing: 0 }}> · {days}d</span> : null}
+        </div>
+        <div style={{ height: "2px", background: "var(--hair)", position: "relative" }}>
+          {showGhost && (
+            <div style={{
+              position: "absolute",
+              left: `${((globalScore + 1) / 2) * 100}%`,
+              top: "-2px",
+              width: "6px",
+              height: "6px",
+              borderRadius: "50%",
+              background: "var(--dot)",
+              transform: "translateX(-50%)",
+            }} title={`global ${globalScore > 0 ? "+" : ""}${globalScore.toFixed(2)}`} />
+          )}
           <div style={{
             position: "absolute",
-            left: `${((globalScore + 1) / 2) * 100}%`,
-            top: "50%",
-            width: compact ? "8px" : "10px",
-            height: compact ? "8px" : "10px",
+            left: `${((safeScore + 1) / 2) * 100}%`,
+            top: "-2px",
+            width: "6px",
+            height: "6px",
             borderRadius: "50%",
-            background: "#6b7280",
-            transform: "translate(-50%, -50%)",
-            border: "2px solid var(--bg-card)",
-            opacity: 0.45,
+            background: colour,
+            transform: "translateX(-50%)",
+            transition: "left 0.5s ease",
           }} />
-        )}
-        {/* Main dot — scoped position */}
-        <div style={{
-          position: "absolute",
-          left: `${((safeScore + 1) / 2) * 100}%`,
-          top: "50%",
-          width: compact ? "10px" : "12px",
-          height: compact ? "10px" : "12px",
-          borderRadius: "50%",
-          background: color,
-          transform: "translate(-50%, -50%)",
-          border: "2px solid var(--bg-card)",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-          transition: "left 0.5s ease",
-        }} />
+        </div>
       </div>
-      {/* Global comparison — non-compact only, only when ghost is visible */}
-      {showGhost && !compact && (
-        <p style={{
-          textAlign: "right",
-          fontSize: "9px",
-          fontFamily: "var(--font-mono)",
-          color: "#6b7280",
-          marginTop: "4px",
-          opacity: 0.7,
-        }}>
-          global {globalScore > 0 ? "+" : ""}{globalScore.toFixed(2)}
-        </p>
-      )}
-      {days && !showGhost && (
-        <p style={{
-          textAlign: "center",
-          fontSize: "10px",
-          fontFamily: "var(--font-body)",
-          color: "var(--text-muted)",
-          marginTop: "6px",
-        }}>
-          {days}-day weighted average
-        </p>
-      )}
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "11px",
+        fontWeight: 600,
+        color: colour,
+        textAlign: "right",
+      }}>
+        {safeScore > 0 ? "+" : ""}{safeScore.toFixed(2)}
+      </span>
     </div>
   );
 }
+
+// Alignment legend chips — System A. TW OFFICIAL demonstrates the hollow
+// (state-not-party) marker used for government bodies.
+const LEGEND = [
+  { label: "GREEN", colour: "var(--green)", filled: true },
+  { label: "BLUE", colour: "var(--blue)", filled: true },
+  { label: "PRC STATE", colour: "var(--red)", filled: true },
+  { label: "TW OFFICIAL", colour: "var(--green)", filled: false },
+  { label: "NATIONALIST", colour: "var(--nat)", filled: true },
+  { label: "CENTRIST", colour: "var(--muted)", filled: true },
+];
 
 export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters, onOpenTab }) {
   if (!stats) return null;
@@ -327,27 +291,29 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
     globalByPlace[r.place] = r.avg_score;
   });
 
-  const SectionHeader = ({ title, right }) => (
-    <div style={{ marginBottom: "16px" }}>
-      <div style={{ height: "2px", background: "var(--border-color)", marginBottom: "8px" }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "10px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--text-primary)",
-        }}>{title}</span>
-        {right}
-      </div>
-    </div>
-  );
-
   const MIN_CAMP_N = 5; // minimum articles to show Taiwan-by-camp gauges
 
   return (
     <div>
+      {/* Alignment legend — closes with a hairline */}
+      <div style={{
+        display: "flex", flexWrap: "wrap", gap: "7px 12px",
+        fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.1em",
+        color: "var(--muted)", paddingBottom: "14px", marginBottom: "16px",
+        borderBottom: "1px solid var(--hair)",
+      }}>
+        {LEGEND.map((l) => (
+          <span key={l.label} style={{ display: "flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}>
+            <span style={{
+              width: "7px", height: "7px", flexShrink: 0,
+              background: l.filled ? l.colour : "transparent",
+              border: l.filled ? "none" : `1px solid ${l.colour}`,
+            }} />
+            {l.label}
+          </span>
+        ))}
+      </div>
+
       {/* Alt-model lens banner — every number below comes from the sweep */}
       {altLens && (
         <div style={{
@@ -373,24 +339,25 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
           </div>
         </div>
       )}
+
       {/* Strait Watch */}
-      <div style={{ marginBottom: "28px" }}>
-        <SectionHeader
+      <div style={{ marginBottom: "18px" }}>
+        <RailLabel
+          first
           title="Strait Watch"
           right={isFiltered && (
-            <div style={{
+            <span style={{
               display: "flex",
               alignItems: "center",
               gap: "6px",
-              background: "rgba(26,122,109,0.1)",
-              border: "1px solid rgba(26,122,109,0.35)",
-              padding: "3px 8px",
-              fontSize: "9px",
+              border: "1px solid var(--dot)",
+              padding: "2px 7px",
+              fontSize: "8.5px",
               fontFamily: "var(--font-mono)",
-              color: "var(--accent-teal)",
+              color: "var(--muted)",
               textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              maxWidth: "160px",
+              letterSpacing: "0.06em",
+              maxWidth: "150px",
             }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {scopeLabel}
@@ -402,33 +369,36 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  color: "var(--accent-teal)",
+                  color: "var(--muted)",
                   padding: 0,
                   fontSize: "11px",
                   lineHeight: 1,
                   flexShrink: 0,
-                  opacity: 0.8,
                 }}
               >
                 ×
               </button>
-            </div>
+            </span>
           )}
         />
+        <div style={{
+          fontFamily: "var(--font-mono)", fontSize: "8.5px",
+          color: "var(--pale)", marginTop: "-6px", marginBottom: "10px",
+        }}>
+          ◀ HOSTILE · COOPERATIVE ▶
+        </div>
 
-        {/* Overall gauge */}
         {isFiltered && stats.total_articles === 0 ? (
           <div style={{
-            padding: "20px 0",
-            textAlign: "center",
+            padding: "16px 0",
             fontSize: "11px",
-            fontFamily: "var(--font-mono)",
-            color: "var(--text-muted)",
+            fontFamily: "var(--font-body)",
+            color: "var(--muted)",
           }}>
             No articles match this scope
           </div>
         ) : (
-          <>
+          <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
             <StabilityGauge
               label="Overall"
               score={stats.avg_sentiment_score}
@@ -472,22 +442,20 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
             {stats.sentiment_by_bias?.length > 0 && (
               <>
                 <div style={{
-                  fontSize: "10px",
+                  fontSize: "8.5px",
                   fontFamily: "var(--font-mono)",
-                  color: "var(--text-muted)",
+                  color: "var(--pale)",
                   textTransform: "uppercase",
-                  letterSpacing: "1.5px",
-                  marginTop: "12px",
-                  marginBottom: "8px",
+                  letterSpacing: "0.14em",
+                  marginTop: "6px",
                 }}>
                   Taiwan by camp
                 </div>
                 {stats.sentiment_by_bias.every((b) => (b.count ?? 0) < MIN_CAMP_N) ? (
                   <div style={{
                     fontSize: "10px",
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--text-muted)",
-                    padding: "8px 0",
+                    fontFamily: "var(--font-body)",
+                    color: "var(--muted)",
                   }}>
                     Insufficient sample
                     {" (n=" + stats.sentiment_by_bias.reduce((s, b) => s + (b.count ?? 0), 0) + ")"}
@@ -513,12 +481,12 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
                 )}
               </>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Stability Trend Chart — under the lens the line takes the model's
-          tint; the "Both" view adds production Gemini as a dashed grey line */}
+      {/* Trend — under the lens the line takes the model's tint; the "Both"
+          view adds production Gemini as a dashed grey line */}
       <SentimentTrendChart
         data={stats.sentiment_trend}
         days={stats.period_days}
@@ -526,7 +494,7 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
         baseline={dualBaseline?.sentiment_trend}
       />
 
-      {/* Topic Breakdown Chart — hidden when a topic filter is active (one bar = useless) */}
+      {/* Topic Breakdown — hidden when a topic filter is active (one bar = useless) */}
       {!filters.topic && (
         <TopicBreakdownChart
           data={stats.topics}
@@ -538,17 +506,14 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
           click-through to that section's tab */}
       <StatSpotlight onOpen={onOpenTab} />
 
-      {/* Source Health */}
-      <div style={{ marginBottom: "28px" }}>
-        <SectionHeader title="Sources" />
-        <div style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-color)",
-          padding: "12px 16px",
-        }}>
-          {groupSources(stats.sources ?? []).map((s, i, arr) => {
+      {/* Sources */}
+      <div style={{ marginBottom: "18px" }}>
+        <RailLabel title="Sources" />
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          {groupSources(stats.sources ?? []).map((s) => {
             const dbPrefix = SOURCE_FILTER[s.name];
             const isActive = dbPrefix && filters.source_name === dbPrefix;
+            const meta = BIAS_META[s.bias];
             return (
               <div
                 key={s.name}
@@ -557,37 +522,33 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: isActive ? "5px 16px" : "5px 0",
-                  borderBottom: i < arr.length - 1
-                    ? "1px solid var(--border-color)"
-                    : "none",
+                  alignItems: "baseline",
                   cursor: onSourceClick && dbPrefix ? "pointer" : "default",
-                  background: isActive ? "var(--bg-secondary)" : "transparent",
-                  margin: isActive ? "0 -16px" : undefined,
                 }}
               >
                 <span style={{
-                  fontSize: "13px",
+                  fontSize: "11px",
                   fontFamily: "var(--font-body)",
-                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                  color: isActive ? "var(--ink)" : "var(--body)",
+                  fontWeight: isActive ? 600 : 400,
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
                 }}>
                   <span style={{
-                    width: "8px",
-                    height: "8px",
+                    width: "6px",
+                    height: "6px",
                     borderRadius: "50%",
-                    background: BIAS_COLORS[s.bias] || "#6b7280",
+                    flexShrink: 0,
+                    background: meta?.colour || "var(--muted)",
                     display: "inline-block",
                   }} />
                   {s.name}
                 </span>
                 <span style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "12px",
-                  color: "var(--text-muted)",
+                  fontSize: "10px",
+                  color: "var(--faint)",
                 }}>
                   {s.count}
                 </span>
@@ -597,14 +558,10 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
         </div>
       </div>
 
-      {/* Key Entities */}
+      {/* Key Entities — square markers (entities are actors, not outlets) */}
       <div>
-        <SectionHeader title="Key Entities" />
-        <div style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-color)",
-          padding: "12px 16px",
-        }}>
+        <RailLabel title="Key Entities" />
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {stats.top_entities?.slice(0, 10).map((e, i) => {
             const isActive = filters.entity && e.entity_name_en &&
               e.entity_name_en.toLowerCase().includes(filters.entity.toLowerCase());
@@ -616,35 +573,45 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: isActive ? "4px 16px" : "4px 0",
-                  borderBottom: i < Math.min(stats.top_entities.length, 10) - 1
-                    ? "1px solid var(--border-color)"
-                    : "none",
+                  alignItems: "baseline",
                   cursor: onEntityClick ? "pointer" : "default",
-                  background: isActive ? "var(--bg-secondary)" : "transparent",
-                  margin: isActive ? "0 -16px" : undefined,
                 }}
               >
                 <span style={{
-                  fontSize: "13px",
+                  fontSize: "11px",
                   fontFamily: "var(--font-body)",
-                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                  color: isActive ? "var(--ink)" : "var(--body)",
+                  fontWeight: isActive ? 600 : 400,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  minWidth: 0,
                 }}>
-                  {e.entity_name_en}
                   <span style={{
-                    fontSize: "10px",
-                    color: "var(--text-muted)",
+                    width: "6px",
+                    height: "6px",
+                    flexShrink: 0,
+                    background: "var(--dot)",
+                    display: "inline-block",
+                  }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {e.entity_name_en}
+                  </span>
+                  <span style={{
+                    fontSize: "8.5px",
+                    color: "var(--pale)",
                     fontFamily: "var(--font-mono)",
-                    marginLeft: "6px",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    flexShrink: 0,
                   }}>
                     {e.entity_type}
                   </span>
                 </span>
                 <span style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "12px",
-                  color: "var(--text-muted)",
+                  fontSize: "10px",
+                  color: "var(--faint)",
                 }}>
                   {e.mentions}
                 </span>
