@@ -317,7 +317,7 @@ export default function DiplomacyTab() {
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
       <DocumentHeader
         eyebrow="Politics · Diplomacy"
-        title={<Copy k="diplomacy.title" as="span" fallback='Recognition & statements' />}
+        title={<Copy k="diplomacy.title" as="span" fallback="Third-Country Diplomatic Stance" />}
         standfirst={<Copy k="diplomacy.intro" as="p" style={STANDFIRST}
             fallback={"Where the rest of the world sits on the Taiwan question — a separate axis from the cross-strait sentiment instrument, which deliberately discards third-party interactions. Each country is filled by the average of its recent government / head-of-state statements (the honest national posture, robust to any single stray quote). A ◆ gold dashed border flags a divergence — a legislator, party, or sub-national voice pulling against the official line. Coverage begins in late 2025 (the corpus start); an un-filled country is un-tracked in this window, not neutral."}  />}
         meta={`as of ${summary.as_of}`}

@@ -254,7 +254,7 @@ export default function EconomyTab() {
       {/* Intro */}
       <DocumentHeader
         eyebrow="Economy · Indicators"
-        title={<Copy k="economy.title" as="span" fallback='Interdependence & drift' />}
+        title={<Copy k="economy.title" as="span" fallback="Cross-Strait Economy" />}
         standfirst={<Copy k="economy.intro" as="p" style={STANDFIRST}
             fallback={"Monthly trade, investment and people-flow indicators from Taiwan's Mainland Affairs Council (via data.gov.tw). Trade balance is from Taiwan's perspective — positive values are TW surplus with PRC."}  />}
         meta={data.last_updated ? `MAC · latest ${formatPeriodLabel(data.last_updated)}` : null}
