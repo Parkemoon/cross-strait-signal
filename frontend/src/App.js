@@ -27,6 +27,11 @@ import NavMenu from "./components/NavMenu";
 import { WIDE_VIEWS } from "./navGroups";
 import { bandColour } from "./sentimentBand";
 
+// Distance from the masthead's centre line to the inner edge of each coast
+// flank (px). The nameplate is ~360px wide, so ≥ 200 keeps clear of it; 300
+// pushes the flanks out into the empty space either side (Ed, 2026-09-02).
+const COAST_OFFSET = 300;
+
 function fmtScore(score) {
   if (score == null) return "—";
   const v = score.toFixed(2).replace("-", "−");
@@ -54,7 +59,7 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | any view in navGroups.js
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
-  const showCoasts = windowWidth >= 1000;  // masthead coast flanks need room beside the corner stamps
+  const showCoasts = windowWidth >= 1100;  // masthead coast flanks need room beside the corner stamps
 
   const {
     articles, total, loading, stats,
@@ -93,29 +98,41 @@ export default function App() {
               </span>
               <ThemeToggle />
             </div>
-            {/* eyebrow — margins guard collision with the absolute corners */}
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.22em",
-                          color: "var(--faint)", margin: "0 170px 8px" }}>
-              BILINGUAL · ANALYST-GATED · OPEN SOURCE
-            </div>
-            {/* nameplate — flanked by the two sides of the strait (west coast +
-                Kinmen/Matsu left, Taiwan + Penghu right; the nameplate is the
-                strait). Flanks hide below 1000px so they never meet the corner
-                stamps. */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "26px", margin: "0 160px" }}>
-              {showCoasts && <MastheadCoasts side="west" height={92} />}
+            {/* Eyebrow → nav row, with the two sides of the strait flanking it:
+                mainland coast + Kinmen/Matsu west of the nameplate, Taiwan +
+                Penghu east — the nameplate is the strait. The flanks are
+                absolutely positioned so they span exactly eyebrow-top to
+                nav-row-bottom (never above the eyebrow line), sit
+                COAST_OFFSET from the centre line, and hide below 1100px so
+                they never meet the corner stamps. */}
+            <div style={{ position: "relative" }}>
+              {showCoasts && (
+                <>
+                  <div style={{ position: "absolute", top: 0, bottom: 0, right: `calc(50% + ${COAST_OFFSET}px)` }}>
+                    <MastheadCoasts side="west" />
+                  </div>
+                  <div style={{ position: "absolute", top: 0, bottom: 0, left: `calc(50% + ${COAST_OFFSET}px)` }}>
+                    <MastheadCoasts side="east" />
+                  </div>
+                </>
+              )}
+              {/* eyebrow — margins guard collision with the absolute corners */}
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.22em",
+                            color: "var(--faint)", margin: "0 170px 8px" }}>
+                BILINGUAL · ANALYST-GATED · OPEN SOURCE
+              </div>
+              {/* nameplate */}
               <h1 onClick={() => setView("feed")}
                   style={{ fontFamily: "var(--font-headline)", fontSize: "40px", fontWeight: 500,
-                           lineHeight: 1, letterSpacing: "0.01em", cursor: "pointer", margin: 0,
+                           lineHeight: 1, letterSpacing: "0.01em", cursor: "pointer", margin: "0 160px",
                            color: "var(--ink)" }}>
                 Cross-Strait Signal
               </h1>
-              {showCoasts && <MastheadCoasts side="east" height={92} />}
-            </div>
-            <div style={{ width: "64px", height: "1px", background: "var(--ink)", margin: "14px auto 10px" }} />
-            {/* nav row */}
-            <div style={{ paddingBottom: "12px" }}>
-              <NavMenu view={view} onSelect={setView} badges={{ review: reviewPending }} />
+              <div style={{ width: "64px", height: "1px", background: "var(--ink)", margin: "14px auto 10px" }} />
+              {/* nav row */}
+              <div style={{ paddingBottom: "12px" }}>
+                <NavMenu view={view} onSelect={setView} badges={{ review: reviewPending }} />
+              </div>
             </div>
             {/* double rule — the signature; used only here and above the footer */}
             <div style={{ borderTop: "3px double var(--ink)", margin: "0 -24px" }} />

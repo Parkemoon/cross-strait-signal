@@ -7,7 +7,14 @@ path strings the React component imports.
 
 Re-run only if you want to retune resolution, bbox, or viewBox.
 
-    python scripts/build_taiwan_strait_map.py
+    python scripts/build_taiwan_strait_map.py             # MilitaryTab map
+    python scripts/build_taiwan_strait_map.py --masthead  # masthead coast flanks
+
+`--masthead` writes frontend/src/components/mastheadCoastPaths.js instead:
+a wider box (113.8–123.5 E, 21–27 N) so the mainland coast runs from
+Ningde down past Xiamen and Shantou to the Pearl River mouth (Hong Kong and
+Macao included as coast), plus a PROJECTION export so MastheadCoasts.jsx
+never mirrors these constants by hand. Same ROC island handling.
 """
 from __future__ import annotations
 import json
@@ -173,7 +180,8 @@ def in_roc_outlying(cx, cy, dx, dy):
     return False
 
 
-def main():
+def main(out_path="frontend/src/components/taiwanStraitMap.js",
+         coast_admins=("China",), emit_projection=False):
     print(f"Fetching {NE_URL}")
     raw = urllib.request.urlopen(NE_URL).read()
     data = json.loads(raw)
@@ -201,7 +209,7 @@ def main():
                 path = closed_polygon_path(outer, EPSILON_TW)
                 if path:
                     taiwan_paths.append(path)
-        elif admin == "China":
+        elif admin in coast_admins:
             for poly in polys:
                 outer = poly[0]
                 cx, cy = ring_centroid(outer)
@@ -276,8 +284,14 @@ def main():
         f"x1: {n_px[0]:.2f}, y1: {n_px[1]:.2f}, "
         f"x2: {s_px[0]:.2f}, y2: {s_px[1]:.2f} }};\n"
     )
+    if emit_projection:
+        out_js += (
+            "// Equirectangular projection used above — lon/lat → viewBox px.\n"
+            f"export const PROJECTION = {{ bbox: {list(BBOX)}, w: {SVG_W}, h: {SVG_H}, "
+            f"xOffset: {X_OFFSET:.4f}, pxPerDegLat: {PX_PER_DEG_LAT:.4f}, pxPerDegLon: {PX_PER_DEG_LON:.4f} }};\n"
+        )
 
-    output = Path("frontend/src/components/taiwanStraitMap.js")
+    output = Path(out_path)
     output.write_text(out_js, encoding="utf-8")
     print(f"Wrote {output}")
     print(f"  Taiwan polygons: {len(taiwan_paths)}  (chars: {sum(len(p) for p in taiwan_paths)})")
@@ -287,4 +301,20 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--masthead" in sys.argv:
+        # Wider box for the masthead flanks; height fixed, width follows the
+        # aspect so X_OFFSET is ~0. Reassign the module globals the helpers read.
+        BBOX = (113.8, 21.0, 123.5, 27.0)
+        SVG_H = 300
+        LAT0 = (BBOX[1] + BBOX[3]) / 2
+        COSL = math.cos(math.radians(LAT0))
+        PX_PER_DEG_LAT = SVG_H / (BBOX[3] - BBOX[1])
+        PX_PER_DEG_LON = PX_PER_DEG_LAT * COSL
+        TOTAL_LON_PX = PX_PER_DEG_LON * (BBOX[2] - BBOX[0])
+        SVG_W = math.ceil(TOTAL_LON_PX)
+        X_OFFSET = (SVG_W - TOTAL_LON_PX) / 2
+        main(out_path="frontend/src/components/mastheadCoastPaths.js",
+             coast_admins=("China", "Hong Kong S.A.R.", "Macao S.A.R."), emit_projection=True)
+    else:
+        main()
