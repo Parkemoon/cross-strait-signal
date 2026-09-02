@@ -185,5 +185,16 @@
     "attribution": "Photo: Taiwan Affairs Office official site (gwytb.gov.cn)",
     "licence": "Official site press portrait (not free-licensed; identification use)",
     "source_url": "http://www.gwytb.gov.cn/jgsz/bld/wx/"
+  },
+  "kmt:2462": {
+    "file": "cheng_jentsung.jpg",
+    "name_en": "Cheng Jen-tsung",
+    "names": [
+      "Cheng Jen-tsung",
+      "鄭任宗"
+    ],
+    "attribution": "Photo: Kuomintang official site (kmt.org.tw)",
+    "licence": "Official site press portrait (not free-licensed; identification use)",
+    "source_url": "https://www1.kmt.org.tw/people.aspx?mid=22&pid=2462"
   }
 }
