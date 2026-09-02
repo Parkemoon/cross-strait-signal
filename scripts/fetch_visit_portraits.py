@@ -549,6 +549,21 @@ def main():
             todo.append(p)
 
     done, skipped, unresolved = [], [], []
+
+    def record(key, fname, name_en, names, attribution, licence, page_url, label, note):
+        """Write one manifest entry (Wikidata- or site-sourced) and index its names."""
+        manifest[key] = {
+            "file": fname,
+            "name_en": name_en,
+            "names": names,
+            "attribution": attribution,
+            "licence": licence,
+            "source_url": page_url,
+        }
+        for n in names:
+            name_idx[n.lower()] = key
+        done.append((label, f"{key} → {fname} ({note})"))
+
     for p in todo:
         label = p["zh"] or p["en"]
         if (p["fid"] and p["fid"] in curated_ids) \
@@ -607,17 +622,7 @@ def main():
                 (VISITS_DIR / fname).write_bytes(blob)
             else:
                 fname = f"<dry-run:{key.split(':')[0]}>"
-            manifest[key] = {
-                "file": fname,
-                "name_en": name_en,
-                "names": names,
-                "attribution": f"Photo: {src_label}",
-                "licence": SITE_LICENCE,
-                "source_url": page_url,
-            }
-            for n in names:
-                name_idx[n.lower()] = key
-            done.append((label, f"{key} → {fname} ({note})"))
+            record(key, fname, name_en, names, f"Photo: {src_label}", SITE_LICENCE, page_url, label, note)
             continue
 
         name_en = p["en"] or entity.get("labels", {}).get("en", {}).get("value")
@@ -634,17 +639,7 @@ def main():
             (VISITS_DIR / fname).write_bytes(blob)
         else:
             fname, page_url, attribution, licence = f"<dry-run:{image_ref[0]}>", "", "", ""
-        manifest[qid] = {
-            "file": fname,
-            "name_en": name_en,
-            "names": names,
-            "attribution": attribution,
-            "licence": licence,
-            "source_url": page_url,
-        }
-        for n in names:
-            name_idx[n.lower()] = qid
-        done.append((label, f"{qid} → {fname} ({note})"))
+        record(qid, fname, name_en, names, attribution, licence, page_url, label, note)
 
     if args.apply:
         VISITS_DIR.mkdir(parents=True, exist_ok=True)
