@@ -196,6 +196,7 @@ function StabilityGauge({ label, score, days, compact, globalScore, onClick, isA
 
   return (
     <div
+      className={onClick ? "filter-row" : undefined}
       onClick={onClick}
       title={onClick ? `Filter by ${label}` : undefined}
       style={{
@@ -517,6 +518,7 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
             return (
               <div
                 key={s.name}
+                className={onSourceClick && dbPrefix ? "filter-row" : undefined}
                 onClick={onSourceClick && dbPrefix ? () => onSourceClick(dbPrefix, s.name) : undefined}
                 title={onSourceClick && dbPrefix ? `Filter by ${s.name}` : undefined}
                 style={{
@@ -568,6 +570,7 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
             return (
               <div
                 key={i}
+                className={onEntityClick ? "filter-row" : undefined}
                 onClick={onEntityClick ? () => onEntityClick(e.entity_name_en) : undefined}
                 title={onEntityClick ? `Filter by ${e.entity_name_en}` : undefined}
                 style={{
