@@ -384,6 +384,14 @@ def resolve(name_zh, name_en, accepts):
             if not e:
                 continue
             if entity_passes(e, name, match_langs):
+                # An English-label hit on a row that ALSO has a Chinese name
+                # must be corroborated by that name: romanisation collapses
+                # distinct people (趙世通 vs 赵世同 are both "Zhao Shitong").
+                if name is name_en and name_zh and \
+                        name_zh not in name_forms(e, ZH_LANGS):
+                    tried.append(f"'{name}' → {qid}: zh label "
+                                 f"{sorted(name_forms(e, ZH_LANGS))} ≠ '{name_zh}' — rejected")
+                    continue
                 passed.append(qid)
             elif qid == wiki_qid and "Q5" in claim_values(e, "P31") and is_political(e):
                 # the zh-wiki title resolved (possibly via redirect) even though
