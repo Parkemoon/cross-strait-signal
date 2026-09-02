@@ -1,4 +1,5 @@
 import { Copy } from "../copy";
+import { DocumentHeader, STANDFIRST } from "./documentChrome";
 import { BIAS_META } from "./SourceBadge";
 
 // About — a full page since the Morning Brief redesign (was AboutModal).
@@ -64,21 +65,15 @@ const BODY = {
 export default function AboutTab() {
   return (
     <main style={{ maxWidth: "840px", margin: "0 auto", padding: "30px 48px 56px", minWidth: 0 }}>
-      {/* Page header */}
-      <div style={{ borderBottom: "1px solid var(--hair)", paddingBottom: "16px", marginBottom: "24px" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.24em",
-                      color: "var(--faint)", marginBottom: "7px", textTransform: "uppercase" }}>
-          About / Method
-        </div>
-        <h2 style={{ fontFamily: "var(--font-headline)", fontSize: "34px", fontWeight: 500,
-                     lineHeight: 1.1, color: "var(--ink)", margin: "0 0 10px" }}>
-          About Cross-Strait Signal
-        </h2>
-        <Copy k="about.what"
+      {/* Page header — same DocumentHeader as every section page */}
+      <DocumentHeader
+        eyebrow="About / Method"
+        title="About Cross-Strait Signal"
+        standfirst={<Copy k="about.what"
               as="p"
-              style={{ ...BODY, fontSize: "14px", color: "var(--muted)", maxWidth: "620px" }}
-              fallback={"Cross-Strait Signal is an open-source intelligence dashboard monitoring PRC–Taiwan cross-strait dynamics through automated bilingual media analysis. It scrapes 37 active sources across the People's Republic of China, Taiwan, Hong Kong, and international Chinese-language outlets. Chinese-language sources are treated as primary: they break stories earlier and in greater depth than English-language media on either side of the strait. International outlets do strong work and often land exclusives, but that reporting is already easy for English speakers to reach — what gets lost is what the people most affected are reading and saying. Articles are processed through a multi-tier AI pipeline, human-reviewed for accuracy, and structured into a filterable intelligence feed."} />
-      </div>
+              style={{ ...STANDFIRST, fontSize: "14px", maxWidth: "620px" }}
+              fallback={"Cross-Strait Signal is an open-source intelligence dashboard monitoring PRC–Taiwan cross-strait dynamics through automated bilingual media analysis. It scrapes 37 active sources across the People's Republic of China, Taiwan, Hong Kong, and international Chinese-language outlets. Chinese-language sources are treated as primary: they break stories earlier and in greater depth than English-language media on either side of the strait. International outlets do strong work and often land exclusives, but that reporting is already easy for English speakers to reach — what gets lost is what the people most affected are reading and saying. Articles are processed through a multi-tier AI pipeline, human-reviewed for accuracy, and structured into a filterable intelligence feed."} />}
+      />
 
       <Copy k="about.social"
             as="p"
