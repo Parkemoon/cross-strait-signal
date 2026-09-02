@@ -329,11 +329,19 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
           ? "3px solid var(--dot)"
           : isPending
           ? "3px solid var(--flag)"
-          : "3px solid transparent",
+          : "3px solid var(--card-rule)",  // transparent; .expandable:hover → hairline
         padding: "16px 0 16px 12px",
         cursor: "pointer",
       }}
+      className="expandable"
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
       onClick={handleExpand}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;  // inner controls keep their own keys
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleExpand(); }
+      }}
     >
       {/* Pending approval banner */}
       {isPending && (
@@ -529,10 +537,14 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
             SIGNAL
           </span>
         )}
+        {/* Expand affordance — sits at the right edge (admin buttons follow it) */}
+        <span className="expand-cue" aria-hidden="true">
+          {expanded ? "less ▴" : "detail ▾"}
+        </span>
 
 {/* Action buttons — admin only */}
         {!READ_ONLY && (
-          <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
+          <div style={{ display: "flex", gap: "6px", marginLeft: "8px" }}>
             <button
               onClick={handleToggleSignal}
               title={isSignal ? "Remove signal flag" : "Mark as escalation signal"}

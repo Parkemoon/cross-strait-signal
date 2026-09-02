@@ -208,6 +208,7 @@ export function TopicBreakdownChart({ data, onTopicClick }) {
         {rows.map((r) => (
           <div
             key={r.topic}
+            className={onTopicClick ? "filter-row" : undefined}
             onClick={onTopicClick ? () => onTopicClick(r.topic) : undefined}
             title={onTopicClick ? `Filter by ${r.label}` : undefined}
             onMouseEnter={onTopicClick ? (e) => { e.currentTarget.firstChild.style.color = "var(--ink)"; } : undefined}
