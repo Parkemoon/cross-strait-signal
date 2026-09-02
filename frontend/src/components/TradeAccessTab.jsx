@@ -582,7 +582,7 @@ export default function TradeAccessTab() {
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
       <DocumentHeader
         eyebrow="Economy · Trade Access"
-        title={<Copy k="trade.title" as="span" fallback="Tariff concessions as leverage" />}
+        title={<Copy k="trade.title" as="span" fallback="Cross-Strait Trade Access" />}
         meta={`Last refreshed ${lastUpdated}`}
       />
       <HeadlineStrip summary={summary} cifer={cifer} />

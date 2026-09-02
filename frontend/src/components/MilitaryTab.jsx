@@ -797,7 +797,7 @@ export default function MilitaryTab() {
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
       <DocumentHeader
         eyebrow="Security · Military"
-        title={<Copy k="military.title" as="span" fallback='Air & sea activity around Taiwan' />}
+        title={<Copy k="military.title" as="span" fallback="PLA Activity Around Taiwan" />}
         standfirst={<Copy k="military.intro" as="p" style={STANDFIRST}
             vars={{ mnd_from: rows.find((r) => r.source === "mnd")?.date || "—" }}
             fallback={"Daily PLA aircraft and vessel activity as reported by Taiwan's Ministry of National Defence. Live from mnd.gov.tw back to {mnd_from}; historical incursion counts extended with the public PLATracker archive."}  />}

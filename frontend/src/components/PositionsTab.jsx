@@ -578,7 +578,7 @@ export default function PositionsTab({ onOpenTab }) {
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
       <DocumentHeader
         eyebrow="Politics · Positions"
-        title={<Copy k="positions.title" as="span" fallback="Positions & legal status" />}
+        title={<Copy k="positions.title" as="span" fallback="Positions & Legal Status" />}
         meta={`last reviewed ${data._meta?.last_reviewed || "—"}`}
         actions={openEdit && <EditBtn onClick={() => openEdit(data._meta, ["_meta"], "Page meta")} />}
         standfirst={<Copy k="positions.intro" as="p" style={STANDFIRST}

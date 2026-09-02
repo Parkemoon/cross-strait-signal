@@ -12,7 +12,7 @@ export default function MaritimeTab() {
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
       <DocumentHeader
         eyebrow="Security · Maritime"
-        title={<Copy k="maritime.title" as="span" fallback='Grey-zone at sea' />}
+        title={<Copy k="maritime.title" as="span" fallback="Coast Guard Presence & Enforcement" />}
         standfirst={<Copy k="maritime.intro" as="p" style={STANDFIRST}
             fallback={"Coast Guard activity is one of the primary sources of direct contact between enforcement agencies from both sides of the strait."}  />}
         meta={"AIS presence · CGA enforcement"}
