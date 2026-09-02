@@ -52,6 +52,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import re
 import sqlite3
@@ -469,9 +470,15 @@ def fetch_url_image(url):
     return r.content, "jpg" if ext == "jpeg" else ext
 
 
-def site_key(prefix, sid, name_en):
-    """Manifest key for a non-Wikidata entry, e.g. kmt:2547 / manual:lien_shengwu."""
-    return f"{prefix}:{sid or slugify(name_en, 'x')}"
+def site_key(prefix, sid, name):
+    """Manifest key for a non-Wikidata entry, e.g. kmt:2547 / manual:lien_shengwu.
+
+    A zh-only name has no ASCII slug, so it falls back to a short hash of the
+    name — two zh-only manual entries must not collide on key or filename."""
+    if sid:
+        return f"{prefix}:{sid}"
+    slug = slugify(name, "")
+    return f"{prefix}:{slug or hashlib.sha1(name.encode('utf-8')).hexdigest()[:10]}"
 
 
 def main():
