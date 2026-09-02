@@ -67,7 +67,7 @@ export function DocumentHeader({ eyebrow, title, standfirst, meta, actions }) {
   const metaLines = meta == null ? [] : Array.isArray(meta) ? meta.filter(Boolean) : [meta];
   return (
     <header style={{
-      display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px",
+      display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px 24px", flexWrap: "wrap",
       borderBottom: "1px solid var(--hair)", paddingBottom: "18px", marginBottom: "22px",
     }}>
       <div style={{ minWidth: 0 }}>
