@@ -3,6 +3,7 @@ import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
 import { useDashboardData } from "./hooks/useDashboardData";
 import ThemeToggle from "./components/ThemeToggle";
+import MastheadCoasts from "./components/MastheadCoasts";
 import AboutTab from "./components/AboutTab";
 import FlashTraffic from "./components/FlashTraffic";
 import KeyFigures from "./components/KeyFigures";
@@ -53,6 +54,7 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | any view in navGroups.js
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 768;
+  const showCoasts = windowWidth >= 1000;  // masthead coast flanks need room beside the corner stamps
 
   const {
     articles, total, loading, stats,
@@ -96,13 +98,20 @@ export default function App() {
                           color: "var(--faint)", margin: "0 170px 8px" }}>
               BILINGUAL · ANALYST-GATED · OPEN SOURCE
             </div>
-            {/* nameplate */}
-            <h1 onClick={() => setView("feed")}
-                style={{ fontFamily: "var(--font-headline)", fontSize: "40px", fontWeight: 500,
-                         lineHeight: 1, letterSpacing: "0.01em", cursor: "pointer", margin: "0 160px",
-                         color: "var(--ink)" }}>
-              Cross-Strait Signal
-            </h1>
+            {/* nameplate — flanked by the two sides of the strait (west coast +
+                Kinmen/Matsu left, Taiwan + Penghu right; the nameplate is the
+                strait). Flanks hide below 1000px so they never meet the corner
+                stamps. */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "26px", margin: "0 160px" }}>
+              {showCoasts && <MastheadCoasts side="west" height={92} />}
+              <h1 onClick={() => setView("feed")}
+                  style={{ fontFamily: "var(--font-headline)", fontSize: "40px", fontWeight: 500,
+                           lineHeight: 1, letterSpacing: "0.01em", cursor: "pointer", margin: 0,
+                           color: "var(--ink)" }}>
+                Cross-Strait Signal
+              </h1>
+              {showCoasts && <MastheadCoasts side="east" height={92} />}
+            </div>
             <div style={{ width: "64px", height: "1px", background: "var(--ink)", margin: "14px auto 10px" }} />
             {/* nav row */}
             <div style={{ paddingBottom: "12px" }}>
