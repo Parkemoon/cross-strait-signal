@@ -901,7 +901,7 @@ export default function PollsTab() {
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
       <DocumentHeader
         eyebrow="Politics · Polls"
-        title={<Copy k="polls.title" as="span" fallback="Identity & the 統獨 spectrum" />}
+        title={<Copy k="polls.title" as="span" fallback="Taiwan Polling" />}
         standfirst={<Copy k="polls.intro" as="p" style={STANDFIRST}
             fallback="Taiwan public opinion on identity, unification, presidential approval, and cross-strait attitudes." />}
         meta={activePollsterCount > 0 ? `${activePollsterCount} pollster${activePollsterCount === 1 ? "" : "s"} with data` : null}

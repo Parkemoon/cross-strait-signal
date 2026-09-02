@@ -257,7 +257,7 @@ export default function PeopleTab() {
     <main style={{ padding: "28px 32px", minWidth: 0, overflow: "hidden", paddingBottom: "40px" }}>
       <DocumentHeader
         eyebrow="Economy · People"
-        title={<Copy k="people.title" as="span" fallback='Movement across the Strait' />}
+        title={<Copy k="people.title" as="span" fallback="Cross-Strait People & Movement" />}
         standfirst={<Copy k="people.intro" as="p" style={STANDFIRST}
             fallback={"How many people live on the other side of the strait, and how many cross it each month. PRC residents in Taiwan are tracked by Taiwan's NIA via residence and settlement permits; Taiwanese in PRC are only knowable through PRC bureaus — 台胞证 issuance counts, the 2020 census, and occasional NIA press releases. Stock first, flow below."}  />}
         meta={data.meta?.extracted_at ? `latest curated ${data.meta.extracted_at}` : null}

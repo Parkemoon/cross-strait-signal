@@ -383,7 +383,7 @@ export default function VisitsTab() {
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
       <DocumentHeader
         eyebrow="Politics · Visits"
-        title={<Copy k="visits.title" as="span" fallback='Who is travelling, and how it is framed' />}
+        title={<Copy k="visits.title" as="span" fallback="Cross-Strait Visits" />}
         standfirst={<Copy k="visits.intro" as="p" style={STANDFIRST}
             fallback={"Publicly reported visits, meetings and exchanges between official- or party-level actors from Taiwan and from the mainland, Hong Kong or Macao — in both directions. Cross-strait only: Taiwan's dealings with third countries live on the Diplomacy map. Every entry is drawn from a news article and reviewed by an analyst before it appears; visits that were announced, rumoured, cancelled or refused entry are kept and labelled, because a blocked delegation is a signal in its own right."}  />}
         meta={cov?.n ? `${cov.n} visits · ${cov.first} → ${cov.last}` : "no approved visits yet"}
