@@ -196,5 +196,16 @@
     "attribution": "Photo: Kuomintang official site (kmt.org.tw)",
     "licence": "Official site press portrait (not free-licensed; identification use)",
     "source_url": "https://www1.kmt.org.tw/people.aspx?mid=22&pid=2462"
+  },
+  "manual:lai_jun": {
+    "file": "lai_jun.jpg",
+    "name_en": "Lai Jun",
+    "names": [
+      "Lai Jun",
+      "賴軍"
+    ],
+    "attribution": "Photo: Baidu Baike",
+    "licence": "Analyst-supplied image (not free-licensed; identification use)",
+    "source_url": "https://bkimg.cdn.bcebos.com/pic/377adab44aed2e738bd4216ce256b68b87d6277f4c61"
   }
 }
