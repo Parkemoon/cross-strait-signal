@@ -154,6 +154,7 @@ PARTY_SITES = {
     },
 }
 SITE_LICENCE = "Official site press portrait (not free-licensed; identification use)"
+MANUAL_LICENCE = "Analyst-supplied image (not free-licensed; identification use)"
 BROWSER_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) CrossStraitSignal/1.0 portrait fetch"}
 HOST_LABELS = {
     "kmt.org.tw": "Kuomintang official site (kmt.org.tw)",
@@ -162,6 +163,7 @@ HOST_LABELS = {
     "gwytb.gov.cn": "Taiwan Affairs Office (gwytb.gov.cn)",
     "mac.gov.tw": "Mainland Affairs Council (mac.gov.tw)",
     "ly.gov.tw": "Legislative Yuan (ly.gov.tw)",
+    "bcebos.com": "Baidu Baike",  # only ever via --manual with an analyst-supplied URL
 }
 
 
@@ -590,9 +592,10 @@ def main():
             # Fallbacks for people Wikimedia can't supply: an analyst-vetted URL,
             # then the official party-site officer grids (exact zh-name match).
             url = manuals.get(p["zh"] or "") or manuals.get(p["en"] or "")
-            src_label, page_url, key = None, "", None
+            src_label, page_url, key, licence = None, "", None, SITE_LICENCE
             if url:
                 src_label, page_url, key = host_label(url), url, site_key("manual", None, p["en"] or p["zh"])
+                licence = MANUAL_LICENCE
                 note = f"{note}; manual URL"
             elif not args.no_party_sites and p["zh"]:
                 # the DB spelling first, then the matched-but-imageless item's
@@ -622,7 +625,7 @@ def main():
                 (VISITS_DIR / fname).write_bytes(blob)
             else:
                 fname = f"<dry-run:{key.split(':')[0]}>"
-            record(key, fname, name_en, names, f"Photo: {src_label}", SITE_LICENCE, page_url, label, note)
+            record(key, fname, name_en, names, f"Photo: {src_label}", licence, page_url, label, note)
             continue
 
         name_en = p["en"] or entity.get("labels", {}).get("en", {}).get("value")
