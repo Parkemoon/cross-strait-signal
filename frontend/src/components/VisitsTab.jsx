@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DocumentHeader, STANDFIRST, StatGrid, StatBlock } from "./documentChrome";
 import {
   Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
@@ -49,17 +50,6 @@ function SectionHeader({ children, right }) {
   );
 }
 
-function KPICard({ value, label, sublabel, accent }) {
-  return (
-    <div style={{ padding: "14px 16px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${accent || "var(--border-color)"}`,
-                  background: "var(--bg-card)", minWidth: 0 }}>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                    color: "var(--text-muted)", marginBottom: "6px" }}>{label}</div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.1 }}>{value}</div>
-      {sublabel && <div style={{ fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>{sublabel}</div>}
-    </div>
-  );
-}
 
 function Pill({ active, onClick, children, colour }) {
   return (
@@ -391,20 +381,20 @@ export default function VisitsTab() {
 
   return (
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
-      <SectionHeader right={cov?.n ? `${cov.n} visits · ${cov.first} → ${cov.last}` : "no approved visits yet"}>
-        Cross-Strait Visits
-      </SectionHeader>
+      <DocumentHeader
+        eyebrow="Politics · Visits"
+        title={<Copy k="visits.title" as="span" fallback='Who is travelling, and how it is framed' />}
+        standfirst={<Copy k="visits.intro" as="p" style={STANDFIRST}
+            fallback={"Publicly reported visits, meetings and exchanges between official- or party-level actors from Taiwan and from the mainland, Hong Kong or Macao — in both directions. Cross-strait only: Taiwan's dealings with third countries live on the Diplomacy map. Every entry is drawn from a news article and reviewed by an analyst before it appears; visits that were announced, rumoured, cancelled or refused entry are kept and labelled, because a blocked delegation is a signal in its own right."}  />}
+        meta={cov?.n ? `${cov.n} visits · ${cov.first} → ${cov.last}` : "no approved visits yet"}
+      />
 
-      <Copy k="visits.intro"
-            style={{ fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 18px", maxWidth: "820px" }}
-            fallback={"Publicly reported visits, meetings and exchanges between official- or party-level actors from Taiwan and from the mainland, Hong Kong or Macao — in both directions. Cross-strait only: Taiwan's dealings with third countries live on the Diplomacy map. Every entry is drawn from a news article and reviewed by an analyst before it appears; visits that were announced, rumoured, cancelled or refused entry are kept and labelled, because a blocked delegation is a signal in its own right."} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>
-        <KPICard label="Taiwan → mainland" value={d("TW_TO_PRC")} accent={DIR_COLOUR.TW_TO_PRC} sublabel={`${delta(d("TW_TO_PRC"), pd("TW_TO_PRC"))} · 90d`} />
-        <KPICard label="Mainland → Taiwan" value={d("PRC_TO_TW")} accent={DIR_COLOUR.PRC_TO_TW} sublabel={`${delta(d("PRC_TO_TW"), pd("PRC_TO_TW"))} · 90d`} />
-        <KPICard label="Third venue" value={d("THIRD_VENUE")} accent={DIR_COLOUR.THIRD_VENUE} sublabel="both sides meet elsewhere" />
-        <KPICard label="Blocked / cancelled" value={blockedNow} accent={STATUS_TONE.blocked} sublabel={`${delta(blockedNow, blockedPrev)} · 90d`} />
-      </div>
+      <StatGrid columns={4}>
+        <StatBlock label="Taiwan → mainland" value={d("TW_TO_PRC")} accent={DIR_COLOUR.TW_TO_PRC} note={`${delta(d("TW_TO_PRC"), pd("TW_TO_PRC"))} · 90d`} />
+        <StatBlock label="Mainland → Taiwan" value={d("PRC_TO_TW")} accent={DIR_COLOUR.PRC_TO_TW} note={`${delta(d("PRC_TO_TW"), pd("PRC_TO_TW"))} · 90d`} />
+        <StatBlock label="Third venue" value={d("THIRD_VENUE")} accent={DIR_COLOUR.THIRD_VENUE} note="both sides meet elsewhere" />
+        <StatBlock label="Blocked / cancelled" value={blockedNow} accent={STATUS_TONE.blocked} note={`${delta(blockedNow, blockedPrev)} · 90d`} />
+      </StatGrid>
 
       <SectionHeader right="approved visits per month, by direction">Monthly Volume</SectionHeader>
       <div style={{ height: "200px", border: "1px solid var(--border-color)", background: "var(--bg-card)", padding: "8px 8px 0" }}>

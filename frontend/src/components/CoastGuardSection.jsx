@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { StatGrid, StatBlock } from "./documentChrome";
 import {
   Bar, ComposedChart, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -73,17 +74,6 @@ function SubHeader({ children, right }) {
   );
 }
 
-function KPICard({ value, label, sublabel, accent }) {
-  return (
-    <div style={{ padding: "14px 16px", border: "1px solid var(--border-color)", borderLeft: `3px solid ${accent || "var(--border-color)"}`,
-                  background: "var(--bg-card)", minWidth: 0 }}>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                    color: "var(--text-muted)", marginBottom: "6px" }}>{label}</div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.1 }}>{value}</div>
-      {sublabel && <div style={{ fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>{sublabel}</div>}
-    </div>
-  );
-}
 
 // Delta vs the previous window. Deliberately NEUTRAL (no hostile purple /
 // cooperative amber): more CCG presence and more CGA enforcement are both
@@ -341,16 +331,16 @@ export default function CoastGuardSection() {
       <Caveats caveats={summary.caveats} scopes={["all"]} />
 
       {/* KPI strip — two per side, deliberately symmetric */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginTop: 14 }}>
-        <KPICard label="China CG · 30 days" accent={FORCE_COLOUR.CCG} value={fmtInt(ccg.hull_days)}
-                 sublabel={`hull-days · ${fmtInt(ccg.hulls)} hulls · ${deltaText(ccg.hull_days, ccg.prev_hull_days) || ""}`} />
-        <KPICard label="Taiwan CG · 30 days" accent={FORCE_COLOUR.CGA} value={fmtInt(cga.hull_days)}
-                 sublabel={`hull-days · ${fmtInt(cga.hulls)} hulls · ${deltaText(cga.hull_days, cga.prev_hull_days) || ""}`} />
-        <KPICard label="PRC vessels expelled" accent={FORCE_COLOUR.CGA} value={enf ? fmtInt(enf.expelled) : "—"}
-                 sublabel={enf ? <>by the CGA, {enf.months} reported months to {fmtMonth(enf.latest_month)} · <SrcLink href={t81?.source_url}>表8-1</SrcLink></> : "no CGA data"} />
-        <KPICard label="PRC vessels detained" accent={FORCE_COLOUR.CGA} value={enf ? fmtInt(enf.detained) : "—"}
-                 sublabel={enf ? <>same window · <SrcLink href={t81?.source_url}>CGA 表8-1</SrcLink></> : "no CGA data"} />
-      </div>
+      <StatGrid columns={4}>
+        <StatBlock label="China CG · 30 days" accent={FORCE_COLOUR.CCG} value={fmtInt(ccg.hull_days)}
+                 note={`hull-days · ${fmtInt(ccg.hulls)} hulls · ${deltaText(ccg.hull_days, ccg.prev_hull_days) || ""}`} />
+        <StatBlock label="Taiwan CG · 30 days" accent={FORCE_COLOUR.CGA} value={fmtInt(cga.hull_days)}
+                 note={`hull-days · ${fmtInt(cga.hulls)} hulls · ${deltaText(cga.hull_days, cga.prev_hull_days) || ""}`} />
+        <StatBlock label="PRC vessels expelled" accent={FORCE_COLOUR.CGA} value={enf ? fmtInt(enf.expelled) : "—"}
+                 note={enf ? <>by the CGA, {enf.months} reported months to {fmtMonth(enf.latest_month)} · <SrcLink href={t81?.source_url}>表8-1</SrcLink></> : "no CGA data"} />
+        <StatBlock label="PRC vessels detained" accent={FORCE_COLOUR.CGA} value={enf ? fmtInt(enf.detained) : "—"}
+                 note={enf ? <>same window · <SrcLink href={t81?.source_url}>CGA 表8-1</SrcLink></> : "no CGA data"} />
+      </StatGrid>
 
       {/* Paired monthly strips */}
       <SubHeader right={`AIS-visible to ${summary.latest_date}`}>Presence vs enforcement · monthly</SubHeader>
