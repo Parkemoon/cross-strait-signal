@@ -170,6 +170,20 @@ body {
   pointer-events: auto;
 }
 
+/* ---- Stat band (documentChrome.jsx StatGrid) ------------------------------
+   Hairline grid from the 1px gap on a --hair ground, never per-cell borders. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr));
+  gap: 1px;
+  background: var(--hair);
+  border: 1px solid var(--hair);
+  margin-bottom: 22px;
+}
+@media (max-width: 640px) {
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* ---- Click affordances (2026-09-02) ----------------------------------------
    Three verbs, three cues. Hover changes colour or border only (design rule).
    expands in place  → .expandable + .expand-cue ("DETAIL ▾" / "LESS ▴")

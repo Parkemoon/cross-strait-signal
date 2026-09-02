@@ -1,4 +1,4 @@
-import { SectionHeader } from "./MilitaryTab";
+import { DocumentHeader, STANDFIRST } from "./documentChrome";
 import CoastGuardSection from "./CoastGuardSection";
 import { Copy } from "../copy";
 
@@ -6,16 +6,17 @@ import { Copy } from "../copy";
 // guards are law-enforcement hulls, and grey-zone coercion works precisely
 // because it stays below the military threshold. First section is the Coast
 // Guard tracker (Phase 2e); the militia / dredger layer is queued to join it.
-const INTRO = { fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 14px" };
 
 export default function MaritimeTab() {
   return (
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
-      <SectionHeader right="AIS presence · CGA enforcement">
-        Coast Guard Presence &amp; Enforcement
-      </SectionHeader>
-      <Copy k="maritime.intro" style={INTRO}
-            fallback={"Coast Guard activity is one of the primary sources of direct contact between enforcement agencies from both sides of the strait."} />
+      <DocumentHeader
+        eyebrow="Security · Maritime"
+        title={<Copy k="maritime.title" as="span" fallback='Grey-zone at sea' />}
+        standfirst={<Copy k="maritime.intro" as="p" style={STANDFIRST}
+            fallback={"Coast Guard activity is one of the primary sources of direct contact between enforcement agencies from both sides of the strait."}  />}
+        meta={"AIS presence · CGA enforcement"}
+      />
       <CoastGuardSection />
     </main>
   );

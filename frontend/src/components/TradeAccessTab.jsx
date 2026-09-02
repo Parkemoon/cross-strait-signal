@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchTradeAccessItems, fetchTradeAccessSummary, fetchCiferSnapshot } from "../api";
 import { Copy } from "../copy";
+import { DocumentHeader } from "./documentChrome";
 
 // Direction toggle. The DB stores who the importer is, so reading these
 // rows means "what does the importer admit". Labels frame it as a flow
@@ -578,10 +579,12 @@ export default function TradeAccessTab() {
   }, [summary]);
 
   return (
-    <main style={{ padding: "20px 24px", minWidth: 0 }}>
-      <SectionHeader right={`Last refreshed ${lastUpdated}`}>
-        Cross-strait trade access
-      </SectionHeader>
+    <main style={{ padding: "28px 32px", minWidth: 0 }}>
+      <DocumentHeader
+        eyebrow="Economy · Trade Access"
+        title={<Copy k="trade.title" as="span" fallback="Tariff concessions as leverage" />}
+        meta={`Last refreshed ${lastUpdated}`}
+      />
       <HeadlineStrip summary={summary} cifer={cifer} />
       <SuspensionTimeline waves={summary?.suspension_waves} />
 

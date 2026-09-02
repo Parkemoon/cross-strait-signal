@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DocumentHeader, STANDFIRST, StatGrid, StatBlock } from "./documentChrome";
 import { Copy } from "../copy";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -140,50 +141,16 @@ function SectionHeader({ children, right }) {
   );
 }
 
+// One headline-series cell in the stat band: latest value, period + YoY chip.
 function KPICard({ series, latest }) {
   if (!series || !latest) return null;
   return (
-    <div style={{
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-color)",
-      padding: "14px 16px",
-      display: "flex",
-      flexDirection: "column",
-      gap: "6px",
-      minWidth: 0,
-    }}>
-      <span style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: "9px",
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color: "var(--text-muted)",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      }}>
-        {series.label_en}
-      </span>
-      <span style={{
-        fontFamily: "var(--font-headline)",
-        fontSize: "26px",
-        lineHeight: 1,
-        color: "var(--text-primary)",
-      }}>
-        {formatValue(latest.value, series.unit)}
-      </span>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "9px",
-          color: "var(--text-muted)",
-          letterSpacing: "0.04em",
-        }}>
-          {formatPeriodLabel(latest.period)} YoY
-        </span>
-        <YoyChip yoy={latest.yoy_pct} />
-      </div>
-    </div>
+    <StatBlock
+      label={series.label_en}
+      value={formatValue(latest.value, series.unit)}
+      chip={<YoyChip yoy={latest.yoy_pct} />}
+      note={`${formatPeriodLabel(latest.period)} · YoY`}
+    />
   );
 }
 
@@ -285,34 +252,23 @@ export default function EconomyTab() {
   return (
     <main style={{ padding: "28px 32px", minWidth: 0, overflow: "hidden", paddingBottom: "40px" }}>
       {/* Intro */}
-      <SectionHeader right={data.last_updated ? `MAC · latest ${formatPeriodLabel(data.last_updated)}` : null}>
-        Cross-Strait Economy
-      </SectionHeader>
+      <DocumentHeader
+        eyebrow="Economy · Indicators"
+        title={<Copy k="economy.title" as="span" fallback='Interdependence & drift' />}
+        standfirst={<Copy k="economy.intro" as="p" style={STANDFIRST}
+            fallback={"Monthly trade, investment and people-flow indicators from Taiwan's Mainland Affairs Council (via data.gov.tw). Trade balance is from Taiwan's perspective — positive values are TW surplus with PRC."}  />}
+        meta={data.last_updated ? `MAC · latest ${formatPeriodLabel(data.last_updated)}` : null}
+      />
 
-      <Copy k="economy.intro"
-            style={{
-        fontFamily: "var(--font-body)",
-        fontSize: "13px",
-        color: "var(--text-secondary)",
-        marginBottom: "20px",
-        lineHeight: 1.5,
-      }}
-            fallback={"Monthly trade, investment and people-flow indicators from Taiwan's Mainland Affairs Council (via data.gov.tw). Trade balance is from Taiwan's perspective — positive values are TW surplus with PRC."} />
-
-      {/* KPI strip */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: "10px",
-        marginBottom: "32px",
-      }}>
+      {/* Stat band */}
+      <StatGrid columns={KPI_SERIES.length} style={{ marginBottom: "32px" }}>
         {KPI_SERIES.map((sid) => {
           const s = seriesById[sid];
           if (!s) return null;
           const latest = s.points[s.points.length - 1];
           return <KPICard key={sid} series={s} latest={latest} />;
         })}
-      </div>
+      </StatGrid>
 
       {/* Main chart — total trade */}
       <SectionHeader right={

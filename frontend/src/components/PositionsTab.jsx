@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchPositions, patchPositionsText } from "../api";
 import { Copy } from "../copy";
+import { DocumentHeader, STANDFIRST } from "./documentChrome";
 import { PARTY_COLOURS } from "../partyColours";
 import { READ_ONLY } from "../readOnly";
 
@@ -575,18 +576,14 @@ export default function PositionsTab({ onOpenTab }) {
 
   return (
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
-      <SectionHeader right={
-        <>
-          {`last reviewed ${data._meta?.last_reviewed || "—"}`}
-          {openEdit && <EditBtn onClick={() => openEdit(data._meta, ["_meta"], "Page meta")} />}
-        </>
-      }>
-        Positions &amp; Legal Status
-      </SectionHeader>
-
-      <Copy k="positions.intro"
-            style={{ ...PROSE, maxWidth: "820px", marginBottom: "18px" }}
-            fallback={"What each side of the strait — and the powers around it — formally claims, and what it has actually said. Every entry below is a stated position anchored to a dated primary source: the statute, communiqué, or transcript itself. This page describes; it does not adjudicate. The distinctions here are routinely blurred in coverage — the difference between Washington's One China policy and Beijing's One China principle, or between what UN Resolution 2758 decided and what it is said to have decided, is where most cross-strait misreading starts."} />
+      <DocumentHeader
+        eyebrow="Politics · Positions"
+        title={<Copy k="positions.title" as="span" fallback="Positions & legal status" />}
+        meta={`last reviewed ${data._meta?.last_reviewed || "—"}`}
+        actions={openEdit && <EditBtn onClick={() => openEdit(data._meta, ["_meta"], "Page meta")} />}
+        standfirst={<Copy k="positions.intro" as="p" style={STANDFIRST}
+            fallback={"What each side of the strait — and the powers around it — formally claims, and what it has actually said. Every entry below is a stated position anchored to a dated primary source: the statute, communiqué, or transcript itself. This page describes; it does not adjudicate. The distinctions here are routinely blurred in coverage — the difference between Washington's One China policy and Beijing's One China principle, or between what UN Resolution 2758 decided and what it is said to have decided, is where most cross-strait misreading starts."} />}
+      />
 
       {fullActors.map(({ actor, idx }) => (
         <ActorCard key={actor.id} actor={actor} basePath={["actors", idx]} openEdit={openEdit} />
