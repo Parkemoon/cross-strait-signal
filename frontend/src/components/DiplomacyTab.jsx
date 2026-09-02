@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DocumentHeader, STANDFIRST, StatGrid, StatBlock } from "./documentChrome";
 import { Copy } from "../copy";
 import {
   fetchDiplomacyMap,
@@ -45,29 +46,6 @@ function SectionHeader({ children, right }) {
   );
 }
 
-function KPICard({ value, label, sublabel, accent }) {
-  return (
-    <div style={{ padding: "14px 16px", border: "1px solid var(--border-color)", background: "var(--bg-card)", minWidth: 0 }}>
-      <div style={{
-        fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em",
-        textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "6px",
-      }}>
-        {label}
-      </div>
-      <div style={{
-        fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 500,
-        color: accent || "var(--text-primary)", lineHeight: 1.1,
-      }}>
-        {value}
-      </div>
-      {sublabel && (
-        <div style={{ fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
-          {sublabel}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // Stacked distribution bar across the five bands — doubles as the map legend.
 function StanceBar({ bands }) {
@@ -337,25 +315,25 @@ export default function DiplomacyTab() {
 
   return (
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
-      <SectionHeader right={`as of ${summary.as_of}`}>
-        Third-Country Diplomatic Stance
-      </SectionHeader>
-
-      <Copy k="diplomacy.intro"
-            style={{ fontFamily: "var(--font-body)", fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 18px", maxWidth: "820px" }}
-            fallback={"Where the rest of the world sits on the Taiwan question — a separate axis from the cross-strait sentiment instrument, which deliberately discards third-party interactions. Each country is filled by the average of its recent government / head-of-state statements (the honest national posture, robust to any single stray quote). A ◆ gold dashed border flags a divergence — a legislator, party, or sub-national voice pulling against the official line. Coverage begins in late 2025 (the corpus start); an un-filled country is un-tracked in this window, not neutral."} />
+      <DocumentHeader
+        eyebrow="Politics · Diplomacy"
+        title={<Copy k="diplomacy.title" as="span" fallback='Recognition & statements' />}
+        standfirst={<Copy k="diplomacy.intro" as="p" style={STANDFIRST}
+            fallback={"Where the rest of the world sits on the Taiwan question — a separate axis from the cross-strait sentiment instrument, which deliberately discards third-party interactions. Each country is filled by the average of its recent government / head-of-state statements (the honest national posture, robust to any single stray quote). A ◆ gold dashed border flags a divergence — a legislator, party, or sub-national voice pulling against the official line. Coverage begins in late 2025 (the corpus start); an un-filled country is un-tracked in this window, not neutral."}  />}
+        meta={`as of ${summary.as_of}`}
+      />
 
       {/* KPI strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" }}>
-        <KPICard label="Countries tracked" value={summary.countries_tracked}
-                 sublabel="with an official posture" />
-        <KPICard label="Leaning Taipei" value={taipei} accent={BAND_COLOUR.pro_taipei}
-                 sublabel="pro + leaning" />
-        <KPICard label="Leaning Beijing" value={beijing} accent={BAND_COLOUR.pro_beijing}
-                 sublabel="pro + leaning" />
-        <KPICard label="Divergences" value={summary.divergent_count} accent="var(--flag)"
-                 sublabel="official vs other voices" />
-      </div>
+      <StatGrid columns={4}>
+        <StatBlock label="Countries tracked" value={summary.countries_tracked}
+                 note="with an official posture" />
+        <StatBlock label="Leaning Taipei" value={taipei} accent={BAND_COLOUR.pro_taipei}
+                 note="pro + leaning" />
+        <StatBlock label="Leaning Beijing" value={beijing} accent={BAND_COLOUR.pro_beijing}
+                 note="pro + leaning" />
+        <StatBlock label="Divergences" value={summary.divergent_count} accent="var(--flag)"
+                 note="official vs other voices" />
+      </StatGrid>
 
       {/* Distribution bar / legend */}
       <SectionHeader right={`${summary.countries_tracked} with posture`}>

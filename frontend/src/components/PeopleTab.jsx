@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DocumentHeader, STANDFIRST, StatGrid, StatBlock } from "./documentChrome";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, ReferenceLine,
@@ -21,78 +22,7 @@ function formatLargeNumber(n) {
   return n.toLocaleString();
 }
 
-function SectionHeader({ children, right }) {
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "16px" }}>
-      <span style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: "9.5px",
-        fontWeight: 600,
-        letterSpacing: "0.24em",
-        textTransform: "uppercase",
-        color: "var(--ink)",
-        whiteSpace: "nowrap",
-      }}>
-        {children}
-      </span>
-      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
-      {right && (
-        <span style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "9px",
-          color: "var(--pale)",
-          letterSpacing: "0.08em",
-          textAlign: "right",
-        }}>
-          {right}
-        </span>
-      )}
-    </div>
-  );
-}
 
-function PeopleKPICard({ value, label, sublabel, footnote }) {
-  return (
-    <div style={{
-      padding: "14px 16px",
-      border: "1px solid var(--border-color)",
-      background: "var(--bg-card)",
-      minWidth: 0,
-    }}>
-      <div style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: "10px",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: "var(--text-muted)",
-        marginBottom: "6px",
-      }}>{label}</div>
-      <div style={{
-        fontFamily: "var(--font-display)",
-        fontSize: "26px",
-        fontWeight: 500,
-        color: "var(--text-primary)",
-        lineHeight: 1.1,
-      }}>{value}</div>
-      {sublabel && (
-        <div style={{
-          fontFamily: "var(--font-body)",
-          fontSize: "11px",
-          color: "var(--text-secondary)",
-          marginTop: "4px",
-        }}>{sublabel}</div>
-      )}
-      {footnote && (
-        <div style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "9.5px",
-          color: "var(--text-muted)",
-          marginTop: "6px",
-        }}>{footnote}</div>
-      )}
-    </div>
-  );
-}
 
 function PeoplePermitsChart({ residence, settlement }) {
   const byPeriod = {};
@@ -325,60 +255,49 @@ export default function PeopleTab() {
 
   return (
     <main style={{ padding: "28px 32px", minWidth: 0, overflow: "hidden", paddingBottom: "40px" }}>
-      <SectionHeader right={data.meta?.extracted_at ? `latest curated ${data.meta.extracted_at}` : null}>
-        Cross-Strait People &amp; Movement
-      </SectionHeader>
-
-      <Copy k="people.intro"
-            style={{
-        fontFamily: "var(--font-body)",
-        fontSize: "13px",
-        color: "var(--text-secondary)",
-        marginBottom: "20px",
-        lineHeight: 1.55,
-      }}
-            fallback={"How many people live on the other side of the strait, and how many cross it each month. PRC residents in Taiwan are tracked by Taiwan's NIA via residence and settlement permits; Taiwanese in PRC are only knowable through PRC bureaus — 台胞证 issuance counts, the 2020 census, and occasional NIA press releases. Stock first, flow below."} />
+      <DocumentHeader
+        eyebrow="Economy · People"
+        title={<Copy k="people.title" as="span" fallback='Movement across the Strait' />}
+        standfirst={<Copy k="people.intro" as="p" style={STANDFIRST}
+            fallback={"How many people live on the other side of the strait, and how many cross it each month. PRC residents in Taiwan are tracked by Taiwan's NIA via residence and settlement permits; Taiwanese in PRC are only knowable through PRC bureaus — 台胞证 issuance counts, the 2020 census, and occasional NIA press releases. Stock first, flow below."}  />}
+        meta={data.meta?.extracted_at ? `latest curated ${data.meta.extracted_at}` : null}
+      />
 
       {/* Headline KPI strip */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: "10px",
-        marginBottom: "28px",
-      }}>
+      <StatGrid columns={4}>
         {tbzHolders && (
-          <PeopleKPICard
+          <StatBlock
             value={formatLargeNumber(tbzHolders.value)}
             label="台胞证 holders (cumulative)"
-            sublabel="Unique Taiwanese with mainland entry permits"
-            footnote={`PRC公安部, as of ${tbzHolders.period}`}
+            note="Unique Taiwanese with mainland entry permits"
+            delta={`PRC公安部, as of ${tbzHolders.period}`}
           />
         )}
         {census && (
-          <PeopleKPICard
+          <StatBlock
             value={census.value.toLocaleString()}
             label="Taiwanese resident in PRC"
-            sublabel="2020 PRC Census enumeration"
-            footnote="No comparable TW-side birthplace figure (see note below)"
+            note="2020 PRC Census enumeration"
+            delta="No comparable TW-side birthplace figure (see note below)"
           />
         )}
         {spousesLatest && (
-          <PeopleKPICard
+          <StatBlock
             value={formatLargeNumber(spousesLatest.value)}
             label="Mainland spouses in Taiwan"
-            sublabel="Cumulative since 1987"
-            footnote={`TW NIA, as of ${spousesLatest.period}`}
+            note="Cumulative since 1987"
+            delta={`TW NIA, as of ${spousesLatest.period}`}
           />
         )}
         {latestResidence && (
-          <PeopleKPICard
+          <StatBlock
             value={latestResidence.value.toLocaleString()}
             label="New PRC residence permits"
-            sublabel="Annual flow, latest TW NIA year"
-            footnote={`${latestResidence.period} — bouncing back post-COVID`}
+            note="Annual flow, latest TW NIA year"
+            delta={`${latestResidence.period} — bouncing back post-COVID`}
           />
         )}
-      </div>
+      </StatGrid>
 
       {/* Bidirectional 2-column. Collapses to 1 column below ~680px. */}
       <div style={{

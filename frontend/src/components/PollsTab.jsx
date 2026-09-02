@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Copy } from "../copy";
+import { DocumentHeader, STANDFIRST } from "./documentChrome";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Legend,
@@ -897,27 +899,13 @@ export default function PollsTab() {
 
   return (
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
-      <header style={{
-        marginBottom: "8px",
-        display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px",
-      }}>
-        <div>
-          <h1 style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "26px",
-            fontWeight: 400,
-            letterSpacing: "0.01em",
-            margin: 0,
-          }}>
-            Taiwan Polling
-          </h1>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px",
-                        color: "var(--text-muted)", marginTop: "4px" }}>
-            Taiwan public opinion on identity, unification, presidential approval, and cross-strait attitudes.
-            {activePollsterCount > 0 && ` · ${activePollsterCount} pollster${activePollsterCount === 1 ? "" : "s"} with data`}
-          </div>
-        </div>
-        {!READ_ONLY && (
+      <DocumentHeader
+        eyebrow="Politics · Polls"
+        title={<Copy k="polls.title" as="span" fallback="Identity & the 統獨 spectrum" />}
+        standfirst={<Copy k="polls.intro" as="p" style={STANDFIRST}
+            fallback="Taiwan public opinion on identity, unification, presidential approval, and cross-strait attitudes." />}
+        meta={activePollsterCount > 0 ? `${activePollsterCount} pollster${activePollsterCount === 1 ? "" : "s"} with data` : null}
+        actions={!READ_ONLY && (
           <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
             <button onClick={() => setEntryOpen(true)}
                     title="Add a poll manually (analyst-spotted, outside the AI pipeline)"
@@ -953,7 +941,7 @@ export default function PollsTab() {
             </button>
           </div>
         )}
-      </header>
+      />
 
       {error && (
         <div style={{ padding: "10px 14px", marginTop: "16px",

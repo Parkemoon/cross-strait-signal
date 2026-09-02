@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DocumentHeader, STANDFIRST, StatGrid, StatBlock } from "./documentChrome";
 import { Copy } from "../copy";
 import {
   Bar, Line, ComposedChart, XAxis, YAxis, Tooltip,
@@ -62,47 +63,6 @@ export function SectionHeader({ children, right }) {
   );
 }
 
-function KPICard({ value, label, sublabel, chip }) {
-  return (
-    <div style={{
-      padding: "14px 16px",
-      border: "1px solid var(--border-color)",
-      background: "var(--bg-card)",
-      minWidth: 0,
-    }}>
-      <div style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: "10px",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: "var(--text-muted)",
-        marginBottom: "6px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "8px",
-      }}>
-        <span>{label}</span>
-        {chip}
-      </div>
-      <div style={{
-        fontFamily: "var(--font-display)",
-        fontSize: "26px",
-        fontWeight: 500,
-        color: "var(--text-primary)",
-        lineHeight: 1.1,
-      }}>{value}</div>
-      {sublabel && (
-        <div style={{
-          fontFamily: "var(--font-body)",
-          fontSize: "11px",
-          color: "var(--text-secondary)",
-          marginTop: "4px",
-        }}>{sublabel}</div>
-      )}
-    </div>
-  );
-}
 
 function YoYChip({ pct }) {
   if (pct === null || pct === undefined) return null;
@@ -835,53 +795,43 @@ export default function MilitaryTab() {
 
   return (
     <main style={{ padding: "28px 32px", minWidth: 0 }}>
-      <SectionHeader right={summary.latest_date ? `Latest report ${summary.latest_date}` : null}>
-        PLA Activity Around Taiwan
-      </SectionHeader>
-
-      <Copy k="military.intro"
+      <DocumentHeader
+        eyebrow="Security · Military"
+        title={<Copy k="military.title" as="span" fallback='Air & sea activity around Taiwan' />}
+        standfirst={<Copy k="military.intro" as="p" style={STANDFIRST}
             vars={{ mnd_from: rows.find((r) => r.source === "mnd")?.date || "—" }}
-            style={{
-        fontFamily: "var(--font-body)",
-        fontSize: "13px",
-        color: "var(--text-secondary)",
-        lineHeight: 1.55,
-        margin: "0 0 18px",
-      }}
-            fallback={"Daily PLA aircraft and vessel activity as reported by Taiwan's Ministry of National Defence. Live from mnd.gov.tw back to {mnd_from}; historical incursion counts extended with the public PLATracker archive."} />
+            fallback={"Daily PLA aircraft and vessel activity as reported by Taiwan's Ministry of National Defence. Live from mnd.gov.tw back to {mnd_from}; historical incursion counts extended with the public PLATracker archive."}  />}
+        meta={summary.latest_date ? `Latest report ${summary.latest_date}` : null}
+      />
 
       {/* KPI strip */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-        gap: "12px",
-      }}>
-        <KPICard
+      <StatGrid columns={4}>
+        <StatBlock
           label="Today"
           value={summary.today?.aircraft_intruded ?? "—"}
-          sublabel={summary.today
+          note={summary.today
             ? `${summary.today.aircraft_total ?? "?"} sorties · ${summary.today.vessels_total ?? 0} vessels`
             : "no report yet"}
         />
-        <KPICard
+        <StatBlock
           label="7-day avg"
           value={summary.avg_7d_intruded ?? "—"}
-          sublabel="aircraft intruded / day"
+          note="aircraft intruded / day"
         />
-        <KPICard
+        <StatBlock
           label="30-day avg"
           value={summary.avg_30d_intruded ?? "—"}
-          sublabel={summary.avg_30d_year_ago !== null
+          note={summary.avg_30d_year_ago !== null
             ? `vs ${summary.avg_30d_year_ago} a year ago`
             : "no year-ago baseline"}
           chip={<YoYChip pct={summary.yoy_delta_pct} />}
         />
-        <KPICard
+        <StatBlock
           label="Active days MTD"
           value={`${summary.days_with_intrusions_mtd}/${summary.mtd_days_observed}`}
-          sublabel="days with any intrusion"
+          note="days with any intrusion"
         />
-      </div>
+      </StatGrid>
 
       {/* Daily bars + 7d rolling */}
       <SectionHeader right="Last 90 days">
