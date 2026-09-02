@@ -162,5 +162,28 @@
     "attribution": "Photo: Kuomintang official site (kmt.org.tw)",
     "licence": "Official site press portrait (not free-licensed; identification use)",
     "source_url": "https://www1.kmt.org.tw/people.aspx?mid=21&pid=2547"
+  },
+  "tao:pqe": {
+    "file": "peng_qingen.jpg",
+    "name_en": "Peng Qing'en",
+    "names": [
+      "Peng Qing'en",
+      "彭庆恩",
+      "彭慶恩"
+    ],
+    "attribution": "Photo: Taiwan Affairs Office official site (gwytb.gov.cn)",
+    "licence": "Official site press portrait (not free-licensed; identification use)",
+    "source_url": "https://www.gwytb.gov.cn/jgsz/bld/pqe/"
+  },
+  "tao:wx": {
+    "file": "wu_xi.jpg",
+    "name_en": "Wu Xi",
+    "names": [
+      "Wu Xi",
+      "吴玺"
+    ],
+    "attribution": "Photo: Taiwan Affairs Office official site (gwytb.gov.cn)",
+    "licence": "Official site press portrait (not free-licensed; identification use)",
+    "source_url": "http://www.gwytb.gov.cn/jgsz/bld/wx/"
   }
 }
