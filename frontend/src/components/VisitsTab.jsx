@@ -5,7 +5,7 @@ import {
 import { Copy } from "../copy";
 import {
   fetchVisits, fetchVisitsSummary, fetchVisitsMonthly, fetchVisitCandidatesCount,
-  dismissVisit, updateVisit, fetchKeyFigures,
+  dismissVisit, updateVisit, fetchKeyFigures, fetchVisitPortraits,
 } from "../api";
 import VisitsMap from "./VisitsMap";
 import VisitsReviewQueue, {
@@ -96,20 +96,19 @@ function fmtMonth(m) { return m ? `${m.slice(5, 7)}/${m.slice(2, 4)}` : ""; }
 // the feed's alignment legend. Everything else with an affiliation is filled.
 const HOLLOW_AFFILIATIONS = new Set(["TW_GOV", "SEF", "TW_LEGISLATURE", "TW_LOCAL"]);
 
-function VisitAvatar({ v, portraitFor }) {
-  const colour = affiliationColour(v.visitor_affiliation) || "var(--muted)";
-  const fig = portraitFor?.(v.visitor_figure_id) || portraitFor?.(v.counterpart_figure_id);
-  if (fig?.portrait) {
+function PersonAvatar({ nameEn, nameZh, figureId, affiliation, resolvePortrait }) {
+  const colour = affiliationColour(affiliation) || "var(--muted)";
+  const p = resolvePortrait?.(figureId, nameEn, nameZh);
+  if (p) {
     return (
-      <img src={`/figures/${fig.portrait}`} alt={fig.name_en}
+      <img src={p.src} alt={p.name || nameEn || nameZh} title={p.attribution || undefined}
            style={{ width: "44px", height: "44px", borderRadius: "50%", objectFit: "cover",
                     objectPosition: "center top", flexShrink: 0 }} />
     );
   }
-  const en = v.visitor_name_en || "";
-  const initials = en
-    ? en.split(" ").slice(0, 2).map((w) => w[0]).join("")
-    : (v.visitor_name_zh || "·").slice(0, 1);
+  const initials = nameEn
+    ? nameEn.split(" ").slice(0, 2).map((w) => w[0]).join("")
+    : (nameZh || "·").slice(0, 1);
   return (
     <div style={{ width: "44px", height: "44px", borderRadius: "50%", flexShrink: 0,
                   background: "color-mix(in srgb, " + colour + " 16%, transparent)",
@@ -118,6 +117,25 @@ function VisitAvatar({ v, portraitFor }) {
       <span style={{ color: colour, fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
         {initials}
       </span>
+    </div>
+  );
+}
+
+// Visitor on top, counterpart below — reading order matches the headline
+// ("X met Y"). A counterpart avatar renders only when someone is named; the
+// counterpart's photo never stands in for the visitor's.
+function VisitAvatars({ v, resolvePortrait }) {
+  const hasCounterpart = v.counterpart_name_en || v.counterpart_name_zh;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
+      <PersonAvatar nameEn={v.visitor_name_en} nameZh={v.visitor_name_zh}
+                    figureId={v.visitor_figure_id} affiliation={v.visitor_affiliation}
+                    resolvePortrait={resolvePortrait} />
+      {hasCounterpart && (
+        <PersonAvatar nameEn={v.counterpart_name_en} nameZh={v.counterpart_name_zh}
+                      figureId={v.counterpart_figure_id} affiliation={v.counterpart_affiliation}
+                      resolvePortrait={resolvePortrait} />
+      )}
     </div>
   );
 }
@@ -139,7 +157,7 @@ function VisitField({ label, children }) {
   );
 }
 
-function VisitCard({ v, admin, onEdit, onDismiss, portraitFor }) {
+function VisitCard({ v, admin, onEdit, onDismiss, resolvePortrait }) {
   const who = v.visitor_name_en || v.visitor_name_zh || v.delegation_desc_en || "Unnamed delegation";
   const whoZh = v.visitor_name_en && v.visitor_name_zh ? v.visitor_name_zh : null;
   const met = v.counterpart_name_en || v.counterpart_name_zh;
@@ -169,7 +187,7 @@ function VisitCard({ v, admin, onEdit, onDismiss, portraitFor }) {
         </div>
       </div>
 
-      <VisitAvatar v={v} portraitFor={portraitFor} />
+      <VisitAvatars v={v} resolvePortrait={resolvePortrait} />
 
       {/* Who, what, where — every field labelled */}
       <div style={{ borderLeft: `2px solid ${affColour}`, paddingLeft: "14px", minWidth: 0 }}>
@@ -264,18 +282,47 @@ export default function VisitsTab() {
   const [pendingCount, setPendingCount] = useState(0);
   const [editing, setEditing] = useState(null);
   const [nonce, setNonce] = useState(0);
-  // Key-figure portraits for the visit avatars — one fetch, id-keyed map.
-  // Most visitors are long-tail officials with no portrait; they get the
-  // initials medallion in their affiliation colour instead.
+  // Portraits for the visit avatars, two committed sources fetched once:
+  // curated key-figure portraits (id-keyed, /figures/) and the auto-pulled
+  // visit-portrait manifest (name-keyed, /figures/visits/, built by
+  // scripts/fetch_visit_portraits.py). Long-tail officials matching neither
+  // get the initials medallion in their affiliation colour instead.
   const [figureMap, setFigureMap] = useState({});
+  const [visitPortraits, setVisitPortraits] = useState({});
   useEffect(() => {
     fetchKeyFigures().then((d) => {
       const m = {};
-      for (const f of d.figures || []) m[f.id] = { portrait: f.portrait, name_en: f.name_en };
+      for (const f of d.figures || []) {
+        m[f.id] = { portrait: f.portrait, name_en: f.name_en, name_zh: f.name_zh, attribution: f.attribution };
+      }
       setFigureMap(m);
     }).catch(() => {});
+    fetchVisitPortraits().then(setVisitPortraits).catch(() => {});
   }, []);
-  const portraitFor = (figId) => (figId != null ? figureMap[figId] : undefined);
+  // One lowercased-name index across both sources; curated key-figure names
+  // win over manifest entries (they also catch rows whose figure_id never
+  // resolved — extracted before the figure joined key_figures.json).
+  const portraitNameIdx = useMemo(() => {
+    const idx = {};
+    for (const entry of Object.values(visitPortraits || {})) {
+      for (const n of entry.names || []) {
+        if (n) idx[n.trim().toLowerCase()] = { src: `/figures/visits/${entry.file}`, name: entry.name_en, attribution: entry.attribution };
+      }
+    }
+    for (const f of Object.values(figureMap)) {
+      if (!f.portrait) continue;
+      for (const n of [f.name_en, f.name_zh]) {
+        if (n) idx[n.trim().toLowerCase()] = { src: `/figures/${f.portrait}`, name: f.name_en, attribution: f.attribution };
+      }
+    }
+    return idx;
+  }, [visitPortraits, figureMap]);
+  const resolvePortrait = (figId, nameEn, nameZh) => {
+    const fig = figId != null ? figureMap[figId] : undefined;
+    if (fig?.portrait) return { src: `/figures/${fig.portrait}`, name: fig.name_en, attribution: fig.attribution };
+    return portraitNameIdx[(nameZh || "").trim().toLowerCase()]
+        || portraitNameIdx[(nameEn || "").trim().toLowerCase()];
+  };
 
   const loadPendingCount = () => {
     if (READ_ONLY) return;
@@ -437,7 +484,7 @@ export default function VisitsTab() {
             {g.month} · {g.items.length}
           </div>
           <div style={{ display: "grid", gap: "8px" }}>
-            {g.items.map((v) => <VisitCard key={v.id} v={v} admin={!READ_ONLY} onEdit={setEditing} onDismiss={onDismiss} portraitFor={portraitFor} />)}
+            {g.items.map((v) => <VisitCard key={v.id} v={v} admin={!READ_ONLY} onEdit={setEditing} onDismiss={onDismiss} resolvePortrait={resolvePortrait} />)}
           </div>
         </div>
       ))}

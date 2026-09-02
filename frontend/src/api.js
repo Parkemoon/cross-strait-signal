@@ -105,6 +105,15 @@ export async function fetchKeyFigures() {
   return request(`/api/stats/key-figures`);
 }
 
+// Static asset, not an API route: the visit-portrait manifest committed to
+// public/figures/visits/ by scripts/fetch_visit_portraits.py. 404 (no
+// portraits pulled yet) resolves to an empty map.
+export async function fetchVisitPortraits() {
+  const res = await fetch(`/figures/visits/manifest.json`);
+  if (!res.ok) return {};
+  return res.json();
+}
+
 export async function fetchKeyFigureCandidates() {
   // Admin-only route — requires X-Admin-Token.
   return request(`/api/stats/key-figures/candidates`, { headers: authHeaders() });
