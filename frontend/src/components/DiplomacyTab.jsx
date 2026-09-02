@@ -131,6 +131,7 @@ function sortByStance(countries) {
 function CountryRow({ country, selected, onSelect }) {
   return (
     <div
+      className="nav-row"
       onClick={() => onSelect(country.country_iso)}
       style={{
         padding: "8px 12px",
@@ -159,7 +160,10 @@ function CountryRow({ country, selected, onSelect }) {
         <span>
           {country.fill ? TIER_LABEL[country.fill.authority_tier] : `${country.pins_count} non-official`}
         </span>
-        <span>{country.fill?.effective_date || ""}</span>
+        <span>
+          {country.fill?.effective_date || ""}
+          <span className="nav-arrow" aria-hidden="true" style={{ marginLeft: "8px" }}>→</span>
+        </span>
       </div>
     </div>
   );

@@ -169,3 +169,38 @@ body {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* ---- Click affordances (2026-09-02) ----------------------------------------
+   Three verbs, three cues. Hover changes colour or border only (design rule).
+   expands in place  → .expandable + .expand-cue ("DETAIL ▾" / "LESS ▴")
+   opens elsewhere   → .nav-row + .nav-arrow  (→ appears on hover)
+   filters the feed  → .filter-row            (label underlines on hover)     */
+.expandable { --card-rule: transparent; }
+.expandable:hover { --card-rule: var(--hair); }
+.expandable:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+.expand-cue {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pale);
+  white-space: nowrap;
+  user-select: none;
+  transition: color 0.12s;
+}
+.expandable:hover .expand-cue,
+.expandable[aria-expanded="true"] .expand-cue { color: var(--ink); }
+
+.nav-row .nav-arrow {
+  color: var(--pale);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.nav-row:hover .nav-arrow { opacity: 1; }
+
+.filter-row:hover > :first-child {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
+}
