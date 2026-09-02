@@ -13,8 +13,10 @@ Re-run only if you want to retune resolution, bbox, or viewBox.
 `--masthead` writes frontend/src/components/mastheadCoastPaths.js instead:
 a wider box (113.8–123.5 E, 21–27 N) so the mainland coast runs from
 Ningde down past Xiamen and Shantou to the Pearl River mouth (Hong Kong and
-Macao included as coast), plus a PROJECTION export so MastheadCoasts.jsx
-never mirrors these constants by hand. Same ROC island handling.
+Macao included as coast), coarser tolerances tuned for ~0.4 px/km (so the
+component draws the paths as-is), plus a PROJECTION export so
+MastheadCoasts.jsx never mirrors these constants by hand. Same ROC island
+handling.
 """
 from __future__ import annotations
 import json
@@ -51,6 +53,10 @@ COAST_MARGIN = 0.6
 # can afford a tighter tolerance and still get manageable path strings.
 EPSILON_TW = 0.005   # ~550 m — preserves small islands like Lanyu / Green Island
 EPSILON_CN = 0.020   # ~2.2 km — mainland coast doesn't need cm precision
+# Drop open coast segments shorter than this (summed path length, degrees).
+# 0 keeps everything (the Military map); the masthead mode raises it so
+# inshore islets don't read as clutter at ~0.4 px/km.
+MIN_SEGMENT_LEN_DEG = 0.0
 
 # ROC-controlled outlying islands. Natural Earth handles these inconsistently:
 #   * Kinmen is filed under China (de jure)
@@ -148,6 +154,9 @@ def coastline_segments(ring, eps, margin=COAST_MARGIN):
 
     paths = []
     for seg in segments:
+        if MIN_SEGMENT_LEN_DEG and sum(
+                math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(seg, seg[1:])) < MIN_SEGMENT_LEN_DEG:
+            continue
         simp = dp(seg, eps)
         proj = [project(lon, lat) for lon, lat in simp]
         if len(proj) < 2:
@@ -314,6 +323,13 @@ if __name__ == "__main__":
         TOTAL_LON_PX = PX_PER_DEG_LON * (BBOX[2] - BBOX[0])
         SVG_W = math.ceil(TOTAL_LON_PX)
         X_OFFSET = (SVG_W - TOTAL_LON_PX) / 2
+        # Masthead scale is ~0.4 px per km: the ria coast is a saw-tooth of
+        # 10–15 km bays that read as a squiggle, so ~20 km tolerance (keeps the
+        # big estuaries) and inshore fragments under ~30 km dropped; islands
+        # keep their outlines at ~3 km.
+        EPSILON_CN = 0.18
+        EPSILON_TW = 0.028
+        MIN_SEGMENT_LEN_DEG = 0.3
         main(out_path="frontend/src/components/mastheadCoastPaths.js",
              coast_admins=("China", "Hong Kong S.A.R.", "Macao S.A.R."), emit_projection=True)
     else:
