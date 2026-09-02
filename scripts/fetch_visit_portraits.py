@@ -121,6 +121,21 @@ def _parse_kmt(html, page_url):
                m.group("pid"))
 
 
+# TAO 机构设置 leadership block: <a href=PROFILE><img src=IMG></a> … <h3><a href=PROFILE title="吴 玺">
+# Names carry an inner space when two characters long; the page is gb2312.
+TAO_PEOPLE_RE = re.compile(
+    r'<a href="(?P<profile>https?://www\.gwytb\.gov\.cn/jgsz/bld/(?P<slug>[a-z]+)/)"[^>]*>\s*'
+    r'<img src="(?P<src>https://www\.gwytb\.gov\.cn/jgsz/bld/[^"]+)"[^>]*/?>\s*</a>(?:</a>)?\s*'
+    r'<h3><a[^>]+title="(?P<name>[^"]+)"',
+)
+
+
+def _parse_tao(html, page_url):
+    for m in TAO_PEOPLE_RE.finditer(html):
+        name = re.sub(r"\s+", "", m.group("name"))
+        yield (name, m.group("src"), m.group("profile"), m.group("slug"))
+
+
 PARTY_SITES = {
     "kmt": {
         "label": "Kuomintang official site (kmt.org.tw)",
@@ -130,6 +145,12 @@ PARTY_SITES = {
             "https://www1.kmt.org.tw/people.aspx?mid=233",  # 副秘書長
         ],
         "parser": _parse_kmt,
+    },
+    "tao": {
+        "label": "Taiwan Affairs Office official site (gwytb.gov.cn)",
+        "pages": ["https://www.gwytb.gov.cn/jgsz/"],          # 机构设置 → 主任 / 副主任
+        "encoding": "gb18030",                                # page declares gb2312
+        "parser": _parse_tao,
     },
 }
 SITE_LICENCE = "Official site press portrait (not free-licensed; identification use)"
@@ -319,7 +340,11 @@ def entity_passes(entity, name, match_langs):
 
 
 def resolve(name_zh, name_en, accepts):
-    """Return (qid, entity, image_ref, note); qid None when unresolved."""
+    """Return (qid, entity, image_ref, note); qid None when unresolved.
+
+    When a single item matched but carries no usable image, `entity` is still
+    returned (qid None) so callers can reuse its name forms — e.g. the
+    simplified spelling a PRC official site lists under."""
     forced = accepts.get(name_zh) or accepts.get(name_en)
     if forced:
         ents = get_entities([forced])
@@ -327,10 +352,10 @@ def resolve(name_zh, name_en, accepts):
             src, ref = image_ref_for(ents[forced])
             if src:
                 return forced, ents[forced], (src, ref), "forced via --accept"
-            return None, None, None, f"--accept {forced}: {ref}"
+            return None, ents[forced], None, f"--accept {forced}: {ref}"
         return None, None, None, f"--accept {forced}: item not found"
 
-    tried = []
+    tried, imageless = [], None
     for name, langs in ((name_zh, ["zh", "zh-tw"]), (name_en, ["en"])):
         if not name:
             continue
@@ -369,6 +394,7 @@ def resolve(name_zh, name_en, accepts):
             if src:
                 return qid, ents[qid], (src, ref), f"matched on '{name}'"
             tried.append(f"'{name}' → {qid}: {ref}")
+            imageless = imageless or ents[qid]
             continue
         if len(passed) > 1:
             opts = "; ".join(
@@ -377,7 +403,7 @@ def resolve(name_zh, name_en, accepts):
             return None, None, None, \
                 f"AMBIGUOUS '{name}': {opts} — rerun with --accept \"{name}=Qxxxx\""
         tried.append(f"'{name}': no candidate passed (human+exact-label+political)")
-    return None, None, None, "; ".join(tried) or "no usable name"
+    return None, imageless, None, "; ".join(tried) or "no usable name"
 
 
 def fetch_image(image_ref):
@@ -437,7 +463,8 @@ def party_site_index():
             except requests.RequestException as e:
                 print(f"  ! {key}: {page} unreachable ({e}) — skipping", file=sys.stderr)
                 continue
-            for name, img, page_url, sid in site["parser"](r.text, page):
+            text = r.content.decode(site["encoding"], errors="replace") if site.get("encoding") else r.text
+            for name, img, page_url, sid in site["parser"](text, page):
                 prev = idx.get(name)
                 if prev and prev[1] != img:
                     clash.add(name)
@@ -553,7 +580,12 @@ def main():
                 src_label, page_url, key = host_label(url), url, site_key("manual", None, p["en"] or p["zh"])
                 note = f"{note}; manual URL"
             elif not args.no_party_sites and p["zh"]:
-                hit = party_site_index().get(p["zh"])
+                # the DB spelling first, then the matched-but-imageless item's
+                # label/alias forms (bridges 彭慶恩 ↔ 彭庆恩 on a PRC site)
+                zh_forms = [p["zh"]] + [n for n in name_forms(entity, ZH_LANGS) if n != p["zh"]] \
+                    if entity else [p["zh"]]
+                sidx = party_site_index()
+                hit = next((sidx[n] for n in zh_forms if n in sidx), None)
                 if hit:
                     skey, url, page_url, sid = hit
                     src_label, key = PARTY_SITES[skey]["label"], site_key(skey, sid, p["en"])
@@ -561,8 +593,9 @@ def main():
             if not url:
                 unresolved.append((label, f"{note}\n{'':30}lead: {baike_lead(p['zh'], p['en'])}"))
                 continue
-            name_en = p["en"] or p["zh"]
-            names = sorted({n for n in (p["zh"], p["en"]) if n})
+            name_en = p["en"] or (entity or {}).get("labels", {}).get("en", {}).get("value") or p["zh"]
+            names = sorted({n for n in [p["zh"], p["en"]]
+                            + (list(name_forms(entity, ZH_LANGS)) if entity else []) if n})
             if args.apply:
                 try:
                     blob, ext = fetch_url_image(url)
