@@ -189,6 +189,13 @@ body {
    expands in place  → .expandable + .expand-cue ("DETAIL ▾" / "LESS ▴")
    opens elsewhere   → .nav-row + .nav-arrow  (→ appears on hover)
    filters the feed  → .filter-row            (label underlines on hover)     */
+/* SourceBadge `full`: publication name on desktop, abbreviation under 768px */
+.outlet-abbr { display: none; }
+@media (max-width: 767px) {
+  .outlet-full { display: none; }
+  .outlet-abbr { display: inline; }
+}
+
 .expandable { --card-rule: transparent; }
 .expandable:hover { --card-rule: var(--hair); }
 .expandable:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
