@@ -1,5 +1,5 @@
 import { useState } from "react";
-import SourceBadge from "./SourceBadge";
+import SourceBadge, { alignmentTint } from "./SourceBadge";
 import TopicPill from "./TopicPill";
 import SentimentBadge from "./SentimentBadge";
 import { createNote, hideArticle, toggleSignal, approveArticle, updateArticleTranslation, updateEntityName } from "../api";
@@ -319,9 +319,12 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         // Under an active lens, wash the card in the model's tint (stronger
         // when the model's output has replaced production) — you should never
         // mistake a lensed feed for the production one.
+        // Otherwise the side tint: a faint wash of the outlet's alignment
+        // colour (Ed, 2026-09-03 — "which outlet is behind each article"),
+        // so a column of cards reads red / green / blue at a glance.
         background: lensActive
           ? modelTintRgba(altLens.model, dualMode ? 0.04 : 0.05)
-          : undefined,
+          : alignmentTint(article.bias),
         borderBottom: "1px solid var(--soft)",
         borderLeft: article.urgency === "flash"
           ? "3px solid var(--hostile)"
@@ -416,6 +419,8 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         <SourceBadge
           sourceName={article.source_name}
           bias={article.bias}
+          place={article.source_place}
+          full
         />
         <span
           style={{
