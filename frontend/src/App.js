@@ -100,8 +100,8 @@ export default function App() {
             </div>
             {/* Eyebrow → nav row, with the two sides of the strait flanking it
                 as two emblems: the mainland's eastern seaboard (Shandong →
-                Hainan) west of the nameplate, Taiwan + Penghu east — the
-                nameplate is the strait. The flanks are absolutely positioned
+                Hainan) west of the nameplate, Taiwan + Penghu east, each under
+                its flag as a soft wash — the nameplate is the strait. The flanks are absolutely positioned
                 so they span exactly eyebrow-top to nav-row-bottom (never above
                 the eyebrow line), sit COAST_OFFSET from the centre line, and
                 hide below 1100px so they never meet the corner stamps. */}
