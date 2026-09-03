@@ -1,73 +1,63 @@
 // The two sides of the strait flanking the nameplate (Ed's masthead idea,
-// 2026-09-02): the mainland coast from Ningde down past Xiamen and Shantou to
-// the Pearl River mouth, with Kinmen / Matsu / Wuqiu, to the WEST; Taiwan with
-// Penghu / Lanyu / Green Island to the EAST; the nameplate sits where the
-// strait is. One map, split along the Taiwan Strait Median Line, both flanks
-// on ONE shared latitude scale (the full frame, lat 21–27), so Fujian rides
-// north of Taiwan's bulk and the two sides stay geographically honest.
+// 2026-09-02), round 3: two EMBLEMS, not one map. Round 2 drew both flanks on
+// one shared latitude scale, and a Fujian coast segment is not an icon at any
+// smoothing. So each side is now its own filled silhouette at its own scale:
 //
-// Geometry: mastheadCoastPaths.js — Natural Earth via
-// `scripts/build_taiwan_strait_map.py --masthead`, which uses a wider box than
-// the Military map, tolerances tuned for masthead scale (~0.4 px per km), and
-// exports PROJECTION so nothing is mirrored by hand. Paths are drawn as-is.
-// Colours are tokens (--ink / --soft / --muted) so light and dark just work.
-// Decorative — aria-hidden; the caller positions each flank absolutely and
-// hides them on narrow viewports.
+//   west — China's eastern seaboard from the Shandong peninsula down past the
+//          Yangtze mouth, Fujian and the Pearl River to Leizhou and Hainan,
+//          filled land that fades inland (a coastal band, so the source box's
+//          straight cuts never show) with the coastline as the crisp edge;
+//   east — Taiwan with the Penghu group, filled.
+//
+// Geometry: mastheadEmblems.js via `scripts/build_masthead_emblems.py`
+// (Natural Earth 10m, box-clipped land + open coast runs, tolerances tuned
+// there — retune and regenerate, never in JS). Colours are tokens (--soft
+// fill, --ink stroke) so light and dark just work. Decorative — aria-hidden;
+// the caller positions each flank absolutely and hides them on narrow
+// viewports.
 import React from "react";
-import { TAIWAN_PATHS, PRC_COAST_PATHS, PROJECTION as P } from "./mastheadCoastPaths";
+import { MAINLAND, TAIWAN } from "./mastheadEmblems";
 
-const px = (lon, lat) => [P.xOffset + (lon - P.bbox[0]) * P.pxPerDegLon, (P.bbox[3] - lat) * P.pxPerDegLat];
+// Inland fade for the mainland: the coast is stroked wide and blurred in a
+// luminance mask, so land within ~BAND viewBox-px of the sea is solid and
+// then dissolves. In viewBox units (height 100 ≈ the flank's CSS height).
+const BAND = 16;
+const BLUR = 5;
 
-// Median Line (Davis Line) as MND publishes it; extended along its own slope
-// so the split covers the whole frame.
-const MEDIAN_N = [122.0, 27.0], MEDIAN_S = [117.85, 23.283];
-const medianLon = (lat) => MEDIAN_S[0] + ((lat - MEDIAN_S[1]) / (MEDIAN_N[1] - MEDIAN_S[1])) * (MEDIAN_N[0] - MEDIAN_S[0]);
+const STROKE = { fill: "none", stroke: "var(--ink)", strokeOpacity: 0.6, strokeWidth: 0.9,
+                 vectorEffect: "non-scaling-stroke", strokeLinejoin: "round" };
 
-// Per-side longitude crops. Both use the FULL latitude range of the module, so
-// the two SVGs have identical viewBox heights and `height: 100%` gives them
-// one scale and one baseline. West stops at Matsu's Dongyin group; east
-// starts west of Penghu.
-const SIDES = {
-  west: { lon: [P.bbox[0], 120.7] },
-  east: { lon: [119.2, 122.2] },
-};
-// Fixed marker dots for island groups that are sub-pixel at masthead scale
-// (standard inset practice). Kinmen and Penghu draw large enough as polygons.
-const DOTS = {
-  west: [[119.93, 26.16, "Matsu (Nangan / Beigan)"], [120.49, 26.37, "Matsu (Dongyin)"], [119.94, 25.97, "Matsu (Juguang)"], [119.45, 24.98, "Wuqiu"]],
-  east: [[121.55, 22.05, "Lanyu"], [121.48, 22.66, "Green Island"]],
-};
-
-function clipPolygon(side) {
-  const [latMin, latMax] = [P.bbox[1] - 1, P.bbox[3] + 1];
-  const a = px(medianLon(latMax), latMax), b = px(medianLon(latMin), latMin);
-  const edge = side === "west" ? -100 : P.w + 100;
-  return `${edge},${a[1]} ${a[0]},${a[1]} ${b[0]},${b[1]} ${edge},${b[1]}`;
-}
-
-/** One flank. Fills its container's height; width follows from the crop's aspect. */
+/** One flank. Fills its container's height; width follows from the emblem's aspect. */
 export default function MastheadCoasts({ side = "west" }) {
-  const [x0, x1] = SIDES[side].lon.map((lon) => px(lon, P.bbox[3])[0]);
-  const clipId = `coast-clip-${side}`;
+  const emblem = side === "west" ? MAINLAND : TAIWAN;
+  const style = { height: "100%", width: "auto", display: "block", overflow: "visible" };
+
+  if (side === "east") {
+    return (
+      <svg aria-hidden="true" viewBox={emblem.viewBox} style={style}>
+        {emblem.land.map((d, i) => <path key={i} d={d} {...STROKE} fill="var(--soft)" />)}
+      </svg>
+    );
+  }
+
+  const maskId = "masthead-band-west";
   return (
-    <svg aria-hidden="true" viewBox={`${x0.toFixed(1)} 0 ${(x1 - x0).toFixed(1)} ${P.h}`}
-         style={{ height: "100%", width: "auto", display: "block", overflow: "visible" }}>
+    <svg aria-hidden="true" viewBox={emblem.viewBox} style={style}>
       <defs>
-        <clipPath id={clipId}><polygon points={clipPolygon(side)} /></clipPath>
+        <filter id={`${maskId}-blur`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation={BLUR} />
+        </filter>
+        <mask id={maskId} maskUnits="userSpaceOnUse" x="-20" y="-20" width={emblem.w + 40} height={emblem.h + 40}>
+          <g filter={`url(#${maskId}-blur)`}>
+            {emblem.coast.map((d, i) => (
+              <path key={i} d={d} fill="none" stroke="#fff" strokeWidth={BAND} strokeLinejoin="round" strokeLinecap="round" />
+            ))}
+          </g>
+        </mask>
       </defs>
-      <g clipPath={`url(#${clipId})`}>
-        {side === "west" && PRC_COAST_PATHS.map((d, i) => (
-          <path key={`c${i}`} d={d} fill="none" stroke="var(--ink)" strokeOpacity="0.6"
-                strokeWidth="0.9" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-        ))}
-        {TAIWAN_PATHS.map((d, i) => (
-          <path key={`t${i}`} d={d} fill="var(--soft)" stroke="var(--ink)" strokeOpacity="0.6"
-                strokeWidth="0.9" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-        ))}
-        {DOTS[side].map(([lon, lat, title]) => {
-          const [cx, cy] = px(lon, lat);
-          return <circle key={title} cx={cx} cy={cy} r="5" fill="var(--muted)"><title>{title}</title></circle>;
-        })}
+      <g mask={`url(#${maskId})`}>
+        {emblem.land.map((d, i) => <path key={`l${i}`} d={d} fill="var(--soft)" />)}
+        {emblem.coast.map((d, i) => <path key={`c${i}`} d={d} {...STROKE} />)}
       </g>
     </svg>
   );
