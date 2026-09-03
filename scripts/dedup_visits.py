@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from shared.visit_dedup import GAP_DAYS, dedup_visits
-from scraper.utils.db import get_connection
+from scraper.utils.db import DB_PATH, get_connection
 
 
 def dedup_recent_visits(days=60, apply=True):
@@ -57,7 +57,10 @@ def main():
               else f"pending queue: {before} (would become {before - merged})")
         if args.apply and merged:
             ts = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-            name = os.path.basename(args.db or 'staging').replace('.db', '')
+            # Tag by the DB actually written — the default DB is the worktree's
+            # own, so a run from the prod checkout without --db is a prod run.
+            db_path = os.path.realpath(args.db or DB_PATH)
+            name = 'prod' if '/cross-strait-signal/' in db_path else 'staging'
             path = f"dedup-visits-{name}-{ts}.manifest"
             ids = [str(r[0]) for r in conn.execute(
                 "SELECT id FROM cross_strait_visits WHERE approval_status='merged' AND reviewed_by='dedup:visits'")]
