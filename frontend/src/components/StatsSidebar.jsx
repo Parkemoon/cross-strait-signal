@@ -1,50 +1,8 @@
 import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
 import StatSpotlight from "./StatSpotlight";
-import { BIAS_META } from "./SourceBadge";
+import { BIAS_META, PUBLICATION_NAMES } from "./SourceBadge";
 import { modelLabel, armLabel, modelTint, modelTintRgba } from "../altModels";
 import { bandColour } from "../sentimentBand";
-
-const PUBLICATION_NAMES = {
-  // Liberty Times
-  "LTN Politics":      "Liberty Times",
-  "LTN World":         "Liberty Times",
-  "LTN Business":      "Liberty Times",
-  "LTN Defence":       "Liberty Times",
-  // CNA
-  "CNA Politics":      "CNA",
-  "CNA Mainland":      "CNA",
-  "CNA International": "CNA",
-  "CNA Finance":       "CNA",
-  // United Daily News
-  "UDN":               "United Daily News",
-  "UDN Breaking":      "United Daily News",
-  "UDN International": "United Daily News",
-  "UDN Business":      "United Daily News",
-  // China Times
-  "CT Cross-Strait":   "China Times",
-  "CT Politics":       "China Times",
-  "CT Military":       "China Times",
-  "CT Opinion":        "China Times",
-  // Single-feed sources — display names
-  "YDN":                     "Youth Daily News",
-  "Xinhua Chinese":          "Xinhua",
-  "People's Daily Politics": "People's Daily",
-  "China News Service":      "China News Service",
-  "Global Times":            "Global Times",
-  "The Paper":               "The Paper",
-  "PRC MFA Spokesperson":    "MFA Spokesperson",
-  "Taiwan Affairs Office":   "Taiwan Affairs Office",
-  "Guancha":                 "Guancha",
-  "Haixia Daobao":           "Haixia Daobao",
-  "PLA Daily":               "PLA Daily",
-  "Zaobao Cross-Strait":     "Zaobao",
-  "BBC Chinese":             "BBC Chinese",
-  "RTHK Greater China":      "RTHK",
-  // Ming Pao
-  "Ming Pao Cross-Strait":   "Ming Pao",
-  "Ming Pao Editorial":      "Ming Pao",
-  "Ming Pao Opinion":        "Ming Pao",
-};
 
 // Maps publication display name → DB source name prefix for API filtering
 const SOURCE_FILTER = {
