@@ -218,7 +218,7 @@ Selects ONE cross-strait story and emails a drafted LinkedIn post; never posts a
 
 - **LinkedIn post proposer**: live on prod since 2026-09-04 (migration 0011 applied by `server_deploy.sh`, cron guard removed, `--no-email` run from the prod worktree verified — the retry path fired once and the draft passed on attempt 2). First real email = the next Tue/Thu 07:00 London. No health-check entry on purpose (a quiet week legitimately sends nothing). Later: fold the health/alt-model scripts onto `scraper/utils/mail.py`; a cluster deep link on the public feed would let the post link the story itself (public-site change, Ed's call).
 - **Maritime tab**: militia/dredger layer, go-dark events
-- **Cross-strait visits tracker**: DEPLOYED to prod 2026-08-31 (migration 0010; detached prod backfill + auto-dedup launched → `/var/log/visits-backfill-prod.log`); next = analyst pass over the deduped prod queue; later: link visits to feed clusters so both sides' coverage of one trip sits together
+- **Cross-strait visits tracker**: DEPLOYED to prod 2026-08-31 (migration 0010); prod analyst pass done (Ed, by 2026-09-04); later: link visits to feed clusters so both sides' coverage of one trip sits together
 - **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
 - Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
 - Maps for geocoded entities (entity table already carries lat/lng schema fields)
