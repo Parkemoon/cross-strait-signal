@@ -1,8 +1,26 @@
+import { useEffect, useState } from "react";
 import { SentimentTrendChart, TopicBreakdownChart } from "./SignalCharts";
 import StatSpotlight from "./StatSpotlight";
 import { BIAS_META, PUBLICATION_NAMES } from "./SourceBadge";
 import { modelLabel, armLabel, modelTint, modelTintRgba } from "../altModels";
 import { bandColour } from "../sentimentBand";
+import { entityAlignment } from "../entityAlignment";
+import { fetchKeyFigures } from "../api";
+
+// Module-level cache: the roster is small and static for a session.
+let rosterPromise = null;
+function useKeyFigureRoster() {
+  const [roster, setRoster] = useState([]);
+  useEffect(() => {
+    if (!rosterPromise) {
+      rosterPromise = fetchKeyFigures().then((d) => d?.figures || []).catch(() => []);
+    }
+    let alive = true;
+    rosterPromise.then((r) => { if (alive) setRoster(r); });
+    return () => { alive = false; };
+  }, []);
+  return roster;
+}
 
 // Maps publication display name → DB source name prefix for API filtering
 const SOURCE_FILTER = {
@@ -228,6 +246,9 @@ const LEGEND = [
 ];
 
 export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters, onOpenTab }) {
+  // Key-figure roster for the entity alignment markers (side + party per
+  // curated person); fetched once, cached for the session.
+  const figures = useKeyFigureRoster();
   if (!stats) return null;
 
   const isFiltered    = hasScopingFilter(filters);
@@ -548,13 +569,25 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
                   gap: "6px",
                   minWidth: 0,
                 }}>
-                  <span style={{
-                    width: "6px",
-                    height: "6px",
-                    flexShrink: 0,
-                    background: "var(--dot)",
-                    display: "inline-block",
-                  }} />
+                  {/* Alignment marker: filled = party / state organ, hollow =
+                      TW government body, dot-grey = unaligned or unknown */}
+                  {(() => {
+                    const al = entityAlignment(e.entity_name_en, e.entity_type, figures);
+                    return (
+                      <span
+                        title={al ? (al.hollow ? "Taiwan government body" : "Party or state organ") : undefined}
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          flexShrink: 0,
+                          boxSizing: "border-box",
+                          background: al ? (al.hollow ? "transparent" : al.colour) : "var(--dot)",
+                          border: al && al.hollow ? `1px solid ${al.colour}` : "none",
+                          display: "inline-block",
+                        }}
+                      />
+                    );
+                  })()}
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {e.entity_name_en}
                   </span>

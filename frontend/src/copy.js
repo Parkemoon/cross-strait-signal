@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchCopy, patchCopy } from "./api";
 import { READ_ONLY } from "./readOnly";
+import { ModalFrame, Btn, ErrorLine, FIELD } from "./components/adminChrome";
 
 // Editable site prose. `<Copy k="maritime.intro" />` renders the string from
 // data/site_copy.json (via GET /api/copy/) and, in the admin build, a ✎ that
@@ -57,35 +58,27 @@ function CopyEditModal({ k, value, onClose, onSaved }) {
     }
   };
   return (
-    <div onClick={(e) => e.target === e.currentTarget && onClose()}
-         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex",
-                  alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderTop: "4px solid #b8860b",
-                    borderRadius: "4px", width: 720, maxWidth: "94vw", display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px",
-                      borderBottom: "1px solid var(--border-color)" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.07em",
-                         textTransform: "uppercase", color: "var(--text-primary)" }}>Edit copy</span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>{k}</span>
-        </div>
-        <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={8} autoFocus
-                  style={{ margin: "12px 16px", fontFamily: "var(--font-body)", fontSize: "13px", lineHeight: 1.5,
-                           background: "var(--bg-primary)", color: "var(--text-primary)",
-                           border: "1px solid var(--border-color)", padding: "8px 10px", resize: "vertical" }} />
-        {err && <div style={{ margin: "0 16px 8px", fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-red)" }}>{err}</div>}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "0 16px 12px" }}>
-          <button onClick={onClose} style={{ fontFamily: "var(--font-mono)", fontSize: "10px", padding: "5px 12px", cursor: "pointer",
-                                             background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}>Cancel</button>
-          <button onClick={save} disabled={busy || draft === value || !draft.trim()}
-                  style={{ fontFamily: "var(--font-mono)", fontSize: "10px", padding: "5px 12px", cursor: "pointer",
-                           background: "var(--text-primary)", color: "var(--bg-primary)", border: "1px solid var(--text-primary)",
-                           opacity: busy || draft === value || !draft.trim() ? 0.5 : 1 }}>{busy ? "Saving…" : "Save"}</button>
-        </div>
-        <div style={{ padding: "0 16px 10px", fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--text-muted)" }}>
-          Writes data/site_copy.json on the server — commit it with the next deploy. Plain text; keep any {"{placeholders}"}.
-        </div>
-      </div>
-    </div>
+    <ModalFrame
+      title="Edit copy"
+      accent="var(--flag)"
+      width={720}
+      onClose={onClose}
+      busy={busy}
+      meta={k}
+      footer={
+        <>
+          <span style={{ fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--faint)", flex: 1 }}>
+            Writes data/site_copy.json on the server — commit it with the next deploy. Plain text; keep any {"{placeholders}"}.
+          </span>
+          <Btn variant="outline" onClick={onClose} disabled={busy}>Cancel</Btn>
+          <Btn variant="primary" onClick={save} disabled={busy || draft === value || !draft.trim()}>{busy ? "Saving…" : "Save"}</Btn>
+        </>
+      }
+    >
+      <textarea className="field" value={draft} onChange={(e) => setDraft(e.target.value)} rows={8} autoFocus
+                style={{ ...FIELD, lineHeight: 1.55, resize: "vertical" }} />
+      <ErrorLine>{err}</ErrorLine>
+    </ModalFrame>
   );
 }
 

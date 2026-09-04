@@ -8,6 +8,7 @@ import {
   updateMilitaryExercise,
 } from "../api";
 import { PERFORMER_COLOUR, PERFORMER_LABEL } from "./ExerciseMap";
+import { ModalFrame, Btn } from "./adminChrome";
 
 const EXERCISE_KINDS = [
   "live_fire", "readiness_drill", "joint_patrol",
@@ -255,25 +256,12 @@ function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone })
         display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap",
         marginTop: "8px",
       }}>
-        <button disabled={busy}
-                onClick={() => resolve(approveMilitaryExercise)}
-                style={{
-                  padding: "5px 12px", fontFamily: "var(--font-mono)",
-                  fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                  background: "var(--green)", color: "#fff", border: "none", cursor: "pointer",
-                }}>
+        <Btn variant="primary" disabled={busy} onClick={() => resolve(approveMilitaryExercise)}>
           {isDirty ? "Save & approve" : "Approve"}
-        </button>
-        <button disabled={busy}
-                onClick={() => resolve(dismissMilitaryExercise)}
-                style={{
-                  padding: "5px 12px", fontFamily: "var(--font-mono)",
-                  fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                  background: "transparent", color: "var(--text-secondary)",
-                  border: "1px solid var(--border-color)", cursor: "pointer",
-                }}>
+        </Btn>
+        <Btn variant="outline" disabled={busy} onClick={() => resolve(dismissMilitaryExercise)}>
           Dismiss
-        </button>
+        </Btn>
 
         <select value={mergeTarget}
                 onChange={(e) => setMergeTarget(e.target.value)}
@@ -286,19 +274,9 @@ function CandidateCard({ candidate, approvedTargets, onResolve, onApproveDone })
             </option>
           ))}
         </select>
-        <button disabled={busy || !mergeTarget}
-                onClick={() => resolve(
-                  (id) => mergeMilitaryExercise(id, Number(mergeTarget)),
-                )}
-                style={{
-                  padding: "5px 10px", fontFamily: "var(--font-mono)",
-                  fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-                  background: "transparent", color: mergeTarget ? "var(--text-primary)" : "var(--text-muted)",
-                  border: "1px solid var(--border-color)",
-                  cursor: mergeTarget ? "pointer" : "not-allowed",
-                }}>
+        <Btn variant="outline" disabled={busy || !mergeTarget} onClick={() => resolve( (id) => mergeMilitaryExercise(id, Number(mergeTarget)), )}>
           Merge
-        </button>
+        </Btn>
       </div>
     </div>
   );
@@ -341,46 +319,16 @@ export default function ExerciseReviewQueue({ onClose, onResolveAll }) {
   };
 
   return (
-    <div
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1000,
-      }}
+    <ModalFrame
+      title="Exercise candidates"
+      accent="var(--hostile)"
+      width={780}
+      onClose={onClose}
+      bodyStyle={{ padding: "8px 0" }}
+      meta={`${candidates ? Object.values(candidates).reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0) : "…"} pending`}
     >
-      <div style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-color)",
-        borderTop: "3px solid var(--hostile)",
-        borderRadius: 0,
-        width: 780, maxWidth: "94vw", maxHeight: "86vh",
-        display: "flex", flexDirection: "column",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 16px", borderBottom: "1px solid var(--border-color)",
-        }}>
-          <div>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-              letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-primary)",
-            }}>
-              Exercise candidates
-            </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "10px" }}>
-              {candidates ? Object.values(candidates).reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0) : "…"} pending
-            </span>
-          </div>
-          <button onClick={onClose}
-                  style={{ background: "none", border: "none", cursor: "pointer",
-                           color: "var(--text-muted)", fontSize: "16px", padding: "2px 4px" }}>
-            ✕
-          </button>
-        </div>
 
-        <div style={{ overflowY: "auto", padding: "8px 0" }}>
+        <div>
           {!candidates ? (
             <div style={{ padding: "24px 16px", color: "var(--text-muted)",
                           fontFamily: "var(--font-mono)", fontSize: "12px" }}>
@@ -422,7 +370,6 @@ export default function ExerciseReviewQueue({ onClose, onResolveAll }) {
             </div>
           ))}
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

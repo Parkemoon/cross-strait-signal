@@ -14,6 +14,7 @@ import VisitsReviewQueue, {
   affiliationColour, VisitFieldsGrid, visitDraftFrom, isVisitDraftDirty, buildVisitPatch,
 } from "./VisitsReviewQueue";
 import { READ_ONLY } from "../readOnly";
+import { ModalFrame, Btn, ErrorLine } from "./adminChrome";
 
 const TICK = { fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" };
 const TOOLTIP_STYLE = { background: "var(--bg-primary)", border: "1px solid var(--border-color)", fontFamily: "var(--font-mono)", fontSize: "11px" };
@@ -241,22 +242,23 @@ function EditModal({ visit, onClose, onSaved }) {
     } catch (e) { setError(e.message || String(e)); setBusy(false); }
   };
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000,
-                                    display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", width: "min(900px, 100%)", padding: "14px 16px" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: "10px" }}>
-          Edit visit #{visit.id}
-        </div>
-        <VisitFieldsGrid draft={draft} setDraft={setDraft} />
-        {error && <div style={{ color: "var(--accent-red)", fontFamily: "var(--font-mono)", fontSize: "10px" }}>{error}</div>}
-        <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
-          <button disabled={busy || !dirty} onClick={save} style={{ padding: "5px 12px", fontFamily: "var(--font-mono)", fontSize: "10px",
-                  textTransform: "uppercase", background: "var(--green)", color: "#fff", border: "none", cursor: "pointer", opacity: dirty ? 1 : 0.5 }}>Save</button>
-          <button onClick={onClose} style={{ padding: "5px 12px", fontFamily: "var(--font-mono)", fontSize: "10px", textTransform: "uppercase",
-                  background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}>Cancel</button>
-        </div>
-      </div>
-    </div>
+    <ModalFrame
+      title={`Edit visit #${visit.id}`}
+      accent="var(--flag)"
+      width={900}
+      tall
+      onClose={onClose}
+      busy={busy}
+      footer={
+        <>
+          <Btn variant="primary" disabled={busy || !dirty} onClick={save}>Save</Btn>
+          <Btn variant="outline" onClick={onClose} disabled={busy}>Cancel</Btn>
+        </>
+      }
+    >
+      <VisitFieldsGrid draft={draft} setDraft={setDraft} />
+      <ErrorLine>{error}</ErrorLine>
+    </ModalFrame>
   );
 }
 

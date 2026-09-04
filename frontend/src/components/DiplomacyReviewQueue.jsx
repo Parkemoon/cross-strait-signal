@@ -6,6 +6,7 @@ import {
   updateDiplomacyStatement,
 } from "../api";
 import { BAND_COLOUR, BAND_LABEL, TIER_LABEL } from "./DiplomacyMap";
+import { ModalFrame, Btn } from "./adminChrome";
 
 // Ordered tier list for the edit dropdown — keys mirror TIER_LABEL.
 const AUTHORITY_TIERS = [
@@ -197,18 +198,12 @@ function CandidateCard({ candidate, onResolve }) {
       )}
 
       <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "8px" }}>
-        <button disabled={busy} onClick={() => act("approve")}
-                style={{ padding: "5px 12px", fontFamily: "var(--font-mono)", fontSize: "10px",
-                         letterSpacing: "0.08em", textTransform: "uppercase",
-                         background: "var(--green)", color: "#fff", border: "none", cursor: "pointer" }}>
+        <Btn variant="primary" disabled={busy} onClick={() => act("approve")}>
           {dirty ? "Save & approve" : "Approve"}
-        </button>
-        <button disabled={busy} onClick={() => act("dismiss")}
-                style={{ padding: "5px 12px", fontFamily: "var(--font-mono)", fontSize: "10px",
-                         letterSpacing: "0.08em", textTransform: "uppercase", background: "transparent",
-                         color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}>
+        </Btn>
+        <Btn variant="outline" disabled={busy} onClick={() => act("dismiss")}>
           Dismiss
-        </button>
+        </Btn>
       </div>
     </div>
   );
@@ -279,32 +274,16 @@ export default function DiplomacyReviewQueue({ onClose, onResolveAll }) {
   });
 
   return (
-    <div onClick={(e) => e.target === e.currentTarget && onClose()}
-         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-                  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)",
-                    borderTop: "4px solid var(--flag)", borderRadius: 0,
-                    width: 820, maxWidth: "94vw", maxHeight: "88vh",
-                    display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "14px 16px", borderBottom: "1px solid var(--border-color)" }}>
-          <div>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-                           letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-primary)" }}>
-              Diplomatic stance candidates
-            </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "10px" }}>
-              {total === null ? "…" : `${total} pending · ${groups.length} countries`}
-            </span>
-          </div>
-          <button onClick={onClose}
-                  style={{ background: "none", border: "none", cursor: "pointer",
-                           color: "var(--text-muted)", fontSize: "16px", padding: "2px 4px" }}>
-            ✕
-          </button>
-        </div>
+    <ModalFrame
+      title="Diplomatic stance candidates"
+      accent="var(--flag)"
+      width={820}
+      onClose={onClose}
+      bodyStyle={{ padding: 0 }}
+      meta={total === null ? "…" : `${total} pending · ${groups.length} countries`}
+    >
 
-        <div style={{ overflowY: "auto" }}>
+        <div>
           {!data ? (
             <div style={{ padding: "24px 16px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
               Loading…
@@ -327,7 +306,6 @@ export default function DiplomacyReviewQueue({ onClose, onResolveAll }) {
             ))
           )}
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }
