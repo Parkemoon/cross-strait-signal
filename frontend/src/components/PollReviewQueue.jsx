@@ -15,6 +15,7 @@ import {
   fieldStyle, labelStyle, groupKeysByFamily,
   NewPollsterForm,
 } from "./pollFormShared";
+import { ModalFrame, Btn } from "./adminChrome";
 
 function fmtPct(v) {
   if (v === null || v === undefined) return "—";
@@ -81,19 +82,9 @@ function QuestionResolver({ idx, pendingQuestion, allKeys, resolution, setResolu
         }}>
           Question {idx + 1} — AI extraction{isSkipped ? " (skipped)" : ""}
         </span>
-        <button
-          onClick={() => setResolution({ ...resolution, _skip: !isSkipped })}
-          style={{
-            padding: "2px 8px", fontFamily: "var(--font-mono)",
-            fontSize: "9px", letterSpacing: "0.06em", textTransform: "uppercase",
-            background: "transparent",
-            color: isSkipped ? "var(--text-primary)" : "var(--text-muted)",
-            border: "1px solid var(--border-color)",
-            cursor: "pointer",
-          }}
-        >
+        <Btn variant="outline" onClick={() => setResolution({ ...resolution, _skip: !isSkipped })}>
           {isSkipped ? "Restore" : "Skip"}
-        </button>
+        </Btn>
       </div>
       {pendingQuestion.question_text_zh && (
         <div style={{
@@ -558,23 +549,12 @@ function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, revi
         display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap",
         marginTop: "8px",
       }}>
-        <button disabled={busy} onClick={handleApprove} style={{
-          padding: "5px 12px", fontFamily: "var(--font-mono)",
-          fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-          background: "var(--green)", color: "#fff", border: "none",
-          cursor: busy ? "not-allowed" : "pointer",
-        }}>
+        <Btn variant="primary" disabled={busy} onClick={handleApprove}>
           Approve
-        </button>
-        <button disabled={busy} onClick={handleDismiss} style={{
-          padding: "5px 12px", fontFamily: "var(--font-mono)",
-          fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-          background: "transparent", color: "var(--text-secondary)",
-          border: "1px solid var(--border-color)",
-          cursor: busy ? "not-allowed" : "pointer",
-        }}>
+        </Btn>
+        <Btn variant="outline" disabled={busy} onClick={handleDismiss}>
           Dismiss
-        </button>
+        </Btn>
 
         <select value={mergeTarget}
                 onChange={(e) => setMergeTarget(e.target.value)}
@@ -587,16 +567,9 @@ function CandidateCard({ candidate, allKeys, rosterPollsters, mergeTargets, revi
             </option>
           ))}
         </select>
-        <button disabled={busy || !mergeTarget} onClick={handleMerge} style={{
-          padding: "5px 10px", fontFamily: "var(--font-mono)",
-          fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-          background: "transparent",
-          color: mergeTarget ? "var(--text-primary)" : "var(--text-muted)",
-          border: "1px solid var(--border-color)",
-          cursor: busy || !mergeTarget ? "not-allowed" : "pointer",
-        }}>
+        <Btn variant="outline" disabled={busy || !mergeTarget} onClick={handleMerge}>
           Merge
-        </button>
+        </Btn>
       </div>
     </div>
   );
@@ -641,47 +614,16 @@ export default function PollReviewQueue({ onClose, onResolveAll, reviewedBy }) {
   };
 
   return (
-    <div
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1000,
-      }}
+    <ModalFrame
+      title="Poll candidates"
+      accent="var(--flag)"
+      width={880}
+      onClose={onClose}
+      bodyStyle={{ padding: "8px 0" }}
+      meta={candidates ? `${candidates.length} pending` : "…"}
     >
-      <div style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-color)",
-        borderTop: "4px solid var(--flag)",
-        borderRadius: 0,
-        width: 880, maxWidth: "94vw", maxHeight: "88vh",
-        display: "flex", flexDirection: "column",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 16px", borderBottom: "1px solid var(--border-color)",
-        }}>
-          <div>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-              letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-primary)",
-            }}>
-              Poll candidates
-            </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "10px" }}>
-              {candidates ? `${candidates.length} pending` : "…"}
-            </span>
-          </div>
-          <button onClick={onClose} style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: "var(--text-muted)", fontSize: "16px", padding: "2px 4px",
-          }}>
-            ✕
-          </button>
-        </div>
 
-        <div style={{ overflowY: "auto", padding: "8px 0" }}>
+        <div>
           {topError ? (
             <div style={{ padding: "24px 16px", color: "var(--accent-red)",
                           fontFamily: "var(--font-mono)", fontSize: "12px" }}>
@@ -713,7 +655,6 @@ export default function PollReviewQueue({ onClose, onResolveAll, reviewedBy }) {
             ))
           )}
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

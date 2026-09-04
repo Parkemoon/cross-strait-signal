@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchOptionParties, setOptionParty } from "../api";
 import { partyColour, PARTY_LABELS, PARTY_ORDER } from "../partyColours";
 import { fieldStyle } from "./pollFormShared";
+import { ModalFrame, Btn } from "./adminChrome";
 
 const HEX_RX = /^#[0-9a-fA-F]{6}$/;
 
@@ -80,44 +81,25 @@ export default function PollColourModal({ payload, onClose, onSaved }) {
   };
 
   return (
-    <div
-      onClick={(e) => e.target === e.currentTarget && !busy && onClose()}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-      }}
+    <ModalFrame
+      title="Option colours"
+      accent="var(--cyan)"
+      width={620}
+      onClose={onClose}
+      busy={busy}
+      meta={payload.question_text_en || payload.question_key}
+      footer={
+        <>
+          <span style={{ flex: 1 }} />
+          <Btn variant="outline" onClick={onClose} disabled={busy}>Cancel</Btn>
+          <Btn variant="primary" onClick={save} disabled={busy || badHex || rows === null}>{busy ? "Saving…" : "Save colours"}</Btn>
+        </>
+      }
     >
-      <div style={{
-        background: "var(--bg-card)", border: "1px solid var(--border-color)",
-        borderTop: "4px solid var(--cyan)", borderRadius: 0,
-        width: 620, maxWidth: "94vw", maxHeight: "88vh",
-        display: "flex", flexDirection: "column",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 16px", borderBottom: "1px solid var(--border-color)",
-        }}>
-          <div>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-              letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-primary)",
-            }}>
-              Option colours
-            </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "10px" }}>
-              {payload.question_text_en || payload.question_key}
-            </span>
-          </div>
-          <button onClick={onClose} disabled={busy}
-                  style={{ background: "none", border: "none", cursor: busy ? "default" : "pointer",
-                           color: "var(--text-muted)", fontSize: "16px", padding: "2px 4px" }}>
-            ✕
-          </button>
-        </div>
 
-        <div style={{ overflowY: "auto", padding: "14px 16px", opacity: busy ? 0.55 : 1 }}>
-          <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", lineHeight: 1.5,
-                      color: "var(--text-muted)", margin: "0 0 12px 0" }}>
+        <div>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: "12.5px", lineHeight: 1.6,
+                      color: "var(--muted)", margin: "0 0 12px 0" }}>
             Party drives the line colour. <strong>Auto</strong> resolves from the key-figure
             roster (e.g. Lai → DPP) and falls back to the default palette. A custom hex
             (<code>#RRGGBB</code>) overrides the party — use it for independents or palette clashes.
@@ -188,31 +170,6 @@ export default function PollColourModal({ payload, onClose, onSaved }) {
             </div>
           )}
         </div>
-
-        <div style={{
-          display: "flex", justifyContent: "flex-end", gap: "8px",
-          padding: "12px 16px", borderTop: "1px solid var(--border-color)",
-        }}>
-          <button onClick={onClose} disabled={busy} style={{
-            padding: "6px 14px", fontFamily: "var(--font-mono)", fontSize: "10px",
-            letterSpacing: "0.06em", textTransform: "uppercase",
-            border: "1px solid var(--border-color)", background: "transparent",
-            color: "var(--text-secondary)", cursor: busy ? "default" : "pointer",
-          }}>
-            Cancel
-          </button>
-          <button onClick={save} disabled={busy || badHex || rows === null} style={{
-            padding: "6px 14px", fontFamily: "var(--font-mono)", fontSize: "10px",
-            letterSpacing: "0.06em", textTransform: "uppercase",
-            border: "1px solid var(--cyan)",
-            background: busy || badHex ? "transparent" : "var(--cyan)",
-            color: busy || badHex ? "var(--text-muted)" : "#fff",
-            cursor: busy || badHex ? "default" : "pointer",
-          }}>
-            {busy ? "Saving…" : "Save colours"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

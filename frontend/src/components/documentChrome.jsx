@@ -12,7 +12,8 @@
 //     `--hair` border — the hairline grid comes from the gap, never from
 //     per-cell borders. Figures are Newsreader 28px; captions Archivo 8.5px.
 //
-// Section rules within a page stay `SectionHeader` (MilitaryTab.jsx).
+// Section rules within a page: `SectionRule` below (MilitaryTab / TradeAccessTab
+// still draw the same rule locally as `SectionHeader`).
 import React from "react";
 
 const EYEBROW = {
@@ -63,7 +64,7 @@ const META = {
  *              vintage, counts). Strings only — chrome.
  *  actions     admin buttons (already gated by the caller) — sit above meta.
  */
-export function DocumentHeader({ eyebrow, title, standfirst, meta, actions }) {
+export function DocumentHeader({ eyebrow, eyebrowColour, title, standfirst, meta, actions }) {
   const metaLines = meta == null ? [] : Array.isArray(meta) ? meta.filter(Boolean) : [meta];
   return (
     <header style={{
@@ -71,7 +72,8 @@ export function DocumentHeader({ eyebrow, title, standfirst, meta, actions }) {
       borderBottom: "1px solid var(--hair)", paddingBottom: "18px", marginBottom: "22px",
     }}>
       <div style={{ minWidth: 0 }}>
-        {eyebrow && <div style={EYEBROW}>{eyebrow}</div>}
+        {/* eyebrowColour: the admin pages carry theirs in --flag (design §10/§11) */}
+        {eyebrow && <div style={{ ...EYEBROW, color: eyebrowColour || EYEBROW.color }}>{eyebrow}</div>}
         <h1 style={TITLE}>{title}</h1>
         {standfirst}
       </div>
@@ -140,3 +142,28 @@ export function StatBlock({ label, value, delta, deltaColour, note, accent, chip
     </div>
   );
 }
+
+/**
+ * Section rule within a page: micro-caps label + flexible hairline, optional
+ * right-hand meta. The same rule MilitaryTab / TradeAccessTab draw locally as
+ * `SectionHeader`; new pages should import this one.
+ */
+export function SectionRule({ children, right, style }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: "10px", margin: "28px 0 14px", ...style }}>
+      <span style={{
+        fontFamily: "var(--font-mono)", fontSize: "9.5px", fontWeight: 600, letterSpacing: "0.24em",
+        textTransform: "uppercase", color: "var(--ink)", whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <span style={{ flex: 1, borderBottom: "1px solid var(--hair)" }} />
+      {right && (
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em", color: "var(--faint)", whiteSpace: "nowrap" }}>
+          {right}
+        </span>
+      )}
+    </div>
+  );
+}
+

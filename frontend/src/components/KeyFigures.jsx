@@ -8,6 +8,7 @@ import {
 import SourceBadge from "./SourceBadge";
 import { READ_ONLY } from "../readOnly";
 import { PARTY_COLOURS } from "../partyColours";
+import { ModalFrame, Btn } from "./adminChrome";
 
 function figureAccent(figure) {
   return PARTY_COLOURS[figure.party] || PARTY_COLOURS[figure.side] || "var(--muted)";
@@ -79,48 +80,14 @@ function CandidateModal({ figure, candidates, onApprove, onDismiss, onClose }) {
   };
 
   return (
-    <div
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1000,
-      }}
+    <ModalFrame
+      title={figure.name_en}
+      accent={accent}
+      width={520}
+      onClose={onClose}
+      meta={`${candidates.length} pending candidate${candidates.length !== 1 ? "s" : ""}`}
+      bodyStyle={{ padding: 0 }}
     >
-      <div style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-color)",
-        borderTop: `3px solid ${accent}`,
-        width: 500, maxWidth: "92vw", maxHeight: "80vh",
-        display: "flex", flexDirection: "column",
-      }}>
-        {/* Modal header */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 16px", borderBottom: "1px solid var(--border-color)",
-        }}>
-          <div>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-              letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-primary)",
-            }}>
-              {figure.name_en}
-            </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "8px" }}>
-              {candidates.length} pending candidate{candidates.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--text-muted)", fontSize: "16px", lineHeight: 1, padding: "2px 4px",
-            }}
-          >
-            ✕
-          </button>
-        </div>
 
         {/* Candidate list */}
         <div style={{ overflowY: "auto", padding: "8px 0" }}>
@@ -171,41 +138,18 @@ function CandidateModal({ figure, candidates, onApprove, onDismiss, onClose }) {
 
               {/* Action buttons */}
               <div style={{ display: "flex", gap: "6px" }}>
-                <button
-                  onClick={() => handle(onApprove, c.id)}
-                  disabled={processing === c.id}
-                  style={{
-                    fontSize: "11px", padding: "4px 12px",
-                    background: "var(--ink)", color: "var(--bg)",
-                    border: "1px solid var(--ink)", cursor: "pointer",
-                    opacity: processing === c.id ? 0.6 : 1,
-                  }}
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => handle(onDismiss, c.id)}
-                  disabled={processing === c.id}
-                  style={{
-                    fontSize: "11px", padding: "4px 12px",
-                    background: "transparent", color: "var(--text-muted)",
-                    border: "1px solid var(--border-color)", borderRadius: 0, cursor: "pointer",
-                    opacity: processing === c.id ? 0.6 : 1,
-                  }}
-                >
-                  Dismiss
-                </button>
+                <Btn variant="primary" onClick={() => handle(onApprove, c.id)} disabled={processing === c.id}>Approve</Btn>
+                <Btn variant="ghost" onClick={() => handle(onDismiss, c.id)} disabled={processing === c.id}>Dismiss</Btn>
               </div>
             </div>
           ))}
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }
 
 function FigureCard({ figure, pendingCount, onOpenCuration, onClearStatement }) {
-  const { name_en, name_zh, role, portrait, latest } = figure;
+  const { name_en, name_zh, role, role_zh, party, portrait, latest } = figure;
   const accent = figureAccent(figure);
 
   return (
@@ -272,9 +216,9 @@ function FigureCard({ figure, pendingCount, onOpenCuration, onClearStatement }) 
             fontFamily: "var(--font-mono)", fontSize: "8.5px",
             color: "var(--pale)", letterSpacing: "0.08em", lineHeight: 1.7,
           }}>
-            <span style={{ color: accent, fontWeight: 700 }}>{name_en.toUpperCase()} {name_zh}</span>
+            <span style={{ color: accent, fontWeight: 700 }}>{name_en.toUpperCase()} {name_zh}{role_zh ? ` ${role_zh}` : ""}</span>
             <br />
-            <span style={{ color: accent }}>{role?.toUpperCase()}</span>
+            <span style={{ color: accent }}>{party ? `${party} · ` : ""}{role?.toUpperCase()}</span>
             {" · "}
             <SourceBadge sourceName={latest.source_name} bias={latest.source_bias} />
             {" "}
@@ -305,9 +249,9 @@ function FigureCard({ figure, pendingCount, onOpenCuration, onClearStatement }) 
             fontFamily: "var(--font-mono)", fontSize: "8.5px",
             color: "var(--pale)", letterSpacing: "0.08em", lineHeight: 1.7,
           }}>
-            <span style={{ color: accent, fontWeight: 700 }}>{name_en.toUpperCase()} {name_zh}</span>
+            <span style={{ color: accent, fontWeight: 700 }}>{name_en.toUpperCase()} {name_zh}{role_zh ? ` ${role_zh}` : ""}</span>
             <br />
-            <span style={{ color: accent }}>{role?.toUpperCase()}</span>
+            <span style={{ color: accent }}>{party ? `${party} · ` : ""}{role?.toUpperCase()}</span>
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { Copy } from "../copy";
 import { DocumentHeader, STANDFIRST } from "./documentChrome";
 import { PARTY_COLOURS } from "../partyColours";
 import { READ_ONLY } from "../readOnly";
+import { ModalFrame, Btn, ErrorLine } from "./adminChrome";
 
 // Positions & Legal Status — curated reference page (content in
 // scraper/processors/positions.json, served by /api/positions). Descriptive,
@@ -111,33 +112,27 @@ function EditModal({ target, onSaved, onClose }) {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: "20px",
-      }}
+    <ModalFrame
+      title={`Edit — ${target.title}`}
+      accent="var(--flag)"
+      width={680}
+      onClose={onClose}
+      busy={saving}
+      footer={
+        <>
+          <span style={{ flex: 1 }} />
+          <Btn variant="outline" onClick={onClose} disabled={saving}>Cancel</Btn>
+          <Btn variant="primary" onClick={save} disabled={saving || changed.length === 0}>{saving ? "Saving…" : `Save${changed.length ? ` ${changed.length}` : ""}`}</Btn>
+        </>
+      }
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--bg-card)", border: "1px solid var(--border-color)",
-          padding: "18px 20px", width: "min(680px, 100%)", maxHeight: "85vh", overflowY: "auto",
-        }}
-      >
-        <div style={{
-          fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
-          letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-primary)",
-          marginBottom: "14px",
-        }}>
-          Edit — {target.title}
-        </div>
+      <div>
         {fields.map(([k, orig]) => (
           <div key={k} style={{ marginBottom: "12px" }}>
             <div style={{
               fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: draft[k] !== orig ? "var(--flag)" : "var(--text-muted)",
+              color: draft[k] !== orig ? "var(--flag)" : "var(--faint)",
               marginBottom: "4px",
             }}>
               {k.replace(/_/g, " ")}{draft[k] !== orig ? " · edited" : ""}
@@ -149,45 +144,15 @@ function EditModal({ target, onSaved, onClose }) {
               style={{
                 width: "100%", boxSizing: "border-box", resize: "vertical",
                 fontFamily: "var(--font-body)", fontSize: "13px", lineHeight: 1.5,
-                color: "var(--text-primary)", background: "var(--bg-main, transparent)",
-                border: "1px solid var(--border-color)", padding: "6px 8px",
+                color: "var(--ink)", background: "var(--bg)",
+                border: "1px solid var(--hair)", padding: "6px 8px",
               }}
             />
           </div>
         ))}
-        {error && (
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-red, var(--red))", marginBottom: "10px" }}>
-            {error}
-          </div>
-        )}
-        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-          <button
-            onClick={onClose}
-            disabled={saving}
-            style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", cursor: "pointer",
-              background: "none", border: "1px solid var(--border-color)",
-              color: "var(--text-muted)", padding: "6px 14px",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={save}
-            disabled={saving || changed.length === 0}
-            style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px",
-              cursor: changed.length ? "pointer" : "default",
-              background: changed.length ? "var(--text-primary)" : "var(--border-color)",
-              border: "1px solid var(--text-primary)",
-              color: "var(--bg-card)", padding: "6px 14px",
-            }}
-          >
-            {saving ? "Saving…" : `Save${changed.length ? ` (${changed.length})` : ""}`}
-          </button>
-        </div>
+        <ErrorLine>{error}</ErrorLine>
       </div>
-    </div>
+    </ModalFrame>
   );
 }
 

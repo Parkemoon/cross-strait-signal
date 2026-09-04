@@ -225,3 +225,31 @@ body {
   text-decoration-color: currentColor;
   text-underline-offset: 2px;
 }
+
+/* ---- Admin chrome (adminChrome.jsx, redesign phase 2B) ----------------------
+   Four button verbs from the design's review-card action row. Hover changes
+   colour or border only. One primary per action row. */
+.btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 7px 16px;
+  border-radius: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s, background-color 0.12s;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); }
+.btn-primary:not(:disabled):hover { background: var(--body); border-color: var(--body); }
+.btn-outline { border: 1px solid var(--hair); background: transparent; color: var(--muted); }
+.btn-outline:not(:disabled):hover { border-color: var(--ink); color: var(--ink); }
+.btn-ghost { border: 1px solid transparent; background: transparent; color: var(--pale); }
+.btn-ghost:not(:disabled):hover { color: var(--ink); }
+.btn-danger { border: 1px solid color-mix(in srgb, var(--red) 45%, transparent); background: transparent; color: var(--red); }
+.btn-danger:not(:disabled):hover { border-color: var(--red); }
+
+.field:focus, .field:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }

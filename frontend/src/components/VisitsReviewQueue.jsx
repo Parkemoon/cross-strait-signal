@@ -7,6 +7,7 @@ import {
   updateVisit,
 } from "../api";
 import { PARTY_COLOURS } from "../partyColours";
+import { ModalFrame, Btn } from "./adminChrome";
 
 // Enums mirror scraper/processors/visits_extract.py + api/routes/visits.py.
 export const DIRECTIONS = ["TW_TO_PRC", "PRC_TO_TW", "THIRD_VENUE"];
@@ -163,12 +164,8 @@ function CandidateCard({ candidate, targets, onResolve }) {
   const near = (targets || []).filter((t) => t.direction === candidate.direction
     && Math.abs((new Date(t.effective_date) - new Date(eff)) / 86400000) <= 21);
 
-  const btn = (label, action, style) => (
-    <button disabled={busy} onClick={() => act(action)}
-            style={{ padding: "5px 12px", fontFamily: "var(--font-mono)", fontSize: "10px",
-                     letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", ...style }}>
-      {label}
-    </button>
+  const btn = (label, action, variant = "outline") => (
+    <Btn variant={variant} disabled={busy} onClick={() => act(action)}>{label}</Btn>
   );
 
   return (
@@ -199,7 +196,7 @@ function CandidateCard({ candidate, targets, onResolve }) {
 
       <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "8px", flexWrap: "wrap" }}>
         {btn(dirty ? "Save & approve" : "Approve", "approve", { background: "var(--green)", color: "#fff", border: "none" })}
-        {btn("Dismiss", "dismiss", { background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)" })}
+        {btn("Dismiss", "dismiss", "ghost")}
         {near.length > 0 && (
           <>
             <select style={{ ...fieldStyle(), width: "auto", maxWidth: "360px" }} value={mergeTarget}
@@ -211,7 +208,7 @@ function CandidateCard({ candidate, targets, onResolve }) {
                 </option>
               ))}
             </select>
-            {mergeTarget && btn("Merge", "merge", { background: "var(--flag)", color: "#fff", border: "none" })}
+            {mergeTarget && btn("Merge", "merge", "outline")}
           </>
         )}
       </div>
@@ -233,25 +230,15 @@ export default function VisitsReviewQueue({ onClose, onResolveAll }) {
   };
 
   return (
-    <div onClick={onClose}
-         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000,
-                  display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
-      <div onClick={(e) => e.stopPropagation()}
-           style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", width: "min(1040px, 100%)",
-                    maxHeight: "calc(100vh - 80px)", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "12px 16px", borderBottom: "2px solid var(--border-color)", position: "sticky", top: 0,
-                      background: "var(--bg-card)", zIndex: 1 }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em",
-                         textTransform: "uppercase", color: "var(--text-primary)" }}>
-            Visit candidates{data ? ` · ${data.total} pending` : ""}
-          </span>
-          <button onClick={onClose}
-                  style={{ background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-secondary)",
-                           fontFamily: "var(--font-mono)", fontSize: "10px", padding: "3px 9px", cursor: "pointer" }}>
-            Close
-          </button>
-        </div>
+    <ModalFrame
+      title="Visit candidates"
+      accent="var(--flag)"
+      width={1040}
+      tall
+      onClose={onClose}
+      bodyStyle={{ padding: 0 }}
+      meta={data ? `${data.total} pending` : "…"}
+    >
         {error && <p style={{ padding: "16px", color: "var(--accent-red)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>{error}</p>}
         {!data && !error && <p style={{ padding: "16px", fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>Loading…</p>}
         {data && data.candidates.length === 0 && (
@@ -260,7 +247,6 @@ export default function VisitsReviewQueue({ onClose, onResolveAll }) {
         {data && data.candidates.map((c) => (
           <CandidateCard key={c.id} candidate={c} targets={data.merge_targets} onResolve={resolve} />
         ))}
-      </div>
-    </div>
+    </ModalFrame>
   );
 }
