@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchCoastGuardVessels, updateCoastGuardVessel } from "../api";
 import { FORCES, FORCE_COLOUR, Pill } from "./coastGuardShared";
+import { ModalFrame } from "./adminChrome";
 
 // Analyst roster review for the Coast Guard tracker. There is exactly ONE
 // question here — "is this hull a coast-guard vessel?" — because that's the
@@ -60,28 +61,22 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
   };
 
   return (
-    <div onClick={(e) => e.target === e.currentTarget && onClose()}
-         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex",
-                  alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)",
-                    borderTop: "3px solid var(--hostile)", width: 900, maxWidth: "94vw",
-                    maxHeight: "86vh", display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "14px 16px", borderBottom: "1px solid var(--border-color)" }}>
-          <div>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-                           letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-primary)" }}>
-              Coast guard roster
-            </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "10px" }}>
-              {vessels ? `${rows.length} hulls` : "…"}
-            </span>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
-                                             color: "var(--text-muted)", fontSize: "16px", padding: "2px 4px" }}>✕</button>
-        </div>
+    <ModalFrame
+      title="Coast guard roster"
+      accent="var(--hostile)"
+      width={900}
+      onClose={onClose}
+      meta={vessels ? `${rows.length} hulls` : "…"}
+      bodyStyle={{ padding: 0 }}
+      footer={
+        <span style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--muted)", lineHeight: 1.5 }}>
+          "Not coast guard" removes the hull from every chart. Anomaly flags stay on the record either way — they are what the
+          hull broadcast, not what it did.
+        </span>
+      }
+    >
 
-        <div style={{ padding: "10px 16px 0", fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+        <div style={{ padding: "12px 18px 0", fontFamily: "var(--font-body)", fontSize: "12.5px", color: "var(--body)", lineHeight: 1.6 }}>
           One question per hull: <strong>is it a coast-guard vessel?</strong> A deterministic triage already settled every hull with an
           explicit force name or a matching MID prefix; <em>unreviewed</em> lists what it couldn't. Anomaly chips are recorded facts about
           the AIS broadcast, shown for context — they are not verifiable from here and not what you're confirming.
@@ -150,12 +145,6 @@ export default function CoastGuardRosterModal({ onClose, onChanged }) {
             </div>
           ))}
         </div>
-        <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border-color)", fontFamily: "var(--font-mono)",
-                      fontSize: "10px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-          "Not coast guard" removes the hull from every chart. Anomaly flags stay on the record either way — they are what the
-          hull broadcast, not what it did.
-        </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

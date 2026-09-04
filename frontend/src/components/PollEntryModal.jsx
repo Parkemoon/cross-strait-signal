@@ -11,6 +11,7 @@ import {
   fieldStyle, labelStyle, groupKeysByFamily,
   NewPollsterForm,
 } from "./pollFormShared";
+import { ModalFrame, Btn } from "./adminChrome";
 
 function emptyOption() {
   return { label_zh: "", label_en: "", percentage: "" };
@@ -79,15 +80,7 @@ function QuestionEditor({ idx, question, allKeys, onChange, onRemove, canRemove 
           Question {idx + 1}
         </span>
         {canRemove && (
-          <button
-            onClick={onRemove}
-            style={{
-              padding: "2px 8px", fontFamily: "var(--font-mono)",
-              fontSize: "9px", letterSpacing: "0.06em", textTransform: "uppercase",
-              background: "transparent", color: "var(--text-muted)",
-              border: "1px solid var(--border-color)", cursor: "pointer",
-            }}
-          >Remove</button>
+          <Btn variant="outline" onClick={onRemove}>Remove</Btn>
         )}
       </div>
 
@@ -214,29 +207,10 @@ function QuestionEditor({ idx, question, allKeys, onChange, onRemove, canRemove 
               value={opt.percentage}
               onChange={(e) => setOption(i, { ...opt, percentage: e.target.value })}
             />
-            <button
-              onClick={() => removeOption(i)}
-              disabled={question.options.length <= 1}
-              title="Remove option"
-              style={{
-                background: "transparent", color: "var(--text-muted)",
-                border: "1px solid var(--border-color)",
-                cursor: question.options.length <= 1 ? "not-allowed" : "pointer",
-                fontFamily: "var(--font-mono)", fontSize: "11px",
-              }}
-            >×</button>
+            <Btn variant="ghost" onClick={() => removeOption(i)} disabled={question.options.length <= 1} title="Remove option" style={{ padding: "4px 6px" }}>×</Btn>
           </div>
         ))}
-        <button
-          onClick={addOption}
-          style={{
-            padding: "4px 10px", fontFamily: "var(--font-mono)", fontSize: "10px",
-            letterSpacing: "0.06em", textTransform: "uppercase",
-            background: "transparent", color: "var(--text-secondary)",
-            border: "1px dashed var(--border-color)", cursor: "pointer",
-            marginTop: "4px",
-          }}
-        >+ Add option</button>
+        <Btn variant="outline" onClick={addOption} style={{ marginTop: "4px" }}>+ Add option</Btn>
       </div>
     </div>
   );
@@ -375,47 +349,26 @@ export default function PollEntryModal({ onClose, onCreated, reviewedBy }) {
   };
 
   return (
-    <div
-      onClick={(e) => e.target === e.currentTarget && !busy && onClose()}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1000,
-      }}
+    <ModalFrame
+      title="Add poll manually"
+      accent="var(--cyan)"
+      width={880}
+      onClose={onClose}
+      busy={busy}
+      dismissOnBackdrop={false}
+      meta="skips pending — lands as approved"
+      footer={
+        <>
+          <Btn variant="primary" disabled={busy} onClick={handleSubmit}>Save poll</Btn>
+          <Btn variant="outline" disabled={busy} onClick={onClose}>Cancel</Btn>
+          <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em", color: "var(--faint)" }}>
+            ONE ENVELOPE · {questions.length} QUESTION{questions.length === 1 ? "" : "S"}
+          </span>
+        </>
+      }
     >
-      <div style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-color)",
-        borderTop: "4px solid var(--cyan)",
-        borderRadius: 0,
-        width: 880, maxWidth: "94vw", maxHeight: "88vh",
-        display: "flex", flexDirection: "column",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 16px", borderBottom: "1px solid var(--border-color)",
-        }}>
-          <div>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-              letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-primary)",
-            }}>
-              Add poll manually
-            </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "10px" }}>
-              skips pending — lands as approved
-            </span>
-          </div>
-          <button onClick={onClose} disabled={busy}
-                  style={{ background: "none", border: "none",
-                           cursor: busy ? "default" : "pointer",
-                           color: "var(--text-muted)", fontSize: "16px", padding: "2px 4px" }}>
-            ✕
-          </button>
-        </div>
 
-        <div style={{ overflowY: "auto", padding: "14px 16px", opacity: busy ? 0.55 : 1 }}>
+        <div>
           <div style={{
             display: "grid",
             gridTemplateColumns: "2fr 1fr 1fr 1fr",
@@ -516,16 +469,7 @@ export default function PollEntryModal({ onClose, onCreated, reviewedBy }) {
             />
           ))}
 
-          <button
-            onClick={addQuestion}
-            style={{
-              padding: "4px 12px", fontFamily: "var(--font-mono)", fontSize: "10px",
-              letterSpacing: "0.06em", textTransform: "uppercase",
-              background: "transparent", color: "var(--text-secondary)",
-              border: "1px dashed var(--border-color)", cursor: "pointer",
-              marginBottom: "10px",
-            }}
-          >+ Add question</button>
+          <Btn variant="outline" onClick={addQuestion} style={{ marginBottom: "10px" }}>+ Add question</Btn>
 
           {error && (
             <div style={{
@@ -538,35 +482,6 @@ export default function PollEntryModal({ onClose, onCreated, reviewedBy }) {
           )}
         </div>
 
-        <div style={{
-          display: "flex", gap: "6px", alignItems: "center",
-          padding: "12px 16px", borderTop: "1px solid var(--border-color)",
-        }}>
-          <button disabled={busy} onClick={handleSubmit} style={{
-            padding: "5px 14px", fontFamily: "var(--font-mono)",
-            fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-            background: "var(--green)", color: "#fff", border: "none",
-            cursor: busy ? "not-allowed" : "pointer",
-          }}>
-            Save poll
-          </button>
-          <button disabled={busy} onClick={onClose} style={{
-            padding: "5px 14px", fontFamily: "var(--font-mono)",
-            fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-            background: "transparent", color: "var(--text-secondary)",
-            border: "1px solid var(--border-color)",
-            cursor: busy ? "not-allowed" : "pointer",
-          }}>
-            Cancel
-          </button>
-          <span style={{
-            marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "10px",
-            color: "var(--text-muted)",
-          }}>
-            One envelope · {questions.length} question{questions.length === 1 ? "" : "s"}
-          </span>
-        </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

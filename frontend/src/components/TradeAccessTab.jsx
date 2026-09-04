@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchTradeAccessItems, fetchTradeAccessSummary, fetchCiferSnapshot } from "../api";
 import { Copy } from "../copy";
-import { DocumentHeader } from "./documentChrome";
+import { DocumentHeader, StatGrid, StatBlock } from "./documentChrome";
 
 // Direction toggle. The DB stores who the importer is, so reading these
 // rows means "what does the importer admit". Labels frame it as a flow
@@ -94,20 +94,48 @@ function StatusPill({ status }) {
       display: "inline-flex",
       alignItems: "center",
       gap: "6px",
-      padding: "3px 8px 3px 7px",
-      background: p.bg,
-      border: `1px solid ${p.border}`,
       color: p.fg,
       fontFamily: "var(--font-mono)",
-      fontSize: "10px",
+      fontSize: "9.5px",
       fontWeight: 600,
-      letterSpacing: "0.04em",
+      letterSpacing: "0.12em",
       textTransform: "uppercase",
       whiteSpace: "nowrap",
     }}>
-      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: p.dot }} />
+      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: p.dot, flexShrink: 0 }} />
       {p.label}
     </span>
+  );
+}
+
+// The three-up stat band (design §5): one figure per regulatory instrument,
+// each side's own unit — Taiwan's HS-8 ban list, Beijing's ECFA tariff
+// suspensions, Beijing's GACC exporter-registration suspensions.
+function TradeStatBand({ summary, cifer }) {
+  if (!summary) return null;
+  const tw = summary.by_direction.tw_imports_from_prc || {};
+  const prc = summary.by_direction.prc_imports_from_tw || {};
+  return (
+    <StatGrid columns={3}>
+      <StatBlock
+        label="PRC → Taiwan · HS-8 lines banned"
+        value={(tw.banned || 0).toLocaleString()}
+        accent="var(--red)"
+        note={`${((tw.ecfa_active || 0) + (tw.conditional || 0)).toLocaleString()} ECFA-preferred or conditional · BOFT 22674 / 22675`}
+      />
+      <StatBlock
+        label="Taiwan → PRC · ECFA lines suspended"
+        value={(prc.ecfa_suspended || 0).toLocaleString()}
+        accent="var(--coop)"
+        note={`${(prc.ecfa_active || 0).toLocaleString()} still active · ${prc.banned || 0} agri/food lines targeted`}
+      />
+      <StatBlock
+        label="Taiwan → PRC · food exporters suspended"
+        value={(cifer.suspended || 0).toLocaleString()}
+        accent="var(--red)"
+        note={`GACC CIFER ${cifer.asOf} · ${(cifer.valid || 0).toLocaleString()} still valid`}
+      />
+    </StatGrid>
   );
 }
 
@@ -120,92 +148,42 @@ function HeadlineStrip({ summary, cifer }) {
   const prcSuspended = prc.ecfa_suspended || 0;
   const prcActive    = prc.ecfa_active || 0;
   const prcBanned    = prc.banned || 0;
+  const frameLabel = (colour) => ({
+    fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.12em",
+    textTransform: "uppercase", color: colour, fontWeight: 700, marginBottom: "4px",
+  });
+  const frameBody = { fontFamily: "var(--font-body)", fontSize: "12.5px", color: "var(--body)", lineHeight: 1.6, textWrap: "pretty" };
 
   return (
-    <div style={{
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-color)",
-      padding: "16px 18px",
-      marginBottom: "16px",
-    }}>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "20px",
-      }}>
-        <div>
-          <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "var(--text-muted)",
-            marginBottom: "6px",
-          }}>Taiwan as importer</div>
-          <div style={{
-            fontFamily: "var(--font-serif, Georgia, serif)",
-            fontSize: "22px",
-            color: "var(--text-primary)",
-            lineHeight: 1.25,
-          }}>
-            <strong style={{ color: "var(--red)" }}>{twBanned.toLocaleString()}</strong> HS lines banned
-          </div>
-          <div style={{
-            fontFamily: "var(--font-body)",
-            fontSize: "12px",
-            color: "var(--text-secondary)",
-            marginTop: "4px",
-          }}>
-            {twAllowed.toLocaleString()} ECFA-preferred or conditional from PRC
+    <div style={{ marginBottom: "22px" }}>
+      {/* Paired framing blocks — the recurring PRC / TW pattern (design §3, §5, §9) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <div style={{ borderLeft: "2px solid var(--green)", paddingLeft: "14px" }}>
+          <div style={frameLabel("var(--green)")}>Taiwan as importer □</div>
+          <div style={frameBody}>
+            A published HS-8 ban list: <strong>{twBanned.toLocaleString()}</strong> lines closed to PRC-origin goods,
+            {" "}{twAllowed.toLocaleString()} admitted under ECFA preference or conditions. Rule-by-rule and public.
           </div>
         </div>
-        <div>
-          <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "var(--text-muted)",
-            marginBottom: "6px",
-          }}>PRC as importer</div>
-          <div style={{
-            fontFamily: "var(--font-serif, Georgia, serif)",
-            fontSize: "22px",
-            color: "var(--text-primary)",
-            lineHeight: 1.25,
-          }}>
-            <strong style={{ color: "var(--red)" }}>{(cifer.suspended).toLocaleString()}</strong> food exporters suspended
-          </div>
-          <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10px",
-            color: "var(--text-muted)",
-            marginTop: "2px",
-          }}>
-            GACC CIFER {cifer.asOf} · {(cifer.valid).toLocaleString()} still valid
-          </div>
-          <div style={{
-            fontFamily: "var(--font-body)",
-            fontSize: "12px",
-            color: "var(--text-secondary)",
-            marginTop: "6px",
-          }}>
-            ECFA preferences: <strong style={{ color: "var(--green)" }}>{prcActive.toLocaleString()}</strong> active
-            <span style={{ color: "var(--text-muted)" }}> · </span>
-            <strong style={{ color: "var(--coop)" }}>{prcSuspended}</strong> suspended
-            <span style={{ color: "var(--text-muted)" }}> · </span>
-            {prcBanned} HS-8 lines targeted (agri/food)
+        <div style={{ borderLeft: "2px solid var(--red)", paddingLeft: "14px" }}>
+          <div style={frameLabel("var(--red)")}>PRC as importer ■</div>
+          <div style={frameBody}>
+            No Taiwan-specific ban list. ECFA preference kept on <strong>{prcActive.toLocaleString()}</strong> lines,
+            suspended on <strong>{prcSuspended}</strong>, {prcBanned} agri/food lines targeted, and
+            {" "}<strong>{cifer.suspended.toLocaleString()}</strong> exporter registrations held at
+            {" "}<em>暂停进口</em> ({cifer.valid.toLocaleString()} valid, CIFER {cifer.asOf}). Administrative and revocable.
           </div>
         </div>
       </div>
       <p style={{
-        marginTop: "14px",
-        paddingTop: "12px",
-        borderTop: "1px dashed var(--border-color)",
+        marginTop: "16px",
+        paddingTop: "14px",
+        borderTop: "1px solid var(--soft)",
         fontFamily: "var(--font-body)",
-        fontSize: "12px",
-        color: "var(--text-secondary)",
-        lineHeight: 1.5,
+        fontSize: "13px",
+        color: "var(--body)",
+        lineHeight: 1.65,
+        textWrap: "pretty",
       }}>
         The two sides regulate cross-strait imports in fundamentally different ways
         — making the asymmetry as much qualitative as quantitative. Taiwan publishes
@@ -388,11 +366,7 @@ function ItemTable({ items, total, page, setPage }) {
 
   return (
     <div>
-      <div style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-color)",
-        overflowX: "auto",
-      }}>
+      <div style={{ overflowX: "auto" }}>
         <table style={{
           width: "100%",
           borderCollapse: "collapse",
@@ -402,13 +376,12 @@ function ItemTable({ items, total, page, setPage }) {
         }}>
           <thead>
             <tr style={{
-              borderBottom: "1px solid var(--border-color)",
-              background: "var(--bg-primary)",
+              borderBottom: "1px solid var(--ink)",
               fontFamily: "var(--font-mono)",
-              fontSize: "10px",
-              letterSpacing: "0.08em",
+              fontSize: "8.5px",
+              letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: "var(--text-muted)",
+              color: "var(--faint)",
             }}>
               <th style={{ textAlign: "left", padding: "8px 12px", whiteSpace: "nowrap" }}>HS code</th>
               <th style={{ textAlign: "left", padding: "8px 12px" }}>中文貨名</th>
@@ -424,7 +397,7 @@ function ItemTable({ items, total, page, setPage }) {
           <tbody>
             {items.map((it, i) => (
               <tr key={`${it.direction}-${it.hs_code}-${i}`} style={{
-                borderBottom: "1px solid var(--border-color)",
+                borderBottom: "1px solid var(--soft)",
               }}>
                 <td style={{
                   padding: "8px 12px",
@@ -585,6 +558,7 @@ export default function TradeAccessTab() {
         title={<Copy k="trade.title" as="span" fallback="Cross-Strait Trade Access" />}
         meta={`Last refreshed ${lastUpdated}`}
       />
+      <TradeStatBand summary={summary} cifer={cifer} />
       <HeadlineStrip summary={summary} cifer={cifer} />
       <SuspensionTimeline waves={summary?.suspension_waves} />
 

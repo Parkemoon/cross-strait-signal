@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchAltModelSummary } from "../api";
 import { modelLabel, armLabel, modelTint, modelTintRgba, isRetiredModel } from "../altModels";
+import { MICRO, META_LINE } from "./adminChrome";
 
 // Feed-level model lens (admin only — parent gates on !READ_ONLY).
 // Three views over the Signal Feed:
@@ -12,6 +13,17 @@ import { modelLabel, armLabel, modelTint, modelTintRgba, isRetiredModel } from "
 // actually have sweep rows are offered. The model/both views narrow the
 // feed to swept articles (server-side INNER JOIN) — until the corpus is
 // fully re-run, that subset is much smaller than the feed.
+//
+// Phase 2B restyle: a segmented control in the design's button language
+// (Archivo micro-caps, hair borders, active = solid) on a hairline row;
+// an active lens keeps the model's tint so a lensed feed is never mistaken
+// for production.
+
+const SEG = {
+  fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase",
+  padding: "6px 12px", cursor: "pointer", lineHeight: 1, border: "none", background: "transparent",
+  color: "var(--muted)", transition: "color 0.12s, background-color 0.12s",
+};
 
 export default function AltModelLens({ lens, onChange, dual, onDualChange }) {
   const [groups, setGroups] = useState([]);
@@ -59,39 +71,25 @@ export default function AltModelLens({ lens, onChange, dual, onDualChange }) {
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        flexWrap: "wrap",
-        marginBottom: "14px",
-        padding: "8px 10px",
-        border: lens ? `1px solid ${tint}` : "1px dashed var(--border-color)",
+        display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
+        marginBottom: "14px", padding: "8px 0",
+        borderTop: "1px solid var(--hair)", borderBottom: "1px solid var(--hair)",
         background: lens ? modelTintRgba(current.model, 0.05) : "transparent",
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <span style={{
-        fontSize: "10px",
-        fontFamily: "var(--font-mono)",
-        color: "var(--text-muted)",
-        textTransform: "uppercase",
-        letterSpacing: "1px",
-      }}>
+      <span style={{ ...MICRO, color: "var(--ink)", fontWeight: 600, letterSpacing: "0.2em", paddingLeft: "2px" }}>
         Model lens
       </span>
       {groups.length > 1 && (
         <select
           value={`${current.model}|${current.arm}`}
           onChange={pickCombo}
+          className="field"
           style={{
-            padding: "4px 8px",
-            background: "var(--bg-card)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-color)",
-            borderRadius: 0,
-            fontSize: "12px",
-            fontFamily: "var(--font-mono)",
-            cursor: "pointer",
+            fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.06em",
+            padding: "4px 8px", background: "var(--bg)", color: "var(--ink)",
+            border: "1px solid var(--hair)", borderRadius: 0, cursor: "pointer",
           }}
         >
           {groups.map((g) => (
@@ -101,47 +99,36 @@ export default function AltModelLens({ lens, onChange, dual, onDualChange }) {
           ))}
         </select>
       )}
-      <span style={{
-        display: "inline-flex",
-        border: "1px solid var(--border-color)",
-        borderRadius: 0,
-        overflow: "hidden",
-      }}>
+      <span style={{ display: "inline-flex", border: "1px solid var(--hair)", borderRadius: 0 }}>
         {[
           ["gemini", "Gemini only"],
           ["model", `${modelLabel(current.model)} only`],
           ["both", "Both"],
-        ].map(([key, label], i) => (
-          <button
-            key={key}
-            onClick={() => setMode(key)}
-            style={{
-              padding: "3px 10px",
-              fontSize: "11px",
-              fontFamily: "var(--font-mono)",
-              cursor: "pointer",
-              border: "none",
-              // Divider between segments — without it adjacent inactive
-              // segments read as one button.
-              borderLeft: i > 0 ? "1px solid var(--border-color)" : "none",
-              background: mode === key
-                ? (key === "gemini" ? "var(--muted)" : tint)
-                : "transparent",
-              color: mode === key ? "#fff" : "var(--text-muted)",
-            }}
-          >
-            {label}
-          </button>
-        ))}
+        ].map(([key, label], i) => {
+          const on = mode === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setMode(key)}
+              aria-pressed={on}
+              style={{
+                ...SEG,
+                // Divider between segments — without it adjacent inactive
+                // segments read as one button.
+                borderLeft: i > 0 ? "1px solid var(--hair)" : "none",
+                background: on ? (key === "gemini" ? "var(--ink)" : tint) : "transparent",
+                color: on ? "var(--bg)" : "var(--muted)",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </span>
       {mode !== "gemini" && (
-        <span style={{
-          fontSize: "10px",
-          fontFamily: "var(--font-mono)",
-          color: "var(--text-muted)",
-        }}>
-          {armLabel(current.arm)} · {current.total} swept articles
-          {mode === "both" ? " · amber = topic diverges" : ""}
+        <span style={META_LINE}>
+          {armLabel(current.arm).toUpperCase()} · {current.total} SWEPT ARTICLES
+          {mode === "both" ? " · AMBER = TOPIC DIVERGES" : ""}
         </span>
       )}
     </div>

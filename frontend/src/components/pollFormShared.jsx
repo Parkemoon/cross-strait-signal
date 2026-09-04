@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createPollster } from "../api";
+import { Btn, FIELD_COMPACT, LABEL } from "./adminChrome";
 
 // Constants and helpers shared by PollReviewQueue and PollEntryModal.
 // Both surfaces need the same dropdown contents (one source of truth so
@@ -33,29 +34,15 @@ export const SLUG_RX = /^[a-z0-9][a-z0-9_]*$/;
 export const CREATE_NEW           = "__new__";
 export const CREATE_NEW_POLLSTER  = "__new_pollster__";
 
+// Field + label styles for the analyst edit grids (poll / exercise /
+// diplomacy / visit review, poll entry). Since phase 2B these are the
+// adminChrome tokens — Public Sans inputs on paper, Archivo captions.
 export function fieldStyle() {
-  return {
-    fontFamily: "var(--font-mono)",
-    fontSize: "11px",
-    padding: "4px 6px",
-    border: "1px solid var(--border-color)",
-    background: "var(--bg-primary)",
-    color: "var(--text-primary)",
-    width: "100%",
-    boxSizing: "border-box",
-  };
+  return { ...FIELD_COMPACT };
 }
 
 export function labelStyle() {
-  return {
-    fontFamily: "var(--font-mono)",
-    fontSize: "9.5px",
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-    color: "var(--text-muted)",
-    marginBottom: "2px",
-    display: "block",
-  };
+  return { ...LABEL, marginBottom: "3px" };
 }
 
 // Group an array of poll_questions entries by family so the picker can
@@ -167,18 +154,8 @@ export function NewPollsterForm({ onCreated, onCancel, gridColumn = "1 / span 4"
                       fontSize: "10px", marginTop: "6px" }}>{error}</div>
       )}
       <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
-        <button disabled={busy} onClick={submit} style={{
-          padding: "4px 10px", fontFamily: "var(--font-mono)", fontSize: "10px",
-          letterSpacing: "0.06em", textTransform: "uppercase",
-          background: "var(--text-primary)", color: "var(--bg-primary)",
-          border: "none", cursor: busy ? "not-allowed" : "pointer",
-        }}>Create pollster</button>
-        <button disabled={busy} onClick={onCancel} style={{
-          padding: "4px 10px", fontFamily: "var(--font-mono)", fontSize: "10px",
-          letterSpacing: "0.06em", textTransform: "uppercase",
-          background: "transparent", color: "var(--text-secondary)",
-          border: "1px solid var(--border-color)", cursor: "pointer",
-        }}>Cancel</button>
+        <Btn variant="outline" disabled={busy} onClick={submit}>Create pollster</Btn>
+        <Btn variant="outline" disabled={busy} onClick={onCancel}>Cancel</Btn>
       </div>
     </div>
   );

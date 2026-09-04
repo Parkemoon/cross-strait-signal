@@ -1,92 +1,70 @@
 import React, { useEffect, useState } from "react";
 import { fetchAltModelSummary, fetchAltModelRefusals } from "../api";
 import { modelLabel, armLabel, isRetiredModel } from "../altModels";
+import { DocumentHeader, STANDFIRST, SectionRule } from "./documentChrome";
+import { MICRO, META_LINE, Quiet } from "./adminChrome";
 
-// Alt-model experiment aggregate view (admin only — App.js gates on !READ_ONLY).
-// Divergence aggregates + refusal browser over alt_model_analysis rows.
+// Admin › Alt Models — the alt-model experiment's aggregate view (App.js
+// gates on !READ_ONLY). Morning Brief phase 2B: the design's §11 table
+// (Archivo header over a 1px ink rule, Newsreader 18px figures, --soft row
+// rules) over the live /api/alt-models/summary groups, then the metric
+// definitions, the frozen 2026-08 findings and the refusal browser.
 // Refusal rate is NOT the sole censorship metric: sanitised-but-answered
 // output only shows in topic-agreement / score-delta numbers.
 
-const tileLabel = {
-  fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)",
-  textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px",
-};
-const tileValue = { fontSize: "20px", fontFamily: "var(--font-mono)", fontWeight: 600 };
+const GRID = "1.5fr 72px 88px 88px 88px 80px 1.2fr";
 
 function pct(x) {
   return x === null || x === undefined ? "—" : `${(x * 100).toFixed(1)}%`;
 }
+function signed(x, d = 3) {
+  return x == null ? "—" : `${x >= 0 ? "+" : ""}${x.toFixed(d)}`;
+}
 
-function GroupCard({ g }) {
-  const o = g.by_outcome;
-  const refusalPct = g.total ? (o.refused / g.total) : 0;
+const FIG = { fontFamily: "var(--font-headline)", fontSize: "18px", fontWeight: 500, textAlign: "right", color: "var(--ink)", fontVariantNumeric: "tabular-nums" };
+const FIG_MUTED = { ...FIG, color: "var(--muted)" };
+const HEAD = { ...MICRO, letterSpacing: "0.14em" };
+const RIGHT = { textAlign: "right" };
+
+function GroupRow({ g }) {
+  const o = g.by_outcome || {};
+  const refusalPct = g.total ? (o.refused || 0) / g.total : 0;
   const isControl = g.arm === "control";
+  const note = isControl
+    ? "Noise floor — the production model re-run on the same articles. Its agreement is the ceiling every other row is judged against, not 100%."
+    : [
+        `ok ${o.ok ?? 0} · refused ${o.refused ?? 0} · parse ${o.parse_error ?? 0} · api ${o.api_error ?? 0}`,
+        Object.keys(g.refusals_by_topic || {}).length
+          ? "Refusals by topic: " + Object.entries(g.refusals_by_topic).map(([t, n]) => `${t} ×${n}`).join(", ")
+          : null,
+      ].filter(Boolean).join(". ");
   return (
     <div style={{
-      border: "1px solid var(--border-subtle, rgba(0,0,0,0.1))", borderRadius: 0,
-      padding: "16px", marginBottom: "16px", background: "var(--bg-card, transparent)",
+      display: "grid", gridTemplateColumns: GRID, gap: "0 18px", padding: "14px 0",
+      borderBottom: "1px solid var(--soft)", alignItems: "baseline",
     }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "14px", fontWeight: 700 }}>
-          {modelLabel(g.model)}
+      <span style={{ minWidth: 0 }}>
+        <span style={{ fontSize: "13.5px", color: "var(--ink)", fontWeight: 500 }}>{modelLabel(g.model)}</span>
+        {" "}
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: isControl ? "var(--blue)" : "var(--pale)" }}>
+          {armLabel(g.arm)}
         </span>
-        <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-          {armLabel(g.arm)} · {g.total} articles
-        </span>
-        {isControl && (
-          <span style={{
-            fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--blue)",
-            border: "1px solid var(--blue)", borderRadius: 0, padding: "1px 8px",
-          }}>
-            noise floor — same model rerun; its agreement is the ceiling, not 100%
-          </span>
-        )}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "12px" }}>
-        <div>
-          <div style={tileLabel}>Outcomes</div>
-          <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", lineHeight: 1.7 }}>
-            ok {o.ok} · <span style={{ color: "var(--red)" }}>refused {o.refused}</span>
-            <br />parse {o.parse_error} · api {o.api_error}
-          </div>
-        </div>
-        <div>
-          <div style={tileLabel}>Refusal rate</div>
-          <div style={{ ...tileValue, color: refusalPct > 0.02 ? "var(--red)" : "inherit" }}>
-            {pct(refusalPct)}
-          </div>
-        </div>
-        <div>
-          <div style={tileLabel}>Topic agreement</div>
-          <div style={tileValue}>{pct(g.topic_agreement)}</div>
-        </div>
-        <div>
-          <div style={tileLabel}>Mean |Δ score|</div>
-          <div style={tileValue}>
-            {g.mean_abs_score_delta == null ? "—" : g.mean_abs_score_delta.toFixed(3)}
-          </div>
-        </div>
-        <div>
-          <div style={tileLabel}>Score bias</div>
-          <div style={tileValue} title="mean signed (alt − Gemini) on the sentiment axis; positive = alt scores more cooperative, negative = more hostile">
-            {g.mean_score_bias == null ? "—"
-              : `${g.mean_score_bias >= 0 ? "+" : ""}${g.mean_score_bias.toFixed(3)}`}
-          </div>
-        </div>
-      </div>
-
-      {Object.keys(g.refusals_by_topic || {}).length > 0 && (
-        <div style={{ marginTop: "12px" }}>
-          <div style={tileLabel}>Refusals by topic</div>
-          <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
-            {Object.entries(g.refusals_by_topic).map(([t, n]) => `${t} ×${n}`).join(" · ")}
-          </div>
-        </div>
-      )}
+      </span>
+      <span style={FIG_MUTED}>{g.total?.toLocaleString() ?? "—"}</span>
+      <span style={FIG}>{pct(g.topic_agreement)}</span>
+      <span style={FIG_MUTED}>{g.mean_abs_score_delta == null ? "—" : g.mean_abs_score_delta.toFixed(3)}</span>
+      <span style={FIG_MUTED} title="mean signed (alt − Gemini) on the sentiment axis; positive = the model reads coverage as more cooperative">
+        {signed(g.mean_score_bias)}
+      </span>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", textAlign: "right", fontWeight: 600, color: refusalPct > 0.02 ? "var(--red)" : "var(--ink)" }}>
+        {pct(refusalPct)}
+      </span>
+      <span style={{ fontSize: "12px", color: "var(--body)", lineHeight: 1.5 }}>{note}</span>
     </div>
   );
 }
+
+const PROSE = { fontSize: "13px", color: "var(--body)", lineHeight: 1.65, textWrap: "pretty", margin: "0 0 8px", maxWidth: "760px" };
 
 export default function AltModelsTab() {
   const [summary, setSummary] = useState(null);
@@ -102,128 +80,134 @@ export default function AltModelsTab() {
       .catch(() => {});
   }, []);
 
+  const totalSwept = (summary || []).reduce((s, g) => s + (g.total || 0), 0);
+
   return (
     <div>
-      <h2 style={{ fontSize: "16px", marginBottom: "4px" }}>Alternate Model Experiment</h2>
-      <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "20px", maxWidth: "640px" }}>
-        Approved articles re-analysed by Chinese open-weights models through the identical
-        production Tier-1 prompt. Neutral-host arms run the public weights on Western
-        infrastructure (trained alignment only); originator arms hit the model creator's
-        own endpoint (alignment + serving-layer filtering). Decoding config is
-        approximated, not identical, to production Gemini. Kimi K3 was evaluated and
-        cleared (see the write-up) but is not proceeding to production — its sweep rows
-        stay in the DB for reproducibility and are hidden here.
-      </p>
-
-      {/* Metric definitions — every number on the cards below */}
-      <div style={{
-        border: "1px dashed var(--border-color)", borderRadius: 0,
-        padding: "12px 16px", marginBottom: "20px", maxWidth: "760px",
-        fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65,
-      }}>
-        <div style={{ ...tileLabel, marginBottom: "8px" }}>How to read these numbers</div>
-        <p style={{ margin: "0 0 6px" }}>
-          <strong>Topic agreement</strong> — share of ok articles where the model picked the
-          same primary topic as the stored production analysis. The Gemini-control card is
-          the calibration: re-running <em>the same production model</em> only reproduces its
-          own stored topic ~71% of the time (sampling + model updates + prompt drift), so
-          that figure is the ceiling every other row should be judged against — not 100%.
-        </p>
-        <p style={{ margin: "0 0 6px" }}>
-          <strong>Mean |Δ score|</strong> — average absolute gap on the sentiment axis
-          (−1 hostile … +1 cooperative) vs production, over agreeing-and-disagreeing rows
-          alike. <strong>Score bias</strong> — the same gap <em>signed</em> (model − production):
-          positive means the model reads coverage as more cooperative than Gemini does. A
-          bias near the control's own drift means no directional lean.
-        </p>
-        <p style={{ margin: 0 }}>
-          <strong>Refusal rate</strong> — outright refusals only. A sanitised-but-answered
-          response counts as ok here and would surface instead as topic/score divergence,
-          which is why refusals alone are not the censorship metric.
-        </p>
-      </div>
+      <DocumentHeader
+        eyebrow="Admin · Alt Models"
+        eyebrowColour="var(--flag)"
+        title="Same corpus, other scorers"
+        standfirst={
+          <p style={STANDFIRST}>
+            Approved articles re-analysed by Chinese open-weights models through the identical
+            production Tier-1 prompt. Neutral-host arms run the public weights on Western
+            infrastructure (trained alignment only); originator arms hit the model creator's own
+            endpoint (alignment plus serving-layer filtering). Decoding config is approximated, not
+            identical, to production Gemini. Kimi K3 was evaluated and cleared but is not
+            proceeding to production; its sweep rows stay in the DB and are hidden here.
+          </p>
+        }
+        meta={[summary ? `${totalSwept.toLocaleString()} SWEEP ROWS` : "LOADING", "NOT PUBLIC"]}
+      />
 
       {error && <div style={{ color: "var(--red)", fontSize: "12px" }}>{error}</div>}
       {summary && summary.length === 0 && (
-        <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-          No sweeps recorded yet — run <code>scripts/sweep_alt_models.py</code>.
+        <Quiet>No sweeps recorded yet — run <code>scripts/sweep_alt_models.py</code>.</Quiet>
+      )}
+
+      {summary && summary.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: "820px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: GRID, gap: "0 18px", paddingBottom: "8px", borderBottom: "1px solid var(--ink)" }}>
+              <span style={HEAD}>Model · arm</span>
+              <span style={{ ...HEAD, ...RIGHT }}>N</span>
+              <span style={{ ...HEAD, ...RIGHT }}>Topic agree</span>
+              <span style={{ ...HEAD, ...RIGHT }}>Mean |Δ|</span>
+              <span style={{ ...HEAD, ...RIGHT }}>Score bias</span>
+              <span style={{ ...HEAD, ...RIGHT }}>Refused</span>
+              <span style={HEAD}>Outcomes</span>
+            </div>
+            {summary.map((g) => <GroupRow key={`${g.model}|${g.arm}`} g={g} />)}
+          </div>
         </div>
       )}
-      {(summary || []).map((g) => <GroupCard key={`${g.model}|${g.arm}`} g={g} />)}
+
+      <SectionRule>How to read these numbers</SectionRule>
+      <p style={PROSE}>
+        <strong>Topic agreement</strong> — share of ok articles where the model picked the same
+        primary topic as the stored production analysis. The Gemini-control row is the
+        calibration: re-running <em>the same production model</em> only reproduces its own
+        stored topic ~71% of the time (sampling, model updates, prompt drift), so that figure
+        is the ceiling every other row should be judged against, not 100%.
+      </p>
+      <p style={PROSE}>
+        <strong>Mean |Δ|</strong> — average absolute gap on the sentiment axis (−1 hostile …
+        +1 cooperative) vs production, over agreeing and disagreeing rows alike.{" "}
+        <strong>Score bias</strong> — the same gap <em>signed</em> (model − production):
+        positive means the model reads coverage as more cooperative than Gemini does. A bias
+        near the control's own drift means no directional lean.
+      </p>
+      <p style={PROSE}>
+        <strong>Refused</strong> — outright refusals only. A sanitised-but-answered response
+        counts as ok here and would surface instead as topic or score divergence, which is why
+        refusals alone are not the censorship metric.
+      </p>
 
       {/* Findings — distilled from ALT_MODEL_EXPERIMENT_WRITEUP.md (refreshed
-          2026-08-28 against the full 15.4k-row corpus; the cards above are live,
+          2026-08-28 against the full 15.4k-row corpus; the table above is live,
           so headline figures can drift a point or two as the daily sweep runs). */}
       {summary && summary.length > 0 && (
-        <div style={{
-          borderLeft: "3px solid var(--accent-teal)", padding: "12px 16px",
-          marginTop: "8px", marginBottom: "8px", maxWidth: "760px",
-          background: "color-mix(in srgb, var(--cyan) 4%, transparent)",
-          fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65,
-        }}>
-          <div style={{ ...tileLabel, marginBottom: "8px" }}>
-            Findings — 2026-08 write-up (refreshed 08-28)
-          </div>
-          <ul style={{ margin: 0, paddingLeft: "18px" }}>
-            <li style={{ marginBottom: "6px" }}>
+        <>
+          <SectionRule right="2026-08 WRITE-UP · REFRESHED 08-28">Findings</SectionRule>
+          <ol style={{ ...PROSE, paddingLeft: "20px" }}>
+            <li style={{ marginBottom: "8px" }}>
               <strong>The censorship hypothesis failed on this corpus.</strong> Zero refusals
               across 15k+ articles including PLA drills and 台獨 rhetoric; no pinyin-isation of
-              Taiwanese names; a "Taiwan leader"-type formulation appeared in 0.3% of opportunities; and
-              summary omission of sensitive entities sits at the Gemini rerun noise floor —
+              Taiwanese names; a "Taiwan leader"-type formulation appeared in 0.3% of opportunities;
+              and summary omission of sensitive entities sits at the Gemini rerun noise floor,
               with politically loaded entities omitted <em>less</em> than average.
             </li>
-            <li style={{ marginBottom: "6px" }}>
+            <li style={{ marginBottom: "8px" }}>
               <strong>V4F's low headline agreement is mostly a stricter relevance gate, not
-              misclassification.</strong> It rules ~31% of articles NOT_RELEVANT — and the gate
+              misclassification.</strong> It rules ~31% of articles NOT_RELEVANT, and the gate
               cuts <em>against</em> the censorship story: ~6% NR on sovereignty-marked articles
-              vs ~37% on everything else. It keeps the sovereignty material and discards the
-              soft-topic fluff. Conditional on both models agreeing an article is relevant,
-              agreement is ~60% against the ~78% same-model ceiling.
+              vs ~37% on everything else. Conditional on both models agreeing an article is
+              relevant, agreement is ~60% against the ~78% same-model ceiling.
             </li>
-            <li style={{ marginBottom: "6px" }}>
-              <strong>No directional sentiment bias.</strong> V4F's signed score bias is the
-              same magnitude as the control's own run-to-run drift — nobody is systematically
-              softening or hardening the hostility axis. Remaining disagreements are boundary
-              disputes on our own fuzziest categories (POL_DOMESTIC_TW vs POL_TONGDU,
+            <li style={{ marginBottom: "8px" }}>
+              <strong>No directional sentiment bias.</strong> V4F's signed score bias is the same
+              magnitude as the control's own run-to-run drift. Remaining disagreements are
+              boundary disputes on our own fuzziest categories (POL_DOMESTIC_TW vs POL_TONGDU,
               CULTURE vs POL_TONGDU, LEGAL_GREY vs POL_DOMESTIC_TW).
             </li>
             <li>
-              Full method, tables and caveats: <code>ALT_MODEL_EXPERIMENT_WRITEUP.md</code>
-              (repo root) · reproduce via <code>scripts/alt_model_aggregates.py</code> +{" "}
-              <code>scripts/audit_terminology_markers.py</code> +{" "}
+              Full method, tables and caveats: <code>ALT_MODEL_EXPERIMENT_WRITEUP.md</code> (repo
+              root) · reproduce via <code>scripts/alt_model_aggregates.py</code>,{" "}
+              <code>scripts/audit_terminology_markers.py</code> and{" "}
               <code>scripts/audit_summary_completeness.py</code>.
             </li>
-          </ul>
-        </div>
+          </ol>
+        </>
       )}
 
       {refusals.length > 0 && (
-        <div style={{ marginTop: "24px" }}>
-          <h3 style={{ fontSize: "13px", textTransform: "uppercase", letterSpacing: "1px", fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginBottom: "10px" }}>
-            Refusal browser
-          </h3>
+        <>
+          <SectionRule right={`${refusals.length} SHOWN`}>Refusal browser</SectionRule>
           {refusals.map((r) => (
-            <div key={r.id} style={{
-              borderLeft: "3px solid var(--red)", padding: "8px 12px", marginBottom: "10px",
-              background: "color-mix(in srgb, var(--red) 4%, transparent)",
-            }}>
-              <div style={{ fontSize: "12px", fontWeight: 600 }}>
+            <div key={r.id} style={{ borderLeft: "2px solid var(--red)", padding: "6px 14px", marginBottom: "12px" }}>
+              <div style={{ fontFamily: "var(--font-headline)", fontSize: "16px", fontWeight: 500, lineHeight: 1.3, color: "var(--ink)" }}>
                 {r.title_en || r.title_original}
               </div>
-              <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)", margin: "2px 0 4px" }}>
-                {r.source_name} · {r.topic_primary} · Gemini {r.gemini_score >= 0 ? "+" : ""}{r.gemini_score}
-                {" · "}{modelLabel(r.model)} ({armLabel(r.arm)})
-                {r.finish_reason === "content_filter" ? " · provider filter" : ""}
+              <div style={{ ...META_LINE, margin: "3px 0 5px" }}>
+                {r.source_name} · {r.topic_primary} · GEMINI {signed(r.gemini_score, 2)} · {modelLabel(r.model)} ({armLabel(r.arm)})
+                {r.finish_reason === "content_filter" ? " · PROVIDER FILTER" : ""}
               </div>
               {r.refusal_text && (
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                <div style={{ fontSize: "12px", color: "var(--body)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>
                   {r.refusal_text.slice(0, 400)}
                 </div>
               )}
             </div>
           ))}
-        </div>
+        </>
       )}
+
+      <p style={{ ...PROSE, color: "var(--faint)", fontSize: "12px", marginTop: "24px" }}>
+        Methodology caveats: decoding config is approximated (Gemini runs JSON mode plus thinking;
+        the OpenRouter arms cannot), and a sanitised answer classifies as ok. Only the production
+        model feeds the site; nothing on this page enters an editorial queue.
+      </p>
     </div>
   );
 }

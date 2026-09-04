@@ -473,6 +473,7 @@ def key_figures():
             "name_en": figure["name_en"],
             "name_zh": figure["name_zh"],
             "role": figure["role"],
+            "role_zh": figure.get("role_zh"),
             "side": figure["side"],
             "party": figure.get("party"),
             "portrait": figure["portrait"],
