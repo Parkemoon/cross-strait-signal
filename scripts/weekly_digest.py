@@ -31,11 +31,8 @@ override with --db for testing against another worktree's data.
 """
 import argparse
 import os
-import smtplib
 import sys
 from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from html import escape
 
 from dotenv import load_dotenv
@@ -43,6 +40,8 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from scraper.processors.keyword_filter import PRC_MUST_MENTION_TAIWAN  # noqa: E402
 from scraper.utils.db import get_connection  # noqa: E402
+from scraper.utils.mail import send_email as _send_email  # noqa: E402
+from shared.sentiment_band import sentiment_band  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -60,8 +59,7 @@ def fmt_score(v):
     """Signed sentiment score with a hostile/cooperative gloss."""
     if v is None:
         return "—"
-    tag = "hostile" if v <= -0.3 else "cooperative" if v >= 0.3 else "neutral"
-    return f"{v:+.2f} ({tag})"
+    return f"{v:+.2f} ({sentiment_band(v)})"
 
 
 def side_of(place):
@@ -397,22 +395,8 @@ def archive(conn, generated_at, start, end, markdown, html, to):
 
 
 def send_email(subject, markdown, html, to):
-    host = os.environ["SMTP_HOST"]
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    user = os.environ["SMTP_USER"]
-    pw = os.environ["SMTP_PASS"]
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = user
-    msg["To"] = to
-    msg.attach(MIMEText(markdown, "plain", "utf-8"))
-    msg.attach(MIMEText(html, "html", "utf-8"))
-
-    with smtplib.SMTP(host, port, timeout=30) as s:
-        s.starttls()
-        s.login(user, pw)
-        s.sendmail(user, [to], msg.as_string())
+    """Multipart text+HTML via the shared SMTP sender (scraper/utils/mail.py)."""
+    _send_email(subject, markdown, to, html=html)
 
 
 def main():
