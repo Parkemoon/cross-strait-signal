@@ -894,3 +894,17 @@ CREATE TABLE IF NOT EXISTS cross_strait_visit_scans (
     n_extracted  INTEGER NOT NULL DEFAULT 0,
     n_inserted   INTEGER NOT NULL DEFAULT 0
 );
+
+-- [redacted] post proposer log (migration 0011). Dedup + audit only; feeds
+-- no editorial queue and nothing public. See db/migrations/0011_[redacted]_drafts.sql.
+CREATE TABLE IF NOT EXISTS [redacted]_drafts (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    cluster_id       TEXT NOT NULL,
+    article_ids      TEXT NOT NULL,
+    draft            TEXT NOT NULL,
+    ranking_factors  TEXT NOT NULL,
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    emailed_at       TIMESTAMP,
+    emailed_to       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_[redacted]_drafts_cluster ON [redacted]_drafts(cluster_id);

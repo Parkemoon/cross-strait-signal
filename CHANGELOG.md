@@ -211,6 +211,7 @@ Ed's idea: "either side of Cross-Strait Signal there were the sides of the strai
 
 ## In progress / planned
 
+- **[redacted] post proposer**: built on staging (uncommitted) — commit → FF main → `server_deploy.sh` (runs migration 0011); the cron line is already installed and self-activates once the script exists in prod. **After the deploy, drop the `[ -f [redacted] ] &&` guard from the crontab line** — it exists only for the pre-deploy window, and left in place it would hide a missing script forever. No health-check entry on purpose (a quiet week legitimately sends nothing).
 - **Maritime tab**: militia/dredger layer, go-dark events
 - **Cross-strait visits tracker**: DEPLOYED to prod 2026-08-31 (migration 0010; detached prod backfill + auto-dedup launched → `/var/log/visits-backfill-prod.log`); next = analyst pass over the deduped prod queue; later: link visits to feed clusters so both sides' coverage of one trip sits together
 - **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
