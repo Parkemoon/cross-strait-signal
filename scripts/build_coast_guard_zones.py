@@ -13,6 +13,8 @@ Zones (Ed's v1 set, 2026-08-25 — "all six"):
   contiguous_{n,e,s,w}                       Taiwan 24 nm contiguous zone, four sectors
   pratas_24nm                                Pratas (東沙) 24 nm
   east_coast_box                             analytical box east of Taiwan (the "drift east" story)
+  taiwan_bank                                Taiwan Bank (臺灣淺灘) shoal box, Taiwan side of the
+                                             median line — the sand-dredger theatre (Phase 2g, 2026-09-04)
 
 Geometry sources: Natural Earth 1:10m admin0 + minor_islands (the same two
 files scripts/build_taiwan_strait_map.py uses; Kinmen is filed under China
@@ -81,6 +83,13 @@ OUTER_KM = 6.0    # restricted (outer edge)
 # literature and in the Positions page's median-line concept entry.
 MEDIAN_LINE = [(121.3833, 26.5), (119.9833, 24.8333), (117.85, 23.2833)]
 MEDIAN_BAND_M = 12 * NM
+# Taiwan Bank (臺灣淺灘): the <40 m shoal in the southern strait where the PRC
+# dredger fleet worked 2019–2021 (CGA: 4,649 dredgers expelled 2018–20, 86% at
+# the bank). Literature extent ~22°40'–23°40'N, 117°50'–119°20'E; the box is
+# clipped to the Taiwan side of the median line (extended SW along its last
+# segment) because the tracker's zones are Taiwan-drawn lines, and the CGA
+# enforces at the bank inside Taiwan's claimed EEZ.
+TAIWAN_BANK_BOX = (117.75, 22.6, 119.35, 23.65)
 
 TAIWAN_CENTROID = (121.0, 23.7)
 PRATAS = (116.72, 20.70)
@@ -262,6 +271,17 @@ def build():
     east_box = box(*EAST_BOX).difference(taiwan_all)
     zones.append(("east_coast_box", "臺灣東部海域觀察框", "east", "box", east_box))
 
+    # Taiwan Bank: shoal box ∩ Taiwan side of the median line (extended SW so
+    # the half-plane covers the box), minus land (Penghu's western islets).
+    (x0, y0), (x1, y1) = MEDIAN_LINE[-2], MEDIAN_LINE[-1]
+    ext = (x1 + (x1 - x0) * 1.5, y1 + (y1 - y0) * 1.5)
+    ext_line_m = to_m(LineString(MEDIAN_LINE + [ext]))
+    far_edge = ext_line_m.offset_curve(400 * KM)          # left of NE→SW = south-east = Taiwan side
+    tw_side = Polygon(list(ext_line_m.coords) + list(far_edge.coords)[::-1]).buffer(0)
+    bank = to_deg(to_m(box(*TAIWAN_BANK_BOX)).intersection(tw_side)).difference(taiwan_all)
+    assert bank.centroid.x > 118.3, "Taiwan Bank box ended up on the wrong side of the median line"
+    zones.append(("taiwan_bank", "臺灣淺灘（中線以東）", "taiwan_bank", "shoal", bank))
+
     features = []
     for zid, label_zh, group, kind, geom in zones:
         geom = geom.simplify(0.002, preserve_topology=True)
@@ -297,6 +317,7 @@ LABEL_EN = {
     "contiguous_w": "Taiwan 24 nm zone — west",
     "pratas_24nm": "Pratas 24 nm",
     "east_coast_box": "East-coast box",
+    "taiwan_bank": "Taiwan Bank — Taiwan side of the median line",
 }
 
 if __name__ == "__main__":

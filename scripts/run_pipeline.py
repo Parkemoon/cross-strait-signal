@@ -34,6 +34,7 @@ from scraper.scrapers.comtrade_scraper import scrape_comtrade
 from scraper.scrapers.tw_nia_population_scraper import scrape_tw_nia_population
 from scraper.scrapers.mnd_incursion_scraper import scrape_mnd_incursions
 from scraper.scrapers.gfw_coast_guard import pull_recent as pull_coast_guard_presence
+from scraper.scrapers.gfw_civil import pull_sar_recent as pull_maritime_sar
 from scraper.scrapers.cga_stats_scraper import scrape_cga_stats
 from scraper.processors.ai_pipeline import (
     run_tier1,
@@ -148,6 +149,12 @@ async def main():
     # Step 2n: coast-guard presence from Global Fishing Watch (trailing 10 days;
     # GFW lags ~5 days and back-fills late AIS, the upsert makes re-pulls idempotent).
     _run('coast_guard_presence', lambda: pull_coast_guard_presence(days=10))
+    # Step 2p: Sentinel-1 SAR detections per zone (matched-to-AIS vs unmatched /
+    # dark) — the civilian-fleet layer's ceiling to Step 2n's AIS floor. The
+    # civilian presence rows themselves ride on the Step 2n response. GFW
+    # publishes SAR ~2 months late, so the trailing window is 120 days and the
+    # scraper throttles itself to one pull per zone per day.
+    _run('maritime_sar', lambda: pull_maritime_sar())
     # Step 2o: CGA enforcement statistics (monthly report; no-op until a new one is linked)
     _run('cga_enforcement', scrape_cga_stats)
 
