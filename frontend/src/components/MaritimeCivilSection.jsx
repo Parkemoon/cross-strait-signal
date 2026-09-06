@@ -6,7 +6,7 @@ import {
 } from "../api";
 import CoastGuardMap from "./CoastGuardMap";
 import {
-  FORCE_COLOUR, Pill, GROUPS, RANGES, fmtInt, addMonths, SrcLink, SubHeader, deltaText, Caveats, MonthlyStrip,
+  FORCE_COLOUR, Pill, GROUPS, RANGES, fmtInt, addMonths, SrcLink, SubHeader, deltaText, Caveats, MonthlyStrip, latestSource,
 } from "./coastGuardShared";
 import { Copy } from "../copy";
 
@@ -189,7 +189,7 @@ export default function MaritimeCivilSection() {
   const prcFish = civil("CHN", "FISHING"), prcOther = civil("CHN", "OTHER"), twFish = civil("TWN", "FISHING");
   const sar = summary.sar;
   const groupMeta = GROUPS.find((g) => g.id === group);
-  const t81 = (enforcement?.sources || []).find((r) => r.source === "monthly" && r.source_ref.endsWith("表8-1"));
+  const t81 = latestSource(enforcement?.sources, "表8-1");
   const t81Link = t81 ? <SrcLink href={t81.source_url} muted>({t81.source_ref})</SrcLink> : null;
   const hasSar = paired.some((r) => r.unmatched !== null);
   const caveatScopes = [hasSar ? "sar" : null, group === "taiwan_bank" ? "taiwan_bank" : null].filter(Boolean);
