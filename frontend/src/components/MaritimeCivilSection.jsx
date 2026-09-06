@@ -109,7 +109,7 @@ function VesselTable({ vessels, classLabels }) {
                 {v.name || <span style={{ color: "var(--text-muted)" }}>(no name broadcast)</span>}
                 {v.militia_source && (
                   <span style={{ marginLeft: 6, fontSize: "9px", letterSpacing: "0.06em", textTransform: "uppercase", padding: "1px 5px",
-                                 border: `1px solid ${PRC}`, color: PRC }} title={`Listed as maritime militia: ${v.militia_source}${v.militia_name_zh ? ` (${v.militia_name_zh}${v.militia_port ? `, ${v.militia_port}` : ""})` : ""}`}>
+                                 border: `1px solid ${PRC}`, color: PRC }} title={`Linked to the maritime militia by ${v.militia_source} (the study's inference, not proof)${v.militia_name_zh ? ` — ${v.militia_name_zh}${v.militia_port ? `, ${v.militia_port}` : ""}` : ""}`}>
                     <SrcLink href={v.militia_url}>roster</SrcLink>
                   </span>
                 )}
