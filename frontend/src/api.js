@@ -504,6 +504,41 @@ export async function fetchCoastGuardEnforcement(params = {}) {
   return request(`${CG}/enforcement?${query}`);
 }
 
+// Maritime civilian-fleet + dark-vessel layer (Phase 2g) — the non-coast-guard
+// half of the same GFW presence pull (maritime_civil_*) plus Sentinel-1 SAR
+// detections (maritime_sar_daily). `summary.caveats` MUST render with any
+// chart of its scope, same rule as the coast-guard tracker.
+const MAR = "/api/military/maritime";
+
+export async function fetchMaritimeSummary(days = 30) {
+  return request(`${MAR}/summary?days=${days}`);
+}
+
+export async function fetchMaritimeCivilMonthly(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${MAR}/civil/monthly?${query}`);
+}
+
+export async function fetchMaritimeCivilDaily(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${MAR}/civil/daily?${query}`);
+}
+
+export async function fetchMaritimeCivilVessels(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${MAR}/civil/vessels?${query}`);
+}
+
+export async function fetchMaritimeSarMonthly(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${MAR}/sar/monthly?${query}`);
+}
+
+export async function fetchMaritimeSarDaily(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`${MAR}/sar/daily?${query}`);
+}
+
 // Editable site prose (data/site_copy.json) — see src/copy.js.
 export async function fetchCopy() {
   return request(`/api/copy/`);

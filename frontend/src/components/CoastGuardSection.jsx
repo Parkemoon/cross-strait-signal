@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { StatGrid, StatBlock } from "./documentChrome";
-import {
-  Bar, ComposedChart, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from "recharts";
+import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import {
   fetchCoastGuardSummary, fetchCoastGuardDaily, fetchCoastGuardMonthly,
   fetchCoastGuardEncounters, fetchCoastGuardEnforcement,
 } from "../api";
 import { READ_ONLY } from "../readOnly";
 import CoastGuardMap from "./CoastGuardMap";
-import { FORCE_COLOUR, FORCE_LABEL, Pill } from "./coastGuardShared";
+import {
+  FORCE_COLOUR, FORCE_LABEL, Pill, GROUPS, RANGES, fmtMonth, fmtDay, fmtInt, addMonths, TICK, TOOLTIP_STYLE,
+  SrcLink, SubHeader, deltaText, Caveats, MonthlyStrip,
+} from "./coastGuardShared";
 import CoastGuardRosterModal from "./CoastGuardRosterModal";
 import { Copy } from "../copy";
 
@@ -27,105 +28,11 @@ import { Copy } from "../copy";
 const CHART_FORCES = ["CCG", "CGA"];   // JCG/USCG still collected + roster-classified but not displayed (Ed, 2026-08-31):
                                        // JCG is Senkaku/Yonaguni patrol overspill in the east box (>=93% of its hull-days
                                        // every year 2017->), USCG is 2 hull-days ever (one cutter, June 2023).
-const GROUPS = [
-  { id: "kinmen",     label: "Kinmen", },
-  { id: "matsu",      label: "Matsu", },
-  { id: "median",     label: "Median line", },
-  { id: "contiguous", label: "24 nm zone", },
-  { id: "pratas",     label: "Pratas", },
-  { id: "east",       label: "East box", },
-  { id: "",           label: "All zones", },
-];
-const RANGES = [{ label: "3Y", months: 36 }, { label: "5Y", months: 60 }, { label: "All", months: 200 }];
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-const fmtMonth = (ym) => { if (!ym) return ""; const [y, m] = ym.split("-"); return `${MONTH_ABBR[Number(m) - 1]} ${y.slice(2)}`; };
-const fmtDay = (iso) => { if (!iso) return ""; const [, m, d] = iso.split("-"); return `${MONTH_ABBR[Number(m) - 1]} ${Number(d)}`; };
-const fmtInt = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString());
-const addMonths = (ym, n) => { const [y, m] = ym.split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`; };
-
 const FRAME = { fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 };
-const TICK = { fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-muted)" };
-
-// Every CGA number on this section comes from a specific report PDF (the
-// rows carry source_url); cite it with a link, never a bare "表8-1".
-function SrcLink({ href, children, muted }) {
-  if (!href) return <span>{children}</span>;
-  return (
-    <a href={href} target="_blank" rel="noreferrer"
-       style={{ color: muted ? "var(--text-muted)" : "var(--text-secondary)", textDecoration: "underline dotted", textUnderlineOffset: 2 }}>
-      {children}
-    </a>
-  );
-}
 const latestSource = (sources, table) =>
   (sources || []).find((r) => r.source === "monthly" && r.source_ref.endsWith(table)) ||
   (sources || []).find((r) => r.source_ref.endsWith(table));
-const TOOLTIP_STYLE = { background: "var(--bg-primary)", border: "1px solid var(--border-color)", fontFamily: "var(--font-mono)", fontSize: "11px" };
 
-// ---------------------------------------------------------------- shared bits
-function SubHeader({ children, right }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "22px 0 8px" }}>
-      <span style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.1em",
-                     textTransform: "uppercase", color: "var(--text-primary)" }}>{children}</span>
-      {right && <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>{right}</span>}
-    </div>
-  );
-}
-
-
-// Delta vs the previous window. Deliberately NEUTRAL (no hostile purple /
-// cooperative amber): more CCG presence and more CGA enforcement are both
-// "more activity", and this tracker must not score one side's activity as
-// bad and the other's as good.
-function deltaText(cur, prev) {
-  if (!prev) return cur ? "no prior-window data" : null;
-  const pct = ((cur - prev) / prev) * 100;
-  return `${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(0)}% vs prior window (${fmtInt(prev)})`;
-}
-
-// Scoped caveats from summary.caveats — the chart can't render without them.
-function Caveats({ caveats, scopes, compact }) {
-  const rows = (caveats || []).filter((c) => scopes.includes(c.scope));
-  if (!rows.length) return null;
-  return (
-    <div style={{ margin: compact ? "6px 0 0" : "10px 0 0", padding: "8px 10px", border: "1px dashed var(--border-color)",
-                  background: "var(--bg-card)", fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-      {rows.map((c) => (
-        <div key={c.key} style={{ marginBottom: 3 }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--flag)", marginRight: 6 }}>⚑ CAVEAT</span>
-          {c.en}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// One force, one strip, one axis. `unit` names the measure for the tooltip.
-function MonthlyStrip({ data, dataKey, colour, title, titleLink, unit, syncId, height = 130, xKey = "month", fmt = fmtMonth }) {
-  return (
-    <div style={{ marginBottom: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--text-primary)", marginBottom: 2 }}>
-        <span style={{ display: "inline-block", width: 10, height: 10, background: colour }} />
-        {title}
-        {titleLink}
-      </div>
-      <div style={{ height }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} syncId={syncId} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="2 4" stroke="var(--border-color)" vertical={false} />
-            <XAxis dataKey={xKey} tick={TICK} stroke="var(--border-color)" tickFormatter={fmt} interval="preserveStartEnd" minTickGap={48} />
-            <YAxis tick={TICK} stroke="var(--border-color)" width={38} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={fmt}
-                     formatter={(v) => [fmtInt(v), unit]} />
-            <Bar dataKey={dataKey} fill={colour} maxBarSize={9} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
 
 function DailyStrip({ rows, force }) {
   return (
