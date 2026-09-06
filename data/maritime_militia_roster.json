@@ -1,13 +1,14 @@
 {
   "_about": [
     "Published maritime-militia identifications for the Maritime tab's civilian-fleet layer (Phase 2g).",
-    "Every row is a citation, never this site's inference: Appendix A = vessels the study identified as militia",
-    "from primary indicators (confidence 'identified'); Appendix B = vessels meeting supporting indicators",
-    "(confidence 'likely'). Rows are keyed on the MMSI as printed in 2021 — hulls re-register, so a match is",
-    "'this MMSI was listed', not 'this hull is militia today'. Fleet is South-China-Sea-focused (Hainan,",
-    "Guangdong, Guangxi ports); absence from the list means nothing about a hull.",
-    "Owner strings are as extracted from the PDF text layer (footnote numbers stripped) and may carry",
-    "wrapped-cell artefacts; name_zh is reconstructed from the pinyin family + hull number.",
+    "The maritime militia exists as an institution; which hulls belong to it is NOT public. Every row here is",
+    "the cited study's INFERENCE from ownership, subsidy and training records — a guess with evidence, never proof,",
+    "and never this site's own judgement. Appendix A = the study's primary-indicator vessels (confidence 'identified',",
+    "the study's word); Appendix B = supporting-indicator vessels (confidence 'likely'). Rows are keyed on the MMSI",
+    "as printed in 2021 — hulls re-register, so a match is 'this MMSI was listed', not 'this hull is militia today'.",
+    "Fleet is South-China-Sea-focused (Hainan, Guangdong, Guangxi ports); absence from the list means nothing about a hull.",
+    "Owner strings are as extracted from the PDF text layer (footnote numbers stripped) and may carry wrapped-cell",
+    "artefacts; name_zh is reconstructed from the pinyin family + hull number.",
     "Add rows by hand with the same keys; scraper/scrapers/gfw_civil.py reads `vessels[].mmsi`."
   ],
   "sources": [
