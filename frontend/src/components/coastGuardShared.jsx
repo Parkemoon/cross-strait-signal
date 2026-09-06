@@ -60,6 +60,12 @@ export function SrcLink({ href, children, muted }) {
     </a>
   );
 }
+// The CGA report PDF a table came from: the monthly report wins, the yearbook
+// (or the manual 護永專案 rows) is the fallback. Both Maritime sections cite 表8-1 with it.
+export const latestSource = (sources, table) =>
+  (sources || []).find((r) => r.source === "monthly" && r.source_ref.endsWith(table)) ||
+  (sources || []).find((r) => r.source_ref.endsWith(table));
+
 export function SubHeader({ children, right }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "22px 0 8px" }}>
