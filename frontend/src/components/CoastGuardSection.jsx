@@ -9,7 +9,7 @@ import { READ_ONLY } from "../readOnly";
 import CoastGuardMap from "./CoastGuardMap";
 import {
   FORCE_COLOUR, FORCE_LABEL, Pill, GROUPS, RANGES, fmtMonth, fmtDay, fmtInt, addMonths, TICK, TOOLTIP_STYLE,
-  SrcLink, SubHeader, deltaText, Caveats, MonthlyStrip,
+  SrcLink, SubHeader, deltaText, Caveats, MonthlyStrip, latestSource,
 } from "./coastGuardShared";
 import CoastGuardRosterModal from "./CoastGuardRosterModal";
 import { Copy } from "../copy";
@@ -29,9 +29,6 @@ const CHART_FORCES = ["CCG", "CGA"];   // JCG/USCG still collected + roster-clas
                                        // JCG is Senkaku/Yonaguni patrol overspill in the east box (>=93% of its hull-days
                                        // every year 2017->), USCG is 2 hull-days ever (one cutter, June 2023).
 const FRAME = { fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 };
-const latestSource = (sources, table) =>
-  (sources || []).find((r) => r.source === "monthly" && r.source_ref.endsWith(table)) ||
-  (sources || []).find((r) => r.source_ref.endsWith(table));
 
 
 function DailyStrip({ rows, force }) {
