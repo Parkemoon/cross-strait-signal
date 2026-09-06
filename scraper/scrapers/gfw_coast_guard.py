@@ -23,7 +23,8 @@ Gotchas (all hit during the 2026-08-25 probe):
   * `datasets[0]=…:latest` comes back keyed by the RESOLVED version
     (`public-global-presence:v4.0`) — read the first key, never hard-code;
   * `filters[0]` is SQL-ish and only knows a few columns (flag, geartype,
-    vessel_id) — `vesselType` is NOT filterable;
+    vessel_id, vessel_type with LOWER-case values, speed) — `vesselType` /
+    `shiptype` are NOT column names (2026-09-04 probe);
   * `vessels/search` takes `query` OR `where`, never both.
 """
 from __future__ import annotations
@@ -258,7 +259,8 @@ def upsert_presence(conn, rows: list[dict]) -> int:
     return len(rows)
 
 
-def pull_zone(conn, client: GFWClient, zone: dict, start: str, end: str, extra_flags: set[str] | None = None) -> tuple[int, int]:
+def pull_zone(conn, client: GFWClient, zone: dict, start: str, end: str, extra_flags: set[str] | None = None,
+              civil: bool = True) -> tuple[int, int]:
     flags = None
     if zone["id"] not in UNFILTERED_ZONES:
         flags = set(FORCE_FLAGS.values()) | (extra_flags or set())
@@ -266,6 +268,12 @@ def pull_zone(conn, client: GFWClient, zone: dict, start: str, end: str, extra_f
         rows = client.presence_report(zone["geometry"], start, end, flags)
         kept = aggregate(rows, zone["id"])
         upsert_presence(conn, kept)
+        if civil:
+            # Phase 2g: the same response feeds the civilian-fleet layer
+            # (non-CG CHN/TWN hulls) before the non-CG rows are dropped.
+            from scraper.scrapers.gfw_civil import ingest_civil_rows   # lazy: gfw_civil imports this module
+            ingest_civil_rows(conn, zone["id"], start, end, rows,
+                              lambda n, f, t: classify(n, f, t)[0] is not None)
         conn.execute(
             "INSERT INTO coast_guard_pulls (zone_id, period_start, period_end, rows_total, rows_kept, status) VALUES (?,?,?,?,?,'ok')",
             (zone["id"], start, end, len(rows), len(kept)),
