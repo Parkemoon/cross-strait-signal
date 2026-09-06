@@ -12,7 +12,9 @@ Framing rules carried from the coast-guard tracker: AIS presence is a FLOOR;
 SAR unmatched detections are the radar-visible CEILING (≥~20 m hulls, >1 km
 from shore, per satellite pass — not hull-days); GFW's vessel classes are
 coarse, so "OTHER" is shown as non-fishing and never as "dredger"; militia is
-a roster fact with a citation, never an inference. Caveat TEXT lives in
+the cited study's INFERENCE (ownership / subsidy / training records), never ours
+and never proof — the militia exists, which hulls belong to it is not public
+(Ed, 2026-09-06). Caveat TEXT lives in
 data/site_copy.json (maritime.caveat.<key>), the SCOPE here.
 """
 from __future__ import annotations

@@ -279,7 +279,7 @@ export default function MaritimeCivilSection() {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
         {CLASS_PILLS.map((p) => <Pill key={p.id} active={cls === p.id} onClick={() => setCls(p.id)}>{p.label}</Pill>)}
         <span style={{ ...MONO, marginLeft: "auto" }}>
-          roster: {fmtInt(roster.roster_size)} published hulls · {fmtInt(roster.seen.length)} seen in any zone since {roster.since || "—"}
+          roster: {fmtInt(roster.roster_size)} hulls the study linked to the militia · {fmtInt(roster.seen.length)} seen in any zone since {roster.since || "—"}
         </span>
       </div>
       {vessels ? <VesselTable vessels={vessels} classLabels={summary.class_labels} /> : <div style={{ ...MONO, color: "var(--text-muted)", padding: "8px 0" }}>Loading…</div>}
