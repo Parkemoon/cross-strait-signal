@@ -75,6 +75,10 @@
   --tag-text: var(--muted);
   --escalation-bg: #f1ecf5;
   --escalation-border: var(--hostile);
+  /* Feed card side tint (SourceBadge alignmentTint): share of the outlet's
+     alignment colour mixed into the card ground. A 6% wash reads on paper
+     but vanishes on the dark ground, so .dark raises it (Ed, 2026-09-07). */
+  --side-tint: 6%;
   --sidebar-bg: var(--bg);
   --header-bg: var(--bg);
   --header-text: var(--ink);
@@ -118,6 +122,7 @@
   --party-cupp: #7d8ad6;
 
   --escalation-bg: #241f2b;
+  --side-tint: 14%;
 }
 
 * {
