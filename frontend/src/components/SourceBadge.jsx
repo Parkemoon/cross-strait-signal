@@ -117,10 +117,14 @@ export const PLACE_LABEL = {
   PRC: "PRC", TW: "TAIWAN", HK: "HONG KONG", MO: "MACAO", SG: "SINGAPORE", UK: "UK",
 };
 
-/** Faint wash of an alignment colour for a card ground — the side tint. */
-export const alignmentTint = (bias, pct = 6) => {
+/** Faint wash of an alignment colour for a card ground — the side tint.
+ *  The share defaults to `--side-tint` (index.css: 6% on paper, 14% in
+ *  .dark — the same wash disappears on the dark ground); pass `pct` to
+ *  override with a fixed percentage. */
+export const alignmentTint = (bias, pct = null) => {
   const meta = BIAS_META[bias];
-  return meta ? `color-mix(in srgb, ${meta.colour} ${pct}%, transparent)` : undefined;
+  const share = pct == null ? "var(--side-tint)" : `${pct}%`;
+  return meta ? `color-mix(in srgb, ${meta.colour} ${share}, transparent)` : undefined;
 };
 
 /**
