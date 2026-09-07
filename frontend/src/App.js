@@ -78,14 +78,17 @@ export default function App() {
       {!isMobile ? (
         <header>
           <div style={{ textAlign: "center", padding: "26px 24px 0", position: "relative", maxWidth: "1440px", margin: "0 auto" }}>
-            {/* abs left: date stamp */}
-            <div style={{ position: "absolute", left: "24px", top: "26px", textAlign: "left",
+            {/* abs left: date stamp. Both corner stamps carry zIndex 1: the
+                position:relative eyebrow/nameplate/nav wrapper below is later
+                in the DOM, so without it that wrapper paints OVER the corners
+                and swallows the theme toggle's clicks (bug 2026-09-07). */}
+            <div style={{ position: "absolute", left: "24px", top: "26px", textAlign: "left", zIndex: 1,
                           fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--faint)",
                           letterSpacing: "0.12em", lineHeight: 1.6 }}>
               {dateStr}
             </div>
             {/* abs right: live dot · pending (admin) · theme */}
-            <div style={{ position: "absolute", right: "24px", top: "26px", display: "flex", gap: "10px",
+            <div style={{ position: "absolute", right: "24px", top: "26px", display: "flex", gap: "10px", zIndex: 1,
                           alignItems: "center", fontFamily: "var(--font-mono)", fontSize: "9px",
                           color: "var(--faint)", letterSpacing: "0.12em" }}>
               {!READ_ONLY && pendingApproval > 0 && (
@@ -108,10 +111,10 @@ export default function App() {
             <div style={{ position: "relative" }}>
               {showCoasts && (
                 <>
-                  <div style={{ position: "absolute", top: 0, bottom: 0, right: `calc(50% + ${COAST_OFFSET}px)` }}>
+                  <div style={{ position: "absolute", top: 0, bottom: 0, right: `calc(50% + ${COAST_OFFSET}px)`, pointerEvents: "none" }}>
                     <MastheadCoasts side="west" />
                   </div>
-                  <div style={{ position: "absolute", top: 0, bottom: 0, left: `calc(50% + ${COAST_OFFSET}px)` }}>
+                  <div style={{ position: "absolute", top: 0, bottom: 0, left: `calc(50% + ${COAST_OFFSET}px)`, pointerEvents: "none" }}>
                     <MastheadCoasts side="east" />
                   </div>
                 </>
