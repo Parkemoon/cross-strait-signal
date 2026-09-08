@@ -47,40 +47,17 @@ from collections import Counter
 WINDOW_HOURS = 48
 TOP_N = 3
 
-TW_SIDE_BIASES = {'green', 'green_leaning', 'centrist', 'blue_leaning', 'blue'}
-PRC_SIDE_BIASES = {'state_official', 'state_nationalist', 'china_centrist'}
+# Side / outlet helpers live in shared/source_side.py (also used by the
+# visits coverage endpoint); re-exported here for the proposer and tests.
+from shared.source_side import (  # noqa: E402,F401
+    PRC_SIDE_BIASES, TW_SIDE_BIASES, outlet_of, side_of,
+)
 
 # Domestic-Taiwan-politics topics excluded from candidate selection.
 # Ed confirms/edits this list (proposer step 1). NOT_RELEVANT is a safety
 # net: it should never dominate an approved cluster, but if it does the
 # cluster is not a cross-strait story.
 EXCLUDED_TOPICS = {'POL_DOMESTIC_TW', 'NOT_RELEVANT'}
-
-# Section feeds → publication. Anything not listed is its own outlet.
-_SECTION_PREFIXES = (
-    ('LTN ', 'Liberty Times'),
-    ('CNA ', 'CNA'),
-    ('UDN', 'United Daily News'),
-    ('CT ', 'China Times'),
-    ('Ming Pao', 'Ming Pao'),
-)
-
-
-def outlet_of(source_name: str) -> str:
-    name = (source_name or '').strip()
-    for prefix, pub in _SECTION_PREFIXES:
-        if name.startswith(prefix):
-            return pub
-    return name
-
-
-def side_of(place: str | None, bias: str | None) -> str | None:
-    """'TW', 'PRC' or None (international / unlabelled)."""
-    if bias in PRC_SIDE_BIASES:
-        return 'PRC'
-    if place == 'TW' and bias in TW_SIDE_BIASES:
-        return 'TW'
-    return None
 
 
 # ── data access ─────────────────────────────────────────────────────────────
