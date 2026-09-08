@@ -6,9 +6,11 @@ import {
 import { Copy } from "../copy";
 import {
   fetchVisits, fetchVisitsSummary, fetchVisitsMonthly, fetchVisitCandidatesCount,
-  dismissVisit, updateVisit, fetchKeyFigures, fetchVisitPortraits,
+  dismissVisit, updateVisit, fetchKeyFigures, fetchVisitPortraits, fetchVisitCoverage,
 } from "../api";
 import VisitsMap from "./VisitsMap";
+import SourceBadge from "./SourceBadge";
+import SentimentBadge from "./SentimentBadge";
 import VisitsReviewQueue, {
   DIRECTION_LABEL, DIR_COLOUR, AFFILIATION_LABEL, LEVEL_LABEL, TW_AFFILIATIONS, PRC_AFFILIATIONS,
   affiliationColour, VisitFieldsGrid, visitDraftFrom, isVisitDraftDirty, buildVisitPatch,
@@ -148,6 +150,117 @@ function VisitField({ label, children }) {
   );
 }
 
+// ── Feed coverage ─────────────────────────────────────────────────────────
+// `/api/visits/{id}/coverage`: the visit family's own articles plus their
+// feed-cluster siblings, side-classified server-side (shared/source_side.py).
+// Taiwan-side and PRC-side reporting sit in two columns so the reader sees
+// both camps' account of one trip together; international outlets go
+// underneath. Loaded on first expand; the counts on the toggle come with the
+// list payload so nothing is fetched for a closed card.
+const COVERAGE_CAP = 6;
+const SIDE_COLUMNS = [
+  { key: "TW", label: "Taiwan-side coverage", empty: "No Taiwan-side article in the feed." },
+  { key: "PRC", label: "PRC-side coverage", empty: "No PRC-side article in the feed." },
+];
+
+function CoverageItem({ a }) {
+  return (
+    <div style={{ padding: "7px 0", borderTop: "1px solid var(--soft)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "baseline", flexWrap: "wrap" }}>
+        <SourceBadge sourceName={a.source_name} bias={a.bias} place={a.place} full />
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.08em", color: "var(--pale)" }}>
+          {a.published_at?.slice(0, 10)}
+        </span>
+      </div>
+      <a href={a.url} target="_blank" rel="noreferrer"
+         style={{ display: "block", fontFamily: "var(--font-body)", fontSize: "12px", lineHeight: 1.45,
+                  color: "var(--body)", textDecoration: "none", marginTop: "3px" }}>
+        {a.title_en || a.title_original}
+      </a>
+      {a.sentiment && (
+        <div style={{ marginTop: "3px" }}>
+          <SentimentBadge sentiment={a.sentiment} score={a.sentiment_score} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoverageColumn({ label, empty, items }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, COVERAGE_CAP);
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.12em", textTransform: "uppercase",
+                    color: "var(--faint)", marginBottom: "4px" }}>
+        {label}{items.length ? ` · ${items.length}` : ""}
+      </div>
+      {items.length === 0 ? (
+        <p style={{ fontFamily: "var(--font-body)", fontSize: "11.5px", color: "var(--pale)", margin: "6px 0 0", fontStyle: "italic" }}>{empty}</p>
+      ) : shown.map((a) => <CoverageItem key={a.id} a={a} />)}
+      {items.length > COVERAGE_CAP && (
+        <button onClick={() => setAll(!all)}
+                style={{ marginTop: "6px", padding: 0, background: "transparent", border: "none", cursor: "pointer",
+                         fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em", color: "var(--muted)",
+                         textTransform: "uppercase", borderBottom: "1px solid var(--dot)" }}>
+          {all ? "Show fewer" : `Show all ${items.length}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function VisitCoverage({ v }) {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const c = v.coverage;
+  if (!c || c.articles < 2) return null;
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && data === null && !failed) {
+      try { setData(await fetchVisitCoverage(v.id)); } catch { setFailed(true); }
+    }
+  };
+  const parts = [`${c.articles} articles`, `${c.outlets} ${c.outlets === 1 ? "outlet" : "outlets"}`];
+  if (c.TW) parts.push(`Taiwan ${c.TW}`);
+  if (c.PRC) parts.push(`PRC ${c.PRC}`);
+  if (c.other) parts.push(`other ${c.other}`);
+  const bySide = { TW: [], PRC: [], other: [] };
+  for (const a of data?.articles || []) bySide[a.side || "other"].push(a);
+  return (
+    <div style={{ marginTop: "8px" }}>
+      <button onClick={toggle} aria-expanded={open}
+              style={{ padding: 0, background: "transparent", border: "none", cursor: "pointer",
+                       fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.08em",
+                       color: "var(--muted)", textTransform: "uppercase" }}>
+        {open ? "▾" : "▸"} Coverage · {parts.join(" · ")}
+      </button>
+      {open && (
+        <div style={{ marginTop: "8px", padding: "10px 12px", border: "1px solid var(--hair)", background: "var(--bg-card)" }}>
+          {failed ? (
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Couldn't load the coverage.</p>
+          ) : data === null ? (
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Loading coverage…</p>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))", gap: "16px" }}>
+                {SIDE_COLUMNS.map((s) => <CoverageColumn key={s.key} label={s.label} empty={s.empty} items={bySide[s.key]} />)}
+              </div>
+              {bySide.other.length > 0 && (
+                <div style={{ marginTop: "12px" }}>
+                  <CoverageColumn label="International and other" empty="" items={bySide.other} />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VisitCard({ v, admin, onEdit, onDismiss, resolvePortrait }) {
   const who = v.visitor_name_en || v.visitor_name_zh || v.delegation_desc_en || "Unnamed delegation";
   const whoZh = v.visitor_name_en && v.visitor_name_zh ? v.visitor_name_zh : null;
@@ -223,6 +336,7 @@ function VisitCard({ v, admin, onEdit, onDismiss, resolvePortrait }) {
             </span>
           )}
         </div>
+        <VisitCoverage v={v} />
       </div>
     </div>
   );

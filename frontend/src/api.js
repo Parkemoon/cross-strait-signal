@@ -583,6 +583,10 @@ export async function fetchVisitsMonthly(params = {}) {
   return request(`/api/visits/monthly${query.toString() ? `?${query}` : ""}`);
 }
 
+export async function fetchVisitCoverage(id) {
+  return request(`/api/visits/${id}/coverage`, { headers: authHeaders() });
+}
+
 export async function fetchVisitCandidates() {
   return request(`/api/visits/candidates`, { headers: authHeaders() });
 }

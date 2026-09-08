@@ -133,6 +133,7 @@ CREATE TABLE keywords_matched (
 CREATE INDEX idx_articles_source      ON articles(source_id);
 CREATE INDEX idx_articles_published   ON articles(published_at DESC);
 CREATE INDEX idx_articles_url         ON articles(url);
+CREATE INDEX IF NOT EXISTS idx_articles_cluster ON articles(event_cluster_id);
 CREATE INDEX idx_analysis_topic       ON ai_analysis(topic_primary);
 CREATE INDEX idx_analysis_sentiment   ON ai_analysis(sentiment);
 CREATE INDEX idx_analysis_urgency     ON ai_analysis(urgency);
