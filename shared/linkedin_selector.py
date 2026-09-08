@@ -44,14 +44,14 @@ from __future__ import annotations
 import json
 from collections import Counter
 
-WINDOW_HOURS = 48
-TOP_N = 3
-
 # Side / outlet helpers live in shared/source_side.py (also used by the
 # visits coverage endpoint); re-exported here for the proposer and tests.
-from shared.source_side import (  # noqa: E402,F401
+from shared.source_side import (  # noqa: F401
     PRC_SIDE_BIASES, TW_SIDE_BIASES, outlet_of, side_of,
 )
+
+WINDOW_HOURS = 48
+TOP_N = 3
 
 # Domestic-Taiwan-politics topics excluded from candidate selection.
 # Ed confirms/edits this list (proposer step 1). NOT_RELEVANT is a safety
