@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 os.environ.setdefault("GEMINI_API_KEY", "test-key-not-used")
 
 from shared import name_registry as nr  # noqa: E402
-from shared.romanisation import hanyu_markers, side_from_role, to_wade_giles  # noqa: E402
+from shared.romanisation import hanyu_markers, hanyu_shaped, side_from_role, to_wade_giles  # noqa: E402
 
 MIGRATION = os.path.join(os.path.dirname(__file__), '..', 'db', 'migrations', '0014_name_registry.sql')
 
@@ -31,7 +31,11 @@ def conn():
 def test_side_from_role():
     assert side_from_role('KMT legislator') == 'TW'
     assert side_from_role('Taiwan Affairs Office spokesperson') == 'PRC'
-    assert side_from_role('PRC Ministry of National Defense spokesperson') is None   # both sides match → ambiguous
+    assert side_from_role('PRC Ministry of National Defense spokesperson') == 'PRC'   # explicit side beats a both-sides institution
+    assert side_from_role('Ministry of National Defense spokesperson') == 'TW'        # unqualified institution: Taiwan by default
+    assert side_from_role('Chinese Premier') == 'PRC'
+    assert side_from_role('Mainland Affairs Council minister') == 'TW'               # MAC is Taiwan's, 'mainland' is not a PRC signal here
+    assert side_from_role('Taiwan Affairs Office director, KMT guest') is None        # strong words on both sides → ambiguous
     assert side_from_role('') is None
 
 
@@ -41,6 +45,11 @@ def test_hanyu_markers():
     assert hanyu_markers('Cheng Chao-hsin') == []
     assert hanyu_markers('Wellington Koo') == []
     assert hanyu_markers('Han Kuo-yu') == []
+    assert hanyu_markers('Kharis Templeman') == []     # Western name: not pinyin-shaped, no marker
+    assert hanyu_markers('Hayashi Yoshimasa') == []    # Japanese: three-syllable surname fails the shape test
+    assert hanyu_markers('Marco Rubio') == []
+    assert hanyu_shaped('Li Qiang') and hanyu_shaped('Ouyang Nana') and hanyu_shaped('Chen Bolin')
+    assert not hanyu_shaped('Cheng Chao-hsin') and not hanyu_shaped('Templeman')
 
 
 def test_to_wade_giles():

@@ -278,6 +278,7 @@ def lookup_new_names(days=14, limit=60, conn=None, use_search=True, verbose=True
                 upsert(conn, zh, proposal, side, 'wikidata', status, qid=qid, evidence_note=note, role_hint=role,
                        candidates=_candidates_list(cand, extra), mentions=cand['mentions'],
                        first_article_id=cand['first_aid'], confidence=conf)
+                conn.commit()  # per name: a batch-long write lock starved the 6-hourly tick (2026-09-13)
                 summary[f'wikidata_{status}'] += 1
                 if verbose:
                     print(f"    {zh} → {proposal} [{status}] {note[:80]}")
@@ -295,6 +296,7 @@ def lookup_new_names(days=14, limit=60, conn=None, use_search=True, verbose=True
                 upsert(conn, zh, found['en'], 'TW', 'search', 'pending', evidence_url=found['url'], evidence_note=note,
                        role_hint=role, candidates=_candidates_list(cand, extra), mentions=cand['mentions'],
                        first_article_id=cand['first_aid'], confidence=0.8 if verified else 0.4)
+                conn.commit()  # per name: a batch-long write lock starved the 6-hourly tick (2026-09-13)
                 summary['search_verified' if verified else 'search_unverified'] += 1
                 if verbose:
                     print(f"    {zh} → {found['en']} [pending] {note[:80]}")
@@ -305,6 +307,7 @@ def lookup_new_names(days=14, limit=60, conn=None, use_search=True, verbose=True
                    + (f"; proposal is {'the prod majority rendering' if proposal == majority else 'generated Wade-Giles'}" if proposal else ""),
                    role_hint=role, candidates=_candidates_list(cand, extra), mentions=cand['mentions'],
                    first_article_id=cand['first_aid'], confidence=0.3)
+            conn.commit()  # per name: a batch-long write lock starved the 6-hourly tick (2026-09-13)
             summary['generated_pending'] += 1
             if verbose:
                 print(f"    {zh} → {proposal} [pending, generated]")
