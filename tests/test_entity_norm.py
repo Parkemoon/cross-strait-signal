@@ -37,7 +37,11 @@ def test_title_token_inside_exact_key_does_not_reroute(canon):
     # 立法院 is an exact key containing no title token issue; and a title
     # token inside an unresolvable compound must not force a bogus match.
     assert resolve_name_en('立法院', canon) == 'Legislative Yuan'
-    assert resolve_name_en('總統府秘書長潘孟安', canon) is None
+    # 潘孟安 joined the canonical table in the 2026-09-13 glossary survey, so the
+    # name-first strip now resolves it; an unknown name behind the same title
+    # must still be left alone.
+    assert resolve_name_en('總統府秘書長潘孟安', canon) == 'Pan Men-an'
+    assert resolve_name_en('總統府秘書長王大明', canon) is None
 
 
 def test_fold_prefix_longest_wins(canon):
