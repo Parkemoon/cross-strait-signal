@@ -52,8 +52,35 @@ with open(_GLOSSARY_PATH, encoding='utf-8') as _f:
 # shared/entity_norm.py — one resolver for the write path and the back-fill,
 # so a canonical edit can always repair the rows the pipeline wrote.
 from shared.entity_norm import load_canon as _load_entity_canon, resolve_name_en as _resolve_name_en
-_ENTITY_CANON = _load_entity_canon()
+from shared.name_registry import (
+    apply_to_analysis as _apply_name_registry,
+    load_approved as _load_name_registry,
+    merge_canon as _merge_canon,
+    merge_glossary as _merge_glossary,
+)
+_JSON_ENTITY_CANON = _load_entity_canon()          # the committed file, never mutated
+_ENTITY_CANON = _JSON_ENTITY_CANON                 # + approved name-registry rows after refresh_name_registry()
 _CANONICAL_ENTITIES = _ENTITY_CANON['canonical']  # exact-match map (exercise names)
+_GLOSSARY_LIVE = dict(_MASTER_GLOSSARY)            # glossary.json + approved registry rows
+
+
+def refresh_name_registry(conn):
+    """Layer the approved rows of the name registry (table name_registry,
+    shared/name_registry.py) over the committed JSON for this run: the
+    entity resolver, the prompt-time terminology block and the text
+    rewrite in _apply_tier1_analysis all read the merged maps. Called at
+    the start of every Tier-1 run (both modes) and the side-extract
+    passes; tolerates a DB without migration 0014 (JSON only)."""
+    global _ENTITY_CANON, _CANONICAL_ENTITIES, _GLOSSARY_LIVE
+    try:
+        reg = _load_name_registry(conn)
+    except Exception as e:  # table missing (pre-migration) — fall back to the files
+        print(f"  name registry unavailable ({e}); using the JSON files only")
+        reg = {}
+    _ENTITY_CANON = _merge_canon(_JSON_ENTITY_CANON, reg)
+    _CANONICAL_ENTITIES = _ENTITY_CANON['canonical']
+    _GLOSSARY_LIVE = _merge_glossary(_MASTER_GLOSSARY, reg)
+    return len(reg)
 
 _MIL_LOCATIONS_PATH = os.path.join(os.path.dirname(__file__), 'military_locations.json')
 # Companion file written by the API's PATCH endpoint each time an analyst
@@ -466,7 +493,7 @@ _NAMED_EXERCISES = "Joint Sword 聯合劍, Han Kuang 漢光, Keen Sword, Talisma
 # worked examples are the calibrated core (2026-07-01 audit) — edit HERE and
 # both prompts pick it up; they used to be near-verbatim copies with a
 # keep-in-sync comment (CODE_REVIEW_2026-07-03 §3.7).
-_DIPLOMACY_RULES = """SCOPE GATE (apply FIRST, before scoring): only extract when the statement expresses an EXPLICIT position on Taiwan, the Taiwan Strait, cross-strait relations, or the one-China question. If it is about PRC domestic human-rights policy (Xinjiang/Uyghurs/Tibet), WWII history or anti-militarism, general freedom of navigation, semiconductor/AI supply chains, or routine bilateral/administrative matters with NO explicit Taiwan reference, DO NOT extract it — a loose anti-PRC or pro-PRC sentiment with no Taiwan nexus is NOT a Taiwan stance; when in doubt whether Taiwan is the actual subject, extract nothing. STANCE (-1.0 .. +1.0), pro-Beijing ↔ pro-Taipei: SIGN IS DIRECTION, NOT TONE — the sign encodes which side of the strait the speaker favours, never emotional tone: condemning/criticising Beijing (e.g. over its coercion of Taiwan) is POSITIVE (pro-Taipei), endorsing reunification is NEGATIVE (pro-Beijing); do not let harsh language about China push the score negative. +0.6..+1.0 (pro-Taipei) = explicit support — recognises/upgrades ties, backs Taiwan's international participation, official visit/delegation framed as solidarity, condemns PRC coercion of Taiwan, supplies arms with supportive framing; +0.2..+0.5 (leaning Taipei) = an explicit pro-Taiwan element is present — concern over PRC/Beijing pressure or coercion, a call for Taiwan's meaningful international participation, OR opposition to changing the status quo specifically "by force" or "by coercion" (these name the PRC as the threat); -0.2..+0.2 (neutral — the DEFAULT for diplomatic boilerplate) = a bare "peace and stability in the Taiwan Strait", "peaceful resolution", "cross-strait dialogue", or "oppose unilateral change to the status quo" with NO naming of Beijing's pressure and NO support for Taiwan's participation scores NEUTRAL (~0.0, within ±0.15), NOT leaning Taipei — most diplomatic readouts are exactly this; only move up to leaning Taipei when an anti-coercion / anti-force / pro-participation / pro-Taiwan element is explicitly present; -0.5..-0.2 (leaning Beijing) = routine reaffirmation of a one-China policy, "respects China's position", acknowledges PRC concerns without endorsing reunification; -1.0..-0.6 (pro-Beijing) = endorses reunification / "Taiwan is part of China", explicitly opposes Taiwan independence, supports PRC sovereignty claims, condemns Taiwan or foreign "interference". AUTHORITY TIER — classify from the title/role stated in the article text: national executive or foreign ministry → government; president/PM/monarch personally → head_of_state; the ruling party acting as a party → ruling_party; MPs/senators/parliamentary groups/committees → legislator; mayors/governors/states/provinces → subnational; ex-officials or retired figures → former_official; academics/NGOs/business/anything else → other. The SAME article can carry MULTIPLE statements from one country at different tiers (e.g. a government one-China line PLUS a supportive parliamentary delegation) — emit each as a SEPARATE object; that divergence is the point. country = English name; country_iso = ISO 3166-1 alpha-2 uppercase ('EU' for the European Union; 'XS' for Somaliland — NEVER 'SO', which is Somalia; 'XK' for Kosovo). DATE ANCHORING: stated_date defaults to the article's PUBLISHED year for any partial date. statement_en MUST be English (translate if needed); never put Chinese characters in statement_en. WORKED EXAMPLES: (a) 'US lawmaker calls the PRC ethnic-unity law dystopian, says it will harass Uyghurs/Tibetans' → no Taiwan nexus → extract NOTHING; (b) 'Senator condemns Beijing's military coercion of Taiwan' → +0.7 pro-Taipei (the condemnation targets Beijing, so the sign stays POSITIVE); (c) 'Foreign ministry reaffirms its one-China policy' with no pressure named → −0.3 leaning Beijing; (d) 'We support peace and stability in the Taiwan Strait' and nothing more → ~0.0 neutral."""
+_DIPLOMACY_RULES = """SCOPE GATE (apply FIRST, before scoring): only extract when the statement expresses an EXPLICIT position on Taiwan, the Taiwan Strait, cross-strait relations, or the one-China question. If it is about PRC domestic human-rights policy (Xinjiang/Uyghurs/Tibet), WWII history or anti-militarism, general freedom of navigation, semiconductor/AI supply chains, or routine bilateral/administrative matters with NO explicit Taiwan reference, DO NOT extract it — a loose anti-PRC or pro-PRC sentiment with no Taiwan nexus is NOT a Taiwan stance; when in doubt whether Taiwan is the actual subject, extract nothing. STANCE (-1.0 .. +1.0), pro-Beijing ↔ pro-Taipei: SIGN IS DIRECTION, NOT TONE — the sign encodes which side of the strait the speaker favours, never emotional tone: condemning/criticising Beijing (e.g. over its coercion of Taiwan) is POSITIVE (pro-Taipei), endorsing reunification is NEGATIVE (pro-Beijing); do not let harsh language about China push the score negative. +0.6..+1.0 (pro-Taipei) = explicit support — recognises/upgrades ties, backs Taiwan's international participation, official visit/delegation framed as solidarity, condemns PRC coercion of Taiwan, supplies arms with supportive framing; +0.2..+0.5 (leaning Taipei) = an explicit pro-Taiwan element is present — concern over PRC/Beijing pressure or coercion, a call for Taiwan's meaningful international participation, OR opposition to changing the status quo specifically "by force" or "by coercion" (these name the PRC as the threat); -0.2..+0.2 (neutral — the DEFAULT for diplomatic boilerplate) = a bare "peace and stability in the Taiwan Strait", "peaceful resolution", "cross-strait dialogue", or "oppose unilateral change to the status quo" with NO naming of Beijing's pressure and NO support for Taiwan's participation scores NEUTRAL (~0.0, within ±0.15), NOT leaning Taipei — most diplomatic readouts are exactly this; only move up to leaning Taipei when an anti-coercion / anti-force / pro-participation / pro-Taiwan element is explicitly present; -0.5..-0.2 (leaning Beijing) = routine reaffirmation of a one-China policy, "respects China's position", acknowledges PRC concerns without endorsing reunification; -1.0..-0.6 (pro-Beijing) = endorses reunification / "Taiwan is part of China", explicitly opposes Taiwan independence, supports PRC sovereignty claims, condemns Taiwan or foreign "interference". AUTHORITY TIER — classify from the title/role stated in the article text: national executive or foreign ministry → government; president/PM/monarch personally → head_of_state; the ruling party acting as a party → ruling_party; MPs/senators/parliamentary groups/committees → legislator; mayors/governors/states/provinces → subnational; ex-officials or retired figures → former_official; academics/NGOs/business/anything else → other. The SAME article can carry MULTIPLE statements from one country at different tiers (e.g. a government one-China line PLUS a supportive parliamentary delegation) — emit each as a SEPARATE object; that divergence is the point. country = English name; country_iso = ISO 3166-1 alpha-2 uppercase ('EU' for the European Union; 'XS' for Somaliland — NEVER 'SO', which is Somalia; 'XK' for Kosovo). DATE ANCHORING: stated_date defaults to the article's PUBLISHED year for any partial date. statement_en is English (translate if needed). WORKED EXAMPLES: (a) 'US lawmaker calls the PRC ethnic-unity law dystopian, says it will harass Uyghurs/Tibetans' → no Taiwan nexus → extract NOTHING; (b) 'Senator condemns Beijing's military coercion of Taiwan' → +0.7 pro-Taipei (the condemnation targets Beijing, so the sign stays POSITIVE); (c) 'Foreign ministry reaffirms its one-China policy' with no pressure named → −0.3 leaning Beijing; (d) 'We support peace and stability in the Taiwan Strait' and nothing more → ~0.0 neutral."""
 
 # ---------------------------------------------------------------------------
 # ANALYSIS_SYSTEM_PROMPT is assembled from shared blocks so the Tier-2
@@ -483,15 +510,15 @@ article for a monitoring dashboard.
 
 """
 
-_RELEVANCE_GATE_RULES = """STEP 1 — RELEVANCE GATE (decide this first, before anything else):
-Ask yourself: is this article's PRIMARY subject PRC-Taiwan cross-strait dynamics?
+_RELEVANCE_GATE_RULES = """RELEVANCE GATE (decide this first):
+Is this article's PRIMARY subject PRC-Taiwan cross-strait dynamics?
 Set is_cross_strait_primary to false if ANY of the following apply:
 - The article is primarily about a third-party event (e.g. Iran war, Russia-Ukraine, US domestic politics) and PRC/Taiwan appears only as a comparison, analogy, or peripheral reference
 - The article is about Taiwan domestic affairs with no cross-strait dimension (crime, weather, sports, entertainment, consumer news, local governance, obituaries)
 - PRC or Taiwan is mentioned only in passing, not as the main subject
 If is_cross_strait_primary is false, set topic_primary to "NOT_RELEVANT" and confidence to 0.0. Do not fill in other fields.
 
-IMPORTANT EXCEPTION — PRC sources writing about Taiwan: If the SOURCE is a PRC outlet (People's Daily, Xinhua, Global Times, The Paper, TAO, MFA, Guancha, PLA Daily, Haixia Daobao, etc.) and Taiwan is the article's PRIMARY subject, treat it as relevant regardless of topic. PRC state and nationalist media coverage of Taiwanese society, culture, festivals, and everyday life carries cross-strait analytical value as identity and sovereignty framing. Use POL_TONGDU for articles that emphasise Taiwan's Chinese cultural heritage, cross-strait people-to-people ties, or shared identity — this framing is analytically equivalent to Taiwanese sources emphasising indigenous identity or distinct Taiwanese nationhood; both are moves on the unification/independence spectrum and should be treated symmetrically. Use INFO_WARFARE only for active disinformation or cognitive warfare operations (e.g. fabricated stories, coordinated inauthentic narratives). Use POL_DOMESTIC_TW for PRC reporting on Taiwan's political life.
+EXCEPTION — PRC sources writing about Taiwan: If the SOURCE is a PRC outlet (People's Daily, Xinhua, Global Times, The Paper, TAO, MFA, Guancha, PLA Daily, Haixia Daobao, etc.) and Taiwan is the article's PRIMARY subject, treat it as relevant regardless of topic. PRC state and nationalist media coverage of Taiwanese society, culture, festivals, and everyday life carries cross-strait analytical value as identity and sovereignty framing. Use POL_TONGDU for articles that emphasise Taiwan's Chinese cultural heritage, cross-strait people-to-people ties, or shared identity — this framing is analytically equivalent to Taiwanese sources emphasising indigenous identity or distinct Taiwanese nationhood; both are moves on the unification/independence spectrum and should be treated symmetrically. Use INFO_WARFARE only for active disinformation or cognitive warfare operations (e.g. fabricated stories, coordinated inauthentic narratives). Use POL_DOMESTIC_TW for PRC reporting on Taiwan's political life.
 """
 
 _TOPIC_ENUM = "MIL_EXERCISE, MIL_MOVEMENT, MIL_HARDWARE, MIL_POLICY, DIP_STATEMENT, DIP_VISIT, DIP_SANCTIONS, PARTY_VISIT, ECON_TRADE, ECON_INVEST, POL_DOMESTIC_TW, POL_DOMESTIC_PRC, POL_TONGDU, INFO_WARFARE, LEGAL_GREY, TRANSPORT, INT_ORG, HUMANITARIAN, US_PRC, US_TAIWAN, HK_MAC, CULTURE, CYBER, ARMS_SALES, SPORT, ENERGY, SCI_TECH, NOT_RELEVANT"
@@ -500,10 +527,10 @@ _SENTIMENT_RULES = """- sentiment_score measures cross-strait sentiment — how 
 - For PRC sources: how does the article portray Taiwan, Taiwanese actors, or cross-strait relations?
 - For Taiwan sources: how does the article portray the PRC, mainland actors, or cross-strait relations?
 - For international/SG sources: what is the overall tone toward cross-strait dynamics?
-- CRITICAL — REPORTED SPEECH BY THE OPPOSING SIDE DOES NOT SCORE: the SOURCE line tells you which side of the strait the outlet sits on. A Taiwan outlet reporting a hostile statement by a PRC official (TAO, MND, MFA, state media) is NOT itself framing the PRC hostilely — it is relaying the PRC's framing of Taiwan, which is captured when PRC outlets carry the same statement. Score a Taiwan-source article ONLY by how the outlet, its own voice, or Taiwan-side actors quoted in it characterise the PRC; score a PRC-source article ONLY by how the outlet or PRC-side actors characterise Taiwan. If the only cross-strait characterisation in the article is a quotation from the other side, and the outlet reports it without editorialising, score neutral. Score directional only when the outlet's own side responds in kind (e.g. MAC rebuts the TAO in confrontational terms → the MAC rebuttal is the Taiwan-side framing to score) or the outlet's own voice editorialises about the other side. Counting the same quoted statement as hostile on both sides of the strait double-counts it and corrupts the per-side comparison this instrument exists to make.
-- CRITICAL — third-party interactions are NOT cross-strait signals (both directions): Taiwan's interactions with any third party (US, Japan, EU, Australia, Czech Republic, UK, allies, etc.) — whether cooperative (visits, arms sales, joint exercises, parliamentary resolutions of support, official meetings) or hostile (third-party criticism of Taiwan) — are not cross-strait sentiment signals. Likewise, PRC interactions with third parties are not cross-strait sentiment signals unless Taiwan is directly framed in the article. Score sentiment ONLY by how the article frames the opposing side of the strait, never by how either side relates to a third country. An Australian MP visiting Taipei is neutral on the cross-strait axis unless the article explicitly characterises the PRC's reaction or framing.
-- CRITICAL — intra-society political conflict is NOT cross-strait hostility: Inter-party criticism within Taiwan (DPP vs KMT vs TPP) or factional/political conflict within the PRC belongs to POL_DOMESTIC_TW or POL_DOMESTIC_PRC and scores NEUTRAL on the cross-strait sentiment axis. A KMT politician attacking the DPP, or DPP figures criticising the KMT, is not cross-strait hostile — the dispute is internal. Only score hostile if the article shows one party explicitly characterising the OPPOSING SIDE OF THE STRAIT (not a domestic rival) in confrontational terms.
-- CRITICAL — anti-formal-independence ≠ anti-Taiwan / pro-PRC: A Taiwanese politician (KMT, TPP, or other) opposing formal Taiwan independence is expressing a mainstream within-Taiwan position — by itself this is NEUTRAL on the cross-strait axis. Score based solely on how the politician characterises the PRC in the article: silent or factual about PRC → neutral; positive about mainland engagement → cooperative; criticising the PRC → hostile. The asymmetry is deliberate: when the PRC (officials, state media, MFA, TAO) uses anti-independence language (e.g. "Taiwan independence is a dead end", "separatist forces"), this IS hostile — the PRC is asserting sovereignty framing over Taiwan's right to choose. Anti-independence rhetoric from a Taiwanese voice is a domestic position; the same rhetoric from a PRC voice is a cross-strait assertion.
+- REPORTED SPEECH BY THE OPPOSING SIDE DOES NOT SCORE: the SOURCE line tells you which side of the strait the outlet sits on. A Taiwan outlet reporting a hostile statement by a PRC official (TAO, MND, MFA, state media) is NOT itself framing the PRC hostilely — it is relaying the PRC's framing of Taiwan, which is captured when PRC outlets carry the same statement. Score a Taiwan-source article ONLY by how the outlet, its own voice, or Taiwan-side actors quoted in it characterise the PRC; score a PRC-source article ONLY by how the outlet or PRC-side actors characterise Taiwan. If the only cross-strait characterisation in the article is a quotation from the other side, and the outlet reports it without editorialising, score neutral. Score directional only when the outlet's own side responds in kind (e.g. MAC rebuts the TAO in confrontational terms → the MAC rebuttal is the Taiwan-side framing to score) or the outlet's own voice editorialises about the other side. Counting the same quoted statement as hostile on both sides of the strait double-counts it and corrupts the per-side comparison this instrument exists to make.
+- THIRD-PARTY INTERACTIONS are not cross-strait signals (both directions): Taiwan's interactions with any third party (US, Japan, EU, Australia, Czech Republic, UK, allies, etc.) — whether cooperative (visits, arms sales, joint exercises, parliamentary resolutions of support, official meetings) or hostile (third-party criticism of Taiwan) — are not cross-strait sentiment signals. Likewise, PRC interactions with third parties are not cross-strait sentiment signals unless Taiwan is directly framed in the article. Score sentiment ONLY by how the article frames the opposing side of the strait, never by how either side relates to a third country. An Australian MP visiting Taipei is neutral on the cross-strait axis unless the article explicitly characterises the PRC's reaction or framing.
+- INTRA-SOCIETY POLITICAL CONFLICT is not cross-strait hostility: Inter-party criticism within Taiwan (DPP vs KMT vs TPP) or factional/political conflict within the PRC belongs to POL_DOMESTIC_TW or POL_DOMESTIC_PRC and scores NEUTRAL on the cross-strait sentiment axis. A KMT politician attacking the DPP, or DPP figures criticising the KMT, is not cross-strait hostile — the dispute is internal. Only score hostile if the article shows one party explicitly characterising the OPPOSING SIDE OF THE STRAIT (not a domestic rival) in confrontational terms.
+- ANTI-FORMAL-INDEPENDENCE ≠ anti-Taiwan / pro-PRC: A Taiwanese politician (KMT, TPP, or other) opposing formal Taiwan independence is expressing a mainstream within-Taiwan position — by itself this is NEUTRAL on the cross-strait axis. Score based solely on how the politician characterises the PRC in the article: silent or factual about PRC → neutral; positive about mainland engagement → cooperative; criticising the PRC → hostile. The asymmetry is deliberate: when the PRC (officials, state media, MFA, TAO) uses anti-independence language (e.g. "Taiwan independence is a dead end", "separatist forces"), this IS hostile — the PRC is asserting sovereignty framing over Taiwan's right to choose. Anti-independence rhetoric from a Taiwanese voice is a domestic position; the same rhetoric from a PRC voice is a cross-strait assertion.
 - DECISION CHECKLIST — before assigning a non-neutral sentiment, answer in order: (0) Which side of the strait is the SOURCE outlet on (Taiwan / PRC / third-country)? Only characterisations and actions BY THAT SIDE may trigger the score: for a Taiwan outlet, the trigger must be a Taiwan actor (the outlet's own voice, MAC, MOFA, MND, the president, legislators, commentators) characterising the PRC, or a PRC ACTION directed at Taiwan; a quoted PRC official's words about Taiwan are NEVER the trigger on a Taiwan source. For a PRC outlet the mirror applies. (1) Who specifically on the SOURCE'S OWN side is characterising the other side, or which concrete action by the other side is reported? Name them. (2) Is the target of that characterisation or action the opposing side of the strait — a PRC actor characterising/acting toward Taiwan, or a Taiwan actor characterising/acting toward the PRC? If no, score neutral. (3) Can you quote the specific sentence that frames the opposing side, OR the specific reported cross-strait action (see ACTIONS COUNT below)? If neither, score neutral. (4) If the article is about a Taiwanese politician's stance on independence or unification, is there any explicit characterisation OF THE PRC in the article? If no, score neutral regardless of how strongly the politician favours or opposes independence.
 - ACTIONS COUNT AS FRAMING: a concrete action by one side of the strait directed at the other carries its own valence even when the article reports it in dry, factual language. PLA exercises, deployments and incursions, coast-guard or maritime-militia pressure, espionage and infiltration operations, sanctions or legal measures targeting the other side → hostile. Resumed links, purchase missions, exchange programmes, tariff concessions between the two sides → cooperative. Do NOT neutralise a hostile or cooperative act just because the reporting tone is calm. This applies ONLY to actions between the two sides of the strait — third-party actions remain neutral per the third-party rule above. This rule governs the SENTIMENT fields only — it does not change topic_primary: grey-zone coercion (coast-guard confrontations, maritime-militia pressure, cable incidents, dredging) is still LEGAL_GREY, not MIL_MOVEMENT, and every other topic keeps its normal definition.
 - MOCKERY AND DERISION COUNT AS FRAMING: ridicule, sarcasm, or triumphalist point-scoring aimed at the other side (state media mocking a Taiwanese official's claims, a Taiwanese outlet deriding mainland failures or framing the mainland as backward, inferior or uncivilised) is hostile framing even when no threat language appears. Likewise, celebratory coverage of one side's coercive actions toward the other (e.g. state media lionising patrols asserting jurisdiction over the other side) is hostile, not neutral.
@@ -538,7 +565,8 @@ _TOPIC_RULES = """- MIL_POLICY = defence doctrine, budgets, force structure, con
 _TONGDU_RULE = """- Unification/independence spectrum (統獨): reunification rhetoric, independence moves, sovereignty claims, constitutional norm changes, status quo shifts from either side
 """
 
-_ROMANISATION_RULE = """- For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. If a CRITICAL TERMINOLOGY MAPPING block is provided, you are strictly forbidden from deviating from its translations.
+_ROMANISATION_RULE = """- For ALL Taiwanese entities (people, organisations, places), use Wade-Giles or Tongyong Pinyin. If a person has a known English name or self-used romanisation, prefer that. Do not use Hanyu Pinyin for Taiwanese entities. For ALL PRC entities, use Hanyu Pinyin. Never leave a Chinese name untranslated in an English field — if you cannot find an established romanisation, apply the appropriate system (Wade-Giles for TW, Hanyu Pinyin for PRC) and romanise it yourself. When a TERMINOLOGY block is present it is authoritative.
+  Decide the system by the PERSON's affiliation, not by the article's script: a Taiwanese official, party figure, legislator, local official, academic, business or cultural figure keeps Wade-Giles even when the article is a PRC outlet written in simplified characters. When no established English form exists, convert Hanyu Pinyin to Wade-Giles syllable by syllable, Taiwan convention (no apostrophes, given name hyphenated): initials b/p→p, d/t→t, g/k→k, z/c→ts, zh/ch→ch, j/q→ch, x→hs, r→j; finals -ong→-ung, -ian→-ien, -ie→-ieh, ye→yeh, yi→i, you→yu, -er→-erh; zi/ci/si→tzu/tzu/ssu; zhi/chi/shi/ri→chih/chih/shih/jih; duo/tuo/luo/zuo/cuo/ruo→to/to/lo/tso/tso/jo. Examples: 鄭照新 Zheng Zhaoxin → Cheng Chao-hsin; 周永鴻 Zhou Yonghong → Chou Yung-hung; 张钧凯 Zhang Junkai → Chang Chun-kai; 费海平 Fei Haiping → Fei Hai-ping; 李其澤 Li Qize → Li Chi-tse. Mainland people stay in Hanyu Pinyin (Wang Huning, Song Tao).
 """
 
 _BRITISH_ENGLISH_RULE = """- Use British English spelling in all English-language output fields (e.g. "analyse" not "analyze", "behaviour" not "behavior", "colour" not "color", "centre" not "center", "organisation" not "organization").
@@ -669,11 +697,10 @@ CLASSIFICATION RULES:
 """)
 
 _TIER1_ENTITY_RULES = """- Extract ALL named entities: people, military units, ships, aircraft, locations, organisations
-- All strings in the JSON must have special characters properly escaped.
 """
 
-_TIER1_EXTRACTION_RULES = """- KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist. CRITICAL: statement_text MUST always be written in English — if the article is in Chinese, translate the quote or action description into English before placing it in statement_text. Never put Chinese characters in statement_text.
-- MILITARY EXERCISES: Extract any military exercise mentioned in the article — both named exercises (""" + _NAMED_EXERCISES + """) AND unnamed drills explicitly described as conducting live-fire training, readiness drills, joint patrols, amphibious landings, or cyber exercises (e.g. "MND conducted a routine readiness drill in eastern waters on 22 May" qualifies even with no exercise name). Map the actor to performer_side: PLA / 解放軍 / 東部戰區 / 南部戰區 → PRC; MND / 國防部 / 國軍 / 漢光 → ROC; INDOPACOM / US Pacific Fleet / USAF / USN / USMC → US; JSDF / 海上自衛隊 / 航空自衛隊 → JP; multilateral activity involving two or more sides → MULTI with `participants` listing each ISO-style side code. DATE ANCHORING — `start_date` and `end_date` default to the article's PUBLISHED year (given above). When the article says "today", "this week", "on 22 May", or any month/day without a year, use the PUBLISHED year. Only use a different year when the article explicitly cites one (e.g. "the 2024 drill", "Han Kuang 41 last year", "the original 2022 exercise"). Do NOT anchor dates to your training-data baseline — the PUBLISHED date is authoritative for the article's "now". LOCATION HANDLING — Two separate fields with different bars: `location_label` is REQUIRED whenever the article mentions ANY place reference for the exercise — a named base, range, harbour, county, body of water, region, or compass-quadrant description ("eastern Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 / artillery testing centre north-bank position", "Jiupeng base 九鵬基地", "Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place names to English in `location_label`; preserve the original in `description_zh`. The bar for `location_label` is LOW — if you can identify a place in the article, fill it. `latitude` and `longitude` are SEPARATE: only emit numeric coords when you can confidently resolve them from the text (named base with established centroid, named body of water, or coordinates stated explicitly) — otherwise both null. Use false-negatives-preferred discipline for lat/lng only, not for location_label. Return an empty array if no exercise is mentioned. description_en MUST be English (translate if needed); never put Chinese characters in description_en. If no name is given in the article, leave name_zh and name_en as null — do NOT invent a name.
+_TIER1_EXTRACTION_RULES = """- KEY FIGURE STATEMENTS: Extract attributed statements only when speaker attribution is UNAMBIGUOUS in the article text. Focus on senior PRC and Taiwan officials (presidents, premiers, party chairs, ministers, official spokespersons, TAO/MAC heads). For 'quote': must be a direct statement BY this speaker — not a description of them, not a paraphrase, not a quote about them. For 'action': only major concrete acts — visits, meetings, signings, orders; NOT background references such as "Xi has previously said…" or passive mentions. If attribution is uncertain in any way, omit entirely. False negatives are strongly preferred over false positives. Return an empty array if no clearly attributed statements exist.
+- MILITARY EXERCISES: Extract any military exercise mentioned in the article — both named exercises (""" + _NAMED_EXERCISES + """) AND unnamed drills explicitly described as conducting live-fire training, readiness drills, joint patrols, amphibious landings, or cyber exercises (e.g. "MND conducted a routine readiness drill in eastern waters on 22 May" qualifies even with no exercise name). Map the actor to performer_side: PLA / 解放軍 / 東部戰區 / 南部戰區 → PRC; MND / 國防部 / 國軍 / 漢光 → ROC; INDOPACOM / US Pacific Fleet / USAF / USN / USMC → US; JSDF / 海上自衛隊 / 航空自衛隊 → JP; multilateral activity involving two or more sides → MULTI with `participants` listing each ISO-style side code. DATE ANCHORING — `start_date` and `end_date` default to the article's PUBLISHED year (given above). When the article says "today", "this week", "on 22 May", or any month/day without a year, use the PUBLISHED year. Only use a different year when the article explicitly cites one (e.g. "the 2024 drill", "Han Kuang 41 last year", "the original 2022 exercise"). Do NOT anchor dates to your training-data baseline — the PUBLISHED date is authoritative for the article's "now". LOCATION HANDLING — Two separate fields with different bars: `location_label` is REQUIRED whenever the article mentions ANY place reference for the exercise — a named base, range, harbour, county, body of water, region, or compass-quadrant description ("eastern Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 / artillery testing centre north-bank position", "Jiupeng base 九鵬基地", "Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place names to English in `location_label`; preserve the original in `description_zh`. The bar for `location_label` is LOW — if you can identify a place in the article, fill it. `latitude` and `longitude` are SEPARATE: only emit numeric coords when you can confidently resolve them from the text (named base with established centroid, named body of water, or coordinates stated explicitly) — otherwise both null. Use false-negatives-preferred discipline for lat/lng only, not for location_label. Return an empty array if no exercise is mentioned. If no name is given in the article, leave name_zh and name_en as null — do NOT invent a name.
 - POLLS: Extract public-opinion polls of the Taiwanese (or PRC) public on TW political, cross-strait, identity, unification, political-approval, attitude, or vote-intention questions. PRIMARY SUBJECT bar — only extract when the article is REPORTING ON a poll's results, not when it merely cites a poll number in passing to back a wider argument. Skip polls of any other public (Israeli, US, Japanese, etc.) even when a TW outlet covers them. The four-signal gate is POLL-LEVEL not question-level: a poll qualifies when the ARTICLE AS A WHOLE names the pollster, gives a fieldwork date range, gives a sample size, and reports at least one numeric percentage attached to a question option. Once the poll qualifies, you MUST extract every distinct question reported in it — not just the headline one. A single article often carries 2–5 questions from one wave (vote intent + approval + favourability + policy ratings); emit them all into the SAME poll's `questions[]` array, sharing the pollster/sample/fielding properties. False negatives at the poll level (whole poll skipped) are preferred over false positives, but false negatives at the question level (cherry-picking from a qualifying poll) are NOT preferred — be exhaustive. Skip subgroup cross-tabulations (e.g. "among 20-29 year olds X% supported Y", "DPP-identifiers split Z%/W%") and demographic breakdowns of an already-extracted main result. SKIP: hypothetical surveys, forecasts/projections, expert-panel surveys, internal party-member polls, candidate-primary selection polls (初選民調 — parties using polls to pick nominees is a process mechanism, not public opinion), single-line passing references to past poll numbers ("a 2022 poll showed..."), and PRC state-media "surveys" with no methodology disclosed. POLLSTER — copy the organisation name VERBATIM from the article into `pollster_hint`; if the article references the poll without naming the pollster, set `pollster_hint` to null. The downstream pipeline resolves the hint to a canonical pollster; do not normalise or translate it yourself. DATE ANCHORING — same rule as exercises: `fielded_start`/`fielded_end` default to the article's PUBLISHED year; only use a different year if the article explicitly states one. QUESTION TEXT — `question_text_zh` should be the verbatim wording from the article when the article quotes the question directly. When the article reports results in prose without quoting the question (common in headlines: "X leads Y 43% to 37%" without a stated question), you MAY synthesise `question_text_zh` from the prose context (e.g. "2026年嘉義市長選舉支持哪位參選人？"). `question_text_en` must be English. OPTIONS — one entry per labelled response in the article (e.g. for an approval poll: 'Satisfied', 'Dissatisfied', 'No opinion'). `label_zh` is the article's original-language label; `label_en` is its English equivalent. `percentage` is the numeric value as a float (47.3, not 0.473 or "47.3%"). Do NOT compute or impute percentages — only extract values explicitly stated. If options sum to less than 100 (because the article omitted "no opinion" or "other"), that is fine — do not fabricate the missing rows. family_hint is your best guess at the question's category and is used as a starting suggestion in the analyst review queue, not as a binding classification. Return an empty array if no poll meeting the bar is reported.
 - DIPLOMACY STATEMENTS: Extract statements or actions by THIRD COUNTRIES (any country other than China/PRC and Taiwan/ROC) that express a position on Taiwan, cross-strait relations, the Taiwan Strait, or the one-China question. This is a SEPARATE axis from cross-strait sentiment — capture the third country's stance ON THE TAIWAN QUESTION, NOT how it relates to either side bilaterally, and NOT the cross-strait sentiment_score. EXCLUDE statements by China/PRC or Taiwan/ROC themselves (those are the cross-strait axis, handled by sentiment). """ + _DIPLOMACY_RULES + """ Return an empty array if no third-country stance on Taiwan/cross-strait is expressed.
 """
@@ -723,14 +750,12 @@ CLASSIFICATION RULES:
 
 def generate_dynamic_glossary(content: str, title: str = "") -> str:
     """Scan article text and title against master glossary, return only matched terms."""
-    found = {zh: en for zh, en in _MASTER_GLOSSARY.items() if zh in content or zh in title}
+    found = {zh: en for zh, en in _GLOSSARY_LIVE.items() if zh in content or zh in title}
     if not found:
         return ""
-    lines = [f"- {zh} MUST be translated as: {en}" for zh, en in found.items()]
+    lines = [f"- {zh} → {en}" for zh, en in found.items()]
     return (
-        "\n\nCRITICAL TERMINOLOGY MAPPING:\n"
-        "You must strictly use the following English translations for these specific terms "
-        "found in the text. Do not use alternative romanisations:\n"
+        "\n\nTERMINOLOGY (authoritative — these translations override any alternative romanisation):\n"
         + "\n".join(lines)
     )
 
@@ -798,6 +823,60 @@ def _resolve_pollster_id(hint, lookup):
     return fallback
 
 
+_INTENSITY_PREFIX = re.compile(r'^(很|非常|相當|十分|還算|還|有點|有些|不太|不很|不是很|比較|稍微|極為|極)')
+_POS_BASES = ('滿意', '信任', '支持', '贊成', '同意', '好', '有信心', '樂觀', '認同', '放心', '喜歡', '看好')
+_NEG_BASES = ('反對', '差', '壞', '擔心', '悲觀', '不好')
+_EN_ADVERB = re.compile(r'^(very|somewhat|fairly|quite|slightly|rather|extremely|strongly|mostly|not very|not too|a little|a bit)\s+', re.I)
+
+
+def _intensity_polarity(label_zh):
+    """('pos'|'neg', base) for an intensity-graded label (很滿意 → ('pos',
+    '滿意'); 有點不滿意 → ('neg', '不滿意')), else None."""
+    base = _INTENSITY_PREFIX.sub('', label_zh or '', count=1)
+    if base == (label_zh or ''):
+        return None
+    if base.startswith('不') and base[1:] in _POS_BASES or base in _NEG_BASES:
+        return ('neg', base)
+    if base in _POS_BASES:
+        return ('pos', base)
+    return None
+
+
+def _collapse_intensity(options):
+    """Fold a binary-with-intensity option set (很滿意 / 還算滿意 / 有點不滿意 /
+    很不滿意 …) to its two-sided aggregate (滿意 / 不滿意), keeping residual
+    options (未明確回答) as they are. Fires only when BOTH sides carry at
+    least two graded options and no plain aggregate label is already
+    present; otherwise the options come back untouched. The aggregate is
+    what compares across waves and pollsters — the prompt used to ask the
+    model to add the numbers, which belongs in code (audit 2026-09-13)."""
+    graded = {'pos': [], 'neg': []}
+    rest = []
+    for o in options:
+        pol = _intensity_polarity(o['label_zh'])
+        if pol:
+            graded[pol[0]].append((o, pol[1]))
+        else:
+            rest.append(o)
+    if len(graded['pos']) < 2 or len(graded['neg']) < 2:
+        return options
+    bases = {b for side in graded.values() for _, b in side}
+    if any(o['label_zh'] in bases for o in rest):
+        return options            # the article gave the aggregate too — keep the plain rows
+    out = []
+    for side in ('pos', 'neg'):
+        members = graded[side]
+        first = min(members, key=lambda t: t[0]['option_order'])[0]
+        label_en = _EN_ADVERB.sub('', first['label_en'] or '', count=1).strip()
+        out.append({
+            'label_zh': members[0][1],
+            'label_en': (label_en[:1].upper() + label_en[1:]) if label_en else members[0][1],
+            'percentage': round(sum(o['percentage'] for o, _ in members), 1),
+            'option_order': first['option_order'],
+        })
+    return sorted(out + rest, key=lambda o: o['option_order'])
+
+
 def _normalise_poll_questions(raw_questions):
     """Filter the AI's extracted questions to the shape the review queue
     expects. Drops questions with empty text or no numeric options;
@@ -832,6 +911,7 @@ def _normalise_poll_questions(raw_questions):
             })
         if not options:
             continue
+        options = _collapse_intensity(options)
         cleaned.append({
             'question_text_zh': text_zh or text_en,
             'question_text_en': text_en or text_zh,
@@ -998,6 +1078,12 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
         conn.commit()
         print(f"    Skipped: not relevant to cross-strait monitoring")
         return 'not_relevant'
+
+    # Canonical English for every person the registry / canonical files know:
+    # rewrites the entity name AND the model's own rendering in the title,
+    # summary, key quote, reasoning and key-figure statements, so a long-tail
+    # Taiwanese name reads the same everywhere on the site.
+    _apply_name_registry(analysis, lambda zh: _resolve_name_en(zh, _ENTITY_CANON))
 
     # Update the article with translation
     conn.execute("""
@@ -1170,7 +1256,6 @@ FULL TEXT:
                 config={
                     "response_mime_type": "application/json",
                     "max_output_tokens": 8000,
-                    "temperature": 0.1
                 }
             )
             log_usage("tier2", "gemini-3.5-flash", review, article_id=article['id'])
@@ -1252,6 +1337,7 @@ FULL TEXT:
 def process_unanalysed_articles(limit=10):
     """Find articles that haven't been analysed yet and process them."""
     conn = get_connection()
+    refresh_name_registry(conn)
 
     articles = conn.execute("""
         SELECT articles.id, articles.title_original, articles.content_original,
@@ -1436,6 +1522,7 @@ def submit_tier1_batch(limit=500):
     submission failure — run_tier1 falls back to the interactive path in
     that case (articles already recorded in a job stay riding it)."""
     conn = get_connection()
+    refresh_name_registry(conn)
     try:
         articles = _select_tier1_candidates(conn, limit)
         if not articles:
@@ -1556,6 +1643,7 @@ def collect_tier1_batches():
     turnaround is 24h) are marked failed, which releases their articles
     back into the next submission's selection."""
     conn = get_connection()
+    refresh_name_registry(conn)
     try:
         jobs = conn.execute(
             "SELECT * FROM gemini_batch_jobs WHERE status = 'submitted'"
@@ -1694,8 +1782,72 @@ def run_tier1(limit=500):
 # so domestic drills flow into the analyst review queue without
 # polluting the main signal feed with PR pieces.
 
+def _nullable(t):
+    return {"anyOf": [{"type": t}, {"type": "null"}]}
+
+
+# Response schemas for the side-extract calls (audit 2026-09-13, H3): the
+# envelope shape is enforced by the API, so the bare-array quirk that
+# parse_llm_json tolerates can no longer occur on these paths.
+_EXERCISE_ONLY_SCHEMA = {
+    "type": "object",
+    "properties": {"military_exercises": {"type": "array", "items": {
+        "type": "object",
+        "properties": {
+            "name_zh": _nullable("string"), "name_en": _nullable("string"),
+            "performer_side": {"type": "string", "enum": ["PRC", "ROC", "US", "JP", "MULTI"]},
+            "participants": {"type": "array", "items": {"type": "string"}},
+            "exercise_kind": {"type": "string", "enum": ["live_fire", "readiness_drill", "joint_patrol",
+                                                         "named_exercise", "cyber", "amphibious", "other"]},
+            "start_date": _nullable("string"), "end_date": _nullable("string"),
+            "location_label": _nullable("string"),
+            "latitude": _nullable("number"), "longitude": _nullable("number"),
+            "description_en": {"type": "string"}, "description_zh": _nullable("string"),
+            "confidence": {"type": "number"}},
+        "required": ["performer_side", "exercise_kind", "description_en", "confidence"]}}},
+    "required": ["military_exercises"]}
+
+_POLL_ONLY_SCHEMA = {
+    "type": "object",
+    "properties": {"polls": {"type": "array", "items": {
+        "type": "object",
+        "properties": {
+            "pollster_hint": _nullable("string"),
+            "fielded_start": _nullable("string"), "fielded_end": _nullable("string"),
+            "sample_size": _nullable("integer"), "methodology_note": _nullable("string"),
+            "questions": {"type": "array", "items": {
+                "type": "object",
+                "properties": {
+                    "question_text_zh": {"type": "string"}, "question_text_en": {"type": "string"},
+                    "family_hint": _nullable("string"),
+                    "options": {"type": "array", "items": {
+                        "type": "object",
+                        "properties": {"label_zh": {"type": "string"}, "label_en": {"type": "string"},
+                                       "percentage": {"type": "number"}},
+                        "required": ["label_zh", "label_en", "percentage"]}}},
+                "required": ["question_text_zh", "question_text_en", "options"]}},
+            "confidence": {"type": "number"}},
+        "required": ["questions", "confidence"]}}},
+    "required": ["polls"]}
+
+_DIPLOMACY_ONLY_SCHEMA = {
+    "type": "object",
+    "properties": {"diplomacy_statements": {"type": "array", "items": {
+        "type": "object",
+        "properties": {
+            "country": {"type": "string"}, "country_iso": {"type": "string"},
+            "speaker": _nullable("string"),
+            "authority_tier": {"type": "string", "enum": ["government", "head_of_state", "ruling_party",
+                                                          "legislator", "subnational", "former_official", "other"]},
+            "stance": {"type": "number"}, "statement_en": {"type": "string"},
+            "statement_zh": _nullable("string"), "stated_date": _nullable("string"),
+            "confidence": {"type": "number"}},
+        "required": ["country", "country_iso", "authority_tier", "stance", "statement_en", "confidence"]}}},
+    "required": ["diplomacy_statements"]}
+
+
 _EXERCISE_ONLY_PROMPT = """You are extracting military exercises from a news article.
-Return ONLY valid JSON of the shape:
+Return JSON of the shape:
 
 {
   "military_exercises": [
@@ -1770,8 +1922,8 @@ FULL TEXT:
         contents=prompt,
         config={
             "response_mime_type": "application/json",
+            "response_json_schema": _EXERCISE_ONLY_SCHEMA,
             "max_output_tokens": 4000,
-            "temperature": 0.1,
             # Template-following extraction — low thinking is plenty and avoids
             # spending several thinking tokens per output token (they bill at the
             # output rate). Measured ~12x thinking:output at 'medium'.
@@ -1827,8 +1979,8 @@ FULL TEXT:
         contents=prompt,
         config={
             "response_mime_type": "application/json",
+            "response_json_schema": _DIPLOMACY_ONLY_SCHEMA,
             "max_output_tokens": 4000,
-            "temperature": 0.1,
             "thinking_config": {"thinking_level": "medium"},
         },
     )
@@ -1915,6 +2067,7 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
     Pass source_names to override the flag-driven roster for ad-hoc runs."""
     from scraper.utils.db import get_connection
     conn = get_connection()
+    refresh_name_registry(conn)
     try:
         if source_names:
             placeholders = ",".join("?" * len(source_names))
@@ -2006,7 +2159,7 @@ def process_exercise_only_articles(source_names=None, days=14, limit=30):
 # join the seed_sources roster.
 
 _POLL_ONLY_PROMPT = """You are extracting public-opinion polls from a news article.
-Return ONLY valid JSON of the shape:
+Return JSON of the shape:
 
 {
   "polls": [
@@ -2095,18 +2248,9 @@ applies to ANY binary-with-intensity scale where the question
 collapses to two directional positions plus no-opinion —
 satisfied/dissatisfied, trust/distrust, favourable/unfavourable,
 agree/disagree, and good/bad question families all qualify. If the
-article reports both forms, compute the aggregate by summing the
-two positive intensities and the two negative intensities. If the
-article reports ONLY the intensity breakdown without a top-line
-aggregate, ALSO collapse to the 3-option aggregate (sum the
-positive intensities, sum the negative intensities, keep no-opinion
-verbatim) — consistency across waves matters more than preserving
-the journalistic detail. EXCEPTION (do NOT collapse): multi-option
-position scales like the 統獨 7-step scale, statement-list
-questions where each option is a distinct claim being rated,
-multi-candidate vote-intention questions, and ranking questions.
-These have more than two underlying positions; the option count is
-the question's content, not modifier intensity.
+article reports only the intensity breakdown, extract the breakdown
+exactly as printed (one option per intensity label) — do not sum;
+the pipeline collapses it to the aggregate deterministically.
 
 CANONICAL NO-OPINION LABEL: when the article reports a no-opinion /
 undeclared / didn't-answer bucket (typically 未明確回答 in Chinese
@@ -2199,8 +2343,8 @@ FULL TEXT:
         contents=prompt,
         config={
             "response_mime_type": "application/json",
+            "response_json_schema": _POLL_ONLY_SCHEMA,
             "max_output_tokens": 16000,
-            "temperature": 0.1,
             # Template-following extraction against a detailed rubric — low
             # thinking is sufficient here and 'medium' was billing ~51 thinking
             # tokens per output token on this stage (thinking bills at the
@@ -2234,6 +2378,7 @@ def process_poll_only_articles(days=14, limit=30):
     zero-yield), so an article is only ever sent to the API once."""
     from scraper.utils.db import get_connection
     conn = get_connection()
+    refresh_name_registry(conn)
     try:
         pollster_lookup = _load_pollster_lookup(conn)
         title_clauses = " OR ".join(

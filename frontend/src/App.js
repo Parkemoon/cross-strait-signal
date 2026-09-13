@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
 import { useDashboardData } from "./hooks/useDashboardData";
@@ -22,6 +22,8 @@ import DiplomacyTab from "./components/DiplomacyTab";
 import VisitsTab from "./components/VisitsTab";
 import PositionsTab from "./components/PositionsTab";
 import AltModelsTab from "./components/AltModelsTab";
+import NamesReviewQueue from "./components/NamesReviewQueue";
+import { fetchNameCandidatesCount } from "./api";
 import AltModelLens from "./components/AltModelLens";
 import NavMenu from "./components/NavMenu";
 import { WIDE_VIEWS } from "./navGroups";
@@ -65,6 +67,16 @@ export default function App() {
     articles, total, loading, stats,
     reviewPending, pendingApproval, setPendingApproval,
   } = useDashboardData(filters, page, READ_ONLY ? null : altLens);
+
+  // Admin ▾ Names badge: pending name-registry rows. Refetched whenever the
+  // view changes so approving in the queue updates the count on leaving it.
+  const [namesPending, setNamesPending] = useState(0);
+  useEffect(() => {
+    if (READ_ONLY) return;
+    let live = true;
+    fetchNameCandidatesCount().then((d) => { if (live) setNamesPending(d.pending || 0); }).catch(() => {});
+    return () => { live = false; };
+  }, [view]);
 
   const isSection = WIDE_VIEWS.includes(view);
   const byPlace = {};
@@ -134,7 +146,7 @@ export default function App() {
               <div style={{ width: "64px", height: "1px", background: "var(--ink)", margin: "14px auto 10px" }} />
               {/* nav row */}
               <div style={{ paddingBottom: "12px" }}>
-                <NavMenu view={view} onSelect={setView} badges={{ review: reviewPending }} />
+                <NavMenu view={view} onSelect={setView} badges={{ review: reviewPending, names: namesPending }} />
               </div>
             </div>
             {/* double rule — the signature; used only here and above the footer */}
@@ -180,7 +192,7 @@ export default function App() {
 
       {/* Tab bar — mobile only (groups from navGroups.js; Stats/Social are mobile-only panels) */}
       {isMobile && (
-        <NavMenu mobile tab={mobileTab} badges={{ review: reviewPending }}
+        <NavMenu mobile tab={mobileTab} badges={{ review: reviewPending, names: namesPending }}
                  onSelect={(id) => {
                    setMobileTab(id);
                    // feed/stats/social all share the "feed" view on mobile; every other tab is a view id.
@@ -280,6 +292,10 @@ export default function App() {
                 : !READ_ONLY && view === "altmodels" ? (
                   <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
                     <AltModelsTab />
+                  </main>
+                ) : !READ_ONLY && view === "names" ? (
+                  <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
+                    <NamesReviewQueue />
                   </main>
                 ) : null}
             </div>

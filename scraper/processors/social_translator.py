@@ -31,9 +31,9 @@ def _build_glossary_block(titles):
     found = {zh: en for zh, en in _MASTER_GLOSSARY.items() if zh in combined}
     if not found:
         return ""
-    lines = [f"- {zh} MUST be translated as: {en}" for zh, en in found.items()]
+    lines = [f"- {zh} → {en}" for zh, en in found.items()]
     return (
-        "\n\nCRITICAL TERMINOLOGY MAPPING — you are strictly forbidden from deviating from these translations:\n"
+        "\n\nTERMINOLOGY (authoritative — these translations override any alternative romanisation):\n"
         + "\n".join(lines)
     )
 
@@ -47,14 +47,11 @@ Rules:
 - Preserve political and military terminology precisely
 - PTT titles use informal internet Chinese, slang, and sometimes coded language — translate the meaning, not just the words
 - Weibo keywords are often 2-6 character topic labels — give a concise but clear English equivalent
-- Do not add commentary or explanation
-- Return ONLY a JSON array of strings, one translation per item, in the same order as input
+- Return one translation per item, in the same order as the input
 - Example input: ["台海軍演", "共機擾台"] → Example output: ["Taiwan Strait military exercise", "PLA aircraft incursion into Taiwan airspace"]
 
 Items to translate:
-{items}
-
-Return ONLY a JSON array of strings. No markdown, no commentary."""
+{items}"""
 
 
 def translate_social_pulse(batch_size=20):
@@ -87,7 +84,11 @@ def translate_social_pulse(batch_size=20):
             response = client.models.generate_content(
                 model='gemini-3.1-flash-lite',
                 contents=prompt,
-                config={"thinking_config": {"thinking_level": "low"}},
+                config={
+                    "response_mime_type": "application/json",
+                    "response_json_schema": {"type": "array", "items": {"type": "string"}},
+                    "thinking_config": {"thinking_level": "low"},
+                },
             )
             log_usage("social", "gemini-3.1-flash-lite", response)
             translations = parse_llm_json(response.text)

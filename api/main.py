@@ -22,7 +22,7 @@ if not os.environ.get("ADMIN_TOKEN", "").strip():
         file=sys.stderr,
     )
 
-from api.routes import articles, stats, notes, social, economy, trade_access, military, polls, diplomacy, positions, alt_models, coast_guard, copy, visits, maritime
+from api.routes import articles, stats, notes, social, economy, trade_access, military, polls, diplomacy, positions, alt_models, coast_guard, copy, visits, maritime, names
 from api.routes.review import router as review_router
 
 app = FastAPI(
@@ -63,6 +63,7 @@ app.include_router(copy.router)
 app.include_router(alt_models.router)
 app.include_router(coast_guard.router)
 app.include_router(maritime.router)
+app.include_router(names.router)
 
 @app.get("/")
 def root():

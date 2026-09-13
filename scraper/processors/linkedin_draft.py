@@ -104,7 +104,7 @@ def build_prompt(cluster: dict, feedback: list[str] | None = None) -> str:
 
     retry = ""
     if feedback:
-        retry = ("\nYOUR PREVIOUS DRAFT BROKE THESE RULES; fix every one of them:\n"
+        retry = ("\nThe previous draft broke these rules; the new draft must satisfy each:\n"
                  + "\n".join(f"- {f}" for f in feedback) + "\n")
 
     return (
@@ -183,7 +183,6 @@ def _call_model(prompt: str) -> dict:
             # gemini-3.5-flash spends thinking tokens out of this budget
             # (~2k thoughts on a draft); 2000 truncated every response.
             "max_output_tokens": 8000,
-            "temperature": 0.3,
             "thinking_config": {"thinking_level": "low"},
         },
     )
