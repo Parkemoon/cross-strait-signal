@@ -27,7 +27,7 @@ from scraper.processors.ai_pipeline import (
     client,
     generate_dynamic_glossary,
 )
-from scraper.utils.llm import parse_llm_json
+from scraper.utils.llm import nullable as _nullable, parse_llm_json
 from scraper.utils.usage_log import log_usage
 
 _MODEL = "gemini-3.1-flash-lite"
@@ -106,10 +106,6 @@ WORKED EXAMPLES:
 - "Foreign Minister Lin Chia-lung to attend Pacific Islands Forum in Palau" → OUT OF SCOPE, empty array.
 - "Japanese cross-party delegation visits Beijing, discusses Taiwan" → OUT OF SCOPE, empty array.
 - "DPP legislators condemn KMT youth trip to Shanghai as kowtowing" → ONE row for the KMT youth trip (TW_TO_PRC, KMT, youth_delegation), nothing for the DPP reaction."""
-
-def _nullable(t):
-    return {"anyOf": [{"type": t}, {"type": "null"}]}
-
 
 _VISIT_SCHEMA = {
     "type": "object",

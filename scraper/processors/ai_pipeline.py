@@ -477,7 +477,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 load_dotenv()
 
 from scraper.utils.db import get_connection
-from scraper.utils.llm import get_gemini_client, parse_llm_json
+from scraper.utils.llm import get_gemini_client, nullable as nullable_schema, parse_llm_json
 client = get_gemini_client()
 
 # Named-exercise roster shared by all three exercise-extraction prompts (the
@@ -1782,9 +1782,7 @@ def run_tier1(limit=500):
 # so domestic drills flow into the analyst review queue without
 # polluting the main signal feed with PR pieces.
 
-def _nullable(t):
-    return {"anyOf": [{"type": t}, {"type": "null"}]}
-
+_nullable = nullable_schema
 
 # Response schemas for the side-extract calls (audit 2026-09-13, H3): the
 # envelope shape is enforced by the API, so the bare-array quirk that
