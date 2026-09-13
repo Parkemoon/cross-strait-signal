@@ -27,6 +27,13 @@ def get_gemini_client():
     return _client
 
 
+def nullable(schema_type):
+    """`{"anyOf": [{"type": T}, {"type": "null"}]}` — the nullable-field
+    shape Gemini's response_json_schema accepts; shared by every
+    side-extract schema so the spelling lives in one place."""
+    return {"anyOf": [{"type": schema_type}, {"type": "null"}]}
+
+
 def parse_llm_json(text, envelope_key=None):
     """json.loads with the code-fence fallback every Gemini JSON-mode call
     needs (the model occasionally wraps output in ```json fences despite
