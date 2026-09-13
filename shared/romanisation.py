@@ -16,10 +16,14 @@ Two questions answered from text alone, no network:
 
 Measured 2026-09-13 on 90 days of prod entities: ~9 % of Taiwan-side person
 entities carried a marker, two-thirds of them from PRC-source articles in
-simplified script. Detector noise: Japanese names in kanji trip the
-unhyphenated rule, and a Taiwanese person whose established English name is
-pinyin-shaped (the actor Chen Bolin) is a false positive — hence markers
-flag for a lookup, they never rewrite anything by themselves.
+simplified script. Both markers sit behind hanyu_shaped(): a name only
+counts when every token is a pinyin syllable with a one-syllable (or
+compound) surname and a one- or two-syllable given name, so Western and
+Japanese names (Kharis Templeman, Hayashi Yoshimasa) never trip the
+unhyphenated rule (they did until 2026-09-13). A Taiwanese person whose
+established English name is pinyin-shaped (the actor Chen Bolin) is still
+a false positive — hence markers flag for a lookup, they never rewrite
+anything by themselves.
 
 to_wade_giles(name_zh) — deterministic Hanyu → Wade-Giles conversion in
 Taiwan convention (no apostrophes, hyphenated given name, 思 = szu). Needs
