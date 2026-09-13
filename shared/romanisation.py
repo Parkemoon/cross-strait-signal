@@ -35,12 +35,20 @@ try:  # optional dependency — the generated tier switches off without it
 except ImportError:  # pragma: no cover
     _pinyin = None
 
-TW_ROLE = re.compile(
-    r"\b(taiwan|taiwanese|roc\b|kmt|dpp|tpp|npp|legislat|legislative yuan|mac\b|mainland affairs|"
-    r"executive yuan|control yuan|examination yuan|premier|magistrate|taipei|kaohsiung|taichung|"
+# Two tiers of Taiwan-side evidence. STRONG words name Taiwan itself or a
+# body only Taiwan has; WEAK words are institutions both sides have (a
+# defence ministry, a premier, legislators, a foreign ministry) and only
+# read as Taiwan-side when nothing on the role says PRC — "PRC Ministry of
+# National Defense spokesperson" is PRC, not ambiguous (2026-09-13: the
+# first backlog run registered a PRC MND spokesperson as Taiwan-side off
+# 17 unqualified "Ministry of National Defense spokesperson" roles).
+TW_ROLE_STRONG = re.compile(
+    r"\b(taiwan|taiwanese|roc\b|kmt|dpp|tpp|npp|legislative yuan|mac\b|mainland affairs|"
+    r"executive yuan|control yuan|examination yuan|taipei|kaohsiung|taichung|"
     r"tainan|taoyuan|hsinchu|keelung|kinmen|matsu|penghu|hualien|yilan|chiayi|changhua|nantou|"
-    r"pingtung|taitung|miaoli|yunlin|mnd\b|ministry of national defen[cs]e|mofa\b|sef\b|"
-    r"straits exchange|academia sinica|tsmc|presidential office)", re.I)
+    r"pingtung|taitung|miaoli|yunlin|sef\b|straits exchange|academia sinica|tsmc|presidential office)", re.I)
+TW_ROLE_WEAK = re.compile(
+    r"\b(legislat|premier|magistrate|mnd\b|ministry of national defen[cs]e|mofa\b)", re.I)
 PRC_ROLE = re.compile(
     r"\b(prc\b|china|chinese|ccp|cpc|beijing|pla\b|people'?s liberation|tao\b|taiwan affairs office|"
     r"state council|xinhua|global times|mainland|fujian|xiamen|shanghai|guangdong|eastern theat|"
@@ -57,14 +65,25 @@ CJK_NAME = re.compile(r'^[一-鿿]{2,4}$')
 _PRC_TAIWAN_BODIES = re.compile(r"taiwan affairs office|taiwan (?:research|work|studies)|taiwan compatriot", re.I)
 
 
+# Taiwan bodies whose names contain "mainland" — stripped before the PRC
+# test so "Mainland Affairs Council minister" reads as TW, not both.
+_TW_MAINLAND_BODIES = re.compile(r"mainland affairs", re.I)
+
+
 def side_from_role(role):
     r = role or ""
-    tw = bool(TW_ROLE.search(_PRC_TAIWAN_BODIES.sub('', r)))
-    prc = bool(PRC_ROLE.search(r))
-    if tw and not prc:
+    tw_text = _PRC_TAIWAN_BODIES.sub('', r)
+    tw_strong = bool(TW_ROLE_STRONG.search(tw_text))
+    tw_weak = bool(TW_ROLE_WEAK.search(tw_text))
+    prc = bool(PRC_ROLE.search(_TW_MAINLAND_BODIES.sub('', r)))
+    if tw_strong and prc:
+        return None
+    if tw_strong:
         return "TW"
-    if prc and not tw:
+    if prc:
         return "PRC"
+    if tw_weak:
+        return "TW"
     return None
 
 
@@ -72,10 +91,61 @@ def _syllables(word):
     return len(re.findall(r"[aeiouü]+", word.lower()))
 
 
+# Plausibility test behind the markers: a name only counts as Hanyu-shaped
+# when every token segments into Mandarin pinyin syllables (initial +
+# final; overgenerates slightly, which is harmless here) with a
+# one-syllable surname (or a compound one) and a one- or two-syllable
+# given name. "Kharis Templeman" and "Hayashi Yoshimasa" fail the test
+# and stop tripping the unhyphenated-given-name rule (2026-09-13: the
+# entity collapse had rewritten a Stanford scholar onto another author's
+# surname because 'Templeman' read as an unhyphenated given name).
+_PY_FINALS = {'a', 'o', 'e', 'i', 'u', 'v', 'ai', 'ei', 'ao', 'ou', 'an', 'en', 'ang', 'eng', 'ong', 'er',
+              'ia', 'ie', 'iao', 'iu', 'ian', 'in', 'iang', 'ing', 'iong', 'ua', 'uo', 'uai', 'ui', 'uan',
+              'un', 'uang', 'ueng', 'ue', 've', 'van', 'vn'}
+_PY_INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h',
+                'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w', '']
+_PY_SYLLABLES = {i + f for i in _PY_INITIALS for f in _PY_FINALS} | {'ng', 'hm', 'hng', 'm'}
+_COMPOUND_SURNAMES_PY = {'ouyang', 'sima', 'zhuge', 'shangguan', 'situ', 'murong', 'dongfang', 'xiahou',
+                         'zhangjian', 'fanjiang'}
+
+
+def pinyin_syllables(token):
+    """Segment a lower-case letter string into pinyin syllables (longest
+    match, with backtracking); None when it cannot be segmented."""
+    t = token.lower().replace('ü', 'v').replace("'", '')
+    if not t.isalpha():
+        return None
+    best = [None] * (len(t) + 1)
+    best[0] = []
+    for i in range(len(t)):
+        if best[i] is None:
+            continue
+        for j in range(min(len(t), i + 6), i, -1):
+            if t[i:j] in _PY_SYLLABLES and (best[j] is None or len(best[i]) + 1 < len(best[j])):
+                best[j] = best[i] + [t[i:j]]
+    return best[len(t)]
+
+
+def hanyu_shaped(name_en):
+    """True when the name could be a Hanyu Pinyin rendering of a Chinese
+    name: 2–3 tokens, surname one syllable (or compound), given name
+    one or two syllables in total."""
+    tokens = (name_en or '').strip().split()
+    if not 2 <= len(tokens) <= 3:
+        return False
+    sur = pinyin_syllables(tokens[0])
+    if sur is None or not (len(sur) == 1 or (len(sur) == 2 and tokens[0].lower() in _COMPOUND_SURNAMES_PY)):
+        return False
+    given = pinyin_syllables(''.join(tokens[1:]).replace('-', ''))
+    return given is not None and 1 <= len(given) <= 2
+
+
 def hanyu_markers(name_en):
     """List of marker labels found in a romanised name (empty = none)."""
     n = (name_en or "").strip()
     out = []
+    if not hanyu_shaped(n):
+        return out
     if _HANYU_INITIAL.search(n):
         out.append("q/x/zh initial")
     m = _SURNAME_GIVEN.match(n)
