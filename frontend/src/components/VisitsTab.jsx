@@ -151,8 +151,9 @@ function VisitField({ label, children }) {
 }
 
 // ── Feed coverage ─────────────────────────────────────────────────────────
-// `/api/visits/{id}/coverage`: the visit family's own articles plus their
-// feed-cluster siblings, side-classified server-side (shared/source_side.py).
+// `/api/visits/{id}/coverage`: the visit family's own articles (keeper +
+// merged rows), side-classified server-side (shared/source_side.py). Feed
+// cluster siblings are deliberately not included (neighbour-story leaks).
 // Taiwan-side and PRC-side reporting sit in two columns so the reader sees
 // both camps' account of one trip together; international outlets go
 // underneath. Loaded on first expand; the counts on the toggle come with the
