@@ -1,6 +1,7 @@
 """api/routes/visits.py — feed coverage of a visit: the visit family's own
-articles (keeper + merged rows, chains included) plus their event-cluster
-siblings, side-classified, feed-visible only for public callers."""
+articles (keeper + merged rows, chains included), side-classified,
+feed-visible only for public callers. Event-cluster siblings are NOT
+included (title-Jaccard neighbours leaked unrelated stories)."""
 import contextlib
 import os
 import sqlite3
@@ -65,12 +66,13 @@ def db(monkeypatch):
     a3 = _art(conn, zaobao, 'KMT chair in Shanghai', 'clusX', '2026-04-08T10:00:00')
     a4 = _art(conn, udn_breaking, 'Cheng at Sun Yat-sen Mausoleum', None, '2026-04-09T08:00:00')
     a5 = _art(conn, xinhua, 'Commentary on the visit', 'clusX', '2026-04-08T11:00:00', approved=0)
-    a6 = _art(conn, udn, 'Han Kuo-yu on the budget', 'clusY', '2026-04-09T09:00:00')
+    a6 = _art(conn, udn, 'Han Kuo-yu on the budget', 'clusX', '2026-04-09T09:00:00')
 
     v1 = _visit(conn, a1)                                   # approved keeper
     v2 = _visit(conn, a4, status='merged', merged_into=v1)  # merged child
     v3 = _visit(conn, a2, status='merged', merged_into=v2)  # merged into the child — chain
-    v4 = _visit(conn, a6, status='pending')                 # not public
+    _visit(conn, a5, status='merged', merged_into=v1)       # merged, but its article is unapproved
+    v4 = _visit(conn, a6, status='pending')                 # not public; a6 shares clusX (neighbour story)
     conn.commit()
 
     @contextlib.contextmanager
@@ -81,26 +83,24 @@ def db(monkeypatch):
     return {'conn': conn, 'v1': v1, 'v4': v4, 'a1': a1, 'a2': a2, 'a3': a3, 'a4': a4, 'a5': a5, 'a6': a6}
 
 
-def test_public_coverage_walks_merge_chain_and_cluster(db):
+def test_public_coverage_walks_merge_chain_not_cluster(db):
     out = visits_route.coverage(db['v1'], admin=False)
     by_id = {a['id']: a for a in out['articles']}
-    assert set(by_id) == {db['a1'], db['a2'], db['a3'], db['a4']}
-    # own + merged (chained) articles are 'visit'; the Zaobao sibling is 'cluster'
-    assert by_id[db['a1']]['via'] == 'visit'
-    assert by_id[db['a2']]['via'] == 'visit'      # reachable both ways — 'visit' wins
-    assert by_id[db['a4']]['via'] == 'visit'
-    assert by_id[db['a3']]['via'] == 'cluster'
-    assert by_id[db['a3']]['cluster_id'] == 'clusX'
+    # own + merged (chained) articles only — the Zaobao and Han Kuo-yu rows
+    # share the cluster but no visit row, so they stay out
+    assert set(by_id) == {db['a1'], db['a2'], db['a4']}
+    assert 'via' not in by_id[db['a1']]
     # sides + outlets: UDN and UDN Breaking collapse to one publication
-    assert out['counts'] == {'articles': 4, 'outlets': 3, 'TW': 2, 'PRC': 1, 'other': 1}
-    assert by_id[db['a3']]['side'] is None
+    assert out['counts'] == {'articles': 3, 'outlets': 2, 'TW': 2, 'PRC': 1, 'other': 0}
     # oldest first
-    assert [a['id'] for a in out['articles']] == [db['a1'], db['a2'], db['a3'], db['a4']]
+    assert [a['id'] for a in out['articles']] == [db['a1'], db['a2'], db['a4']]
 
 
-def test_admin_sees_unapproved_sibling(db):
+def test_admin_sees_unapproved_merged_article(db):
     out = visits_route.coverage(db['v1'], admin=True)
-    assert db['a5'] in {a['id'] for a in out['articles']}
+    ids = {a['id'] for a in out['articles']}
+    assert db['a5'] in ids
+    assert db['a3'] not in ids and db['a6'] not in ids   # cluster siblings never, even for admins
     assert out['counts']['PRC'] == 2
 
 
@@ -117,7 +117,7 @@ def test_list_carries_coverage_counts(db):
     out = visits_route.list_visits(days=3650, start=None, end=None, direction=None, affiliation=None,
                                    side=None, level=None, status=None, figure=None, limit=50)
     assert [v['id'] for v in out['visits']] == [db['v1']]
-    assert out['visits'][0]['coverage'] == {'articles': 4, 'outlets': 3, 'TW': 2, 'PRC': 1, 'other': 1}
+    assert out['visits'][0]['coverage'] == {'articles': 3, 'outlets': 2, 'TW': 2, 'PRC': 1, 'other': 0}
 
 
 def test_counts_helper_handles_empty():
