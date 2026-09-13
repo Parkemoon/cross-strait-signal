@@ -107,6 +107,31 @@ WORKED EXAMPLES:
 - "Japanese cross-party delegation visits Beijing, discusses Taiwan" → OUT OF SCOPE, empty array.
 - "DPP legislators condemn KMT youth trip to Shanghai as kowtowing" → ONE row for the KMT youth trip (TW_TO_PRC, KMT, youth_delegation), nothing for the DPP reaction."""
 
+def _nullable(t):
+    return {"anyOf": [{"type": t}, {"type": "null"}]}
+
+
+_VISIT_SCHEMA = {
+    "type": "object",
+    "properties": {"visits": {"type": "array", "items": {
+        "type": "object",
+        "properties": {
+            "direction": {"type": "string", "enum": sorted(DIRECTIONS)},
+            "visit_status": {"type": "string", "enum": sorted(STATUSES)},
+            "visitor_name_en": {"type": "string"}, "visitor_name_zh": _nullable("string"),
+            "visitor_title": _nullable("string"), "visitor_affiliation": {"type": "string", "enum": sorted(AFFILIATIONS)},
+            "visit_level": {"type": "string", "enum": sorted(LEVELS)},
+            "delegation_desc_en": _nullable("string"),
+            "counterpart_name_en": _nullable("string"), "counterpart_name_zh": _nullable("string"),
+            "counterpart_title": _nullable("string"), "counterpart_affiliation": _nullable("string"),
+            "event_name_en": _nullable("string"), "event_name_zh": _nullable("string"),
+            "location_label": _nullable("string"),
+            "start_date": _nullable("string"), "end_date": _nullable("string"),
+            "purpose_en": _nullable("string"), "quote_zh": _nullable("string"),
+            "confidence": {"type": "number"}},
+        "required": ["direction", "visit_status", "visitor_name_en", "visitor_affiliation", "visit_level", "confidence"]}}},
+    "required": ["visits"]}
+
 _VISIT_ONLY_PROMPT = ("""You are extracting CROSS-STRAIT VISITS — publicly reported visits, meetings and exchanges between official- or party-level actors from Taiwan and from mainland China / Hong Kong / Macao — from a news article.
 
 Return JSON: {"visits": [ {"direction","visit_status","visitor_name_en","visitor_name_zh","visitor_title","visitor_affiliation","visit_level","delegation_desc_en","counterpart_name_en","counterpart_name_zh","counterpart_title","counterpart_affiliation","event_name_en","event_name_zh","location_label","start_date","end_date","purpose_en","quote_zh","confidence"} ]}
@@ -142,8 +167,8 @@ FULL TEXT:
         contents=prompt,
         config={
             "response_mime_type": "application/json",
+            "response_json_schema": _VISIT_SCHEMA,
             "max_output_tokens": 4000,
-            "temperature": 0.1,
             "thinking_config": {"thinking_level": "medium"},
         },
     )

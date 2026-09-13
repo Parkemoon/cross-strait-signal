@@ -93,7 +93,7 @@ def _gen_json(client, model, prompt, stage):
     resp = client.models.generate_content(
         model=model, contents=prompt,
         config={"response_mime_type": "application/json",
-                "max_output_tokens": 2000, "temperature": 0.0})
+                "max_output_tokens": 2000})
     log_usage(stage, model, resp)
     return parse_llm_json(resp.text)
 
