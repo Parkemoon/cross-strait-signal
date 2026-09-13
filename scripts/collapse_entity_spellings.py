@@ -24,6 +24,11 @@ Precision gates (a group is SKIPPED, never partially rewritten):
     the unmarked spellings.
   * names the canonical file or an approved registry row resolves are
     left to `renormalise_entities.py`, which owns them.
+  * single-character keys (雷 covered three different destroyers).
+  * person groups where a minority spelling on COMPETING_MIN_ROWS or more
+    rows shares no token with the target and is not the other
+    romanisation of it (Chin Jih-hsin / Qin Ri-xin collapse; Kharis
+    Templeman vs Kurlantzick is held and printed for the analyst).
 
 Dry-run by default; --apply writes and drops a revert manifest (id ->
 previous spelling) next to the CWD, same convention as dedup_articles.py.
