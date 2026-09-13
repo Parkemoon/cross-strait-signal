@@ -993,3 +993,31 @@ CREATE TABLE IF NOT EXISTS maritime_pulls (
     pulled_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_maritime_pulls_kind_zone ON maritime_pulls(kind, zone_id, period_end);
+
+-- Name registry (migration 0014): the English form the site uses for each
+-- Chinese personal name and where it came from. Seeded approved from
+-- glossary.json + entity_canonical.json; grown by the Step-3f lookup worker
+-- and the Admin ▾ Names queue. Only status='approved' rows feed the resolver
+-- and the prompt-time terminology block. See shared/name_registry.py.
+CREATE TABLE IF NOT EXISTS name_registry (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    zh_trad          TEXT NOT NULL UNIQUE,
+    zh_simp          TEXT,
+    en               TEXT,
+    side             TEXT CHECK (side IN ('TW', 'PRC', 'OTHER')),
+    source           TEXT NOT NULL,               -- glossary | canonical | survey | wikidata | search | generated | analyst
+    status           TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    qid              TEXT,
+    evidence_url     TEXT,
+    evidence_note    TEXT,
+    role_hint        TEXT,
+    candidates_json  TEXT,
+    mentions         INTEGER NOT NULL DEFAULT 0,
+    first_article_id INTEGER,
+    confidence       REAL,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_at      TEXT,
+    reviewed_by      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_name_registry_simp ON name_registry(zh_simp);
+CREATE INDEX IF NOT EXISTS idx_name_registry_status ON name_registry(status);

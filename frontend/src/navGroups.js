@@ -28,6 +28,7 @@ const ALL_GROUPS = [
   { id: "admin", label: "Admin", adminOnly: true, items: [
     { view: "review", label: "Review", badge: "review" },
     { view: "altmodels", label: "Alt Models" },
+    { view: "names", label: "Names", badge: "names" },   // name-registry review queue
   ] },
   { id: "about", label: "About", view: "about" },   // full page since the Morning Brief redesign (was a modal)
 ];

@@ -72,3 +72,7 @@ Migration 0012 ships `maritime_civil_*` / `maritime_sar_daily` / `maritime_pulls
 
 `scraper/processors/positions.json` and `data/site_copy.json` are committed files that the running API rewrites in place on admin edits (`JsonFileStore`). Consequence: edits made on prod dirty the PROD tree. Before any content change on staging, copy prod's file over staging's and commit both together; `server_deploy.sh`'s `git pull` will refuse to run over a dirty prod tree, so check `git -C /var/www/cross-strait-signal status` first.
 
+## Name registry deploy notes (migration 0014, 2026-09-13)
+
+`server_deploy.sh` applies the migration but does not `pip install`: run `venv/bin/pip install -r requirements.txt` on the prod worktree first (`pypinyin`, `zhconv` — both optional at import; without them the generated tier and simplified folding switch off). Then from the prod worktree: `venv/bin/python scripts/seed_name_registry.py` (398 approved rows from the JSON files) and `venv/bin/python scripts/renormalise_entities.py --type person --apply` (the 2026-09-13 glossary survey added 513 canonical keys; the history repair is what makes the entity table consistent with the new prompt). Step 3f then runs on every tick; expect a handful of pending rows a day in Admin ▾ Names. The Tier-1 prompt changed in the same deploy — re-baseline the alt-model `gemini-control` arm before comparing sweep rows across it.
+

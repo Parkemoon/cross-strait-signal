@@ -36,14 +36,11 @@ load_dotenv()
 
 
 from scraper.utils.db import get_connection
-from scraper.utils.llm import get_gemini_client, parse_llm_json
 from scraper.processors.ai_pipeline import (
-    _CANONICAL_ENTITIES,
-    _NAMED_EXERCISES,
     _build_exercise_canonical_key,
     _exercise_canonical_en,
+    _extract_exercises_only,
     _geocode_from_label,
-    generate_dynamic_glossary,
 )
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -54,60 +51,6 @@ from shared.exercise_keys import (
     COORD_BBOX as _COORD_BBOX,
 )
 
-_client = get_gemini_client()
-
-_EXTRACT_PROMPT = """You are extracting military exercises from a news article.
-Return ONLY valid JSON of the shape:
-
-{
-  "military_exercises": [
-    {
-      "name_zh": "exercise name in original language, or null if unnamed",
-      "name_en": "exercise name in English, or null if unnamed",
-      "performer_side": "PRC | ROC | US | JP | MULTI",
-      "participants": ["ISO codes — only when performer_side is MULTI"],
-      "exercise_kind": "live_fire | readiness_drill | joint_patrol | named_exercise | cyber | amphibious | other",
-      "start_date": "YYYY-MM-DD or null",
-      "end_date": "YYYY-MM-DD or null",
-      "location_label": "human-readable location",
-      "latitude": "decimal degrees, null unless confidently parseable",
-      "longitude": "decimal degrees, null unless confidently parseable",
-      "description_en": "1-2 sentence English summary (English only)",
-      "description_zh": "verbatim snippet from article",
-      "confidence": 0.85
-    }
-  ]
-}
-
-Extract any military exercise mentioned in the article — both named
-exercises (""" + _NAMED_EXERCISES + """) AND unnamed drills explicitly described
-(live-fire / readiness / patrols / amphibious / cyber). Map actor →
-performer_side: PLA/解放軍/東部戰區 → PRC; MND/國防部/國軍/漢光 → ROC;
-INDOPACOM/USN/USAF → US; JSDF/海上自衛隊 → JP; two-or-more sides → MULTI
-with `participants`.
-
-LOCATION HANDLING — `location_label` is REQUIRED whenever the article
-mentions ANY place reference for the exercise: a named base, range,
-harbour, county, body of water, region, or compass-quadrant ("eastern
-Taiwan waters", "Bashi Channel", "Kaohsiung offshore", "砲測中心北岸陣地 /
-artillery testing centre north-bank position", "Jiupeng base 九鵬基地",
-"Kinmen", "Hualien airbase", "near Senkaku"). Translate Chinese place
-names to English; preserve the original in description_zh. The bar for
-location_label is LOW — if you can identify a place in the article, fill
-it. `latitude` and `longitude` are SEPARATE: only emit numeric coords
-when confidently resolvable (named base with established centroid, named
-waters, or explicit coords) — otherwise both null. False-negatives-
-preferred applies to lat/lng only, NOT to location_label.
-
-DATE ANCHORING — `start_date` and `end_date` default to the article's
-PUBLISHED year (given below). "Today", "this week", "on 22 May", or any
-month/day without a year → use the PUBLISHED year. Only use a different
-year when the article explicitly cites one. Do NOT anchor dates to your
-training-data baseline.
-
-description_en MUST be English. Return {"military_exercises": []} if no
-exercise is mentioned. Use British spelling.
-"""
 
 
 def _canonical_lookup(name_zh: str | None, name_en: str | None) -> tuple[str | None, str | None]:
@@ -138,39 +81,9 @@ def _sanitise_coords(lat, lng, fallback_label=None):
     return lat, lng
 
 
-def extract(article):
-    """Call Gemini and return the military_exercises list (empty if none)."""
-    glossary = generate_dynamic_glossary(
-        article['content_original'] or '',
-        article['title_original'] or '',
-    )
-    prompt = f"""{_EXTRACT_PROMPT}
-
-{glossary}
-
-SOURCE: {article['source_name']}
-LANGUAGE: {article['language']}
-PUBLISHED: {article['published_at'] or 'unknown'}
-TITLE: {article['title_original']}
-
-FULL TEXT:
-{(article['content_original'] or '')[:5000]}"""
-
-    resp = _client.models.generate_content(
-        model="gemini-3.1-flash-lite",
-        contents=prompt,
-        config={
-            "response_mime_type": "application/json",
-            "max_output_tokens": 4000,
-            "temperature": 0.1,
-            "thinking_config": {"thinking_level": "medium"},
-        },
-    )
-    try:
-        return parse_llm_json(resp.text, envelope_key='military_exercises')
-    except json.JSONDecodeError:
-        print(f"  [warn] non-JSON response for article {article['id']}: {resp.text[:120]}")
-        return []
+# The live Step-3b extractor (prompt, schema, config, parse) — this script used
+# to carry its own copy, which drifted twice (audit 2026-09-13, H9).
+extract = _extract_exercises_only
 
 
 def main():

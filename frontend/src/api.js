@@ -618,3 +618,35 @@ export async function updateVisit(id, patch) {
     body: JSON.stringify(patch),
   });
 }
+
+// Name registry (Admin ▾ Names) — the English form the site uses for each
+// Chinese personal name; pending rows come from the Step-3f lookup worker.
+export async function fetchNameCandidates() {
+  return request(`/api/names/candidates`, { headers: authHeaders() });
+}
+
+export async function fetchNameCandidatesCount() {
+  return request(`/api/names/candidates/count`, { headers: authHeaders() });
+}
+
+export async function fetchNames({ status = "approved", q = "", limit = 100 } = {}) {
+  const params = new URLSearchParams({ status, limit: String(limit) });
+  if (q) params.set("q", q);
+  return request(`/api/names/list?${params}`, { headers: authHeaders() });
+}
+
+export async function approveName(id, en) {
+  return request(`/api/names/${id}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ en }),
+  });
+}
+
+export async function rejectName(id) {
+  return request(`/api/names/${id}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({}),
+  });
+}

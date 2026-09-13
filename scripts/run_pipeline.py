@@ -7,6 +7,7 @@ import traceback
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scraper.processors.visits_extract import process_visit_articles
+from scraper.processors.name_lookup import lookup_new_names
 from scraper.scrapers.tao_scraper import scrape_tao
 from scraper.scrapers.rss_scraper import scrape_all_rss_sources
 from scraper.scrapers.mfa_scraper import scrape_mfa_spokesperson
@@ -224,6 +225,15 @@ async def main():
     # of a trip still lands on its existing keeper.
     print("\n--- STEP 3e (dedup): Visits pre-queue dedup ---")
     _run('visits_dedup', lambda: dedup_recent_visits(days=60, apply=True))
+
+    # Step 3f: Name lookup — every Taiwan-side person Tier 1 extracted whose
+    # Chinese name has no registry row gets looked up ONCE (Wikidata exact
+    # label → grounded search → generated Wade-Giles; only the clean
+    # Wikidata case auto-approves, the rest land in Admin ▾ Names). Approved
+    # rows feed the resolver and the prompt-time terminology block from the
+    # next tick. Logic in scraper/processors/name_lookup.py.
+    print("\n--- STEP 3f: Name lookup (registry) ---")
+    _run('name_lookup', lambda: lookup_new_names(days=14, limit=60), default=None)
 
     # Step 3d: Canonicalise poll-result option labels (drift-catcher). The
     # AI extraction prompt is the first line of defence (CANONICAL NO-OPINION
