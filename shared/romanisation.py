@@ -106,9 +106,9 @@ def _syllables(word):
 _PY_FINALS = {'a', 'o', 'e', 'i', 'u', 'v', 'ai', 'ei', 'ao', 'ou', 'an', 'en', 'ang', 'eng', 'ong', 'er',
               'ia', 'ie', 'iao', 'iu', 'ian', 'in', 'iang', 'ing', 'iong', 'ua', 'uo', 'uai', 'ui', 'uan',
               'un', 'uang', 'ueng', 'ue', 've', 'van', 'vn'}
-_PY_INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h',
-                'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w', '']
-_PY_SYLLABLES = {i + f for i in _PY_INITIALS for f in _PY_FINALS} | {'ng', 'hm', 'hng', 'm'}
+_INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h',
+             'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w']  # longest first; shared with wg_syllable
+_PY_SYLLABLES = {i + f for i in _INITIALS + [''] for f in _PY_FINALS} | {'ng', 'hm', 'hng', 'm'}
 _COMPOUND_SURNAMES_PY = {'ouyang', 'sima', 'zhuge', 'shangguan', 'situ', 'murong', 'dongfang', 'xiahou',
                          'zhangjian', 'fanjiang'}
 
@@ -165,8 +165,6 @@ def pinyin_for_tw(name_en, role):
 
 
 # ── Hanyu → Wade-Giles (Taiwan convention) ──────────────────────────────
-_INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h',
-             'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w']
 _INIT_MAP = {'b': 'p', 'p': 'p', 'm': 'm', 'f': 'f', 'd': 't', 't': 't', 'n': 'n', 'l': 'l',
              'g': 'k', 'k': 'k', 'h': 'h', 'j': 'ch', 'q': 'ch', 'x': 'hs', 'zh': 'ch', 'ch': 'ch',
              'sh': 'sh', 'r': 'j', 'z': 'ts', 'c': 'ts', 's': 's', 'y': 'y', 'w': 'w', '': ''}
