@@ -50,7 +50,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scraper.utils.db import get_connection  # noqa: E402
 from shared.entity_norm import load_canon, resolve_name_en  # noqa: E402
-from shared.name_registry import to_trad, load_approved  # noqa: E402
+from shared.name_registry import to_trad, load_approved, merge_canon  # noqa: E402
 from shared.romanisation import hanyu_markers, side_from_role  # noqa: E402
 
 # Side words whose presence in an English rendering marks which side of the
@@ -81,11 +81,14 @@ def choose_target(spellings, tw_person):
     return max(pool.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
 
 
-def plan(conn, entity_type=None, days=None, canon=None, registry=None):
-    """Return (actions, skipped) where actions = [(row_id, old_en, new_en,
-    group_key)] and skipped = Counter of skip reasons."""
-    canon = canon or load_canon()
-    registry = registry if registry is not None else load_approved(conn)
+def plan(conn, entity_type=None, days=None, canon=None):
+    """Return (actions, skipped, held): actions = [(row_id, old_en, new_en,
+    group_key)], skipped = Counter of skip reasons, held = competing-identity
+    groups for the analyst. `canon` defaults to the JSON canon with the DB's
+    approved registry rows layered over it (same precedence as the pipeline
+    and renormalise_entities.py)."""
+    if canon is None:
+        canon = merge_canon(load_canon(), load_approved(conn))
     where, params = ["e.entity_name_en IS NOT NULL", "TRIM(e.entity_name_en) != ''"], []
     if entity_type:
         where.append("e.entity_type = ?")
@@ -116,7 +119,7 @@ def plan(conn, entity_type=None, days=None, canon=None, registry=None):
             skipped['single-character key'] += 1
             continue
         # Names the canonical file / registry own belong to renormalise_entities.py
-        if key in registry or resolve_name_en(key, canon):
+        if resolve_name_en(key, canon):
             skipped['canonical (renormalise owns it)'] += 1
             continue
         sides = {s: side_words(s) for s in spellings}
