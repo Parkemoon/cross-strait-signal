@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from api.auth import require_admin
 from api.database import db_conn
+from shared.name_style import style_name
 
 router = APIRouter(prefix="/api/names", tags=["names"])
 
@@ -90,6 +91,9 @@ def approve(row_id: int, body: Decision):
             raise HTTPException(400, "an English form is required to approve")
         if body.side and body.side not in ("TW", "PRC", "OTHER"):
             raise HTTPException(400, "side must be TW, PRC or OTHER")
+        en = style_name(row["zh_trad"], en, body.side or row["side"], row["role_hint"])   # house style (shared/name_style.py)
+        if "," in en:
+            raise HTTPException(400, "not a single person's name (comma) — edit it or reject the row")
         source = "analyst" if en != (row["en"] or "") else row["source"]
         conn.execute("""
             UPDATE name_registry SET en = ?, side = COALESCE(?, side), source = ?, status = 'approved',
@@ -126,6 +130,8 @@ def patch(row_id: int, body: Decision):
         side = fields.get("side", row["side"])
         if side and side not in ("TW", "PRC", "OTHER"):
             raise HTTPException(400, "side must be TW, PRC or OTHER")
+        if en:
+            en = style_name(row["zh_trad"], en, side, row["role_hint"])
         source = "analyst" if en != row["en"] else row["source"]
         conn.execute("UPDATE name_registry SET en = ?, side = ?, source = ?, reviewed_by = COALESCE(?, reviewed_by) WHERE id = ?",
                      (en, side, source, body.reviewed_by, row_id))

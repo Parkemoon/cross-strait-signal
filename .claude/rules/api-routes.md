@@ -199,6 +199,6 @@ The civilian-fleet + radar layer under the coast-guard section; same framing rul
 ## `/api/names/*` — name registry queue (all admin)
 
 - `GET /candidates` (pending rows, most-mentioned first, `candidates` parsed from `candidates_json`), `GET /candidates/count` (the Admin ▾ Names badge), `GET /list?status=approved&q=` (browse; `q` matches either script or the English form).
-- `POST /{id}/approve` body `{en?, side?, reviewed_by?}` — approves with the stored proposal or an edited form; an edited form marks the row `source='analyst'`; an empty form is a 400. `POST /{id}/reject` — the name stays recorded (never re-looked-up) but feeds nothing. `PATCH /{id}` — edit `en`/`side` on any row, status unchanged.
+- `POST /{id}/approve` body `{en?, side?, reviewed_by?}` — approves with the stored proposal or an edited form; an edited form marks the row `source='analyst'`; an empty form is a 400. Both `approve` and `PATCH` pass the form through `shared/name_style.py` first (Taiwanese three-character names `Surname First-name`, Japanese surname-first, commas dropped — the response carries the styled form, so the UI shows what was stored); a form that still has a comma after styling is not a single person and is a 400 (edit it or reject the row). `POST /{id}/reject` — the name stays recorded (never re-looked-up) but feeds nothing. `PATCH /{id}` — edit `en`/`side` on any row, status unchanged.
 - Approval is what makes a name feed `refresh_name_registry` on the next pipeline tick — nothing here is public.
 
