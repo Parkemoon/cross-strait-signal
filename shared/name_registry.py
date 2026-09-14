@@ -24,6 +24,8 @@ script hits without the library).
 import json
 import re
 
+from shared.name_style import style_name
+
 try:
     import zhconv as _zhconv
 except ImportError:  # pragma: no cover
@@ -80,6 +82,7 @@ def upsert(conn, zh, en, side, source, status, *, qid=None, evidence_url=None, e
     zh_simp = to_simp(zh_trad)
     if zh_simp == zh_trad:
         zh_simp = None if zh == zh_trad else zh
+    en = style_name(zh_trad, en, side, role_hint) if en else en   # house style at the door (shared/name_style.py)
     cand = json.dumps(candidates or [], ensure_ascii=False)
     row = conn.execute("SELECT id, status FROM name_registry WHERE zh_trad = ?", (zh_trad,)).fetchone()
     if row is None:
