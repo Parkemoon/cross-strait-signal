@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scraper.utils.db import get_connection, DB_PATH
 from shared.entity_norm import load_canon, resolve_name_en, CANON_PATH
+from shared.name_registry import load_approved, merge_canon
 
 # Scope predicates over articles a / ai_analysis ai (LEFT JOINed).
 SCOPE_SQL = {
@@ -112,7 +113,16 @@ def main():
 
     conn = _connect(args.db)
     print(f"DB:    {args.db or DB_PATH}")
-    print(f"Canon: {len(canon['canonical'])} entries, "
+    # Same precedence as the write path (ai_pipeline.refresh_name_registry):
+    # an approved name_registry row beats the JSON canon, so a queue decision
+    # repairs history here without waiting for seed_name_registry.py --export
+    # (2026-09-14: the JSON and the registry disagreed on 江啟臣 and the two
+    # paths ping-ponged the spelling).
+    registry = {}
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='name_registry'").fetchone():
+        registry = load_approved(conn)
+        canon = merge_canon(canon, registry)
+    print(f"Canon: {len(canon['canonical'])} entries ({len(registry)} registry forms layered), "
           f"{len(canon['title_tokens'])} title tokens, "
           f"{len(canon['fold_prefixes'])} fold prefixes | scope={args.scope}"
           + (f" | type={args.type}" if args.type else ""))
