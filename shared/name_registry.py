@@ -112,13 +112,20 @@ def rewrite_renderings(text, pairs):
     form in a free-text field. `pairs` = [(rendering, canonical), …];
     whole-word, case-sensitive, longest rendering first so 'Wang Hung-wei'
     is replaced before a bare 'Wang'. Renderings shorter than four
-    characters or equal to the canonical are skipped."""
+    characters or equal to the canonical are skipped. When the canonical
+    CONTAINS the rendering ('Ming-Tse Lu' in 'Ray Ming-Tse Lu', 'Li Yanhe'
+    in 'Li Yanhe (Fucha)'), text that already reads canonically is left
+    alone — otherwise every pass stacks another 'Ray' / '(Fucha)'."""
     if not text or not pairs:
         return text
     for rendering, canonical in sorted(pairs, key=lambda p: -len(p[0] or '')):
         if not rendering or not canonical or rendering == canonical or len(rendering) < 4:
             continue
-        text = re.sub(r'(?<![A-Za-z\-])' + re.escape(rendering) + r'(?![A-Za-z\-])', canonical, text)
+        pat = re.compile(r'(?<![A-Za-z\-])' + re.escape(rendering) + r'(?![A-Za-z\-])')
+        if rendering in canonical:
+            text = canonical.join(pat.sub(lambda m: canonical, part) for part in text.split(canonical))
+        else:
+            text = pat.sub(lambda m: canonical, text)
     return text
 
 

@@ -96,6 +96,15 @@ def test_rewrite_renderings_is_whole_word_and_longest_first():
     assert nr.rewrite_renderings(None, [('a', 'b')]) is None
 
 
+def test_rewrite_renderings_is_idempotent_when_canonical_contains_the_rendering():
+    pairs = [('Ming-Tse Lu', 'Ray Ming-Tse Lu'), ('Li Yanhe', 'Li Yanhe (Fucha)')]
+    text = "Ming-Tse Lu spoke; Ray Ming-Tse Lu spoke again. Li Yanhe (Fucha) and Li Yanhe were named."
+    once = nr.rewrite_renderings(text, pairs)
+    assert once == ("Ray Ming-Tse Lu spoke; Ray Ming-Tse Lu spoke again. "
+                    "Li Yanhe (Fucha) and Li Yanhe (Fucha) were named.")
+    assert nr.rewrite_renderings(once, pairs) == once
+
+
 def test_apply_to_analysis_rewrites_entities_and_text():
     canon = {'鄭照新': 'Cheng Chao-hsin'}
     analysis = {
