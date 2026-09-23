@@ -5,6 +5,7 @@ Fixtures are cut down from real chinatimes.com markup captured 2026-09-24
 import sqlite3
 
 from scraper.scrapers.chinatimes_scraper import (
+    allow_request,
     already_stored,
     canonical_url,
     extract_body,
@@ -155,3 +156,23 @@ def test_already_stored_does_not_match_a_longer_path():
     base = 'https://www.chinatimes.com/realtimenews/20260923004852-260407'
     conn = _db(base + '0?chdtv', base + 'A?chdtv', base + '/amp?chdtv')
     assert not already_stored(conn, base + '?chdtv')
+
+
+def test_parse_list_drops_a_repeated_entry():
+    items = parse_list(LIST_HTML + LIST_HTML)
+    assert [it['url'] for it in items] == [
+        'https://www.chinatimes.com/realtimenews/20260924000038-260407?chdtv',
+        'https://www.chinatimes.com/newspapers/20260918000593-260118?chdtv',
+    ]
+
+
+def test_allow_request_is_first_party_text_only():
+    page = 'https://www.chinatimes.com/realtimenews/20260924000038-260407?chdtv'
+    assert allow_request('document', page)
+    assert allow_request('script', 'https://www.chinatimes.com/cdn-cgi/challenge-platform/scripts/jsd/main.js')
+    assert allow_request('xhr', 'https://www.chinatimes.com/api/whatever')
+    assert not allow_request('image', 'https://www.chinatimes.com/a.jpg')
+    assert not allow_request('stylesheet', 'https://www.chinatimes.com/a.css')
+    assert not allow_request('script', 'https://securepubads.g.doubleclick.net/tag/js/gpt.js')
+    assert not allow_request('document', 'https://ad.example.com/frame.html')
+    assert not allow_request('image', 'https://images.chinatimes.com/newsphoto/x.jpg')
