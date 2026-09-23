@@ -36,6 +36,7 @@ from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from scraper.utils.dates import TAIPEI
 from scraper.utils.db import get_connection, save_article
 from scraper.utils.display import virtual_display
 
@@ -47,8 +48,6 @@ DEFAULT_MAX_PAGES = 5
 LIST_PAUSE_S = 4
 ARTICLE_PAUSE_S = 2
 
-# CT list and article timestamps are Asia/Taipei local time (UTC+8, no DST).
-_TAIPEI = timezone(timedelta(hours=8))
 _ARTICLE_PATH = re.compile(r'^/(realtimenews|newspapers|opinion)/(\d{14}-\d{6})$')
 # Page furniture that follows the body inside .article-body (the 兩岸徵文
 # column's call for submissions).
@@ -74,7 +73,7 @@ def taipei_to_utc(stamp):
     """'2026-09-24 00:12' (Taipei) -> '2026-09-23T16:12:00', naive UTC as
     the RSSHub-era CT rows were stored. None when unparseable."""
     try:
-        local = datetime.strptime(stamp.strip(), '%Y-%m-%d %H:%M').replace(tzinfo=_TAIPEI)
+        local = datetime.strptime(stamp.strip(), '%Y-%m-%d %H:%M').replace(tzinfo=TAIPEI)
     except (AttributeError, ValueError):
         return None
     return local.astimezone(timezone.utc).replace(tzinfo=None).isoformat()
