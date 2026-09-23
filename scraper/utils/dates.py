@@ -7,7 +7,11 @@ live here; scrapers keep their source-specific parsing around them
 (mac_macro's month-range handling, mac_economic's YTD guards, etc.).
 """
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+# Asia/Taipei (UTC+8, no DST): the local time of every Taiwanese source's
+# timestamps. Attach it to a parsed naive time, then convert to UTC.
+TAIPEI = timezone(timedelta(hours=8))
 
 # Minguo epoch: ROC year 1 = 1912, so Gregorian = ROC + 1911.
 ROC_YEAR_OFFSET = 1911

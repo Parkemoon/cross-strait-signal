@@ -1,17 +1,17 @@
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection, article_exists, save_article
+from scraper.utils.dates import TAIPEI
 from scraper.utils.http import make_async_client
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # YDN publishes its time[datetime] attribute in Asia/Taipei local time
-# (UTC+8, no DST). Everything downstream stores UTC-aware ISO strings.
-_TAIPEI = timezone(timedelta(hours=8))
+# (TAIPEI). Everything downstream stores UTC-aware ISO strings.
 
 # YDN uses /tw/ prefix for all pages — must use full /tw/ path
 LIST_URL = 'https://www.ydn.com.tw/tw/home/'
@@ -24,7 +24,7 @@ def parse_date(dt_str):
     it sorts and compares correctly against every other source's published_at."""
     try:
         naive = datetime.strptime(dt_str.strip(), '%Y-%m-%d %H:%M')
-        return naive.replace(tzinfo=_TAIPEI).astimezone(timezone.utc).isoformat()
+        return naive.replace(tzinfo=TAIPEI).astimezone(timezone.utc).isoformat()
     except ValueError:
         return datetime.now(timezone.utc).isoformat()
 
