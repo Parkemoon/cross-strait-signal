@@ -22,6 +22,7 @@ Two types:
 | Scraper file | Source |
 |---|---|
 | `udn_scraper.py` | UDN 4 sections — uses `scrape_all_udn_sources()` wrapper that queries all `name LIKE 'UDN%'` sources |
+| `chinatimes_scraper.py` | China Times, 4 sections (CT Cross-Strait / Politics / Military / Opinion). See the China Times section below |
 | `ltn_defence_scraper.py` | LTN Defence 自由軍武頻道 (`def.ltn.com.tw`) |
 | `ydn_scraper.py` | YDN 青年日報 (ROC MND newspaper) |
 | `mfa_scraper.py` | MFA Spokesperson (PRC) |
@@ -37,6 +38,16 @@ Two types:
 
 
 **Guancha gotcha (2026-08-27):** the dedicated Taiwan section `/taihaifengyun` (alias `/taiwan`) stopped being fed on 2026-08-10 while Taiwan stories kept running in 国际 / 军事 / 国内 — the scraper now scans those channels too, gated on a title keyword list (`TITLE_KEYWORDS`) so incidental 台湾 mentions in general PRC news don't reach Tier 1. `/gangaotai` looks like a 港澳台 section but is a generic columnist feed — don't add it. RSSHub's `/guancha/*` route 503s. Yield is low (~3–4/week outside the section); the health threshold stays at 14 days.
+
+## China Times (`chinatimes_scraper.py`, since 2026-09-24)
+
+chinatimes.com is behind a site-wide Cloudflare managed challenge. It started on some section pages on 2026-08-26 (the RSSHub route survived five weeks on the `/total` overview pages) and covered every path but `/` from 2026-09-08 (CT Politics from 09-18): lists, articles, sitemaps, `/rss/`, `/amp/`. The rule challenges **headless and scripted clients**. Plain HTTP, RSSHub, and headless Chromium in both old and new modes all get a 403 「正在執行安全驗證」 page. A normal Chromium **with a window** is served every page with no challenge and needs no `cf_clearance`. So the scraper runs `chromium.launch(channel='chromium', headless=False)` on a private Xvfb display (`scraper/utils/display.py`: `virtual_display()` starts one with `-displayfd` when no `DISPLAY` is set, so the cron line needs no `xvfb-run`; needs `apt install xvfb`). It sends the browser's own user-agent and uses **no UA override, stealth patches or challenge solving**. That was a deliberate choice on 2026-09-23 (Taiwan Copyright Act art. 80-2 ¶2 covers circumvention *tools*). If CT starts challenging real browsers too, `_open` raises `ChallengedError` at the first challenge page, the pipeline logs the step as failed, and the health check flags the four sources stale.
+
+- **Flow**: per source, `/<section>/total?page=N&chdtv` (20 items a page, newest first) → every unstored article → the **direct-child** `<p>` of `.article-body` (nested `<p>` belong to ads, promote-word boxes and a payment appeal; opinion pieces are cut at 【徵文啟事】). Paging stops at the first page with nothing new, so a normal tick reads page 1 and a gap backfill is just `--max-pages 60`. Images, media and fonts are blocked; pauses are 2 s between articles and 4 s between list pages.
+- **Stored forms** match the RSSHub-era rows. URLs are `<article path>?chdtv`, and `already_stored` range-matches any query variant (history also holds `?ctrack=…` rows). `published_at` is naive UTC from the Taipei list timestamp. Content is now **plain text**: the RSSHub route stored the body's raw HTML (figures, ad comments), which went to Tier 1 as-is and made the old rows ~2,500 chars against ~600–800 now.
+- **Sources** are selected by `url LIKE 'https://www.chinatimes.com/%' AND scrape_method='html_scrape'`; each source url is its section front page (`/chinese/`, `/politic/`, `/armament/`, `/opinion/`).
+- **Manual run / backfill**: `venv/bin/python -m scraper.scrapers.chinatimes_scraper [--source 'CT Politics'] [--max-pages N]`. For a long backfill, launch it detached.
+- **Fallback if headful stops working**: Yahoo 奇摩 (`NCPListService` archive API, provider `chinatimes.com.tw`) and MSN zh-tw both syndicate 中時新聞網 in full, but only the realtime politics section (260407) plus lifestyle/entertainment/sport, with MSN adding 260408 國際. Neither carries 兩岸 (260409), 軍事 (260417), 言論 or the print pages. Survey notes are in the session log for 2026-09-23.
 
 ## Non-article scrapers (feed dedicated tables, not `articles`)
 
