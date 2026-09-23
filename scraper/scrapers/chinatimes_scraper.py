@@ -83,15 +83,17 @@ def parse_list(html):
     """Items on a 總覽 list page, newest first: dicts with url, title and
     published_at (naive UTC ISO, or None)."""
     soup = BeautifulSoup(html, 'html.parser')
-    items = []
+    items, seen = [], set()
     for box in soup.select('.articlebox-compact'):
         link = box.select_one('h3.title a')
         if not link:
             continue
         url = canonical_url(link.get('href', ''))
         title = ' '.join(link.get_text(' ', strip=True).split())
-        if not url or not title:
+        # The 旺報 print lists can repeat an entry; keep the first.
+        if not url or not title or url in seen:
             continue
+        seen.add(url)
         stamp = box.select_one('.meta-info time[datetime]')
         items.append({
             'url': url,
@@ -138,6 +140,16 @@ def already_stored(conn, url):
     return row is not None
 
 
+def allow_request(resource_type, url):
+    """Only CT's own document, scripts and XHR load. Third-party ad and
+    tracker scripts and iframes grew one renderer to 1.3 GB over ~500
+    articles on the first prod backfill (4 GB server, no swap); images,
+    fonts, media and CSS are never needed. Cloudflare's /cdn-cgi/ scripts
+    are first-party, so they still run."""
+    return (resource_type in ('document', 'script', 'xhr', 'fetch')
+            and urlsplit(url).hostname == 'www.chinatimes.com')
+
+
 def _open(page, url):
     resp = page.goto(url, wait_until='domcontentloaded', timeout=45000)
     status = resp.status if resp else None
@@ -146,50 +158,60 @@ def _open(page, url):
     return status, page.content()
 
 
-def scrape_source(page, conn, source, max_pages=DEFAULT_MAX_PAGES):
+def scrape_source(context, conn, source, max_pages=DEFAULT_MAX_PAGES, all_pages=False):
+    """Walk the section's 總覽 list. Normally stops at the first page with
+    nothing new; `all_pages` walks every page (the listing ends after 10
+    pages / 200 items), for resuming an interrupted backfill."""
     print(f"\nScraping: {source['name']} ({source['url']})")
     cutoff = (datetime.now(timezone.utc) - MAX_ARTICLE_AGE).replace(tzinfo=None).isoformat()
     new_count = 0
     for page_no in range(1, max_pages + 1):
-        _, html = _open(page, list_url(source['url'], page_no))
-        items = parse_list(html)
-        fresh = [it for it in items if not already_stored(conn, it['url'])]
-        print(f"  page {page_no}: {len(items)} items, {len(fresh)} new")
-        if not fresh:
-            break
-        for item in fresh:
-            if item['published_at'] and item['published_at'] < cutoff:
-                continue
-            time.sleep(ARTICLE_PAUSE_S)
-            try:
-                _, article_html = _open(page, item['url'])
-            except ChallengedError:
-                raise
-            except Exception as e:
-                print(f"    Could not fetch {item['url']}: {e}")
-                continue
-            content = extract_body(article_html)
-            # An empty body is a markup change or a failed load, not an
-            # empty article. Saving it would make the miss permanent (URL dedup).
-            if not content:
-                print(f"    No body text: {item['url']} — skipping")
-                continue
-            try:
-                save_article(conn, source['id'], item['url'], item['title'], content,
-                             source['language'], item['published_at'])
-            except sqlite3.IntegrityError:
-                # A backfill and a pipeline tick overlapping: the other run
-                # stored it between our check and this insert.
-                continue
-            print(f"  New: {item['title'][:70]}")
-            new_count += 1
+        # A fresh tab per list page (~20 articles) keeps the renderer from
+        # growing across a long run.
+        page = context.new_page()
+        try:
+            _, html = _open(page, list_url(source['url'], page_no))
+            items = parse_list(html)
+            fresh = [it for it in items if not already_stored(conn, it['url'])]
+            print(f"  page {page_no}: {len(items)} items, {len(fresh)} new")
+            if not items or (not fresh and not all_pages):
+                break
+            for item in fresh:
+                if item['published_at'] and item['published_at'] < cutoff:
+                    continue
+                time.sleep(ARTICLE_PAUSE_S)
+                try:
+                    _, article_html = _open(page, item['url'])
+                except ChallengedError:
+                    raise
+                except Exception as e:
+                    print(f"    Could not fetch {item['url']}: {e}")
+                    continue
+                content = extract_body(article_html)
+                # An empty body is a markup change or a failed load, not an
+                # empty article. Saving it would make the miss permanent (URL dedup).
+                if not content:
+                    print(f"    No body text: {item['url']} — skipping")
+                    continue
+                try:
+                    save_article(conn, source['id'], item['url'], item['title'], content,
+                                 source['language'], item['published_at'])
+                except sqlite3.IntegrityError:
+                    # A backfill and a pipeline tick overlapping: the other run
+                    # stored it between our check and this insert.
+                    print(f"    Stored meanwhile by another run: {item['url']}")
+                    continue
+                print(f"  New: {item['title'][:70]}")
+                new_count += 1
+        finally:
+            page.close()
         conn.commit()
         time.sleep(LIST_PAUSE_S)
     print(f"  Saved {new_count} new articles from {source['name']}")
     return new_count
 
 
-def scrape_all_chinatimes_sources(max_pages=DEFAULT_MAX_PAGES, only=None):
+def scrape_all_chinatimes_sources(max_pages=DEFAULT_MAX_PAGES, only=None, all_pages=False):
     """Scrape every active chinatimes.com source (or just `only`, a source
     name) in one browser session. Sync Playwright: run it in a worker
     thread from async code, as the pipeline does."""
@@ -212,14 +234,12 @@ def scrape_all_chinatimes_sources(max_pages=DEFAULT_MAX_PAGES, only=None):
             browser = p.chromium.launch(channel='chromium', headless=False,
                                         env={**os.environ, 'DISPLAY': display})
             try:
-                page = browser.new_context(locale='zh-TW').new_page()
-                # Text only: images, media and fonts are not needed and
-                # would multiply the load we put on CT.
-                page.route('**/*', lambda route: route.abort()
-                           if route.request.resource_type in ('image', 'media', 'font')
-                           else route.continue_())
+                context = browser.new_context(locale='zh-TW')
+                context.route('**/*', lambda route: route.continue_()
+                              if allow_request(route.request.resource_type, route.request.url)
+                              else route.abort())
                 for source in sources:
-                    total += scrape_source(page, conn, source, max_pages)
+                    total += scrape_source(context, conn, source, max_pages, all_pages)
             finally:
                 browser.close()
     finally:
@@ -233,5 +253,7 @@ if __name__ == '__main__':
     ap.add_argument('--max-pages', type=int, default=DEFAULT_MAX_PAGES,
                     help='list pages per section; paging stops early at the first page with nothing new')
     ap.add_argument('--source', help="one source by name, e.g. 'CT Politics'")
+    ap.add_argument('--all-pages', action='store_true',
+                    help='walk every list page even when one has nothing new (resume an interrupted backfill)')
     args = ap.parse_args()
-    print(f"Total new: {scrape_all_chinatimes_sources(args.max_pages, args.source)}")
+    print(f"Total new: {scrape_all_chinatimes_sources(args.max_pages, args.source, args.all_pages)}")
