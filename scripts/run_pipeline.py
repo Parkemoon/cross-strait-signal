@@ -12,6 +12,7 @@ from scraper.scrapers.tao_scraper import scrape_tao
 from scraper.scrapers.rss_scraper import scrape_all_rss_sources
 from scraper.scrapers.mfa_scraper import scrape_mfa_spokesperson
 from scraper.scrapers.udn_scraper import scrape_all_udn_sources
+from scraper.scrapers.chinatimes_scraper import scrape_all_chinatimes_sources
 from scraper.scrapers.guancha_scraper import scrape_guancha
 from scraper.scrapers.taiwan_cn_scraper import scrape_taiwan_cn
 from scraper.scrapers.fjsen_scraper import scrape_fjsen
@@ -96,6 +97,9 @@ async def main():
     new_mfa = await _arun('mfa', scrape_mfa_spokesperson())
     new_tao = await _arun('tao', scrape_tao())
     new_udn = await _arun('udn', scrape_all_udn_sources())
+    # China Times: headful Chromium on a private Xvfb (the site challenges
+    # headless clients). Sync Playwright, so it runs in a worker thread.
+    new_ct = await _arun('chinatimes', asyncio.to_thread(scrape_all_chinatimes_sources))
     new_guancha = await _arun('guancha', scrape_guancha())
     new_taiwan_cn = await _arun('taiwan_cn', scrape_taiwan_cn())
     new_fjsen = await _arun('fjsen', scrape_fjsen())
@@ -187,7 +191,7 @@ async def main():
     _run('article_dedup', lambda: dedup_recent_articles(days=8, apply=True))
 
     # Step 3: Analyse unprocessed articles
-    total_new = (new_rss + new_mfa + new_tao + new_udn + new_guancha + new_taiwan_cn
+    total_new = (new_rss + new_mfa + new_tao + new_udn + new_ct + new_guancha + new_taiwan_cn
                  + new_fjsen + new_pla + new_ydn + new_ltn_defence + new_ettoday_polls
                  + new_tvbs_polls + new_myformosa_polls)
     print(f"\n--- STEP 3: AI Analysis ({total_new} new articles) ---")
