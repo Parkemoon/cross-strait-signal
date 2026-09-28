@@ -60,3 +60,11 @@ def test_weibo_is_latest_batch_only(db):
 def test_ptt_window_is_24_hours(db):
     out = social.social_pulse()
     assert [i['title'] for i in out['ptt']['items']] == ['ptt-recent']
+
+
+def test_ptt_scraper_dedup_window_is_24_hours(db):
+    # Same column, same format: the scraper's "already stored" check must
+    # agree with the rail's 24-hour window.
+    from scraper.scrapers.ptt_scraper import already_stored_today
+    assert already_stored_today(db, 'ptt-recent') is True
+    assert already_stored_today(db, 'ptt-stale') is False
