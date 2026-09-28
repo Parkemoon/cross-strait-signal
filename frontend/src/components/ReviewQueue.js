@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchReviewQueue, resolveReview, updateArticleTranslation } from "../api";
-import { bandColour } from "../sentimentBand";
+import { bandColour, scoreFitsLabel } from "../sentimentBand";
 import SourceBadge from "./SourceBadge";
 import { DocumentHeader, STANDFIRST } from "./documentChrome";
 import { Btn, FIELD, LABEL, MICRO, META_LINE, Quiet } from "./adminChrome";
@@ -46,6 +46,8 @@ function Field({ label, children }) {
 function ReviewCard({ item, onResolved }) {
   const modelDesk = {
     sentiment_override: item.sentiment,
+    // Kept as the input's string so a half-typed "-" doesn't get coerced.
+    score_override: item.sentiment_score == null ? "" : String(item.sentiment_score),
     topic_override: item.topic_primary,
     escalation_override: !!item.is_escalation_signal,
   };
@@ -57,10 +59,26 @@ function ReviewCard({ item, onResolved }) {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const deskDiffers =
+  const sentimentTouched =
     desk.sentiment_override !== modelDesk.sentiment_override ||
+    desk.score_override !== modelDesk.score_override;
+  const deskDiffers =
+    sentimentTouched ||
     desk.topic_override !== modelDesk.topic_override ||
     desk.escalation_override !== modelDesk.escalation_override;
+
+  // The card colour, gauges and trend read the score, not the label, so a
+  // changed label needs a score in its band. Only checked once the desk
+  // touches either, so a topic-only override of an odd model pair still saves.
+  const deskScore = desk.score_override === "" ? null : Number(desk.score_override);
+  let scoreProblem = null;
+  if (sentimentTouched) {
+    if (deskScore != null && !(Number.isFinite(deskScore) && deskScore >= -1 && deskScore <= 1)) {
+      scoreProblem = "Score must be a number from −1 to +1";
+    } else if (!scoreFitsLabel(desk.sentiment_override, deskScore)) {
+      scoreProblem = `Score doesn't read ${desk.sentiment_override}: hostile is below −0.3, neutral −0.3 to +0.3, cooperative above +0.3`;
+    }
+  }
 
   // Save any changed translation fields, then resolve.
   async function handleResolve(resolution) {
@@ -78,7 +96,7 @@ function ReviewCard({ item, onResolved }) {
       }
       await resolveReview(item.analysis_id, {
         resolution,
-        ...(resolution === "overridden" ? desk : { note: desk.note }),
+        ...(resolution === "overridden" ? { ...desk, score_override: deskScore } : { note: desk.note }),
       });
       onResolved(item.analysis_id);
     } catch (err) {
@@ -149,12 +167,17 @@ function ReviewCard({ item, onResolved }) {
           <div style={{ ...MICRO, marginBottom: "3px", color: deskDiffers ? "var(--ink)" : "var(--faint)" }}>
             Desk{deskDiffers ? " · overriding" : " · as model"}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr 0.8fr", gap: "8px 10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 0.7fr 1.4fr 0.8fr", gap: "8px 10px" }}>
             <Field label="Sentiment">
               <select className="field" value={desk.sentiment_override} style={SELECT}
                       onChange={(e) => setDesk({ ...desk, sentiment_override: e.target.value })}>
                 {SENTIMENT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+            </Field>
+            <Field label="Score">
+              <input className="field" type="number" step="0.05" min="-1" max="1"
+                     value={desk.score_override} style={{ ...SELECT, width: "100%" }}
+                     onChange={(e) => setDesk({ ...desk, score_override: e.target.value })} />
             </Field>
             <Field label="Topic">
               <select className="field" value={desk.topic_override} style={SELECT}
@@ -172,6 +195,11 @@ function ReviewCard({ item, onResolved }) {
                 <option value="true">Yes</option>
               </select>
             </Field>
+            {scoreProblem && (
+              <div style={{ gridColumn: "1 / -1", fontSize: "11.5px", color: "var(--flag)", lineHeight: 1.5 }}>
+                {scoreProblem}
+              </div>
+            )}
             <div style={{ gridColumn: "1 / -1" }}>
               <Field label="Desk note">
                 <input className="field" type="text" value={desk.note} placeholder="Optional editorial note"
@@ -215,7 +243,7 @@ function ReviewCard({ item, onResolved }) {
       {/* Action row — one primary */}
       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
         {deskDiffers ? (
-          <Btn variant="primary" onClick={() => handleResolve("overridden")} disabled={submitting}>
+          <Btn variant="primary" onClick={() => handleResolve("overridden")} disabled={submitting || !!scoreProblem}>
             Save override
           </Btn>
         ) : (

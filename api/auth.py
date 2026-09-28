@@ -22,6 +22,13 @@ def _admin_token() -> str:
     return os.environ.get("ADMIN_TOKEN", "").strip()
 
 
+def _token_matches(presented: str, expected: str) -> bool:
+    # compare_digest raises TypeError on a str holding non-ASCII characters,
+    # so a stray header like "X-Admin-Token: é" used to 500 every route that
+    # checks the token. Comparing bytes makes a mismatch just a mismatch.
+    return hmac.compare_digest(presented.encode("utf-8"), expected.encode("utf-8"))
+
+
 def is_admin(x_admin_token: str = Header(default="")) -> bool:
     """FastAPI dependency for read routes with an admin-only superset.
 
@@ -33,7 +40,7 @@ def is_admin(x_admin_token: str = Header(default="")) -> bool:
     expected = _admin_token()
     if not expected:
         return True
-    return hmac.compare_digest(x_admin_token, expected)
+    return _token_matches(x_admin_token, expected)
 
 
 def require_admin(x_admin_token: str = Header(default="")) -> None:
@@ -45,7 +52,7 @@ def require_admin(x_admin_token: str = Header(default="")) -> None:
     if not expected:
         # Token not configured — fall back to the legacy nginx-only behaviour.
         return
-    if not hmac.compare_digest(x_admin_token, expected):
+    if not _token_matches(x_admin_token, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing X-Admin-Token",

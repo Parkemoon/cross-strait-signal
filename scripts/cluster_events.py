@@ -66,6 +66,14 @@ def extract_keywords(title, language):
         return words - EN_STOPWORDS
 
 
+def comparison_title(article):
+    """(title, language) to compare an article on: the English title when
+    there is one (better cross-language matching), else the original."""
+    if article['title_en']:
+        return article['title_en'], 'en'
+    return article['title_original'], article['language']
+
+
 def titles_are_similar(title1, lang1, title2, lang2, threshold=0.25):
     """
     Check if two titles are similar enough to be the same story.
@@ -87,6 +95,92 @@ def titles_are_similar(title1, lang1, title2, lang2, threshold=0.25):
 
     # Also require at least 2 shared keywords to avoid false positives
     return jaccard >= threshold and len(intersection) >= 2
+
+
+def new_cluster_id():
+    """A fresh cluster id that SQLite can never read as a number.
+
+    articles.event_cluster_id has INTEGER affinity. The old bare 8-hex ids
+    were coerced whenever they looked numeric: '3e412345' became REAL inf, so
+    every such cluster merged into one, and all-digit ids became integers.
+    The letter prefix keeps the id TEXT.
+    """
+    return 'c' + uuid.uuid4().hex[:12]
+
+
+def repair_numeric_cluster_ids(conn, window_hours=48):
+    """Re-key cluster ids that SQLite stored as numbers; returns a summary.
+
+    A finite number still names exactly one cluster, so each distinct value
+    just gets a new text id. Infinity is many clusters merged into one: its
+    rows are re-grouped with the clustering rule itself (similar titles,
+    different sources, published within `window_hours` of each other).
+    Rows left alone in that re-grouping lose their cluster. Idempotent:
+    once every id is text there is nothing to select. Does not commit.
+    """
+    rows = conn.execute("""
+        SELECT id, event_cluster_id AS cid, title_original, title_en, language,
+               source_id, julianday(published_at) AS jd
+        FROM articles
+        WHERE typeof(event_cluster_id) IN ('integer', 'real')
+        ORDER BY published_at, id
+    """).fetchall()
+    rows = [dict(r) for r in rows]
+
+    finite = {}
+    merged = []
+    for r in rows:
+        if r['cid'] in (float('inf'), float('-inf')):
+            merged.append(r)
+        else:
+            finite.setdefault(r['cid'], []).append(r['id'])
+
+    for ids in finite.values():
+        cid = new_cluster_id()
+        conn.executemany("UPDATE articles SET event_cluster_id = ? WHERE id = ?",
+                         [(cid, aid) for aid in ids])
+
+    parent = {r['id']: r['id'] for r in merged}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    window = window_hours / 24.0
+    for i, a in enumerate(merged):
+        for b in merged[i + 1:]:
+            if a['source_id'] == b['source_id']:
+                continue
+            if a['jd'] is None or b['jd'] is None or abs(a['jd'] - b['jd']) > window:
+                continue
+            if titles_are_similar(*comparison_title(a), *comparison_title(b)):
+                parent[find(b['id'])] = find(a['id'])
+
+    groups = {}
+    for r in merged:
+        groups.setdefault(find(r['id']), []).append(r['id'])
+    regrouped = unclustered = 0
+    for ids in groups.values():
+        if len(ids) > 1:
+            cid = new_cluster_id()
+            conn.executemany(
+                "UPDATE articles SET event_cluster_id = ?, cluster_size = ? WHERE id = ?",
+                [(cid, len(ids), aid) for aid in ids])
+            regrouped += 1
+        else:
+            conn.execute(
+                "UPDATE articles SET event_cluster_id = NULL, cluster_size = 1 WHERE id = ?",
+                (ids[0],))
+            unclustered += 1
+
+    return {
+        'finite_clusters_rekeyed': len(finite),
+        'merged_rows': len(merged),
+        'regrouped_clusters': regrouped,
+        'unclustered_rows': unclustered,
+    }
 
 
 def cluster_recent_articles(hours=48):
@@ -120,7 +214,7 @@ def cluster_recent_articles(hours=48):
 
     for i, article in enumerate(articles):
         if article['id'] not in clusters:
-            clusters[article['id']] = str(uuid.uuid4())[:8]
+            clusters[article['id']] = new_cluster_id()
 
         for j, other in enumerate(articles):
             if i >= j:
@@ -128,13 +222,7 @@ def cluster_recent_articles(hours=48):
             if article['source_id'] == other['source_id']:
                 continue  # Don't cluster same-source articles
 
-            # Use English title if available (better cross-language matching)
-            title_a = article['title_en'] or article['title_original']
-            lang_a = 'en' if article['title_en'] else article['language']
-            title_b = other['title_en'] or other['title_original']
-            lang_b = 'en' if other['title_en'] else other['language']
-
-            if titles_are_similar(title_a, lang_a, title_b, lang_b):
+            if titles_are_similar(*comparison_title(article), *comparison_title(other)):
                 # Merge clusters — give both the same ID
                 cluster_id = clusters[article['id']]
                 if other['id'] in clusters:

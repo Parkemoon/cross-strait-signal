@@ -31,7 +31,8 @@ async function request(path, options = {}) {
 export async function fetchArticles(params = {}) {
   const query = new URLSearchParams(params).toString();
   // Admin token unlocks include_pending server-side; harmless when unset.
-  return request(`/api/articles?${query}`, { headers: authHeaders() });
+  // Trailing slash matches the FastAPI route; without it every call takes a 307 first.
+  return request(`/api/articles/?${query}`, { headers: authHeaders() });
 }
 
 export async function fetchArticle(id) {
@@ -52,7 +53,7 @@ export async function fetchStats(days = 30, filters = {}, altLens = null) {
   }
   // Token needed for the alt-model lens params (admin-gated server-side);
   // harmless empty object on the public build.
-  return request(`/api/stats?${params}`, { headers: authHeaders() });
+  return request(`/api/stats/?${params}`, { headers: authHeaders() });
 }
 
 export async function createNote(note) {
@@ -98,7 +99,7 @@ export async function toggleSignal(articleId) {
 }
 
 export async function fetchSocialPulse() {
-  return request(`/api/social`);
+  return request(`/api/social/`);
 }
 
 export async function fetchKeyFigures() {

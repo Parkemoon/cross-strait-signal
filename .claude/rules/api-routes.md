@@ -20,7 +20,7 @@ Filter params: `topic`, `sentiment`, `source_place`, `source_name`, `bias`, `urg
 - `bias` is exact match on `s.bias`.
 - `source_place` maps: `PRC`/`TW` → exact `s.place` match; `hk` → `s.place IN ('HK', 'MO')`; `intl` → `s.place NOT IN ('PRC', 'TW', 'HK', 'MO')`. Never hardcode places beyond these four.
 - `include_pending=true` skips the `analyst_approved=1` filter, but is **admin-gated server-side**: `list_articles` takes `admin: bool = Depends(is_admin)` and does `include_pending = include_pending and admin`, so an anonymous caller passing the param still only gets approved rows. The admin build sends the token via `authHeaders()`; the public build sends nothing.
-  - `is_admin` (in `api/auth.py`) is the **non-raising** sibling of `require_admin`: returns `True` when a valid `X-Admin-Token` is presented OR when `ADMIN_TOKEN` is unset (legacy nginx-only mode). It never 401s, so public reads just get the non-admin view. Use it (not `require_admin`) on GET routes that have an admin-only superset. Both now compare tokens with `hmac.compare_digest`. Legacy mode is deliberate (local dev), but `api/main.py` prints a loud stderr banner at startup when `ADMIN_TOKEN` is unset so a lost/unsourced `.env` on the server can't silently disable app-level auth.
+  - `is_admin` (in `api/auth.py`) is the **non-raising** sibling of `require_admin`: returns `True` when a valid `X-Admin-Token` is presented OR when `ADMIN_TOKEN` is unset (legacy nginx-only mode). It never 401s, so public reads just get the non-admin view. Use it (not `require_admin`) on GET routes that have an admin-only superset. Both compare tokens with `hmac.compare_digest` on UTF-8 bytes (`_token_matches`): on `str` it raises TypeError for any non-ASCII header, which 500'd every token-reading route until 2026-09-28. Legacy mode is deliberate (local dev), but `api/main.py` prints a loud stderr banner at startup when `ADMIN_TOKEN` is unset so a lost/unsourced `.env` on the server can't silently disable app-level auth.
 - `alt_model` + `alt_arm` (both required together, admin-gated like `include_pending`) apply the **alt-model lens**: INNER JOIN against `alt_model_analysis` on the exact (model, arm), so the feed narrows to swept articles, and each row gains `alt_*` columns (`alt_outcome`, `alt_topic_primary`, `alt_sentiment`, `alt_sentiment_score`, `alt_sentiment_reasoning`, `alt_urgency`, `alt_summary_en`, `alt_is_escalation_signal`, `alt_finish_reason`, `alt_refusal_text`, `alt_provider_used`). Anonymous callers passing the params get the normal un-joined feed with no alt fields. All other filters (topic, sentiment, …) still evaluate against the PRODUCTION `ai_analysis` values, not the alt ones.
 - `GET /api/articles/{id}` and `GET /api/articles/{id}/cluster` also take `Depends(is_admin)` and apply the strict `_PUBLIC_VISIBLE` predicate for non-admin callers, so hidden/unapproved articles (and cluster siblings) can't be pulled by ID enumeration. `GET /{id}` raises `HTTPException(404)` on a miss — not a `{"error": ...}` body with HTTP 200.
 - The list SELECT deliberately omits `content_original` (dead payload — the feed renders titles/summaries; full text comes from `GET /{id}`).
@@ -54,6 +54,8 @@ Key Figures endpoints:
 
 Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
 
+`ReviewDecision` is validated (2026-09-28): `resolution` is `Literal['confirmed','overridden','dismissed']` (any other string used to fall through to the approve branch and publish), `sentiment_override` is one of the four labels, `topic_override` one of `TOPICS` (a copy of `ai_pipeline._TOPIC_ENUM`, kept identical by `tests/test_review_resolve.py`, because importing the pipeline builds a Gemini client), `score_override` in [−1, 1] and written to `ai_analysis.sentiment_score` (and `analyst_notes.score_override`). When the desk changes the label or the score, the resulting pair must agree on the display bands (`_score_problem`: hostile < −0.3, cooperative > +0.3, neutral within ±0.3, mixed anything — the same boundaries as `bandColour`, so ±0.3 itself is neutral) or the route returns 422 and writes nothing. A pair left untouched is not checked, so a topic-only override of an inconsistent model pair still saves. The admin card mirrors the rule with `scoreFitsLabel` from `sentimentBand.js`.
+
 ## `notes.py` — `/api/notes`
 
 CRUD for analyst notes with AI override support.
@@ -64,7 +66,7 @@ CRUD for analyst notes with AI override support.
 
 ## `social.py` — `/api/social/`
 
-Returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h. `PATCH /api/social/{id}/translation` saves analyst translation override.
+Returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT posts from last 24h. Both windows compare `scraped_at` (T-separated ISO) with `strftime('%Y-%m-%dT%H:%M:%S', …)`; the old `datetime(…)` form let every Weibo batch of the same UTC day through (153 rows instead of 50, fixed 2026-09-28). `PATCH /api/social/{id}/translation` saves analyst translation override.
 
 ## `economy.py`
 
@@ -85,7 +87,7 @@ Returns latest Weibo snapshot (all 50 items with `is_cross_strait` flag) + PTT p
 ## `military.py`
 
 PLA incursion endpoints (MND + PLATracker dual-source):
-- `GET /api/military/incursions` — params `start`, `end`, `source`. Day-level rows.
+- `GET /api/military/incursions` — params `start`, `end`, `source`. Day-level rows. `start`/`end` here, on `/exercises` and on `/api/diplomacy/statements` are typed `Optional[date]`, so a malformed value is FastAPI's 422, not a 500 from `date.fromisoformat`.
 - `GET /api/military/incursions/monthly` — monthly aggregates. Fields PLATracker never published (vessels, coast-guard counts, zone breakdown) return `null` not `0` — by design; the frontend renders MND-era only for those sparklines.
 - `GET /api/military/incursions/summary` — KPI strip (7d / 30d / 365d counters, trend deltas).
 - `GET /api/military/zones` — ADIZ zone heatmap (six MND sector codes — see [[mnd-incursion-parsing]] memory for parser wording variants).
@@ -94,7 +96,7 @@ Exercise tracker endpoints:
 - `GET /api/military/exercises` — public read: approved rows only. Params `start`, `end`, `performer`. Uses LEFT JOIN against `ai_analysis` with a relaxed VISIBLE predicate so Step 3b exercise-only rows (no `ai_analysis` row) are still served.
 - `GET /api/military/exercises/summary` — counts by performer/kind.
 - `GET /api/military/exercises/candidates` (admin) — `status='pending'` rows grouped by canonical key for batch review.
-- `POST /api/military/exercises/{id}/approve` (admin) — flips status. Auto-merges other same-`canonical_name` pending rows into this one (one click clears a whole exercise group).
+- `POST /api/military/exercises/{id}/approve` (admin) — flips status. Auto-merges other same-`canonical_name` pending rows into this one (one click clears a whole exercise group). Both merge steps carry the ±30-day guard: step 1 (fold the candidate into an APPROVED twin with the same canonical + performer) only matches a twin within 30 days of the candidate's `start_date`, nearest first; an undated candidate may still join a dated twin (a re-report of Han Kuang), a dated candidate never joins an undated one. Step 1 had no date check until 2026-09-28, so every later `joint-combat-readiness-patrol` folded into the May row.
 - `POST /api/military/exercises/{id}/dismiss` (admin)
 - `POST /api/military/exercises/{id}/merge` (admin) — explicit merge with `merged_into_id`; body `{target_id, reviewed_by?}`. Shared-machine guards apply (source must be pending/approved — added 2026-07-10; previously military alone allowed re-merging a merged row).
 - `PATCH /api/military/exercises/{id}` (admin) — analyst edits. Sends only changed fields (the frontend builds a minimal patch via `buildExercisePatch`). Always recomputes `canonical_name` from the final `name_en`. Coordinates bbox-validated to 8–35°N / 105–135°E — out-of-bbox PATCHes return 400 (vs the AI ingest path which silently nulls — at the analyst layer we'd rather argue). If the patch explicitly touched `location_label`, the (label → lat/lng) pair is auto-recorded into `military_locations_auto.json` for future AI extractions. Also rejects `end_date < start_date` (the same date-range guard polls applies — symmetric across the two editorial-gated trackers).

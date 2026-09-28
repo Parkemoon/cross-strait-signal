@@ -6,7 +6,8 @@ import { READ_ONLY } from "../readOnly";
 //   - the paginated article feed (refetches on filter/page change)
 //   - aggregate stats for the sidebar + sentiment charts (refetches on
 //     scoping-filter change; sentiment + search are excluded — see api.js)
-//   - review-queue and pending-approval counts (refetches alongside stats)
+//   - review-queue and pending-approval counts (refetches alongside stats;
+//     admin build only)
 //
 // Returns plain state plus a setter for pendingApproval so callers can
 // optimistically decrement it after an Approve action without waiting for
@@ -24,6 +25,9 @@ export function useDashboardData(filters, page, altLens = null) {
   // Monotonic request id — filters can change per keystroke (no debounce), so a
   // slow earlier response must not clobber a newer one (or clear its spinner).
   const articlesReq = useRef(0);
+  // Same guard for stats, which takes seconds on a cold cache: without it a
+  // slower response for the previous filter could land last and win.
+  const statsReq = useRef(0);
 
   useEffect(() => {
     setLoading(true);
@@ -60,11 +64,18 @@ export function useDashboardData(filters, page, altLens = null) {
   // be threaded here too or the sidebar charts stay unscoped after those clicks.
   const { topic, source_place, urgency, escalation_only, entity, bias, source_name } = filters;
   useEffect(() => {
+    const myReq = ++statsReq.current;
     fetchStats(30, { topic, source_place, urgency, escalation_only, entity, bias, source_name }, altLens)
-      .then(setStats)
+      .then((data) => {
+        if (myReq === statsReq.current) setStats(data);
+      })
       .catch((err) => console.error("Failed to load stats:", err));
+    // The review counts are admin-only; nginx denies /review/ on the public
+    // site, so the public build would only collect a 403 here.
+    if (READ_ONLY) return;
     fetchReviewStats()
       .then((d) => {
+        if (myReq !== statsReq.current) return;
         setReviewPending(d?.pending || 0);
         setPendingApproval(d?.pending_approval || 0);
       })
