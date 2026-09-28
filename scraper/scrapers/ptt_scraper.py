@@ -60,10 +60,12 @@ def parse_push_count(nrec_text):
 
 def already_stored_today(conn, post_url):
     """Check if this PTT post was already stored in the last 24 hours."""
+    # scraped_at is T-separated ISO; strftime keeps the cutoff in that format
+    # (datetime() is space-separated, which stretched this to ~2 days).
     row = conn.execute("""
         SELECT id FROM social_pulse
         WHERE platform = 'ptt' AND item_key = ?
-        AND scraped_at >= datetime('now', '-1 day')
+        AND scraped_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', '-1 day')
     """, (post_url,)).fetchone()
     return row is not None
 
