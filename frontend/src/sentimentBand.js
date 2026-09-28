@@ -9,3 +9,19 @@ export function bandColour(score) {
   if (score < -0.3) return "var(--hostile)";
   return "var(--neut)";
 }
+
+const LABEL_BAND = {
+  hostile: "var(--hostile)",
+  cooperative: "var(--coop)",
+  neutral: "var(--neut)",
+};
+
+// Whether a sentiment label and score agree — the band the score falls in
+// must be the label's band ('mixed' takes any score). The review desk uses
+// this so an override can't leave a score that colours the other way; the
+// API applies the same rule (api/routes/review.py _score_problem).
+export function scoreFitsLabel(label, score) {
+  const band = LABEL_BAND[label];
+  if (!band) return true;
+  return score != null && bandColour(score) === band;
+}

@@ -92,8 +92,8 @@ def _row_to_statement(row) -> dict:
 @router.get("/statements")
 def statements(
     days: int = Query(365, ge=1, le=3650, description="Trailing window in days (on effective date)."),
-    start: Optional[str] = Query(None, description="ISO start date (overrides `days`)."),
-    end:   Optional[str] = Query(None, description="ISO end date (defaults to today)."),
+    start: Optional[date] = Query(None, description="ISO start date (overrides `days`)."),
+    end:   Optional[date] = Query(None, description="ISO end date (defaults to today)."),
     country: Optional[str] = Query(None, description="ISO 3166-1 alpha-2 country code filter."),
     tier: Optional[str] = Query(None, description="authority_tier filter."),
     side: Optional[str] = Query(None, description="source_side filter: TW|PRC|INTL."),
@@ -103,8 +103,9 @@ def statements(
     """Approved statements for the map pins + list. `merged`/`dismissed`/
     `pending` rows never appear. Window is on the effective date
     (stated_date, falling back to the article's published date)."""
-    end_d = date.fromisoformat(end) if end else date.today()
-    start_d = date.fromisoformat(start) if start else end_d - timedelta(days=days - 1)
+    # Typed as dates so a malformed value is a 422, not a 500 from fromisoformat.
+    end_d = end or date.today()
+    start_d = start or end_d - timedelta(days=days - 1)
 
     clauses = [
         "d.approval_status = 'approved'",

@@ -270,7 +270,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
-              AND s.bias IN ('green', 'green_leaning', 'blue')
+              AND s.bias IN ('green', 'green_leaning', 'blue_leaning', 'blue')
               {filter_extra}
             GROUP BY s.bias
         """, (*alt_params, f'-{days} days', *filter_params)).fetchall()
@@ -310,7 +310,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             JOIN sources s ON a.source_id = s.id
             WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
               AND {VISIBLE}
-              AND s.bias IN ('green', 'green_leaning', 'blue')
+              AND s.bias IN ('green', 'green_leaning', 'blue_leaning', 'blue')
             GROUP BY s.bias
         """, (*alt_params, f'-{days} days')).fetchall()
 

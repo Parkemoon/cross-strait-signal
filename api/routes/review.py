@@ -1,18 +1,54 @@
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from api.database import db_conn
 from api.auth import require_admin
 
 router = APIRouter(tags=["review"])
 
+SENTIMENTS = ("hostile", "cooperative", "neutral", "mixed")
+# The Tier-1 topic enum, duplicated from scraper/processors/ai_pipeline.py
+# (_TOPIC_ENUM) because importing that module builds a Gemini client.
+# tests/test_review_resolve.py asserts the two lists stay identical.
+TOPICS = (
+    "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE", "MIL_POLICY", "DIP_STATEMENT",
+    "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT", "ECON_TRADE", "ECON_INVEST",
+    "POL_DOMESTIC_TW", "POL_DOMESTIC_PRC", "POL_TONGDU", "INFO_WARFARE", "LEGAL_GREY",
+    "TRANSPORT", "INT_ORG", "HUMANITARIAN", "US_PRC", "US_TAIWAN", "HK_MAC", "CULTURE",
+    "CYBER", "ARMS_SALES", "SPORT", "ENERGY", "SCI_TECH", "NOT_RELEVANT",
+)
+
 
 class ReviewDecision(BaseModel):
-    resolution: str          # 'confirmed', 'overridden', 'dismissed'
-    sentiment_override: str | None = None
-    topic_override: str | None = None
+    # Anything but these three used to fall through to the approve branch, so
+    # a typo like 'dismiss' published the article.
+    resolution: Literal["confirmed", "overridden", "dismissed"]
+    sentiment_override: Literal[SENTIMENTS] | None = None
+    score_override: float | None = Field(default=None, ge=-1.0, le=1.0)
+    topic_override: Literal[TOPICS] | None = None
     escalation_override: bool | None = None
     note: str | None = None
+
+
+def _score_problem(label, score):
+    """Why `score` can't stand beside `label`, or None when it can.
+
+    Same boundaries as the frontend's bandColour (±0.3 is neutral), because
+    the card colour, the gauges and the trend all read the score, not the
+    label. 'mixed' carries any score.
+    """
+    if label == "mixed":
+        return None
+    if score is None:
+        return f"a {label} label needs a score"
+    if label == "hostile" and not score < -0.3:
+        return f"score {score:+.2f} is not hostile (needs to be below -0.3)"
+    if label == "cooperative" and not score > 0.3:
+        return f"score {score:+.2f} is not cooperative (needs to be above +0.3)"
+    if label == "neutral" and abs(score) > 0.3:
+        return f"score {score:+.2f} is not neutral (needs to be within ±0.3)"
+    return None
 
 
 @router.get("/review/queue")
@@ -67,10 +103,30 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
         if not analysis:
             raise HTTPException(status_code=404, detail="Analysis not found")
 
+        # A label override used to leave the model's score in place, so a
+        # hostile -> cooperative override still coloured and averaged as
+        # hostile. When the desk touches the label or the score, the pair it
+        # leaves behind has to agree. (The admin UI sends the model's label
+        # back on every override, so compare against the stored values.)
+        label = decision.sentiment_override or analysis["sentiment"]
+        score = analysis["sentiment_score"]
+        if decision.score_override is not None:
+            score = decision.score_override
+        if label != analysis["sentiment"] or score != analysis["sentiment_score"]:
+            problem = _score_problem(label, score)
+            if problem:
+                raise HTTPException(status_code=422, detail=f"Sentiment override: {problem}")
+
         if decision.sentiment_override:
             conn.execute(
                 "UPDATE ai_analysis SET sentiment = ? WHERE id = ?",
                 (decision.sentiment_override, analysis_id)
+            )
+
+        if decision.score_override is not None:
+            conn.execute(
+                "UPDATE ai_analysis SET sentiment_score = ? WHERE id = ?",
+                (decision.score_override, analysis_id)
             )
 
         if decision.topic_override:
@@ -102,13 +158,15 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
 
         if decision.note:
             conn.execute("""
-                INSERT INTO analyst_notes (article_id, note_text, sentiment_override, topic_override)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO analyst_notes (article_id, note_text, sentiment_override,
+                                           topic_override, score_override)
+                VALUES (?, ?, ?, ?, ?)
             """, (
                 article_id,
                 decision.note,
                 decision.sentiment_override,
-                decision.topic_override
+                decision.topic_override,
+                decision.score_override,
             ))
 
         conn.commit()

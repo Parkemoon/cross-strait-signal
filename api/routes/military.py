@@ -254,15 +254,16 @@ def _daily_rows(start: str, end: str):
 @router.get("/incursions")
 def incursions(
     days: int = Query(90, ge=1, le=2000, description="Trailing window size in days."),
-    start: Optional[str] = Query(None, description="ISO date (overrides `days`)."),
-    end:   Optional[str] = Query(None, description="ISO date (defaults to today)."),
+    start: Optional[date] = Query(None, description="ISO date (overrides `days`)."),
+    end:   Optional[date] = Query(None, description="ISO date (defaults to today)."),
 ):
     """Daily incursion series. Returns one row per date with the preferred
     source's columns. `aircraft_zones` is a comma-separated list of sector
     codes (N/C/SW/SE/E) where MND named them; map codes to labels with
     `/api/military/zones` if needed."""
-    end_d = date.fromisoformat(end) if end else date.today()
-    start_d = date.fromisoformat(start) if start else end_d - timedelta(days=days - 1)
+    # Typed as dates so a malformed value is a 422, not a 500 from fromisoformat.
+    end_d = end or date.today()
+    start_d = start or end_d - timedelta(days=days - 1)
     return {
         "start": start_d.isoformat(),
         "end":   end_d.isoformat(),
@@ -428,8 +429,8 @@ def _row_to_exercise(row):
 @router.get("/exercises")
 def exercises(
     days: int = Query(90, ge=1, le=1000, description="Trailing window in days."),
-    start: Optional[str] = Query(None, description="ISO start date (overrides `days`)."),
-    end:   Optional[str] = Query(None, description="ISO end date (defaults to today)."),
+    start: Optional[date] = Query(None, description="ISO start date (overrides `days`)."),
+    end:   Optional[date] = Query(None, description="ISO end date (defaults to today)."),
     performer: Optional[str] = Query(None, description="Comma-separated subset of PRC,ROC,US,JP,MULTI."),
     kind: Optional[str] = Query(None, description="Filter by exercise_kind."),
     with_geo: bool = Query(False, description="If true, return only rows with latitude+longitude set."),
@@ -438,8 +439,8 @@ def exercises(
     `merged_into_id` chain — `merged` and `dismissed` rows never appear.
     Joined article must pass the same VISIBLE predicate the rest of the
     dashboard uses."""
-    end_d = date.fromisoformat(end) if end else date.today()
-    start_d = date.fromisoformat(start) if start else end_d - timedelta(days=days - 1)
+    end_d = end or date.today()
+    start_d = start or end_d - timedelta(days=days - 1)
 
     clauses = [
         "e.approval_status = 'approved'",
@@ -570,7 +571,10 @@ def approve_exercise(exercise_id: int):
     row with the same canonical+performer already exists, the candidate
     being approved is itself merged into that earlier approved row
     rather than creating a duplicate marker on the public map. The
-    response indicates which mode fired via `duplicate_of`.
+    response indicates which mode fired via `duplicate_of`. That twin
+    must also start within ±30 days, so a recurring patrol can't fold
+    into last spring's; a candidate with no start_date may still join a
+    dated twin (the Han Kuang case: a re-report with no date of its own).
     """
     with db_conn() as conn:
         row = conn.execute(
@@ -586,8 +590,11 @@ def approve_exercise(exercise_id: int):
         start_date = row["start_date"]
 
         # 1. Already-approved-row dedupe: if an approved twin exists with
-        # same canonical+performer, the new row gets merged into it
-        # rather than approved. Skip when canonical is NULL.
+        # same canonical+performer within ±30 days, the new row gets
+        # merged into it rather than approved. Skip when canonical is NULL.
+        # The date guard was missing here (only step 3 had it), so every
+        # joint-combat-readiness-patrol approved after May folded into the
+        # May row and never reached the map.
         if canonical:
             twin = conn.execute("""
                 SELECT id FROM military_exercises
@@ -595,8 +602,17 @@ def approve_exercise(exercise_id: int):
                   AND canonical_name = :canonical
                   AND performer = :performer
                   AND id != :id
-                ORDER BY id ASC LIMIT 1
-            """, {"canonical": canonical, "performer": performer, "id": exercise_id}).fetchone()
+                  AND (
+                       :start_date IS NULL
+                       OR (start_date IS NOT NULL
+                           AND ABS(julianday(start_date) - julianday(:start_date)) <= 30)
+                  )
+                ORDER BY CASE WHEN :start_date IS NULL THEN 0
+                              ELSE ABS(julianday(start_date) - julianday(:start_date)) END,
+                         id ASC
+                LIMIT 1
+            """, {"canonical": canonical, "performer": performer, "id": exercise_id,
+                  "start_date": start_date}).fetchone()
             if twin:
                 merge_row(conn, "military_exercises", "exercise",
                           exercise_id, twin["id"])

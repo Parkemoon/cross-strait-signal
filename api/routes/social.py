@@ -25,13 +25,16 @@ def social_pulse():
 
         if latest_weibo and latest_weibo['latest']:
             weibo_last_updated = latest_weibo['latest']
+            # scraped_at is a T-separated ISO string. datetime() returns a
+            # space-separated one, and because 'T' > ' ' every batch from the
+            # same UTC day passed the cutoff; strftime keeps one format.
             rows = conn.execute("""
                 SELECT id, item_key, title, title_en, title_en_override,
                        rank_position, heat_index, scraped_at
                 FROM social_pulse
                 WHERE platform = 'weibo'
                   AND item_key != '__none__'
-                  AND scraped_at >= datetime(?, '-10 minutes')
+                  AND scraped_at >= strftime('%Y-%m-%dT%H:%M:%S', ?, '-10 minutes')
                 ORDER BY rank_position ASC NULLS LAST
             """, (weibo_last_updated,)).fetchall()
 
@@ -66,7 +69,7 @@ def social_pulse():
                        push_count, boo_count, board, url, scraped_at
                 FROM social_pulse
                 WHERE platform = 'ptt'
-                  AND scraped_at >= datetime('now', '-1 day')
+                  AND scraped_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', '-1 day')
                   AND push_count >= 2
                 ORDER BY push_count DESC
                 LIMIT 8
