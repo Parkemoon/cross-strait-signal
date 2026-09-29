@@ -154,7 +154,7 @@ ADMIN_TOKEN=...                # gates write endpoints AND admin-only reads (is_
 REACT_APP_CARTO_KEY=...        # CARTO basemap key, inlined into BOTH frontend builds (frontend/src/basemap.js); missing = every map tile watermarked "API KEY REQUIRED"
 ```
 
-Optional: `GEMINI_TIER1_MODE=interactive` (Tier 1 defaults to the Batch API — this restores the sequential per-article path), `TIER1_BATCH_WAIT_MIN` (same-tick batch collection window, default 20 minutes; 0 = never wait, always collect next tick), `OPENROUTER_API_KEY` (alt-model comparison sweeps only — `scripts/sweep_alt_models.py`).
+Optional: `GEMINI_TIER1_MODE=interactive` (Tier 1 defaults to the Batch API — this restores the sequential per-article path), `TIER1_BATCH_WAIT_MIN` (same-tick batch collection window, default 20 minutes; 0 = never wait, always collect next tick), `OPENROUTER_API_KEY` (alt-model comparison sweeps only — `scripts/sweep_alt_models.py`), `R2_ENDPOINT` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` (off-site copy of the nightly DB backup to Cloudflare R2 — `scripts/backup_db.py`; without them the backup stays on the server only). The settings file is `600` root-only: the unprivileged scraper-browser user must not be able to read it (`scraper/utils/browser_user.py`).
 
 ## Key domain concepts
 
