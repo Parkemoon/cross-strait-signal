@@ -1,5 +1,4 @@
 """scripts/backup_db.py rotation and check_scraper_health.py's backup check."""
-import os
 from datetime import datetime, timedelta
 
 from scripts.backup_db import PREFIX, backups, to_keep
@@ -37,10 +36,8 @@ def test_backups_lists_only_finished_archives(tmp_path):
 
 
 def test_backup_check_goes_stale_after_one_missed_night(tmp_path):
-    archive = tmp_path / f"{PREFIX}20260929-023000.db.zst"
-    archive.write_text("")
-    made = datetime(2026, 9, 29, 2, 30).timestamp()
-    os.utime(archive, (made, made))
+    (tmp_path / f"{PREFIX}20260929-023000.db.zst").write_text("")
+    (tmp_path / ".partial-20260930-023000.db.zst").write_text("")   # a failed night
     assert backup_check(str(tmp_path), datetime(2026, 9, 29, 8, 15))["status"] == "ok"
     assert backup_check(str(tmp_path), datetime(2026, 9, 30, 8, 15))["status"] == "STALE"
 

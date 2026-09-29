@@ -35,10 +35,11 @@ from dotenv import load_dotenv
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+from scripts.backup_db import DEFAULT_DEST as DEFAULT_BACKUPS, backups  # noqa: E402
 DEFAULT_DB = os.path.join(ROOT, "db", "cross_strait_signal.db")
 DEFAULT_ENV = os.path.join(ROOT, ".env")
 DEFAULT_STATE = "/var/log/scraper-health-state.json"
-DEFAULT_BACKUPS = "/root/db-backups/nightly"   # scripts/backup_db.py --dest
 
 # --- Article sources ---------------------------------------------------------
 # Max days of silence before a source counts as stale. Keyed on sources.name;
@@ -141,12 +142,10 @@ def backup_check(backup_dir, now):
     the 08:15 run sees that morning's 02:30 copy, so one missed night
     already reads STALE."""
     try:
-        stamps = [os.path.getmtime(os.path.join(backup_dir, name))
-                  for name in os.listdir(backup_dir)
-                  if name.startswith("cross_strait_signal-") and name.endswith(".db.zst")]
+        found = backups(backup_dir)
     except FileNotFoundError:
-        stamps = []
-    last = datetime.fromtimestamp(max(stamps)).isoformat(" ", "seconds") if stamps else None
+        found = []
+    last = found[0][0].isoformat(" ", "seconds") if found else None
     return assess("backup:db_nightly", last, 0, "scripts/backup_db.py, 02:30 nightly", now)
 
 
