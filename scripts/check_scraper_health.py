@@ -38,6 +38,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DB = os.path.join(ROOT, "db", "cross_strait_signal.db")
 DEFAULT_ENV = os.path.join(ROOT, ".env")
 DEFAULT_STATE = "/var/log/scraper-health-state.json"
+DEFAULT_BACKUPS = "/root/db-backups/nightly"   # scripts/backup_db.py --dest
 
 # --- Article sources ---------------------------------------------------------
 # Max days of silence before a source counts as stale. Keyed on sources.name;
@@ -135,6 +136,20 @@ def parse_when(raw):
         return None
 
 
+def backup_check(backup_dir, now):
+    """The newest nightly DB backup (scripts/backup_db.py). Limit 0 days:
+    the 08:15 run sees that morning's 02:30 copy, so one missed night
+    already reads STALE."""
+    try:
+        stamps = [os.path.getmtime(os.path.join(backup_dir, name))
+                  for name in os.listdir(backup_dir)
+                  if name.startswith("cross_strait_signal-") and name.endswith(".db.zst")]
+    except FileNotFoundError:
+        stamps = []
+    last = datetime.fromtimestamp(max(stamps)).isoformat(" ", "seconds") if stamps else None
+    return assess("backup:db_nightly", last, 0, "scripts/backup_db.py, 02:30 nightly", now)
+
+
 def run_checks(conn, now):
     """Returns list of dicts: {id, last, age_days, limit, status, note}."""
     results = []
@@ -208,6 +223,7 @@ def main():
     ap.add_argument("--db", default=DEFAULT_DB)
     ap.add_argument("--env-file", default=DEFAULT_ENV)
     ap.add_argument("--state-file", default=DEFAULT_STATE)
+    ap.add_argument("--backup-dir", default=DEFAULT_BACKUPS)
     ap.add_argument("--to", default=None, help="override HEALTH_TO/DIGEST_TO")
     ap.add_argument("--no-email", action="store_true", help="print only")
     ap.add_argument("--force-email", action="store_true",
@@ -220,6 +236,7 @@ def main():
     now = datetime.now()
     results = run_checks(conn, now)
     conn.close()
+    results.append(backup_check(args.backup_dir, now))
 
     try:
         with open(args.state_file) as f:
