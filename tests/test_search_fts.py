@@ -16,10 +16,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from api.routes import articles  # noqa: E402
 from scraper.utils import db as scraper_db  # noqa: E402
+from scripts.migrate import apply_migrations  # noqa: E402
 
-ROOT = os.path.join(os.path.dirname(__file__), '..')
-SCHEMA = os.path.join(ROOT, 'db', 'schema.sql')
-MIGRATIONS = os.path.join(ROOT, 'db', 'migrations')
+SCHEMA = os.path.join(os.path.dirname(__file__), '..', 'db', 'schema.sql')
 
 FEED_DEFAULTS = dict(entity=None, topic=None, sentiment=None, source_place=None, source_name=None,
                      bias=None, urgency=None, escalation_only=False, search=None, include_pending=False,
@@ -156,20 +155,6 @@ def test_title_edit_reindexes_both_indexes(db):
         db.execute(f"INSERT INTO {table}({table}, rank) VALUES('integrity-check', 1)")
 
 
-def _run_migration(conn, name):
-    path = os.path.join(MIGRATIONS, name)
-    if name.endswith('.sql'):
-        with open(path, encoding='utf-8') as f:
-            conn.executescript(f.read())
-    else:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(name[:-3], path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        mod.migrate(conn)
-    conn.commit()
-
-
 def test_migration_backfills_and_narrows_existing_db(tmp_path):
     """A pre-0018 database: no trigram table, the old catch-all update trigger."""
     conn = _new_db(str(tmp_path / 'old.db'))
@@ -187,8 +172,7 @@ def test_migration_backfills_and_narrows_existing_db(tmp_path):
     _insert_article(conn, 'lai_trad')
     conn.commit()
 
-    for name in ('0016_wal.py', '0017_articles_visible_index.sql', '0018_fts_trigram.sql'):
-        _run_migration(conn, name)
+    apply_migrations(conn, quiet=True)
 
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == 'wal'
     hits = conn.execute("SELECT rowid FROM articles_fts_zh WHERE articles_fts_zh MATCH '\"賴清德\"'").fetchall()
@@ -202,8 +186,7 @@ def test_migration_backfills_and_narrows_existing_db(tmp_path):
 def test_migrations_are_noops_on_a_fresh_schema(tmp_path):
     """init_db.py runs schema.sql and then every migration."""
     conn = _new_db(str(tmp_path / 'fresh.db'))
-    for name in ('0016_wal.py', '0017_articles_visible_index.sql', '0018_fts_trigram.sql'):
-        _run_migration(conn, name)
+    apply_migrations(conn, quiet=True)
     triggers = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'")}
     assert {'articles_ai', 'articles_ad', 'articles_au',
             'articles_zh_ai', 'articles_zh_ad', 'articles_zh_au'} <= triggers
