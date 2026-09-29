@@ -205,7 +205,7 @@ server {
 # so no approved article ever ages out unswept)
 0 4 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --probe && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --retry-errors --days 3650 --limit 1000 >> /var/log/cross-strait-v4f-sweep.log 2>&1
 
-# Alt-model monthly review email (1st 08:30 — live aggregates vs frozen write-up)
+# Alt-model monthly review email (1st 08:30 — live aggregates vs the frozen 2026-08 reference)
 30 8 1 * * cd /var/www/cross-strait-signal && venv/bin/python scripts/alt_model_monthly_report.py >> /var/log/alt-model-report.log 2>&1
 ```
 

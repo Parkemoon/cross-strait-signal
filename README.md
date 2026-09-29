@@ -268,8 +268,7 @@ than average. The real differences are analytic, not political: a
 much stricter relevance gate (which discards soft-topic articles but
 *keeps* the sovereignty material — the opposite of what censorship
 would look like) and boundary disputes on the taxonomy's fuzziest
-categories. Full method, tables, and caveats:
-[`[redacted]`]([redacted]).
+categories.
 
 ## Sources
 

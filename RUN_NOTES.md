@@ -1,15 +1,13 @@
 # Alt-model experiment — run notes & provenance
 
 Receipts file for the alt-model experiment's claims about *weights*: which
-provider actually served each run, at what precision, when. The write-up
-(`[redacted]`) cites this file; sweeps append their
-own stanzas automatically.
+provider actually served each run, at what precision, when. Sweeps append
+their own stanzas automatically.
 
 ## Article sweep (context)
 
-The 2026-07/08 article sweeps are documented in the write-up itself (§2
-methodology) and per-row in `alt_model_analysis.provider_used` /
-`prompt_sha256`. Headline provenance: DeepSeek V4 Flash neutral-arm rows
+The 2026-07/08 article sweeps are documented per-row in
+`alt_model_analysis.provider_used` / `prompt_sha256`. Headline provenance: DeepSeek V4 Flash neutral-arm rows
 were served ~99.8% by DeepInfra (13,064/13,083 pre-mop-up), remainder by
 DigitalOcean/Cloudflare after the 2026-08-07 whitelist widening.
 

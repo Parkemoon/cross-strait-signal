@@ -1,13 +1,13 @@
 """Monthly alt-model drift report — emails the live aggregates next to the
-frozen write-up numbers so the Alt Models tab's findings text gets a regular
+frozen 2026-08 numbers so the Alt Models tab's findings text gets a regular
 2-minute human review.
 
 Runs scripts/alt_model_aggregates.py against the DB, prepends the frozen
-2026-08 reference table from [redacted] §3-4, and emails
-the result via the same SMTP setup as weekly_digest.py. The review act: if the
-live numbers have moved materially from the frozen ones, update the findings
-block in frontend/src/components/AltModelsTab.jsx (and the write-up); if not,
-delete the email.
+2026-08 reference table below, and emails the result via the same SMTP setup
+as weekly_digest.py. The review act: if the live numbers have moved materially
+from the frozen ones, update the findings block in
+frontend/src/components/AltModelsTab.jsx and this reference; if not, delete the
+email.
 
 Monthly via cron (1st 08:30) from the prod worktree. Flags: --db, --env-file,
 --to (default DIGEST_TO), --no-email (print only).
@@ -24,11 +24,11 @@ from dotenv import load_dotenv
 
 REPO = Path(__file__).resolve().parent.parent
 
-# Frozen reference — [redacted] §3-4 + §5.6 (refreshed 2026-08-28).
-# Update this block whenever the write-up's headline table is revised, so the
-# email always compares live vs last-reviewed, not live vs forever-2026-08.
+# Frozen reference (refreshed 2026-08-28). Update this block whenever the
+# headline figures are revised, so the email always compares live vs
+# last-reviewed, not live vs forever-2026-08.
 FROZEN_REFERENCE = """\
-=== Frozen reference (write-up, refreshed 2026-08-28; V4F n=15,418) ===
+=== Frozen reference (refreshed 2026-08-28; V4F n=15,418) ===
   V4F topic agreement overall:            40.3%   (conditional on relevant: 58.8%)
   V4F NOT_RELEVANT rate:                  31.5%   (sovereignty 6.1% vs other 36.7% — anti-selective)
   V4F |dScore| (relevant rows):           0.142   signed bias +0.040
@@ -39,7 +39,7 @@ FROZEN_REFERENCE = """\
     V4F alt-only omission 5.7% (control 4.8%); sensitive slice 2.9% (control 8.8%, 8/91)
     V4F extraction recall 75.8% (control 86.7%)
 Review trigger: conditional agreement, NR ratio or signed bias moving
-materially from these -> update AltModelsTab.jsx findings + the write-up.
+materially from these -> update AltModelsTab.jsx findings + this reference.
 """
 
 
@@ -79,7 +79,7 @@ def main():
     pw = os.environ["SMTP_PASS"]
 
     msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = "Alt-model monthly review — live aggregates vs frozen write-up"
+    msg["Subject"] = "Alt-model monthly review — live aggregates vs frozen reference"
     msg["From"] = user
     msg["To"] = to
 

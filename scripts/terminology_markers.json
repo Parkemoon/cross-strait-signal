@@ -18,7 +18,7 @@
       },
       "condition": "A marker only fires for an article whose title_original + content_original contains at least one marker_zh pattern (the model demonstrably had to render it). Markers with source_side_condition additionally require that side.",
       "unit": "Per (article, model, arm, marker): count case-insensitive regex hits per bucket across the four output fields; classify row as the dominant bucket, or 'omitted' if the marker is in the source but no bucket pattern appears in any output field.",
-      "grouping": "Aggregate per (marker, source_side, model). source_side from sources.place: TW -> tw, PRC -> prc, HK/SG/UK -> intl. Note RTHK (HK, state_official post-NSL) lands in intl under this rule — flag it in the write-up if HK rows move any result.",
+      "grouping": "Aggregate per (marker, source_side, model). source_side from sources.place: TW -> tw, PRC -> prc, HK/SG/UK -> intl. Note RTHK (HK, state_official post-NSL) lands in intl under this rule — flag it when reporting if HK rows move any result.",
       "pairing": "All cross-model comparisons on the intersection of article_ids (paired design). gemini-control is the baseline; V4F has the wide corpus, K3 the stratified subset."
     },
     "regex_notes": "All patterns case-insensitive. Scare-quote classes include straight and curly quotes: [\"'“‘”’]. Plain-unification uses a negative lookbehind so 'reunification' never double-counts."

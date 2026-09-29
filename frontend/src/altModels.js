@@ -18,7 +18,7 @@ export const armLabel = (a) => ARM_LABELS[a] || a;
 
 // Models dropped from the experiment's UI surfaces (tab, feed lens). Sweep
 // rows stay in the DB and the API still serves them — this is presentation-
-// side retirement only, so the write-up's numbers remain reproducible.
+// side retirement only, so the frozen 2026-08 findings remain reproducible.
 export const RETIRED_MODELS = new Set([
   "moonshotai/kimi-k3", // evaluated, cleared, not proceeding to production
 ]);
