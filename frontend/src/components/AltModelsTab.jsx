@@ -144,12 +144,12 @@ export default function AltModelsTab() {
         refusals alone are not the censorship metric.
       </p>
 
-      {/* Findings — distilled from [redacted] (refreshed
-          2026-08-28 against the full 15.4k-row corpus; the table above is live,
-          so headline figures can drift a point or two as the daily sweep runs). */}
+      {/* Findings — frozen 2026-08 results (refreshed 2026-08-28 against the
+          full 15.4k-row corpus; the table above is live, so headline figures can
+          drift a point or two as the daily sweep runs). */}
       {summary && summary.length > 0 && (
         <>
-          <SectionRule right="2026-08 WRITE-UP · REFRESHED 08-28">Findings</SectionRule>
+          <SectionRule right="2026-08 · REFRESHED 08-28">Findings</SectionRule>
           <ol style={{ ...PROSE, paddingLeft: "20px" }}>
             <li style={{ marginBottom: "8px" }}>
               <strong>The censorship hypothesis failed on this corpus.</strong> Zero refusals
@@ -172,8 +172,7 @@ export default function AltModelsTab() {
               CULTURE vs POL_TONGDU, LEGAL_GREY vs POL_DOMESTIC_TW).
             </li>
             <li>
-              Full method, tables and caveats: <code>[redacted]</code> (repo
-              root) · reproduce via <code>scripts/alt_model_aggregates.py</code>,{" "}
+              Reproduce via <code>scripts/alt_model_aggregates.py</code>,{" "}
               <code>scripts/audit_terminology_markers.py</code> and{" "}
               <code>scripts/audit_summary_completeness.py</code>.
             </li>
