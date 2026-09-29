@@ -27,6 +27,8 @@ Versioned since 2026-07-08: ordered files in `db/migrations/` (`NNNN_name.sql`, 
 
 Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`. Staging worktree at `/var/www/cross-strait-signal-staging` (branch `staging`).
 
+**Shared Python environment:** the staging worktree's `venv` is a symlink to prod's (`/var/www/cross-strait-signal/venv`), so a `pip install` made while working on staging changes prod at once. Install only the exact new packages (a blanket `pip install -r requirements.txt` can re-pin others), never during a pipeline tick; `server_deploy.sh` does not run pip.
+
 ## Cron schedule
 
 - Pipeline runs every 6h (`0 */6 * * *`), logging to `/var/log/cross-strait-pipeline.log`.
