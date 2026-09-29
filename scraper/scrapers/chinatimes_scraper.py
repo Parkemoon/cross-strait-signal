@@ -7,7 +7,9 @@ article pages) on 2026-09-08 (Politics on 09-18). The rule challenges
 headless and scripted clients: plain HTTP, RSSHub and headless Chromium
 all get a 403 「正在執行安全驗證」 page. A normal Chromium with a window is
 served every page with no challenge, so this scraper drives headful
-Chromium on a private Xvfb display (scraper/utils/display.py). It sends
+Chromium on a private Xvfb display (scraper/utils/display.py), sandboxed
+and, under the root cron, as an unprivileged user with no API keys in
+its environment (scraper/utils/browser_user.py). It sends
 the browser's own user-agent and uses no stealth patches or challenge
 solving; if CT starts challenging real browsers as well, the run stops
 at the first challenge page and check_scraper_health.py flags the
@@ -36,6 +38,7 @@ from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from scraper.utils.browser_user import browser_user, launch_chromium
 from scraper.utils.dates import TAIPEI
 from scraper.utils.db import get_connection, save_article
 from scraper.utils.display import virtual_display
@@ -230,9 +233,9 @@ def scrape_all_chinatimes_sources(max_pages=DEFAULT_MAX_PAGES, only=None, all_pa
 
     total = 0
     try:
-        with virtual_display() as display, sync_playwright() as p:
-            browser = p.chromium.launch(channel='chromium', headless=False,
-                                        env={**os.environ, 'DISPLAY': display})
+        user = browser_user()
+        with virtual_display(user) as display, sync_playwright() as p:
+            browser = launch_chromium(p.chromium, display, user, headless=False)
             try:
                 context = browser.new_context(locale='zh-TW')
                 context.route('**/*', lambda route: route.continue_()
