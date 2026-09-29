@@ -1,46 +1,48 @@
-"""One-off rebuild of the articles_fts FTS5 index.
+"""Rebuild the two FTS5 mirrors of `articles` from the content table.
 
-The FTS5 virtual table was declared as ``content='articles'`` (external content
-mode) without INSERT/UPDATE/DELETE triggers, so historical writes to
-``articles`` never made it into the index. Run this once to backfill, and
-ensure the new triggers in ``schema.sql`` / ``db/migrations/`` are in place
-so future inserts stay in sync.
+Both indexes are external-content tables (``content='articles'``) kept in sync
+by triggers. Rebuild them if they ever drift (an integrity-check failure, or a
+table dropped and recreated): ``articles_fts`` (unicode61, Latin-script
+queries) and ``articles_fts_zh`` (trigram, Chinese queries; migration 0018).
+History: articles_fts was first declared without its triggers, so writes to
+``articles`` never reached it; this script was the one-off backfill.
 
-Idempotent: re-running drops and rebuilds the index in one transaction.
-Takes ~30-60 seconds for a ~55k-row corpus.
+Idempotent: each index is rebuilt in its own transaction, holding the write
+lock throughout, then checked against `articles`. Staging (60k articles):
+32 s + 87 s; prod (213k) is about 3.5x that, so run it between pipeline ticks.
 
 Usage:
-    venv/bin/python3 scripts/rebuild_fts.py
+    venv/bin/python3 scripts/rebuild_fts.py [--db PATH] [--only articles_fts|articles_fts_zh]
 """
+import argparse
 import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from scraper.utils.db import get_connection
 import sys
 import time
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from scraper.utils.db import get_connection
+
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'cross_strait_signal.db')
+INDEXES = ('articles_fts', 'articles_fts_zh')
 
 
-def rebuild():
-    print(f"Rebuilding articles_fts in {DB_PATH}")
-    conn = get_connection(DB_PATH)
+def rebuild(db_path=DB_PATH, indexes=INDEXES):
+    conn = get_connection(db_path)
     try:
-        start = time.time()
-        conn.execute("INSERT INTO articles_fts(articles_fts) VALUES('rebuild')")
-        conn.commit()
-        elapsed = time.time() - start
-
-        before, after = conn.execute(
-            "SELECT (SELECT COUNT(*) FROM articles), "
-            "(SELECT COUNT(*) FROM articles_fts WHERE articles_fts MATCH 'a' OR articles_fts MATCH 'the')"
-        ).fetchone()
-        print(f"Done in {elapsed:.1f}s. {before} articles, {after} indexed rows matched a smoke-test query.")
+        for table in indexes:
+            print(f"Rebuilding {table} in {db_path}")
+            start = time.time()
+            conn.execute(f"INSERT INTO {table}({table}) VALUES('rebuild')")
+            conn.commit()
+            conn.execute(f"INSERT INTO {table}({table}, rank) VALUES('integrity-check', 1)")
+            print(f"  done in {time.time() - start:.1f}s; integrity-check against articles passed")
     finally:
         conn.close()
 
 
 if __name__ == '__main__':
-    rebuild()
-    sys.exit(0)
+    ap = argparse.ArgumentParser(description="Rebuild the articles FTS5 indexes")
+    ap.add_argument('--db', default=DB_PATH, help="Path to another worktree's DB (e.g. prod)")
+    ap.add_argument('--only', choices=INDEXES, help="Rebuild one index")
+    args = ap.parse_args()
+    rebuild(args.db, (args.only,) if args.only else INDEXES)

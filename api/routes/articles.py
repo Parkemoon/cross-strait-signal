@@ -6,11 +6,7 @@ from typing import Optional
 from pydantic import BaseModel
 from api.database import db_conn
 from api.auth import is_admin, require_admin
-
-try:
-    import zhconv as _zhconv
-except ImportError:  # pragma: no cover
-    _zhconv = None
+from shared.name_registry import to_simp, to_trad
 
 # Strict public-visibility predicate — matches the list endpoint's clauses.
 _PUBLIC_VISIBLE = (
@@ -26,12 +22,10 @@ def _script_variants(term):
     """The term as typed plus its traditional and simplified forms, so one
     search finds both sides' coverage. zhconv's Taiwan form writes 台 as 臺,
     which Taiwanese outlets rarely print (國台辦, 台獨), so the 台 spelling
-    is searched too."""
-    variants = [term]
-    if _zhconv:
-        trad = _zhconv.convert(term, 'zh-tw')
-        variants += [trad, trad.replace('臺', '台'), _zhconv.convert(term, 'zh-cn')]
-    return list(dict.fromkeys(variants))
+    is searched too. Without zhconv installed both conversions are identity
+    and only the term as typed is searched."""
+    trad = to_trad(term)
+    return list(dict.fromkeys([term, trad, trad.replace('臺', '台'), to_simp(term)]))
 
 
 def _like_contains(s):
