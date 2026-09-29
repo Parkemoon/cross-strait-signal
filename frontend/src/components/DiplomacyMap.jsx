@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Tooltip } from "react-leaflet";
+import { cartoTileUrl, CARTO_ATTRIBUTION } from "../basemap";
 import "leaflet/dist/leaflet.css";
 
 // Diverging stance ramp for the third-country axis (pro-Beijing ↔ pro-Taipei).
@@ -187,8 +188,8 @@ export default function DiplomacyMap({ countries, selectedIso, onSelect, showPin
         style={{ height: "100%", width: "100%", background: "#dfe6ea" }}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={cartoTileUrl("light_nolabels")}
+          attribution={CARTO_ATTRIBUTION}
           subdomains="abcd"
           maxZoom={6}
           minZoom={1}
