@@ -234,15 +234,5 @@ scratch.py
 
 # Runtime lock files from military_locations auto-extend path
 scraper/processors/*.json.lock
-[redacted]
-[redacted]
-[redacted]
 
-# Private working documents + [redacted] (untracked 2026-08-28;
-# local copies stay in both worktrees — copy by hand when setting up a new one)
-[redacted]
-[redacted]
-[redacted]
-[redacted]
-[redacted]
-[redacted]
+# Private working files are excluded in .git/info/exclude (local, never pushed).
