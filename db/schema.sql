@@ -134,6 +134,11 @@ CREATE INDEX idx_articles_source      ON articles(source_id);
 CREATE INDEX idx_articles_published   ON articles(published_at DESC);
 CREATE INDEX idx_articles_url         ON articles(url);
 CREATE INDEX IF NOT EXISTS idx_articles_cluster ON articles(event_cluster_id);
+-- Covers the feed/stats visibility filter + published_at window + sources join,
+-- so those queries never read the article row (its columns sit behind up to
+-- 25,000 characters of body text). See db/migrations/0017_articles_visible_index.sql.
+CREATE INDEX IF NOT EXISTS idx_articles_visible
+    ON articles(analyst_approved, is_hidden, published_at, source_id);
 CREATE INDEX idx_analysis_topic       ON ai_analysis(topic_primary);
 CREATE INDEX idx_analysis_sentiment   ON ai_analysis(sentiment);
 CREATE INDEX idx_analysis_urgency     ON ai_analysis(urgency);
@@ -191,11 +196,44 @@ CREATE TRIGGER IF NOT EXISTS articles_ad AFTER DELETE ON articles BEGIN
     INSERT INTO articles_fts(articles_fts, rowid, title_original, title_en, content_original, content_en)
     VALUES('delete', old.id, old.title_original, old.title_en, old.content_original, old.content_en);
 END;
-CREATE TRIGGER IF NOT EXISTS articles_au AFTER UPDATE ON articles BEGIN
+-- Update triggers fire only when an indexed column changes; approvals,
+-- cluster ids and scan stamps used to re-index the whole body (0018).
+CREATE TRIGGER IF NOT EXISTS articles_au
+AFTER UPDATE OF title_original, title_en, content_original, content_en ON articles BEGIN
     INSERT INTO articles_fts(articles_fts, rowid, title_original, title_en, content_original, content_en)
     VALUES('delete', old.id, old.title_original, old.title_en, old.content_original, old.content_en);
     INSERT INTO articles_fts(rowid, title_original, title_en, content_original, content_en)
     VALUES (new.id, new.title_original, new.title_en, new.content_original, new.content_en);
+END;
+
+-- Chinese search. unicode61 (above) makes a whole run of Han characters one
+-- token, so it serves Latin-script queries only. The trigram index makes any
+-- 3+ character substring of the original-language text searchable;
+-- detail='none' keeps it small but rules out phrase queries, so
+-- api/routes/articles.py ANDs the trigrams and confirms with LIKE.
+-- See db/migrations/0018_fts_trigram.sql.
+CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts_zh USING fts5(
+    title_original,
+    content_original,
+    content='articles',
+    content_rowid='id',
+    tokenize='trigram',
+    detail='none'
+);
+CREATE TRIGGER IF NOT EXISTS articles_zh_ai AFTER INSERT ON articles BEGIN
+    INSERT INTO articles_fts_zh(rowid, title_original, content_original)
+    VALUES (new.id, new.title_original, new.content_original);
+END;
+CREATE TRIGGER IF NOT EXISTS articles_zh_ad AFTER DELETE ON articles BEGIN
+    INSERT INTO articles_fts_zh(articles_fts_zh, rowid, title_original, content_original)
+    VALUES('delete', old.id, old.title_original, old.content_original);
+END;
+CREATE TRIGGER IF NOT EXISTS articles_zh_au
+AFTER UPDATE OF title_original, content_original ON articles BEGIN
+    INSERT INTO articles_fts_zh(articles_fts_zh, rowid, title_original, content_original)
+    VALUES('delete', old.id, old.title_original, old.content_original);
+    INSERT INTO articles_fts_zh(rowid, title_original, content_original)
+    VALUES (new.id, new.title_original, new.content_original);
 END;
 
 -- ============================================================

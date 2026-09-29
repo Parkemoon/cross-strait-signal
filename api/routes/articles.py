@@ -1,4 +1,5 @@
 import math
+import re
 from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
@@ -6,11 +7,82 @@ from pydantic import BaseModel
 from api.database import db_conn
 from api.auth import is_admin, require_admin
 
+try:
+    import zhconv as _zhconv
+except ImportError:  # pragma: no cover
+    _zhconv = None
+
 # Strict public-visibility predicate — matches the list endpoint's clauses.
 _PUBLIC_VISIBLE = (
     "a.is_hidden = 0 AND a.analyst_approved = 1 "
     "AND (ai.needs_human_review = 0 OR ai.review_resolved = 1)"
 )
+
+# Han characters: CJK Unified Ideographs, Extension A, Compatibility, Extensions B+.
+_HAN = re.compile(r'[\u3400-\u9fff\uf900-\ufaff\U00020000-\U0003134f]')
+
+
+def _script_variants(term):
+    """The term as typed plus its traditional and simplified forms, so one
+    search finds both sides' coverage. zhconv's Taiwan form writes 台 as 臺,
+    which Taiwanese outlets rarely print (國台辦, 台獨), so the 台 spelling
+    is searched too."""
+    variants = [term]
+    if _zhconv:
+        trad = _zhconv.convert(term, 'zh-tw')
+        variants += [trad, trad.replace('臺', '台'), _zhconv.convert(term, 'zh-cn')]
+    return list(dict.fromkeys(variants))
+
+
+def _like_contains(s):
+    """LIKE pattern matching `s` anywhere, with LIKE's wildcards escaped."""
+    return '%' + s.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+
+
+def _search_clause(term):
+    """(sql, params) restricting the feed to articles that contain `term`.
+
+    Latin-script terms go through articles_fts (unicode61: whole words, so
+    'PLA' doesn't match 'place'). A term with any Han character goes through
+    articles_fts_zh (trigram, migration 0018), because unicode61 treats a whole
+    run of Chinese as one token. That index has detail='none' and can't match
+    phrases, so the term's trigrams are ANDed to find candidates and LIKE
+    confirms each one. Under three characters there is no trigram to look up
+    and LIKE scans the original-language title and body."""
+    if not _HAN.search(term):
+        # Double quotes make the term a phrase: embedded quotes are doubled and
+        # operator syntax like OR / NEAR is inert.
+        escaped = term.replace('"', '""')
+        return ("a.id IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ?)",
+                [f'"{escaped}"'])
+
+    variants = _script_variants(term)
+
+    def contains(alias):
+        likes, params = [], []
+        for v in variants:
+            pattern = _like_contains(v)
+            likes.append(f"{alias}.title_original LIKE ? ESCAPE '\\' OR {alias}.content_original LIKE ? ESCAPE '\\'")
+            params += [pattern, pattern]
+        return "(" + " OR ".join(likes) + ")", params
+
+    if min(len(v) for v in variants) < 3:
+        # LIKE over the analysed articles only (the feed inner-joins
+        # ai_analysis, so no other article can appear). As a plain term on
+        # `a` it ran wherever the planner put the articles loop; the admin
+        # feed walks all 213k articles in idx_articles_visible order and read
+        # every body (3.2 s on prod against 0.4 s).
+        like_sql, params = contains('sa')
+        return ("a.id IN (SELECT sa.id FROM ai_analysis sai JOIN articles sa ON sa.id = sai.article_id "
+                f"WHERE {like_sql})", params)
+
+    def trigrams(v):
+        return " AND ".join('"' + v[i:i + 3].replace('"', '""') + '"' for i in range(len(v) - 2))
+
+    match = " OR ".join(f"({trigrams(v)})" for v in variants)
+    like_sql, params = contains('a')
+    return (f"a.id IN (SELECT rowid FROM articles_fts_zh WHERE articles_fts_zh MATCH ?) AND {like_sql}",
+            [match] + params)
 
 
 def _sanitize_floats(d: dict) -> dict:
@@ -131,14 +203,10 @@ def list_articles(
         if escalation_only:
             where_clauses.append("ai.is_escalation_signal = 1")
 
-        if search:
-            # FTS5 MATCH against the articles_fts index (titles + content). The
-            # term is wrapped in double quotes to treat it as a phrase, which
-            # both escapes embedded quotes (FTS5 doubles them) and avoids the
-            # caller injecting operator syntax like OR / NEAR.
-            escaped = search.replace('"', '""')
-            where_clauses.append("a.id IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ?)")
-            params.append(f'"{escaped}"')
+        if search and search.strip():
+            search_sql, search_params = _search_clause(search.strip())
+            where_clauses.append(search_sql)
+            params.extend(search_params)
 
         where_sql = ""
         if where_clauses:

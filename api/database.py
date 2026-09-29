@@ -10,10 +10,14 @@ def _configure(conn):
     CASCADE (it's a no-op without this — applies to poll_results.poll_id
     and any future cascading FKs). `busy_timeout` makes writers wait up
     to 30s for the lock instead of erroring with 'database is locked'
-    when the cron pipeline overlaps a long-running scrape."""
+    when the cron pipeline overlaps a long-running scrape. `synchronous =
+    NORMAL` only in WAL mode (migration 0016), where it is crash-safe; see
+    scraper/utils/db.get_connection."""
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 30000")
+    if conn.execute("PRAGMA journal_mode").fetchone()[0] == 'wal':
+        conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 
