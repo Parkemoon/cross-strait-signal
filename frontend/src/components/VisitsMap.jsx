@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { cartoTileUrl, CARTO_ATTRIBUTION } from "../basemap";
 import "leaflet/dist/leaflet.css";
 import { DIR_COLOUR, DIRECTION_LABEL } from "./VisitsReviewQueue";
 
@@ -106,8 +107,8 @@ export default function VisitsMap({ visits }) {
       <MapContainer bounds={boundsFor(markers.list)} maxBounds={MAX_BOUNDS} scrollWheelZoom={false}
                     style={{ height: "100%", width: "100%" }}>
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={cartoTileUrl("light_all")}
+          attribution={CARTO_ATTRIBUTION}
           subdomains="abcd" maxZoom={11} minZoom={3} />
         {markers.list.map((m) => (
           <CircleMarker key={m.key} center={[m.lat, m.lng]}

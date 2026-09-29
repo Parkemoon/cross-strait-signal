@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import { cartoTileUrl, CARTO_ATTRIBUTION } from "../basemap";
 import "leaflet/dist/leaflet.css";
 import { READ_ONLY } from "../readOnly";
 
@@ -234,11 +235,11 @@ export default function ExerciseMap({ rows, selectedId, onEdit, onQuickDismiss }
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
-          // CartoDB Positron — free raster tiles, no API key. Attribution
-          // is required (rendered automatically by Leaflet's default
+          // CartoDB Positron (keyed — see basemap.js). Attribution is
+          // required (rendered automatically by Leaflet's default
           // attribution control); we set it on the TileLayer.
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={cartoTileUrl("light_all")}
+          attribution={CARTO_ATTRIBUTION}
           subdomains="abcd"
           maxZoom={11}
           minZoom={4}

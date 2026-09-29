@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import { cartoTileUrl, CARTO_ATTRIBUTION } from "../basemap";
 import "leaflet/dist/leaflet.css";
 import { fetchCoastGuardZones } from "../api";
 
@@ -82,8 +83,8 @@ export default function CoastGuardMap({ zoneStats, height = 380, value = cgValue
       <MapContainer bounds={BOUNDS} minZoom={5} maxZoom={10} scrollWheelZoom={false}
                     style={{ height: "100%", width: "100%", background: "#dfe6ea" }}>
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={cartoTileUrl("light_all")}
+          attribution={CARTO_ATTRIBUTION}
           subdomains="abcd" maxZoom={10} />
         {geo && (
           <GeoJSON key={`z-${max}-${(zoneStats || []).length}`} data={geo}

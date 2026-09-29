@@ -151,6 +151,7 @@ Requires `.env` in project root:
 ```
 GEMINI_API_KEY=your_key_here
 ADMIN_TOKEN=...                # gates write endpoints AND admin-only reads (is_admin); also inlined into the admin frontend build
+REACT_APP_CARTO_KEY=...        # CARTO basemap key, inlined into BOTH frontend builds (frontend/src/basemap.js); missing = every map tile watermarked "API KEY REQUIRED"
 ```
 
 Optional: `GEMINI_TIER1_MODE=interactive` (Tier 1 defaults to the Batch API — this restores the sequential per-article path), `TIER1_BATCH_WAIT_MIN` (same-tick batch collection window, default 20 minutes; 0 = never wait, always collect next tick), `OPENROUTER_API_KEY` (alt-model comparison sweeps only — `scripts/sweep_alt_models.py`).

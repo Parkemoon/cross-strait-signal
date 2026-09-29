@@ -122,7 +122,7 @@ Root-mounted routes are called WITH the trailing slash (`/api/articles/?…`, `/
 
 Never run `npm run build` (admin bundle) without sourcing `.env` — the admin bundle bakes in `REACT_APP_ADMIN_TOKEN` at build time. A plain `npm run build` ships an empty token; every write request then fails auth.
 
-For iterating fast: `set -a && source .env && set +a && cd frontend && REACT_APP_ADMIN_TOKEN="$ADMIN_TOKEN" npm run build`. Otherwise use `bash server_deploy.sh` which handles env sourcing. The public build (`npm run build:public`) intentionally has no token and is safe to run without env.
+For iterating fast: `set -a && source .env && set +a && cd frontend && REACT_APP_ADMIN_TOKEN="$ADMIN_TOKEN" npm run build`. Otherwise use `bash server_deploy.sh` which handles env sourcing. The public build (`npm run build:public`) intentionally has no token and is safe to run without env, but it still needs `REACT_APP_CARTO_KEY` for the maps: both bundles inline it from `.env` (`frontend/src/basemap.js`), and a build without it ships every basemap tile stamped "API KEY REQUIRED" (CARTO has required a key since 2026-09-23). The key is public by design (it's in every tile URL). The host allowlist in the CARTO dashboard is what stops reuse, so keep it out of git anyway.
 
 ## Alt-model experiment components (admin-only)
 
