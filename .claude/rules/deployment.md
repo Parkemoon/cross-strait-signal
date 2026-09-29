@@ -14,6 +14,8 @@ paths:
 - **`deploy.sh`** (local): builds frontend, git push, SSHs to server to run `server_deploy.sh`.
 - **`server_deploy.sh`** (server only): `git pull`, applies pending schema migrations via `scripts/migrate.py`, `npm run build` (admin), `npm run build:public` (public read-only), `systemctl restart cross-strait-signal`.
 
+**Server git remote (since 2026-09-29):** `origin` = `git@github-cross-strait:Parkemoon/cross-strait-signal.git`, a repo-scoped **deploy key with write access** (`/root/.ssh/cross_strait_deploy`, selected by the `github-cross-strait` host alias in root's SSH config; GitHub's ed25519 host key is in root's known_hosts). It replaced a personal access token that was embedded in the HTTPS URL. Pushing `main` from the server needs **Deploy keys** on the `main` ruleset's bypass list ("Changes must be made through a pull request"). Both worktrees share the one remote setting.
+
 ## Schema migrations
 
 Versioned since 2026-07-08: ordered files in `db/migrations/` (`NNNN_name.sql`, or `NNNN_name.py` with `migrate(conn)` for ALTERs), tracked in the `schema_migrations` table, applied by `scripts/migrate.py` on every deploy. New schema = a new numbered migration file AND the same object mirrored into `db/schema.sql` for fresh-init parity. Real migration errors fail the deploy loudly; a concurrent cron lock waits (30s busy_timeout) instead of skipping. Full rules in `.claude/rules/database.md`.
