@@ -36,7 +36,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from scripts.backup_db import DEFAULT_DEST as DEFAULT_BACKUPS, backups  # noqa: E402
+from scripts.backup_db import DEFAULT_DEST as DEFAULT_BACKUPS, backups, newest_offsite, r2_client  # noqa: E402
 DEFAULT_DB = os.path.join(ROOT, "db", "cross_strait_signal.db")
 DEFAULT_ENV = os.path.join(ROOT, ".env")
 DEFAULT_STATE = "/var/log/scraper-health-state.json"
@@ -149,6 +149,20 @@ def backup_check(backup_dir, now):
     return assess("backup:db_nightly", last, 0, "scripts/backup_db.py, 02:30 nightly", now)
 
 
+def offsite_check(now):
+    """The newest R2 copy of the nightly backup. Disabled while the R2
+    settings are absent; a listing error reads STALE, with its type."""
+    try:
+        r2 = r2_client()
+        if r2 is None:
+            return assess("backup:db_offsite", None, None, "no R2 settings", now)
+        last = newest_offsite(*r2)
+    except Exception as exc:
+        return assess("backup:db_offsite", None, 0, f"R2 listing failed: {type(exc).__name__}", now)
+    return assess("backup:db_offsite", last.isoformat(" ", "seconds") if last else None, 0,
+                  "R2 copy of the nightly backup", now)
+
+
 def run_checks(conn, now):
     """Returns list of dicts: {id, last, age_days, limit, status, note}."""
     results = []
@@ -236,6 +250,7 @@ def main():
     results = run_checks(conn, now)
     conn.close()
     results.append(backup_check(args.backup_dir, now))
+    results.append(offsite_check(now))
 
     try:
         with open(args.state_file) as f:
