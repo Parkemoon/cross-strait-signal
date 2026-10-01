@@ -70,8 +70,9 @@ export function useDashboardData(filters, page, altLens = null) {
         if (myReq === statsReq.current) setStats(data);
       })
       .catch((err) => console.error("Failed to load stats:", err));
-    // The review counts are admin-only; nginx denies /review/ on the public
-    // site, so the public build would only collect a 403 here.
+    // The review counts are admin-only: the API wants the admin token and
+    // nginx denies /review/ on the public site, so the public build would
+    // only collect a 403 here.
     if (READ_ONLY) return;
     fetchReviewStats()
       .then((d) => {

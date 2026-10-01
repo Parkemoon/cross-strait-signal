@@ -64,12 +64,13 @@ export async function createNote(note) {
   });
 }
 
+// Both review reads are admin-gated server-side (401 without the token).
 export async function fetchReviewQueue() {
-  return request(`/review/queue`);
+  return request(`/review/queue`, { headers: authHeaders() });
 }
 
 export async function fetchReviewStats() {
-  return request(`/review/stats`);
+  return request(`/review/stats`, { headers: authHeaders() });
 }
 
 export async function resolveReview(analysisId, decision) {
