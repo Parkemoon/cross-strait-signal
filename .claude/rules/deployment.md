@@ -65,7 +65,7 @@ The `chromium-bundled` tag was required for the CT routes, which used Puppeteer.
 
 ## Read-only build
 
-`src/readOnly.js` exports `READ_ONLY = process.env.REACT_APP_READ_ONLY === 'true'`. The public build runs `npm run build:public` which sets `REACT_APP_READ_ONLY=true` and `BUILD_PATH=build-public`. Nginx also blocks POST/PATCH on the public server at the edge.
+`src/readOnly.js` exports `READ_ONLY = process.env.REACT_APP_READ_ONLY === 'true'`. The public build runs `npm run build:public` which sets `REACT_APP_READ_ONLY=true`, `BUILD_PATH=build-public` and `GENERATE_SOURCEMAP=false` (no source map on the public site). Nginx also blocks POST/PATCH on the public server at the edge.
 
 The admin build (`npm run build`) bakes in `REACT_APP_ADMIN_TOKEN` at build time. Never run it without sourcing `.env` first — see `frontend/.claude/rules` (frontend.md) for the env-sourcing pattern.
 

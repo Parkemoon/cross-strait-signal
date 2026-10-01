@@ -296,9 +296,9 @@ Positions & alt-model experiment
 └── GET    /api/alt-models/refusals     — admin: refusal browser
 
 Review
-├── GET    /review/queue                — articles pending human review
+├── GET    /review/queue                — admin: articles pending human review
 ├── POST   /review/{id}/resolve         — confirm / override / dismiss
-└── GET    /review/stats                — pending/resolved + pending_approval
+└── GET    /review/stats                — admin: pending/resolved + pending_approval
 ```
 
 ## Dashboard features
