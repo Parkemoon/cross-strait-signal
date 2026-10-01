@@ -1,33 +1,39 @@
-import { useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
 import { READ_ONLY } from "./readOnly";
 import { useWindowWidth } from "./hooks/useWindowWidth";
 import { useDashboardData } from "./hooks/useDashboardData";
 import ThemeToggle from "./components/ThemeToggle";
 import MastheadCoasts from "./components/MastheadCoasts";
-import AboutTab from "./components/AboutTab";
 import FlashTraffic from "./components/FlashTraffic";
 import KeyFigures from "./components/KeyFigures";
 import SocialPulse from "./components/SocialPulse";
 import ArticleCard from "./components/ArticleCard";
 import StatsSidebar from "./components/StatsSidebar";
 import FilterBar from "./components/FilterBar";
-import ReviewQueue from "./components/ReviewQueue";
-import EconomyTab from "./components/EconomyTab";
-import TradeAccessTab from "./components/TradeAccessTab";
-import PeopleTab from "./components/PeopleTab";
-import MilitaryTab from "./components/MilitaryTab";
-import MaritimeTab from "./components/MaritimeTab";
-import PollsTab from "./components/PollsTab";
-import DiplomacyTab from "./components/DiplomacyTab";
-import VisitsTab from "./components/VisitsTab";
-import PositionsTab from "./components/PositionsTab";
-import AltModelsTab from "./components/AltModelsTab";
-import NamesReviewQueue from "./components/NamesReviewQueue";
+import ViewBoundary from "./components/ViewBoundary";
 import { fetchNameCandidatesCount } from "./api";
 import AltModelLens from "./components/AltModelLens";
 import NavMenu from "./components/NavMenu";
 import { WIDE_VIEWS } from "./navGroups";
 import { bandColour } from "./sentimentBand";
+
+// Every section view is its own chunk, fetched when the tab is first opened:
+// the Feed is the landing page, and it needs none of the tabs' code (Leaflet
+// and the map data least of all). ViewBoundary supplies the loading line and
+// the failed-to-load state. A new view = a lazy() line here + its render branch.
+const AboutTab = lazy(() => import(/* webpackChunkName: "view-about" */ "./components/AboutTab"));
+const ReviewQueue = lazy(() => import(/* webpackChunkName: "view-review" */ "./components/ReviewQueue"));
+const EconomyTab = lazy(() => import(/* webpackChunkName: "view-economy" */ "./components/EconomyTab"));
+const TradeAccessTab = lazy(() => import(/* webpackChunkName: "view-trade" */ "./components/TradeAccessTab"));
+const PeopleTab = lazy(() => import(/* webpackChunkName: "view-people" */ "./components/PeopleTab"));
+const MilitaryTab = lazy(() => import(/* webpackChunkName: "view-military" */ "./components/MilitaryTab"));
+const MaritimeTab = lazy(() => import(/* webpackChunkName: "view-maritime" */ "./components/MaritimeTab"));
+const PollsTab = lazy(() => import(/* webpackChunkName: "view-polls" */ "./components/PollsTab"));
+const DiplomacyTab = lazy(() => import(/* webpackChunkName: "view-diplomacy" */ "./components/DiplomacyTab"));
+const VisitsTab = lazy(() => import(/* webpackChunkName: "view-visits" */ "./components/VisitsTab"));
+const PositionsTab = lazy(() => import(/* webpackChunkName: "view-positions" */ "./components/PositionsTab"));
+const AltModelsTab = lazy(() => import(/* webpackChunkName: "view-altmodels" */ "./components/AltModelsTab"));
+const NamesReviewQueue = lazy(() => import(/* webpackChunkName: "view-names" */ "./components/NamesReviewQueue"));
 
 // Distance from the masthead's centre line to the inner edge of each coast
 // flank (px). The nameplate is ~360px wide, so ≥ 200 keeps clear of it; 300
@@ -275,29 +281,33 @@ export default function App() {
         <div style={{ display: isMobile ? ((mobileTab === "feed" || WIDE_VIEWS.includes(mobileTab)) ? "block" : "none") : "block", minWidth: 0 }}>
           {!READ_ONLY && view === "review" ? (
             <div style={{ maxWidth: "960px", margin: "0 auto", minWidth: 0 }}>
-              <ReviewQueue onClose={() => setView("feed")} />
+              <ViewBoundary view={view}>
+                <ReviewQueue onClose={() => setView("feed")} />
+              </ViewBoundary>
             </div>
           ) : isSection && view !== "review" ? (
             <div style={{ maxWidth: "1100px", margin: "0 auto", minWidth: 0 }}>
-              {view === "economy" ? <EconomyTab />
-                : view === "trade" ? <TradeAccessTab />
-                : view === "people" ? <PeopleTab />
-                : view === "military" ? <MilitaryTab />
-                : view === "maritime" ? <MaritimeTab />
-                : view === "polls" ? <PollsTab />
-                : view === "diplomacy" ? <DiplomacyTab />
-                : view === "visits" ? <VisitsTab />
-                : !READ_ONLY && view === "positions" ? <PositionsTab onOpenTab={setView} />
-                : view === "about" ? <AboutTab />
-                : !READ_ONLY && view === "altmodels" ? (
-                  <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
-                    <AltModelsTab />
-                  </main>
-                ) : !READ_ONLY && view === "names" ? (
-                  <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
-                    <NamesReviewQueue />
-                  </main>
-                ) : null}
+              <ViewBoundary view={view}>
+                {view === "economy" ? <EconomyTab />
+                  : view === "trade" ? <TradeAccessTab />
+                  : view === "people" ? <PeopleTab />
+                  : view === "military" ? <MilitaryTab />
+                  : view === "maritime" ? <MaritimeTab />
+                  : view === "polls" ? <PollsTab />
+                  : view === "diplomacy" ? <DiplomacyTab />
+                  : view === "visits" ? <VisitsTab />
+                  : !READ_ONLY && view === "positions" ? <PositionsTab onOpenTab={setView} />
+                  : view === "about" ? <AboutTab />
+                  : !READ_ONLY && view === "altmodels" ? (
+                    <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
+                      <AltModelsTab />
+                    </main>
+                  ) : !READ_ONLY && view === "names" ? (
+                    <main style={{ padding: isMobile ? "16px" : "28px 32px", minWidth: 0 }}>
+                      <NamesReviewQueue />
+                    </main>
+                  ) : null}
+              </ViewBoundary>
             </div>
           ) : (
             <main style={{

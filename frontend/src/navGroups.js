@@ -1,7 +1,7 @@
 // Single source of truth for the app's navigation. Desktop dropdowns and the
 // mobile two-level tab bar both render from this (NavMenu.jsx); App.js uses
 // WIDE_VIEWS for the layout collapse. Adding a tab = one entry here plus its
-// render branch in App.js.
+// lazy() line and render branch in App.js.
 //
 // Groups carry the framing: "Maritime" sits BESIDE "Military" under Security
 // because coast guards are law-enforcement hulls, not warships — the coercion
