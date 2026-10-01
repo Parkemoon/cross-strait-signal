@@ -53,6 +53,8 @@ Key Figures endpoints:
 
 ## `review.py` — `/api/review`
 
+**Every route is `Depends(require_admin)`, the two reads included** (2026-10-01): `GET /review/queue` serves unapproved articles with the model's raw read and `GET /review/stats` the backlog counts, and until then both relied on nginx's `deny all` for `/review/` on the public site. `fetchReviewQueue` / `fetchReviewStats` send `authHeaders()`. `tests/test_review_auth.py` walks the router and fails on any route added without the dependency.
+
 Confirm and override both set `analyst_approved=1` on the article (auto-approve). Dismiss sets `is_hidden=1`. `GET /review/stats` returns `pending`, `resolved`, and `pending_approval` counts.
 
 `ReviewDecision` is validated (2026-09-28): `resolution` is `Literal['confirmed','overridden','dismissed']` (any other string used to fall through to the approve branch and publish), `sentiment_override` is one of the four labels, `topic_override` one of `TOPICS` (a copy of `ai_pipeline._TOPIC_ENUM`, kept identical by `tests/test_review_resolve.py`, because importing the pipeline builds a Gemini client), `score_override` in [−1, 1] and written to `ai_analysis.sentiment_score` (and `analyst_notes.score_override`). When the desk changes the label or the score, the resulting pair must agree on the display bands (`_score_problem`: hostile < −0.3, cooperative > +0.3, neutral within ±0.3, mixed anything — the same boundaries as `bandColour`, so ±0.3 itself is neutral) or the route returns 422 and writes nothing. A pair left untouched is not checked, so a topic-only override of an inconsistent model pair still saves. The admin card mirrors the rule with `scoreFitsLabel` from `sentimentBand.js`.
