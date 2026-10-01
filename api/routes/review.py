@@ -7,6 +7,11 @@ from api.auth import require_admin
 
 router = APIRouter(tags=["review"])
 
+# Every route here is admin-only, reads included: the queue serves unapproved
+# articles with the model's raw read. nginx also denies /review/ on the public
+# site, but that is one config line; the token check holds without it.
+# tests/test_review_auth.py fails on a route added without the dependency.
+
 SENTIMENTS = ("hostile", "cooperative", "neutral", "mixed")
 # The Tier-1 topic enum, duplicated from scraper/processors/ai_pipeline.py
 # (_TOPIC_ENUM) because importing that module builds a Gemini client.
@@ -51,7 +56,7 @@ def _score_problem(label, score):
     return None
 
 
-@router.get("/review/queue")
+@router.get("/review/queue", dependencies=[Depends(require_admin)])
 def get_review_queue():
     """Return all articles flagged for human review."""
     with db_conn() as conn:
@@ -173,7 +178,7 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
         return {"status": "resolved", "resolution": decision.resolution}
 
 
-@router.get("/review/stats")
+@router.get("/review/stats", dependencies=[Depends(require_admin)])
 def get_review_stats():
     """Summary stats for the review queue and pending approval count."""
     with db_conn() as conn:
