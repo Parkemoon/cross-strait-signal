@@ -992,6 +992,8 @@ def _insert_poll_row(conn, article_id, poll, lookup):
 
 
 _TIER1_MODEL = "gemini-3.1-flash-lite"
+# Tier-2 escalation review + the poll-only pass (+ the LinkedIn draft).
+_TIER2_MODEL = "gemini-3.8-flash"
 _TIER1_GEN_CONFIG = {
     "response_mime_type": "application/json",
     "max_output_tokens": 8000,
@@ -1240,7 +1242,7 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
             escalation_glossary = generate_dynamic_glossary(article['content_original'], article['title_original'])
             escalation_former = _officials_former_block(article['content_original'], article['title_original'])
             review = client.models.generate_content(
-                model="gemini-3.5-flash",
+                model=_TIER2_MODEL,
                 contents=f"""{_ESCALATION_REVIEW_PROMPT}
 
 {_OFFICIALS_CURRENT_BLOCK}{escalation_glossary}{escalation_former}
@@ -1257,7 +1259,7 @@ FULL TEXT:
                     "max_output_tokens": 8000,
                 }
             )
-            log_usage("tier2", "gemini-3.5-flash", review, article_id=article['id'])
+            log_usage("tier2", _TIER2_MODEL, review, article_id=article['id'])
             review_analysis = json.loads(review.text)
 
             # Update analysis dict with Flash's assessment
@@ -1285,7 +1287,7 @@ FULL TEXT:
                 analysis['sentiment'], analysis['sentiment_score'],
                 analysis['sentiment_reasoning'],
                 analysis['is_escalation_signal'], analysis.get('escalation_note'),
-                'gemini-3.5-flash (review)', article['id']
+                f'{_TIER2_MODEL} (review)', article['id']
             ))
             conn.commit()
 
@@ -2336,7 +2338,7 @@ FULL TEXT:
 {(article['content_original'] or '')[:MAX_PROMPT_CONTENT_CHARS]}"""
 
     resp = client.models.generate_content(
-        model="gemini-3.5-flash",
+        model=_TIER2_MODEL,
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -2349,7 +2351,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "low"},
         },
     )
-    log_usage("poll_only", "gemini-3.5-flash", resp, article_id=article['id'])
+    log_usage("poll_only", _TIER2_MODEL, resp, article_id=article['id'])
     # parse_llm_json accepts the bare-array-instead-of-envelope quirk too.
     try:
         return parse_llm_json(resp.text, envelope_key='polls')

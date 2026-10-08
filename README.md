@@ -117,10 +117,10 @@ Three tiers:
    sentiment, urgency, entities, key quote, summary. Side-extracts
    poll questions, military exercise candidates, key figure
    statements, and third-country diplomatic stances where applicable.
-   Temperature 0.1, medium thinking; runs through the Gemini Batch
+   Medium thinking; runs through the Gemini Batch
    API by default (~half the token price, collected within the same
    pipeline tick or the next).
-2. **Tier 2 — Gemini 3.5 Flash.** Re-reviews articles Tier 1 flagged
+2. **Tier 2 — Gemini 3.8 Flash.** Re-reviews articles Tier 1 flagged
    as escalation signals or `flash` urgency. The two tiers'
    sentiment, topic, and escalation calls are compared.
 3. **Tier 3 — human review queue.** Articles where Tier 1 and Tier 2

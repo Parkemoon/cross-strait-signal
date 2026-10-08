@@ -172,7 +172,7 @@ export default function AboutTab() {
       <Copy k="about.pipeline"
             as="p"
             style={BODY}
-            fallback={"Articles pass through a three-tier pipeline: Gemini 3.1 Flash Lite handles initial classification (topic, sentiment, urgency, named entities, key quotes); Gemini 3.5 Flash independently re-reviews escalation-flagged articles without seeing the first tier's answers; a human review queue catches cases where the two disagree. Every article requires explicit analyst approval before appearing on this feed, and the same editorial gate applies to every derived record — military exercises, poll extractions, diplomacy statements, and quotes attributed to key figures all sit in analyst review queues until approved. Translations and classifications can be corrected inline, and corrected fields are marked as human-verified."} />
+            fallback={"Articles pass through a three-tier pipeline: Gemini 3.1 Flash Lite handles initial classification (topic, sentiment, urgency, named entities, key quotes); Gemini 3.8 Flash independently re-reviews escalation-flagged articles without seeing the first tier's answers; a human review queue catches cases where the two disagree. Every article requires explicit analyst approval before appearing on this feed, and the same editorial gate applies to every derived record — military exercises, poll extractions, diplomacy statements, and quotes attributed to key figures all sit in analyst review queues until approved. Translations and classifications can be corrected inline, and corrected fields are marked as human-verified."} />
 
       <SectionRule>Key terms</SectionRule>
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

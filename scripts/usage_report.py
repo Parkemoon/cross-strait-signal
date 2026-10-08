@@ -36,6 +36,9 @@ DEFAULT_LOG = os.environ.get("GEMINI_USAGE_LOG", "/var/log/gemini-usage.jsonl")
 PRICES = {
     "gemini-3.1-flash-lite": {"in_per_1m": 0.25, "out_per_1m": 1.50, "cache_per_1m": 0.025},
     "gemini-3.5-flash":      {"in_per_1m": 1.50, "out_per_1m": 9.00, "cache_per_1m": 0.15},
+    # Introductory price through 2026-12-31; from 2027-01-01 it is
+    # 1.50 / 7.50 / 0.15. Change the row then (verified 2026-10-08).
+    "gemini-3.8-flash":      {"in_per_1m": 0.75, "out_per_1m": 3.75, "cache_per_1m": 0.075},
     # Batch API rows log their model as "<model>@batch" (see ai_pipeline's
     # _collect_one_batch) — billed at 50% of the interactive rate, no caching.
     "gemini-3.1-flash-lite@batch": {"in_per_1m": 0.125, "out_per_1m": 0.75, "cache_per_1m": 0.125},

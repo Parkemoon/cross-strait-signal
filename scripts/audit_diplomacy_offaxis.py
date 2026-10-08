@@ -11,7 +11,7 @@ semiconductor/AI supply-chain positions that flash-lite extracted anyway
 Tier-1 prompt has carried a SCOPE GATE since 2026-07-01 (`_DIPLOMACY_RULES`),
 so this audit mops up drift from before the gate and any future regression.
 
-Two passes, both on --model (default gemini-3.5-flash — deliberately a
+Two passes, both on --model (default gemini-3.8-flash — deliberately a
 stronger model than the flash-lite extractor being audited):
   1. DETECT — statements batched ~20/call; the model returns the ids that
      look off-axis.
@@ -102,7 +102,7 @@ def main():
     ap = argparse.ArgumentParser(description="Off-axis audit for approved diplomacy statements")
     ap.add_argument('--db', help="Path to another worktree's DB (e.g. prod)")
     ap.add_argument('--apply', action='store_true', help="Dismiss confirmed rows (default: dry-run)")
-    ap.add_argument('--model', default='gemini-3.5-flash')
+    ap.add_argument('--model', default='gemini-3.8-flash')
     ap.add_argument('--limit', type=int, help="Cap statements audited (debugging)")
     ap.add_argument('--country', help="Restrict to one country_iso")
     args = ap.parse_args()

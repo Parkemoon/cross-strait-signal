@@ -31,7 +31,7 @@ Three-Tier AI Analysis Pipeline (articles only)
 │             diplomacy_statements → Diplomacy tab; intl orgs excluded,
 │             EU bloc kept), poll questions from TW poll-bearing
 │             articles (pending)
-├── Tier 2: Gemini 3.5 Flash — escalation review for flagged articles
+├── Tier 2: Gemini 3.8 Flash — escalation review for flagged articles
 ├── Tier 3: Human review queue — model disagreement resolution
 │            (translation editing + auto-approve on resolution)
 │
@@ -83,7 +83,7 @@ Storage: SQLite with full-text search (FTS5); versioned schema migrations
 |-------|------------|
 | Backend API | FastAPI (Python) |
 | Database | SQLite with FTS5, versioned migrations |
-| AI Pipeline | Google Gemini 3.1 Flash Lite (Tier 1, via Batch API by default) + Gemini 3.5 Flash (Tier 2 / poll extraction) |
+| AI Pipeline | Google Gemini 3.1 Flash Lite (Tier 1, via Batch API by default) + Gemini 3.8 Flash (Tier 2 / poll extraction) |
 | Model audit | OpenRouter (alt-model comparison sweeps — admin experiment, never feeds the editorial pipeline) |
 | Scraping | feedparser, BeautifulSoup, httpx, Playwright (CIFER + pollster sites), pdfplumber (MAC poll PDFs) |
 | Frontend | React 19, Recharts, react-leaflet |
@@ -345,7 +345,7 @@ React Dashboard
 
 The pipeline uses Google Gemini 3.1 Flash Lite as the default
 processing engine (cost-effective, strong Chinese-language
-performance) with Gemini 3.5 Flash for escalation review on flagged
+performance) with Gemini 3.8 Flash for escalation review on flagged
 articles and for poll-question extraction (denser parsing task,
 longer outputs).
 
