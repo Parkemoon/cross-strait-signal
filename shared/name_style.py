@@ -71,12 +71,12 @@ JP_SURNAMES = {
     'hagiuda', 'hamada', 'hamaguchi', 'hanyu', 'hara', 'harada', 'haraguchi', 'hasegawa', 'hashimoto', 'hatoyama',
     'hatta', 'hayashi', 'hibino', 'higuchi', 'hiranuma', 'hirano', 'hirasawa', 'honda', 'hosoda', 'hyakuta', 'ichikawa',
     'ikeda', 'imai', 'inoue', 'isa', 'ishiba', 'ishihara', 'ishii', 'ishikawa', 'isozaki', 'ito', 'iuchi', 'iwasaki',
-    'iwata', 'iwaya', 'kaieda', 'kakizawa', 'kamikawa', 'kanai', 'kanda', 'kaneko', 'katano', 'katayama', 'kato',
+    'iwata', 'iwaya', 'izumi', 'kaieda', 'kakizawa', 'kamikawa', 'kanai', 'kanda', 'kaneko', 'katano', 'katayama', 'kato',
     'katsura', 'kawamura', 'kawashima', 'kihara', 'kikawada', 'kikuchi', 'kimura', 'kinoshita', 'kishi', 'kishida',
     'kitamura', 'kitaoka', 'kobayashi', 'koga', 'kohara', 'koike', 'koizumi', 'kojima', 'kokubun', 'kondo', 'konishi',
     'kono', 'kosha', 'kubo', 'kudo', 'kurosawa', 'maeda', 'maehara', 'maruyama', 'masuda', 'matayoshi', 'matsubara',
     'matsuda', 'matsui', 'matsukawa', 'matsumoto', 'matsuno', 'matsuo', 'matsushima', 'miki', 'miura', 'miyamoto',
-    'miyazaki', 'miyazawa', 'mochida', 'mori', 'morita', 'moriyama', 'motegi', 'murakami', 'murata', 'nagashima',
+    'miyazaki', 'miyazawa', 'mochida', 'mori', 'morita', 'moriyama', 'motegi', 'murakami', 'murata', 'nadao', 'nagashima',
     'nakagawa', 'nakajima', 'nakamura', 'nakano', 'nakasone', 'nakatani', 'nakayama', 'nishida', 'nishimura',
     'nishino', 'nishiumi', 'noda', 'noguchi', 'nomura', 'nukaga', 'ogasawara', 'ogawa', 'ohno', 'okada', 'okamoto',
     'okuma', 'ono', 'onoda', 'onodera', 'oshima', 'ota', 'otsuka', 'ozaki', 'ozato', 'saito', 'sakai', 'sakamoto',
@@ -84,7 +84,7 @@ JP_SURNAMES = {
     'shibasaki', 'shibata', 'shii', 'shimada', 'shimizu', 'shimomura', 'shindo', 'shiozaki', 'shirakawa', 'suga',
     'sugawara', 'sugimoto', 'sugita', 'sugiyama', 'sumi', 'suzuki', 'taira', 'takada', 'takagi', 'takahashi',
     'takaichi', 'takara', 'takeda', 'takei', 'takenouchi', 'takeuchi', 'takinami', 'tamaki', 'tamura', 'tanaka',
-    'taniguchi', 'tomita', 'uchida', 'uechi', 'ueda', 'ueno', 'umemura', 'wada', 'watanabe', 'yaita', 'yamada',
+    'taniguchi', 'tanizaki', 'tomita', 'uchida', 'uechi', 'ueda', 'ueno', 'umemura', 'wada', 'watanabe', 'yaita', 'yamada',
     'yamagiwa', 'yamaguchi', 'yamamoto', 'yamanaka', 'yamao', 'yamashita', 'yamatani', 'yamazaki', 'yanaihara',
     'yokota', 'yokoyama', 'yoshida', 'yoshimura'}
 ENGLISH_GIVEN = {
@@ -199,16 +199,21 @@ def style_change(zh, en, side=None, role=None):
     else:
         rule = None
     side_eff = side if side in ('TW', 'PRC', 'OTHER') else side_from_role(role or '')
-    if side_eff == 'PRC' or toks[0].lower() in ENGLISH_GIVEN:
+    if toks[0].lower() in ENGLISH_GIVEN:
         return en, rule
     low = [t.lower() for t in toks]
     zh = (zh or '').strip()
+    # Japanese before the PRC early return: the Names queue stamps Japanese
+    # people side PRC (not Taiwan), which kept them out of this branch. A PRC
+    # name is safe here — its English is a Chinese reading of zh.
     jp = bool(JP_ROLE.search(role or '')) or any(t in JP_SURNAMES for t in low)
     if jp and len(toks) == 2 and '-' not in en and chinese_reading(zh, en) is None:
         if low[0] in JP_SURNAMES:
             return en, rule
         if low[1] in JP_SURNAMES:
             return f"{toks[1]} {toks[0]}", 'japanese'
+        return en, rule
+    if side_eff == 'PRC':
         return en, rule
     if not CJK3.match(zh) or zh[:2] in _COMPOUND_SURNAMES:
         return en, rule

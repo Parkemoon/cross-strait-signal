@@ -80,7 +80,13 @@ def export(conn):
     ci = 2 if craw.startswith('{\n  "') else 4
     ng = nc = 0
     for r in rows:
-        for form in {r['zh_trad'], r['zh_simp'] or to_simp(r['zh_trad'])}:
+        # the stored pair closed under the converter: it can pick another
+        # variant character (苏昆铭 -> 蘇崑銘) and is not idempotent (馀庆雄 ->
+        # 余庆雄), and tests/test_name_files_agree.py checks twins through it
+        forms = {r['zh_trad'], r['zh_simp'] or to_simp(r['zh_trad'])}
+        while more := {conv(f) for f in forms for conv in (to_simp, to_trad)} - forms:
+            forms |= more
+        for form in forms:
             if g.get(form) != r['en']:
                 g[form] = r['en']
                 ng += 1

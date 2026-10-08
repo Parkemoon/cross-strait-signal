@@ -53,6 +53,10 @@ pypinyin = pytest.importorskip('pypinyin')
     ('橋本明', 'Hashimoto Akira', None, "Director of Matsubara City Mayor's Office", 'Hashimoto Akira', None),
     ('上地常夫', 'Tsuneo Uechi', None, 'Mayor of Yonaguni Town', 'Uechi Tsuneo', 'japanese'),
     ('矢内原忠雄', 'Yanaihara Tadao', None, 'Japanese economist', 'Yanaihara Tadao', None),
+    # the Names queue stamps Japanese people side PRC; still surname first (2026-10-08)
+    ('古屋圭司', 'Keiji Furuya', 'PRC', 'Japanese politician', 'Furuya Keiji', 'japanese'),
+    ('泉裕泰', 'Hiroyasu Izumi', 'PRC', 'Former Japan-Taiwan Exchange Association Representative', 'Izumi Hiroyasu', 'japanese'),
+    ('吳江浩', 'Wu Jianghao', 'PRC', 'PRC Ambassador to Japan', 'Wu Jianghao', None),   # a Chinese reading: never Japanese
     ('川普政府', 'Trump administration', None, '', 'Trump administration', None),
     ('唐納·川普', 'Donald Trump', None, 'US President', 'Donald Trump', None),
 ])
