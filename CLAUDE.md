@@ -78,7 +78,7 @@ The project venv at `venv/` may be near-empty on Windows. Use `/c/Users/Ed/venv/
         ↳ side-extract: third-country diplomatic stances on Taiwan →
                         diplomacy_statements (status=pending; intl orgs
                         excluded, EU bloc kept) → /api/diplomacy/*
-    → Tier 2 AI: Gemini 3.5 Flash (escalation review, conditional)
+    → Tier 2 AI: Gemini 3.8 Flash (escalation review, conditional)
     → Tier 3: Human review queue (model disagreements — translation editing + auto-approve on resolve)
     → Editorial approval gate (analyst_approved=0 until sign-off; hidden from public feed)
     → SQLite + FTS5 → FastAPI → React dashboard
