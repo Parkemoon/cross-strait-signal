@@ -33,6 +33,7 @@ from collections import Counter, defaultdict
 import requests
 
 from scraper.utils.db import get_connection
+from scraper.utils.llm import TIER1_MODEL
 from scraper.utils.usage_log import log_usage
 from shared.entity_norm import load_canon, resolve_name_en
 from shared.name_registry import known_forms, to_trad, upsert
@@ -42,7 +43,6 @@ SPARQL = 'https://query.wikidata.org/sparql'
 HEADERS = {"User-Agent": "cross-strait-signal/1.0 (github.com/Parkemoon/cross-strait-signal)",
            "Accept": "application/sparql-results+json"}
 BATCH = 40
-SEARCH_MODEL = "gemini-3.1-flash-lite"
 
 OFFICE_ROLE = re.compile(r"legislat|minister|spokes|mayor|magistrate|secretary|chair|director|official|council|"
                          r"deputy|premier|president|representative|diplomat|commissioner|governor|caucus", re.I)
@@ -190,11 +190,11 @@ def grounded_search(cand, client=None):
         f" spelling, not Hanyu Pinyin. Return only JSON: {{\"en\": \"<spelling>\", \"url\": \"<page where that"
         f" exact spelling appears>\", \"confidence\": <0-1>}} or {{\"en\": null}} if you cannot find it.")
     resp = client.models.generate_content(
-        model=SEARCH_MODEL, contents=prompt,
+        model=TIER1_MODEL, contents=prompt,
         config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())],
                                            max_output_tokens=1000,
                                            thinking_config=types.ThinkingConfig(thinking_level='low')))
-    log_usage('name_lookup', SEARCH_MODEL, resp)
+    log_usage('name_lookup', TIER1_MODEL, resp)
     text = resp.text or ''
     m = re.search(r'\{.*\}', text, re.S)
     if not m:

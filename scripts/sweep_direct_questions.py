@@ -56,6 +56,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scraper.utils.db import get_connection, DB_PATH
+from scraper.utils.llm import TIER1_MODEL
 from scraper.utils.direct_questions import (classify_direct_response,
                                             classify_direct_text, load_battery)
 from scraper.utils.openrouter import (ARMS, ARM_MAX_TOKENS, MAX_TOKENS, DEFAULT_MAX_TOKENS,
@@ -143,12 +144,12 @@ def _gemini_generate(prompt, band):
     start = time.monotonic()
     try:
         resp = ap.client.models.generate_content(
-            model=ap._TIER1_MODEL, contents=prompt, config=config)
-        log_usage('direct_q_control', ap._TIER1_MODEL, resp)
+            model=TIER1_MODEL, contents=prompt, config=config)
+        log_usage('direct_q_control', TIER1_MODEL, resp)
         text = (resp.text or '').strip()
         raw = {"text": text}
     except Exception as e:
-        return (ap._TIER1_MODEL, 'empty_or_error', None, None, None,
+        return (TIER1_MODEL, 'empty_or_error', None, None, None,
                 f'{type(e).__name__}: {e}', {"error": str(e)},
                 int((time.monotonic() - start) * 1000))
     latency = int((time.monotonic() - start) * 1000)
@@ -156,19 +157,19 @@ def _gemini_generate(prompt, band):
     if band == 'C':
         try:
             ap._parse_tier1_json(text)
-            return ap._TIER1_MODEL, 'answered', text, None, None, None, raw, latency
+            return TIER1_MODEL, 'answered', text, None, None, None, raw, latency
         except Exception as e:
             outcome, refusal = classify_direct_text(text) if text else ('empty_or_error', None)
             if outcome == 'refused':
-                return ap._TIER1_MODEL, 'refused', text, None, refusal, None, raw, latency
-            return (ap._TIER1_MODEL, 'empty_or_error', text or None, None, None,
+                return TIER1_MODEL, 'refused', text, None, refusal, None, raw, latency
+            return (TIER1_MODEL, 'empty_or_error', text or None, None, None,
                     f'tier1 parse: {type(e).__name__}: {e}', raw, latency)
 
     if not text:
-        return (ap._TIER1_MODEL, 'empty_or_error', None, None, None,
+        return (TIER1_MODEL, 'empty_or_error', None, None, None,
                 'empty response text', raw, latency)
     outcome, refusal = classify_direct_text(text)
-    return ap._TIER1_MODEL, outcome, text, None, refusal, None, raw, latency
+    return TIER1_MODEL, outcome, text, None, refusal, None, raw, latency
 
 
 def _fetch_endpoint_provenance(model):
@@ -205,8 +206,7 @@ def _append_run_notes(args, plan_counts):
     ]
     for model, arm in DIRECT_ARMS:
         if model == GEMINI_CONTROL:
-            from scraper.processors import ai_pipeline as ap
-            lines.append(f"  - {GEMINI_CONTROL}: `{ap._TIER1_MODEL}` via Gemini API; "
+            lines.append(f"  - {GEMINI_CONTROL}: `{TIER1_MODEL}` via Gemini API; "
                          f"bands A/B/D config `{{max_output_tokens: 8000}}` "
                          f"(default temperature, no JSON MIME, no thinking "
                          f"override); band C = production _TIER1_GEN_CONFIG\n")
@@ -299,8 +299,7 @@ def main():
         for model, arm in arms:
             row_model = model  # resolved below for gemini-control
             if model == GEMINI_CONTROL:
-                from scraper.processors import ai_pipeline as ap
-                row_model = ap._TIER1_MODEL
+                row_model = TIER1_MODEL
             done = {r['run_idx'] for r in conn.execute(
                 """SELECT run_idx FROM direct_question_runs
                    WHERE question_id=? AND lang=? AND model=? AND arm=?""",

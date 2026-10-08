@@ -27,10 +27,8 @@ from scraper.processors.ai_pipeline import (
     client,
     generate_dynamic_glossary,
 )
-from scraper.utils.llm import nullable as _nullable, parse_llm_json
+from scraper.utils.llm import TIER1_MODEL, nullable as _nullable, parse_llm_json
 from scraper.utils.usage_log import log_usage
-
-_MODEL = "gemini-3.1-flash-lite"
 
 # Affiliation enum. Side is derived from it (never trusted from the model)
 # — this is what enforces the cross-strait scope gate in code.
@@ -159,7 +157,7 @@ FULL TEXT:
 {(article['content_original'] or '')[:6000]}"""
 
     resp = client.models.generate_content(
-        model=_MODEL,
+        model=TIER1_MODEL,
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -168,7 +166,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "medium"},
         },
     )
-    log_usage("visits_only", _MODEL, resp, article_id=article['id'])
+    log_usage("visits_only", TIER1_MODEL, resp, article_id=article['id'])
     try:
         out = parse_llm_json(resp.text, envelope_key='visits')
     except json.JSONDecodeError:
