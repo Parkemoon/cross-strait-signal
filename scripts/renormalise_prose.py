@@ -9,10 +9,15 @@ the old rendering in the prose while the entity chip already shows the settled
 form. This script recovers those renderings from the text itself
 (`shared/prose_names.py`: a capitalised span counts only when it reads exactly
 as the person's characters in pinyin or Wade-Giles) and rewrites them with the
-same whole-word helper the pipeline uses.
+same whole-word helper the pipeline uses. Two kinds of rendering no reading
+can recover are handled too: a Japanese person written given-name first
+('Fumio Kishida' where the entity says 'Kishida Fumio'), always; and an
+explicit correction, --swap OLD NEW (repeatable; e.g. --swap 'Joan Chen'
+'Sean Chen' after a namesake's adopted name was fixed in the registry),
+applied only in articles whose person entity already reads NEW.
 
-    python scripts/renormalise_prose.py [--db PATH] [--days N] [--limit N] [--show 40]   # dry run
-    python scripts/renormalise_prose.py --apply [--statements]                            # writes + manifest
+    python scripts/renormalise_prose.py [--db PATH] [--days N] [--limit N] [--show 40] [--swap OLD NEW]  # dry run
+    python scripts/renormalise_prose.py --apply [--statements] [--swap OLD NEW]                          # writes + manifest
 
 Fields: articles.title_en, ai_analysis.summary_en / key_quote_en /
 sentiment_reasoning. A field whose analyst override is set is skipped (the
@@ -32,7 +37,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scraper.utils.db import get_connection  # noqa: E402
 from shared.name_registry import rewrite_renderings, to_trad  # noqa: E402
-from shared.prose_names import find_pairs  # noqa: E402
+from shared.prose_names import find_pairs, japanese_order_pairs, swap_pairs  # noqa: E402
 
 FIELDS = (  # (table, column, override column on articles or None)
     ('articles', 'title_en', 'title_en_override'),
@@ -65,6 +70,8 @@ def main():
     ap.add_argument('--limit', type=int)
     ap.add_argument('--show', type=int, default=40, help='sample changes to print')
     ap.add_argument('--statements', action='store_true', help='also rewrite key_figure_statements.statement_text')
+    ap.add_argument('--swap', nargs=2, action='append', default=[], metavar=('OLD', 'NEW'),
+                    help='also rewrite OLD to NEW where a person entity of the article reads NEW (repeatable)')
     ap.add_argument('--apply', action='store_true')
     args = ap.parse_args()
     conn = get_connection(args.db)
@@ -95,7 +102,7 @@ def main():
             text = r[col]
             if not text:
                 continue
-            pairs = find_pairs(text, ps)
+            pairs = find_pairs(text, ps) + japanese_order_pairs(text, ps) + swap_pairs(text, ps, args.swap)
             if not pairs:
                 continue
             new = rewrite_renderings(text, pairs)
@@ -109,7 +116,8 @@ def main():
         for s in conn.execute("SELECT id, article_id, statement_text FROM key_figure_statements WHERE statement_text IS NOT NULL"):
             if s['article_id'] not in ids or not persons.get(s['article_id']):
                 continue
-            pairs = find_pairs(s['statement_text'], persons[s['article_id']])
+            text, ps = s['statement_text'], persons[s['article_id']]
+            pairs = find_pairs(text, ps) + japanese_order_pairs(text, ps) + swap_pairs(text, ps, args.swap)
             if pairs:
                 new = rewrite_renderings(s['statement_text'], pairs)
                 if new != s['statement_text']:

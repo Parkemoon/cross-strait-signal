@@ -17,10 +17,16 @@ together. "Lin Chia-ling" is therefore never taken for 林佳龍 (ling ≠ lung 
 long), "Foreign Minister" never segments, and a span equal to another person's
 current form in the same article is left alone. Precision over recall: a
 Tongyong spelling the model never produces is not worth the false positives.
+
+Two kinds of rendering no reading can recover have their own finders:
+japanese_order_pairs (a Japanese person written given-name first — kanji
+have no pinyin match for a Japanese reading) and swap_pairs (an explicit
+old -> new correction, e.g. an adopted name taken from a namesake).
 """
 import re
 from functools import lru_cache
 
+from shared.name_style import JP_SURNAMES
 from shared.romanisation import _COMPOUND_SURNAMES, _Style, _pinyin, wg_syllable
 
 _TOKEN = r"[A-Z][a-z]+(?:-[A-Za-z]+)*(?:'[a-z]+)?"
@@ -99,3 +105,33 @@ def find_pairs(text, persons):
         if len(hits) == 1:                 # two people in one article can share a reading (陳之漢 / 陳智菡 → Chen Chih-han): leave it
             pairs.append((span, hits.pop()))
     return pairs
+
+
+def _has_word(text, phrase):
+    return re.search(r'(?<![A-Za-z\-])' + re.escape(phrase) + r'(?![A-Za-z\-])', text) is not None
+
+
+def japanese_order_pairs(text, persons):
+    """(given-first form, en_now) for each person whose current form is a
+    surname-first Japanese name ('Kishida Fumio') and whose given-first
+    order ('Fumio Kishida') is in `text`. Never a form that is another
+    person's current form in the same article."""
+    current = {en for _, en in persons if en}
+    pairs = []
+    for _, en in persons:
+        toks = (en or '').split()
+        if len(toks) != 2 or '-' in en:
+            continue
+        if toks[0].lower() in JP_SURNAMES and toks[1].lower() not in JP_SURNAMES:
+            western = f'{toks[1]} {toks[0]}'
+            if western not in current and _has_word(text, western):
+                pairs.append((western, en))
+    return pairs
+
+
+def swap_pairs(text, persons, swaps):
+    """(old, new) for each explicit swap whose NEW is a person's current form
+    in this article and whose OLD is in `text`. Tied to the entities, so a
+    namesake elsewhere (the actress Joan Chen) is never touched."""
+    current = {en for _, en in persons if en}
+    return [(old, new) for old, new in swaps if new in current and old != new and _has_word(text, old)]

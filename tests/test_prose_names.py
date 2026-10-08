@@ -13,7 +13,8 @@ os.environ.setdefault("GEMINI_API_KEY", "test-key-not-used")
 pytest.importorskip('pypinyin')
 
 from shared.name_registry import rewrite_renderings  # noqa: E402
-from shared.prose_names import candidate_spans, find_pairs, reads_as  # noqa: E402
+from shared.prose_names import (candidate_spans, find_pairs, japanese_order_pairs,  # noqa: E402
+                                reads_as, swap_pairs)
 
 
 @pytest.mark.parametrize('zh,span,ok', [
@@ -68,3 +69,19 @@ def test_find_pairs_never_rewrites_another_persons_current_form():
     # current form is never treated as someone else's rendering.
     persons = [('陳建仁', 'Chen Chien-jen'), ('陳菊', 'Chen Chu')]
     assert find_pairs("Chen Chu and Chen Jianren spoke.", persons) == [('Chen Jianren', 'Chen Chien-jen')]
+
+
+def test_japanese_order_pairs():
+    persons = [('岸田文雄', 'Kishida Fumio'), ('王毅', 'Wang Yi')]
+    text = 'Fumio Kishida met Wang Yi; Kishida Fumio later said'
+    pairs = japanese_order_pairs(text, persons)
+    assert pairs == [('Fumio Kishida', 'Kishida Fumio')]
+    assert rewrite_renderings(text, pairs) == 'Kishida Fumio met Wang Yi; Kishida Fumio later said'
+    assert japanese_order_pairs('Yi Wang said', [('王毅', 'Wang Yi')]) == []          # not a Japanese name
+    assert japanese_order_pairs('Fumio Kishidas', persons) == []                       # whole words only
+
+
+def test_swap_pairs_follow_the_entity():
+    swaps = [('Joan Chen', 'Sean Chen')]
+    assert swap_pairs('Joan Chen said', [('陳冲', 'Sean Chen')], swaps) == [('Joan Chen', 'Sean Chen')]
+    assert swap_pairs('Joan Chen starred', [('陳沖', 'Joan Chen')], swaps) == []      # the actress: entity is not Sean Chen
