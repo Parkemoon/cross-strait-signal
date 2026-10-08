@@ -6,10 +6,11 @@ gets looked up ONCE, in three tiers:
 
   1. Wikidata — exact zh / zh-tw / zh-hant label, humans only, batched
      through the SPARQL endpoint (the action API rate-limits after ~10
-     calls). Auto-approved only when the item has Taiwan citizenship, its
-     description does not read as a namesake of the model's role text, and
-     the English label is not Hanyu-shaped. Anything less lands pending
-     with the label as a candidate.
+     calls). Auto-approved only when the item has Taiwan citizenship and
+     no PRC listing (taiwan_citizen), its description does not read as a
+     namesake of the model's role text, and the English label is not
+     Hanyu-shaped. Anything less lands pending with the label as a
+     candidate.
   2. Grounded search — a Gemini call with the Google Search tool asking for
      the established romanisation and the page it appears on; the page is
      fetched and the spelling must be on it. Lands PENDING (source
@@ -50,6 +51,25 @@ NAMESAKE_DESC = re.compile(r"gamer|player|singer|actor|actress|footballer|dynast
                            r"painter|composer|novelist|swimmer|cyclist|racing|wrestler|boxer|\b1[0-8]\d\d\b", re.I)
 POLITICAL_DESC = re.compile(r"politic|legislat|minister|mayor|official|diplomat|bureaucrat|secretary|magistrate|"
                             r"council|party|governor|president|premier", re.I)
+
+# Wikidata's "Republic of China" citizenship is Q13426199, the 1912–49 state,
+# which every mainland-born person of that generation carries; Q865 is
+# labelled "Taiwan". Treating the two alike auto-approved Bao Tong (PRC +
+# 1912–49 ROC) for Nathan F. Batto, whose Chinese name is also 鮑彤.
+ROC_1912 = 'ROC (1912–49)'
+
+
+def citizenship_tokens(labels):
+    """Wikidata citizenship labels (English) -> the tokens decide_wikidata
+    reads: 'Taiwan', ROC_1912, 'PRC', anything else as labelled."""
+    return ['Taiwan' if c == 'Taiwan' else ROC_1912 if c == 'Republic of China'
+            else 'PRC' if c == "People's Republic of China" else c for c in labels]
+
+
+def taiwan_citizen(cit):
+    """Taiwan (or 1912–49 ROC) citizenship and no PRC listing. An item
+    listed under both sides is ambiguous and goes to the analyst."""
+    return 'PRC' not in cit and ('Taiwan' in cit or ROC_1912 in cit)
 
 
 # ── candidates ──────────────────────────────────────────────────────────
@@ -132,13 +152,13 @@ GROUP BY ?zh ?item ?itemLabel ?itemDescription
         qid = row['item']['value'].rsplit('/', 1)[-1]
         label = row.get('itemLabel', {}).get('value')
         cit = [c for c in row.get('cit', {}).get('value', '').split('|') if c]
-        cit = ['Taiwan' if c in ('Taiwan', 'Republic of China') else 'PRC' if c == "People's Republic of China" else c for c in cit]
+        cit = citizenship_tokens(cit)
         hits[to_trad(row['zh']['value'])].append({
             'qid': qid, 'en': None if not label or label == qid else label,
             'desc': row.get('itemDescription', {}).get('value') or '',
             'citizenship': cit, 'positions': int(row.get('npos', {}).get('value', 0))})
     for hs in hits.values():
-        hs.sort(key=lambda h: ('Taiwan' not in h['citizenship'], -h['positions']))
+        hs.sort(key=lambda h: (not taiwan_citizen(h['citizenship']), -h['positions']))
     return hits
 
 
@@ -152,10 +172,10 @@ def decide_wikidata(cand, hits):
     roles = ' '.join(cand['roles'])
     n = len(hits)
     tag = f"Wikidata {qid}" + (f" ({n} namesakes)" if n > 1 else "")
-    if cit and 'Taiwan' not in cit:
-        # a PRC (or other) person the role heuristic mis-sided, or a namesake:
-        # propose the item's own label (Hanyu for a PRC person is right) and
-        # let the analyst settle which it is
+    if cit and not taiwan_citizen(cit):
+        # a PRC (or other) person the role heuristic mis-sided, a namesake, or
+        # an item listed under both sides: propose the item's own label (Hanyu
+        # for a PRC person is right) and let the analyst settle which it is
         return ('pending', en, f"{tag}: citizenship {', '.join(cit)} — {desc}; PRC person mis-sided, or a namesake", qid, 0.3)
     if not en:
         return ('pending', None, f"{tag}: no English label — {desc}", qid, 0.3)
@@ -163,7 +183,7 @@ def decide_wikidata(cand, hits):
         return ('pending', None, f"{tag} looks like a namesake: {desc}", qid, 0.3)
     if hanyu_markers(en):
         return ('pending', None, f"{tag} label is Hanyu-shaped: {en} — {desc}", qid, 0.4)
-    if 'Taiwan' in cit or re.search(r'taiwan', desc, re.I):
+    if taiwan_citizen(cit) or re.search(r'taiwan', desc, re.I):
         return ('approved', en, f"{tag}: {desc}", qid, 0.9)
     return ('pending', None, f"{tag}: {en} — {desc}; no citizenship on the item", qid, 0.5)
 
