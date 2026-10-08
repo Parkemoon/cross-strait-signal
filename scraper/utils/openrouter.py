@@ -21,8 +21,10 @@ aggregates, never in outcome counts.
 
 Deliberately does NOT import ai_pipeline (which builds a Gemini client at
 import time) so this module and its tests need no API key. Decoding
-config approximates production Tier 1 (temperature 0.1, max_tokens per
-MAX_TOKENS — reasoning models need headroom for chain-of-thought)
+config approximates production Tier 1 (max_tokens per
+MAX_TOKENS — reasoning models need headroom for chain-of-thought;
+temperature 0.1 is kept as the sweep invariant, though Tier 1 itself
+dropped the pin in 2026-10 when Google deprecated sampling parameters)
 but exact parity is impossible: Gemini runs enforced-JSON MIME plus
 thinking; these arms get plain text mode. No response_format is sent —
 JSON mode varies by provider and can mask or alter refusals.
