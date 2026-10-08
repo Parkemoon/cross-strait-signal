@@ -16,7 +16,9 @@ Regime rules (the brief's "measuring default behaviour"):
   - band C uses the byte-identical production _tier1_prompt over an article
     both models already analysed without refusing; prompt_sha256 recorded
   - no jailbreaks, no adversarial prefixes, no system-prompt manipulation
-  - temperature 0.1 (matched to the article sweep); recorded per row
+  - temperature 0.1 on the OpenRouter arms (matched to the article sweep);
+    recorded per row. The Gemini control sends none (NULL): Google
+    deprecated sampling parameters on Gemini 3.x (notice 2026-10)
 
 Classification is conservative (scraper/utils/direct_questions.py) and
 NOTHING classified 'refused' is publishable unread — export the hand-review
@@ -65,7 +67,7 @@ BATTERY_PATH = os.path.join(os.path.dirname(__file__), '..', 'data',
 RUN_NOTES_PATH = os.path.join(os.path.dirname(__file__), '..', 'RUN_NOTES.md')
 
 GEMINI_CONTROL = 'gemini-control'
-TEMPERATURE = 0.1  # matched to the article sweep / production Tier 1
+TEMPERATURE = 0.1  # OpenRouter arms only, matched to the article sweep
 
 # (model, arm) cells this experiment runs. The Western-hosted neutral arms
 # were the 2026-08 dataset; the V4F originator cell (DeepSeek's own
@@ -131,15 +133,13 @@ def _classify_c_openrouter(raw):
 
 
 def _gemini_generate(prompt, band):
-    """One Gemini call. Bands A/B/D: bare content, minimal config (temp
-    matched, no JSON MIME, no thinking override — default model behaviour,
+    """One Gemini call. Bands A/B/D: bare content, minimal config (default
+    temperature, no JSON MIME, no thinking override — default model behaviour,
     mirroring the bare-interrogative regime). Band C: the production Tier-1
     config, exactly as the article sweep's control arm."""
     from scraper.processors import ai_pipeline as ap
     from scraper.utils.usage_log import log_usage
-    config = ap._TIER1_GEN_CONFIG if band == 'C' else {
-        "temperature": TEMPERATURE, "max_output_tokens": 8000,
-    }
+    config = ap._TIER1_GEN_CONFIG if band == 'C' else {"max_output_tokens": 8000}
     start = time.monotonic()
     try:
         resp = ap.client.models.generate_content(
@@ -196,8 +196,9 @@ def _append_run_notes(args, plan_counts):
         f"\n## Direct-question sweep — {stamp}\n",
         f"- DB: `{args.db or DB_PATH}` · battery `{args.battery}` (v"
         f"{json.load(open(args.battery, encoding='utf-8')).get('version')}) · "
-        f"n={args.n} per cell · temperature {TEMPERATURE} (sent; endpoints may "
-        f"ignore — see per-run variance in the aggregates) · endpoint "
+        f"n={args.n} per cell · temperature {TEMPERATURE} on the OpenRouter arms "
+        f"(sent; endpoints may ignore — see per-run variance in the "
+        f"aggregates), model default on the Gemini control · endpoint "
         f"{('https://openrouter.ai/api/v1/chat/completions')} + Gemini API (control)\n",
         f"- Planned calls by arm: {plan_counts}\n",
         "- Provider endpoint metadata at run time (revision / quantisation):\n",
@@ -206,8 +207,8 @@ def _append_run_notes(args, plan_counts):
         if model == GEMINI_CONTROL:
             from scraper.processors import ai_pipeline as ap
             lines.append(f"  - {GEMINI_CONTROL}: `{ap._TIER1_MODEL}` via Gemini API; "
-                         f"bands A/B/D config `{{temperature: {TEMPERATURE}, "
-                         f"max_output_tokens: 8000}}` (no JSON MIME, no thinking "
+                         f"bands A/B/D config `{{max_output_tokens: 8000}}` "
+                         f"(default temperature, no JSON MIME, no thinking "
                          f"override); band C = production _TIER1_GEN_CONFIG\n")
         else:
             for ep in _fetch_endpoint_provenance(model):
@@ -363,7 +364,8 @@ def main():
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (it['id'], it['band'], it['lang'], k, row_model, arm, outcome,
              content, reasoning, finish, refusal, err,
-             providers_req, provider_used, sha, TEMPERATURE,
+             providers_req, provider_used, sha,
+             None if model == GEMINI_CONTROL else TEMPERATURE,
              json.dumps(raw, ensure_ascii=False)[:200000],
              usage.get('prompt_tokens'), usage.get('completion_tokens'),
              usage.get('total_tokens'), latency))

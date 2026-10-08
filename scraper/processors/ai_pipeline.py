@@ -995,7 +995,6 @@ _TIER1_MODEL = "gemini-3.1-flash-lite"
 _TIER1_GEN_CONFIG = {
     "response_mime_type": "application/json",
     "max_output_tokens": 8000,
-    "temperature": 0.1,
     "thinking_config": {"thinking_level": "medium"},
 }
 
