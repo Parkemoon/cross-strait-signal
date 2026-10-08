@@ -51,6 +51,11 @@ KEY_FIGURES_PATH = REPO / "scraper" / "processors" / "key_figures.json"
 sys.path.insert(0, str(REPO))
 from scraper.utils.llm import parse_llm_json  # noqa: E402
 
+# Matched against alt_model_analysis.model. The control id is whatever
+# TIER1_MODEL was when the gemini-control rows were swept, so it stays a
+# literal: stored rows keep that id. When TIER1_MODEL changes, new control
+# rows carry the new id and this audit will not see them until it is
+# added here. Each entry is audited as its own group, so adding one is safe.
 MODELS = [
     ("deepseek/deepseek-v4-flash", "neutral"),
     ("moonshotai/kimi-k3", "neutral"),

@@ -31,6 +31,13 @@ REPO = Path(__file__).resolve().parent.parent
 SPEC_PATH = REPO / "scripts" / "terminology_markers.json"
 GLOSSARY_PATH = REPO / "scraper" / "processors" / "glossary.json"
 
+# Matched against alt_model_analysis.model. The control id is whatever
+# TIER1_MODEL was when the gemini-control rows were swept, so it stays a
+# literal: stored rows keep that id. When TIER1_MODEL changes, new control
+# rows carry the new id and this audit will not see them until it is
+# listed here. The paired tables only count articles every listed model
+# analysed, so swap the old control id for the new one rather than adding
+# a fourth entry, or re-run the new control over the same articles first.
 MODELS = [
     ("deepseek/deepseek-v4-flash", "neutral"),
     ("moonshotai/kimi-k3", "neutral"),
