@@ -148,6 +148,22 @@ def test_decide_wikidata_cases():
     assert decide_wikidata(_cand(), []) is None
 
 
+def test_decide_wikidata_roc_1912_is_not_taiwan():
+    # 2026-10-08: 鮑彤 auto-approved as Bao Tong (PRC + the 1912–49 ROC) for an
+    # article quoting Nathan F. Batto. Listed under both sides → pending.
+    from scraper.processors.name_lookup import ROC_1912, citizenship_tokens, decide_wikidata, taiwan_citizen
+    assert citizenship_tokens(["People's Republic of China", 'Republic of China', 'Taiwan', 'Japan']) == \
+        ['PRC', ROC_1912, 'Taiwan', 'Japan']
+    bao = [{'qid': 'Q2529263', 'en': 'Bao Tong', 'desc': 'Chinese politician (1932–2022)',
+            'citizenship': ['PRC', ROC_1912], 'positions': 0}]
+    assert decide_wikidata(_cand(('researcher at Academia Sinica',)), bao)[0] == 'pending'
+    both = [{'qid': 'Q7', 'en': 'Chen Kuan-ting', 'desc': 'Taiwanese politician', 'citizenship': ['Taiwan', 'PRC'], 'positions': 2}]
+    assert decide_wikidata(_cand(), both)[0] == 'pending'
+    roc_only = [{'qid': 'Q8', 'en': 'Chen Kuan-ting', 'desc': 'politician', 'citizenship': [ROC_1912], 'positions': 2}]
+    assert decide_wikidata(_cand(), roc_only)[:2] == ('approved', 'Chen Kuan-ting')
+    assert taiwan_citizen(['Taiwan']) and taiwan_citizen([ROC_1912]) and not taiwan_citizen([ROC_1912, 'PRC'])
+
+
 # ── poll intensity collapse (audit H8) ───────────────────────────────────
 
 def test_collapse_intensity_sums_in_code():
