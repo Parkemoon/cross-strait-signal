@@ -1,4 +1,5 @@
-"""Shared Gemini client bootstrap + response parsing (CODE_REVIEW_2026-07-03 §4.9).
+"""Shared Gemini client bootstrap + response parsing (CODE_REVIEW_2026-07-03 §4.9),
+and the two model ids every Gemini call site uses.
 
 The client construction (env check + genai.Client) was copied in five
 places and the JSON response parsing in six, with two divergent
@@ -6,6 +7,15 @@ fence-stripping algorithms. One implementation of each now.
 """
 import json
 import os
+
+# Every Gemini call takes its model from here, so a model change is one
+# edit. TIER1_MODEL: Tier 1 and the cheap side passes (exercise, diplomacy,
+# visits, social translation, name lookup). TIER2_MODEL: the Tier-2
+# escalation review, the poll-only pass, the LinkedIn draft and the
+# off-axis audit. tests/test_gemini_params.py fails on a literal model id
+# anywhere else.
+TIER1_MODEL = "gemini-3.1-flash-lite"
+TIER2_MODEL = "gemini-3.8-flash"
 
 _client = None
 

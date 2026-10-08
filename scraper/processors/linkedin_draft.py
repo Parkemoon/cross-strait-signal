@@ -12,7 +12,7 @@ the numbers cannot be hallucinated.
 Borrows the Tier-1 prompt's rule blocks (analyst intro, romanisation,
 British English, terminology glossary) from ai_pipeline rather than
 writing a fresh prompt — same plumbing as visits_extract.py. Uses the
-Tier-2 model (_TIER2_MODEL): two calls a week, quality over cost.
+Tier-2 model (TIER2_MODEL): two calls a week, quality over cost.
 
 `validate_post` is the hard gate for the post rules (length, first-line
 length, no em-dashes, no hashtags, Chinese only when it is a stored key
@@ -28,15 +28,13 @@ from scraper.processors.ai_pipeline import (
     _ANALYST_INTRO,
     _BRITISH_ENGLISH_RULE,
     _ROMANISATION_RULE,
-    _TIER2_MODEL,
     client,
     generate_dynamic_glossary,
 )
-from scraper.utils.llm import parse_llm_json
+from scraper.utils.llm import TIER2_MODEL, parse_llm_json
 from scraper.utils.usage_log import log_usage
 from shared.sentiment_band import sentiment_band
 
-_MODEL = _TIER2_MODEL
 
 SITE_URL = "https://strait-signal.net/"
 MAX_CHARS = 1300
@@ -177,7 +175,7 @@ def validate_post(post: str, cluster: dict) -> list[str]:
 
 def _call_model(prompt: str) -> dict:
     resp = client.models.generate_content(
-        model=_MODEL,
+        model=TIER2_MODEL,
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -187,7 +185,7 @@ def _call_model(prompt: str) -> dict:
             "thinking_config": {"thinking_level": "low"},
         },
     )
-    log_usage("linkedin_draft", _MODEL, resp, article_id=None)
+    log_usage("linkedin_draft", TIER2_MODEL, resp, article_id=None)
     parsed = parse_llm_json(resp.text)
     if not isinstance(parsed, dict):
         raise ValueError(f"model returned {type(parsed).__name__}, expected object")
@@ -213,6 +211,6 @@ def generate_draft(cluster: dict, site_url: str = SITE_URL, retries: int = 1) ->
         'violations': problems,
         'needs_edit': bool(problems),
         'attempts': attempts,
-        'model': _MODEL,
+        'model': TIER2_MODEL,
         'chars': len(post),
     }

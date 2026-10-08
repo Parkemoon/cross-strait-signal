@@ -17,7 +17,7 @@ load_dotenv()
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 from scraper.utils.db import get_connection
-from scraper.utils.llm import get_gemini_client, parse_llm_json
+from scraper.utils.llm import TIER1_MODEL, get_gemini_client, parse_llm_json
 from scraper.utils.usage_log import log_usage
 
 _GLOSSARY_PATH = os.path.join(os.path.dirname(__file__), 'glossary.json')
@@ -82,7 +82,7 @@ def translate_social_pulse(batch_size=20):
 
         try:
             response = client.models.generate_content(
-                model='gemini-3.1-flash-lite',
+                model=TIER1_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
@@ -90,7 +90,7 @@ def translate_social_pulse(batch_size=20):
                     "thinking_config": {"thinking_level": "low"},
                 },
             )
-            log_usage("social", "gemini-3.1-flash-lite", response)
+            log_usage("social", TIER1_MODEL, response)
             translations = parse_llm_json(response.text)
 
             if not isinstance(translations, list) or len(translations) != len(batch):

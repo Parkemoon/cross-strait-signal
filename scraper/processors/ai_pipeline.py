@@ -477,7 +477,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 load_dotenv()
 
 from scraper.utils.db import get_connection
-from scraper.utils.llm import get_gemini_client, nullable as nullable_schema, parse_llm_json
+from scraper.utils.llm import (TIER1_MODEL, TIER2_MODEL, get_gemini_client,
+                               nullable as nullable_schema, parse_llm_json)
 client = get_gemini_client()
 
 # Named-exercise roster shared by all three exercise-extraction prompts (the
@@ -991,9 +992,6 @@ def _insert_poll_row(conn, article_id, poll, lookup):
     return True
 
 
-_TIER1_MODEL = "gemini-3.1-flash-lite"
-# Tier-2 escalation review + the poll-only pass (+ the LinkedIn draft).
-_TIER2_MODEL = "gemini-3.8-flash"
 _TIER1_GEN_CONFIG = {
     "response_mime_type": "application/json",
     "max_output_tokens": 8000,
@@ -1029,11 +1027,11 @@ def analyse_article(title, content, language, source_name, published_at=None):
     """Send one article to Gemini and return structured analysis."""
     prompt = _tier1_prompt(title, content, language, source_name, published_at)
     response = client.models.generate_content(
-        model=_TIER1_MODEL,
+        model=TIER1_MODEL,
         contents=prompt,
         config=_TIER1_GEN_CONFIG,
     )
-    log_usage("tier1", _TIER1_MODEL, response)
+    log_usage("tier1", TIER1_MODEL, response)
     return _parse_tier1_json(response.text)
 
 
@@ -1122,7 +1120,7 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
         analysis.get('is_new_formulation', False),
         analysis.get('is_escalation_signal', False),
         analysis.get('escalation_note'),
-        analysis.get('_model_used', 'gemini-3.1-flash-lite'),
+        analysis.get('_model_used', TIER1_MODEL),
         analysis.get('confidence', 0.0)
     ))
 
@@ -1242,7 +1240,7 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
             escalation_glossary = generate_dynamic_glossary(article['content_original'], article['title_original'])
             escalation_former = _officials_former_block(article['content_original'], article['title_original'])
             review = client.models.generate_content(
-                model=_TIER2_MODEL,
+                model=TIER2_MODEL,
                 contents=f"""{_ESCALATION_REVIEW_PROMPT}
 
 {_OFFICIALS_CURRENT_BLOCK}{escalation_glossary}{escalation_former}
@@ -1259,7 +1257,7 @@ FULL TEXT:
                     "max_output_tokens": 8000,
                 }
             )
-            log_usage("tier2", _TIER2_MODEL, review, article_id=article['id'])
+            log_usage("tier2", TIER2_MODEL, review, article_id=article['id'])
             review_analysis = json.loads(review.text)
 
             # Update analysis dict with Flash's assessment
@@ -1287,7 +1285,7 @@ FULL TEXT:
                 analysis['sentiment'], analysis['sentiment_score'],
                 analysis['sentiment_reasoning'],
                 analysis['is_escalation_signal'], analysis.get('escalation_note'),
-                f'{_TIER2_MODEL} (review)', article['id']
+                f'{TIER2_MODEL} (review)', article['id']
             ))
             conn.commit()
 
@@ -1552,14 +1550,14 @@ def submit_tier1_batch(limit=500):
                     'config': _TIER1_GEN_CONFIG,
                 })
             job = client.batches.create(
-                model=_TIER1_MODEL,
+                model=TIER1_MODEL,
                 src=inlined,
                 config={'display_name': f'tier1-{stamp}-{c}'},
             )
             conn.execute(
                 """INSERT INTO gemini_batch_jobs (job_name, kind, model, article_ids)
                    VALUES (?, 'tier1', ?, ?)""",
-                (job.name, _TIER1_MODEL,
+                (job.name, TIER1_MODEL,
                  json.dumps([a['id'] for a in chunk])),
             )
             conn.commit()
@@ -1917,7 +1915,7 @@ FULL TEXT:
 {(article['content_original'] or '')[:5000]}"""
 
     resp = client.models.generate_content(
-        model="gemini-3.1-flash-lite",
+        model=TIER1_MODEL,
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -1929,7 +1927,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "low"},
         },
     )
-    log_usage("exercise_only", "gemini-3.1-flash-lite", resp, article_id=article['id'])
+    log_usage("exercise_only", TIER1_MODEL, resp, article_id=article['id'])
     # parse_llm_json accepts the bare-array-instead-of-envelope quirk too.
     try:
         return parse_llm_json(resp.text, envelope_key='military_exercises')
@@ -1974,7 +1972,7 @@ FULL TEXT:
 {(article['content_original'] or '')[:6000]}"""
 
     resp = client.models.generate_content(
-        model="gemini-3.1-flash-lite",
+        model=TIER1_MODEL,
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -1983,7 +1981,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "medium"},
         },
     )
-    log_usage("diplomacy_only", "gemini-3.1-flash-lite", resp, article_id=article['id'])
+    log_usage("diplomacy_only", TIER1_MODEL, resp, article_id=article['id'])
     # parse_llm_json accepts the bare-array-instead-of-envelope quirk too.
     try:
         return parse_llm_json(resp.text, envelope_key='diplomacy_statements')
@@ -2338,7 +2336,7 @@ FULL TEXT:
 {(article['content_original'] or '')[:MAX_PROMPT_CONTENT_CHARS]}"""
 
     resp = client.models.generate_content(
-        model=_TIER2_MODEL,
+        model=TIER2_MODEL,
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -2351,7 +2349,7 @@ FULL TEXT:
             "thinking_config": {"thinking_level": "low"},
         },
     )
-    log_usage("poll_only", _TIER2_MODEL, resp, article_id=article['id'])
+    log_usage("poll_only", TIER2_MODEL, resp, article_id=article['id'])
     # parse_llm_json accepts the bare-array-instead-of-envelope quirk too.
     try:
         return parse_llm_json(resp.text, envelope_key='polls')

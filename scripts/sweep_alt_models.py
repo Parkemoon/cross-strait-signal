@@ -46,6 +46,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scraper.utils.db import get_connection, DB_PATH
+from scraper.utils.llm import TIER1_MODEL
 from scraper.utils.openrouter import (ARMS, build_request_body, chat_completion,
                                       classify_outcome, log_openrouter_usage)
 
@@ -120,14 +121,14 @@ def _analyse_gemini_control(prompt):
     from scraper.processors import ai_pipeline as ap
     from scraper.utils.usage_log import log_usage
     response = ap.client.models.generate_content(
-        model=ap._TIER1_MODEL, contents=prompt, config=ap._TIER1_GEN_CONFIG)
-    log_usage('alt_control', ap._TIER1_MODEL, response)
+        model=TIER1_MODEL, contents=prompt, config=ap._TIER1_GEN_CONFIG)
+    log_usage('alt_control', TIER1_MODEL, response)
     raw = {"text": response.text}
     try:
         parsed = ap._parse_tier1_json(response.text)
-        return ap._TIER1_MODEL, 'ok', parsed, None, None, raw
+        return TIER1_MODEL, 'ok', parsed, None, None, raw
     except Exception as e:
-        return ap._TIER1_MODEL, 'parse_error', None, None, f'{type(e).__name__}: {e}', raw
+        return TIER1_MODEL, 'parse_error', None, None, f'{type(e).__name__}: {e}', raw
 
 
 def main():
@@ -191,8 +192,7 @@ def main():
     # Row key uses the resolved model name so control rows record the real
     # Gemini model; eligibility must use the same key.
     if control:
-        from scraper.processors import ai_pipeline as ap
-        row_model = ap._TIER1_MODEL
+        row_model = TIER1_MODEL
     else:
         row_model = args.model
     print(f"Model: {row_model}  arm: {arm}"
