@@ -41,6 +41,8 @@ When Tier 1 classifies an article as `MIL_EXERCISE`, it side-extracts up to a ha
 
 A second pass (**Step 3b** in `run_pipeline.py`, `process_exercise_only_articles`) runs the same extraction against military-source articles (YDN) the keyword pre-filter rejected. No `ai_analysis` row is written for these — they exist only to feed the exercise tracker. Capped at 30 per run, last 14 days. Idempotency is via `articles.exercise_scanned_at`, stamped after every scan **including zero-yield** (before the marker, no-yield articles re-qualified every 6h tick — 70% of the stage's Gemini calls were repeat scans). Transient API errors (429/5xx/network, `_is_transient_error`) skip the stamp so the article retries next tick; parse failures stamp it so a pathological article can't retry forever. See `.claude/rules/scrapers.md` for the geocoding sidecars.
 
+**Queue rules (Step 3g, since 2026-10-10):** a pending exercise with no `start_date` or no `location_label` is dismissed every tick, stamped `reviewed_by='rule:no-start-date'` / `'rule:no-location'` (`shared/queue_rules.py`, which carries the cost of each rule measured against past approvals). Rows an analyst has edited (`reviewed_at` set) are left alone. "No coordinates" is deliberately NOT a rule: a third of approved exercises have none.
+
 ## Poll extraction
 
 Tier 1 side-extracts public-opinion polls (TW identity / unification / approval / vote intent) into the `polls` table as `approval_status='pending'`. Same editorial-gate pattern as `military_exercises`. The prompt requires four signals before extracting — named pollster, fielded date, sample size, and at least one numeric option — so passing references to historical poll numbers don't pollute the queue.
@@ -51,6 +53,8 @@ Two design quirks worth knowing:
 - **`pending_results_json` stages the questions until approval.** `poll_results.question_id` is a NOT NULL FK to `poll_questions`, but `question_key` is analyst-assigned (never AI-extracted) so long-tail miscategorisation can't corrupt cross-pollster trend charts. To bridge the gap, the extracted `{questions:[{question_text_zh, question_text_en, family_hint, options:[{label_zh, label_en, percentage, option_order}]}]}` is held in `polls.pending_results_json` while the row is `pending`. On approve, the review queue picks a `question_key` per question and the server materialises `poll_results` rows from the JSON then NULLs the column.
 
 The extraction validates that `fielded_start` matches `YYYY-MM-DD`, drops options whose percentage isn't a 0–100 float, and drops questions left with no usable options. Date anchoring follows the same rule as military exercises — partial dates resolve against the article's published year.
+
+**Queue rule (Step 3g, since 2026-10-10):** an AI-extracted poll whose pollster resolved to `unknown` is dismissed every tick, stamped `reviewed_by='rule:unknown-pollster'`; `pending_results_json` is kept (a manual dismiss NULLs it), so `scripts/bin_queue_candidates.py --revert unknown-pollster` gives back usable rows. A missing sample size or end date is not a rule yet: it would have binned 7 of 55 kept polls, mostly Taiwan Brain Trust.
 
 Four prompt-level rules to know about when tuning extraction quality:
 

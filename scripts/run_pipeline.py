@@ -50,6 +50,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from cluster_events import cluster_recent_articles
 from dedup_articles import dedup_recent_articles
 from dedup_visits import dedup_recent_visits
+from bin_queue_candidates import bin_new_candidates
 
 
 _FAILURES = []
@@ -257,6 +258,13 @@ async def main():
             print(f"  canonicaliser exited {result.returncode}: {result.stderr[-500:]}")
     except Exception as e:
         print(f"  canonicaliser failed — {e}")
+
+    # Step 3g: Bin exercise / poll candidates that could never be approved
+    # (no start date, no location, unknown pollster — rules and their
+    # measured cost in shared/queue_rules.py). Stamped reviewed_by='rule:…'
+    # so scripts/bin_queue_candidates.py can list or revert them.
+    print("\n--- STEP 3g: Bin unapprovable exercise / poll candidates ---")
+    _run('queue_rules', bin_new_candidates)
 
     # Step 4: Cluster events
     print("\n" + "=" * 60)

@@ -141,6 +141,14 @@ Poll-label canonicalise (Step 3d):
     scripts/canonicalise_poll_labels.py --apply runs after Step 3c as an
     idempotent drift-catcher, re-collapsing any variant option labels that
     slipped past the AI extraction prompt's canonical-label rules.
+
+Queue rules (Step 3g):
+    pending, analyst-untouched exercise candidates with no start date or
+    no location, and AI-extracted polls whose pollster resolved to
+    'unknown' → dismissed, stamped reviewed_by='rule:<name>'
+    (shared/queue_rules.py; scripts/bin_queue_candidates.py lists them
+    and reverts by rule). Each rule was measured against past analyst
+    decisions before it went in.
 ```
 
 Event clustering (`scripts/cluster_events.py`) groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
