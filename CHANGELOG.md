@@ -400,17 +400,33 @@ The last of the Morning Brief phase-2 list. **Admin chrome** — new `components
 
 ## In progress / planned
 
-- **LinkedIn post proposer**: live on prod since 2026-09-04 (migration 0011 applied by `server_deploy.sh`, cron guard removed, `--no-email` run from the prod worktree verified — the retry path fired once and the draft passed on attempt 2). First real email = the next Tue/Thu 07:00 London. No health-check entry on purpose (a quiet week legitimately sends nothing). Later: fold the health/alt-model scripts onto `scraper/utils/mail.py`; a cluster deep link on the public feed would let the post link the story itself (public-site change, Ed's call).
-- **Maritime tab**: Phase 2g civilian-fleet + radar layer DEPLOYED to prod 2026-09-07 (migration 0012); prod backfill chain (civil then SAR) running detached — check `/var/log/maritime-backfill-prod.log`, and the health email should flip both maritime checks to recovered once it lands; later: go-dark events, extend the roster beyond the 2021 AMTI/C4ADS list (e.g. a Fujian-fleet source) if one is published
-- **Cross-strait visits tracker**: DEPLOYED to prod 2026-08-31 (migration 0010); prod analyst pass done (Ed, by 2026-09-04); feed coverage per visit built on staging 2026-09-08 (migration 0013), cluster siblings dropped on Ed's review and DEPLOYED to prod 2026-09-13 (migration 0013 applied)
-- **Names** — registry + Step 3f live since 2026-09-13; 2026-10-08 audit and fixes done (ROC-citizenship rule, namesake rows, homonyms rejected, Japanese surname-first in code, prompt and history). Open: 張立齊 and 陳澄波 sit pending in Admin ▾ Names (re-queued; candidates listed); the STAGING registry is stale beyond today's rows (e.g. still approves 張曉剛 → "Chang Hsiao-kang", rejected on prod 09-13), so copy prod's registry over before running any renormalise against the staging DB; after a week of clean ticks retire the bare-array tolerance in `parse_llm_json`.
-- **Tier 2 on gemini-3.8-flash** (2026-10-08) — watch Tier-2 thinking tokens (`usage_report.py --by stage`) and the review-queue disagreement rate; change the `gemini-3.8-flash` price row in `usage_report.py` on 2027-01-01 (introductory price ends). Poll 355 on prod (3.5 Flash invented its fielded dates) awaits dismissal.
-- **Code-review follow-ups**: batches 1 and 2 and batch 3 part 1 DEPLOYED 2026-09-29; the rest of batch 3 (lazy tabs, no public source map, admin-token check on the review reads) DEPLOYED 2026-10-01. The review work order is closed apart from the optional items. Optional, Ed's call: move the CIFER, TVBS and My-Formosa Playwright launches onto `launch_chromium` (CIFER still runs `--no-sandbox` as root); the ±30-day exercise auto-merge width. Unrelated, seen in the logs: the MAC poll listing has returned 403 for months (Step 2L).
-- **AidData / Lowy finance layer** on the Diplomacy map — recognition-switch finance, not a China-vs-Taiwan totals chart
-- Positions page: US entry pending Ed's editorial review; concept scaffolds have no public definitions until then
-- Maps for geocoded entities (entity table already carries lat/lng schema fields)
-- Incursion × exercise cross-reference — apply the verification angle to military data (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?)
-- Monthly-aggregated sentiment endpoint (revisit when 12+ months of data exists)
-- Audit trail for AI classifications — `topic_primary_ai_original` column or change log to unlock per-category accuracy measurement
-- Override-propagation race fix — optimistic concurrency control on the notes/review write paths, or frontend dirty-tracking on the override dropdowns
-- ADS-B / AIS data integration (Phase 3) — coast-guard AIS now covered; aircraft still open
+Reorganised 2026-10-10 for low-bandwidth running (Ed is job-hunting): what runs by itself, the dated must-dos, the small things only Ed can do, and everything else PARKED. Nothing parked is on anyone's list until Ed un-parks it.
+
+### Runs by itself
+
+- **Feed**: review-clean articles publish after every 6-hourly tick; an email only when a newly published article is flash, an escalation signal, a new formulation or caught by the reported-speech net. Health check `feed:approved` flags a stall after 2 days.
+- **Queues**: Step 3g bins exercise / poll / statement candidates that fail the queue rules (`shared/queue_rules.py`); everything else waits for the analyst and never reaches the public site unapproved.
+- **Health and backups**: daily scraper health email on state changes (08:15 UTC), nightly DB backup with an off-site copy (02:30 UTC), weekly digest (Mon 08:00), LinkedIn proposer (Tue/Thu 07:00 London; a quiet week sends nothing), alt-model sweep and monthly report.
+
+### Dated must-dos
+
+- **2027-01-01**: change the `gemini-3.8-flash` price row in `scripts/usage_report.py` (the introductory price ends).
+- **Before 2027-05-07**: move Tier 1 off `gemini-3.1-flash-lite` (Google's shutdown date; recommended replacement `gemini-3.5-flash-lite`). One edit to `TIER1_MODEL` in `scraper/utils/llm.py`, plus the two alt-model audits' `MODELS` lists and a `gemini-control` re-baseline.
+
+### Small, only Ed
+
+- Cloudflare SSL/TLS mode to Full (strict) (origin has a Cloudflare Origin CA certificate since 2026-10-01).
+- Admin ▾ Names: 張立齊 and 陳澄波 (re-queued 2026-10-08 with candidates), plus the rest of the pending names when convenient.
+- Editorial queues: diplomacy, statements, exercises, Review tab, visits. Pending rows never reach the public site, so a pile costs nothing but freshness of that section.
+
+### Parked (Ed, 2026-10-10)
+
+- **AidData / Lowy finance layer** on the Diplomacy map (recognition-switch finance, not a China-vs-Taiwan totals chart).
+- **Maritime**: go-dark events; a roster beyond the 2021 AMTI/C4ADS list (e.g. a Fujian-fleet source) if one is published.
+- **Positions page**: US entry awaiting Ed's editorial review; concept scaffolds stay without public definitions until then.
+- **Scraper hardening, optional**: CIFER, TVBS and My-Formosa Playwright launches onto `launch_chromium` (CIFER still runs `--no-sandbox` as root); the ±30-day exercise auto-merge width.
+- **MAC 即時民調 listing** has returned 403 for months (Step 2L); MAC polls are not being picked up.
+- **Names follow-ups**: the STAGING name registry is stale (copy prod's before any renormalise against the staging DB); retire the bare-array tolerance in `parse_llm_json`.
+- **Tier 2 watch items**: Tier-2 thinking tokens (`usage_report.py --by stage`) and the review-queue disagreement rate on 3.8 Flash.
+- **LinkedIn proposer extras**: fold the health / alt-model scripts onto `scraper/utils/mail.py`; a cluster deep link on the public feed (public-site change).
+- **Ideas**: maps for geocoded entities; incursion × exercise cross-reference (do PLA spikes track MIL_EXERCISE / MIL_MOVEMENT article volume?); a monthly-aggregated sentiment endpoint (once 12+ months of data exist); an audit trail for AI classifications (`topic_primary_ai_original` or a change log, for per-category accuracy); the override-propagation race (optimistic concurrency on the notes / review write paths, or dirty-tracking on the override dropdowns); ADS-B aircraft data (coast-guard AIS is covered).
