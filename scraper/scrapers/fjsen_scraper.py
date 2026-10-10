@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
+from urllib.parse import urljoin, urlparse
 import sys
 import os
 
@@ -11,7 +12,52 @@ from scraper.utils.dates import parse_url_date
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 LIST_URL = 'http://taihai.fjsen.com/'
+CHANNEL_HOST = 'taihai.fjsen.com'
+# The front page shows ~15 picks; the section lists carry 2-3x as many
+# channel stories a day (2026-10-05: 21 vs 7 for 09-30), and 闽台往来 /
+# 台湾万象 items never reached the front page at all.
+SECTION_URLS = [
+    'http://taihai.fjsen.com/tw_politics.htm',   # 台湾时政
+    'http://taihai.fjsen.com/Cross-strait.htm',  # 海峡两岸
+    'http://taihai.fjsen.com/fj_tw.htm',         # 闽台往来
+    'http://taihai.fjsen.com/tw_Society.htm',    # 台湾万象
+]
+MAX_LINKS_PER_PAGE = 30
 MAX_ARTICLE_AGE = timedelta(days=180)
+
+
+def parse_list(html, page_url, channel_only):
+    """(url, title) pairs from a list page, in page order.
+
+    Front page: list items plus the h1 headline slots, which hold the lead
+    stories and are often off-channel (www / fjnews.fjsen.com) — all
+    cross-strait picks, so all kept. Section pages: their off-channel links
+    are the site-wide sidebar (Fujian news, sport), so channel_only keeps
+    taihai.fjsen.com links only."""
+    soup = BeautifulSoup(html, 'html.parser')
+    out = []
+    for a in soup.select('li > a[href*="/content_"], h1 > a[href*="/content_"]'):
+        url = urljoin(page_url, a.get('href', '')).split('?')[0]
+        title = a.get_text(strip=True)
+        if len(title) < 4:
+            continue
+        if channel_only and urlparse(url).netloc != CHANNEL_HOST:
+            continue
+        out.append((url, title))
+    return out[:MAX_LINKS_PER_PAGE]
+
+
+def merge_lists(lists):
+    """One (url, title) per URL across list pages, first-seen order. The
+    front page cuts long titles with '…'; a full title for the same URL on
+    a section page replaces it."""
+    merged = {}
+    for pairs in lists:
+        for url, title in pairs:
+            old = merged.get(url)
+            if old is None or (old.endswith('…') and not title.endswith('…')):
+                merged[url] = title
+    return list(merged.items())
 
 
 def parse_date_from_url(url):
@@ -23,7 +69,8 @@ def parse_date_from_url(url):
 
 
 async def scrape_fjsen():
-    """Scrape Haixia Daobao 海峽導報 cross-strait section (taihai.fjsen.com)."""
+    """Scrape Haixia Daobao 海峽導報 cross-strait channel (taihai.fjsen.com):
+    the front page plus the four section lists in SECTION_URLS."""
     conn = get_connection()
 
     source = conn.execute(
@@ -40,34 +87,28 @@ async def scrape_fjsen():
     new_count = 0
 
     async with make_async_client() as client:
-        try:
-            resp = await client.get(LIST_URL)
-            resp.encoding = 'utf-8'
-        except Exception as e:
-            print(f"  Error fetching fjsen list page: {e}")
-            conn.close()
-            return 0
-
-        if resp.status_code != 200:
-            print(f"  Got status {resp.status_code}")
-            conn.close()
-            return 0
-
-        soup = BeautifulSoup(resp.text, 'html.parser')
-
-        # Article links: <li><a href="http://taihai.fjsen.com/.../content_XXXXX.htm">
-        links = soup.select('li > a[href*="/content_"]')
-        print(f"  Found {len(links)} articles")
-
-        for link in links[:30]:
-            href = link.get('href', '')
-            title = link.get_text(strip=True)
-
-            if not href or not title or len(title) < 4:
+        lists = []
+        for page_url in [LIST_URL] + SECTION_URLS:
+            try:
+                resp = await client.get(page_url)
+                resp.encoding = 'utf-8'
+            except Exception as e:
+                print(f"  Error fetching {page_url}: {e}")
                 continue
+            if resp.status_code != 200:
+                print(f"  {page_url}: status {resp.status_code}")
+                continue
+            lists.append(parse_list(resp.text, page_url,
+                                    channel_only=page_url != LIST_URL))
 
-            full_url = href.split('?')[0]
+        if not lists:
+            conn.close()
+            return 0
 
+        links = merge_lists(lists)
+        print(f"  Found {len(links)} articles across {len(lists)} list pages")
+
+        for full_url, title in links:
             if article_exists(conn, full_url):
                 continue
 

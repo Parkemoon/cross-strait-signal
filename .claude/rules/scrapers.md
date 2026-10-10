@@ -28,7 +28,7 @@ Two types:
 | `mfa_scraper.py` | MFA Spokesperson (PRC) |
 | `tao_scraper.py` | Taiwan Affairs Office (PRC) |
 | `guancha_scraper.py` | Guancha 观察者网 |
-| `fjsen_scraper.py` | Haixia Daobao 海峽導報 |
+| `fjsen_scraper.py` | Haixia Daobao 海峽導報 — taihai.fjsen.com front page (list items + `h1` lead slots, off-channel fjsen.com picks kept) + four section lists (`SECTION_URLS`: 台湾时政 / 海峡两岸 / 闽台往来 / 台湾万象, taihai.fjsen.com links only — the rest is a site-wide sidebar). The sections carry 2–3× the front page's stories; a front-page title cut with `…` gives way to the section's full one. The channel goes silent over PRC public holidays (May Day 05-02→05-05, Golden Week from 10-01), so a holiday STALE email from the health check is expected |
 | `pla_daily_scraper.py` | PLA Daily 解放軍報 (81.cn — HTTP only, not HTTPS) |
 | `weibo_hot_scraper.py` | Weibo Hot Search — top 50 from `weibo.com/ajax/side/hotSearch` JSON API → `social_pulse` |
 | `ptt_scraper.py` | PTT BBS — Military (5 pages), Gossiping (15 pages), HatePolitics (12 pages); requires `over18=1` cookie; depth in `BOARD_PAGES` |
