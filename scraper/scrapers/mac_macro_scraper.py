@@ -44,7 +44,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from scraper.utils.db import get_connection
 from scraper.utils.dates import roc_year_to_gregorian
 from scraper.scrapers.mac_economic_scraper import (
-    CATALOG_URL, direct_url, parse_number, parse_pct, roc_to_iso,
+    CATALOG_URL, decode_csv, direct_url, parse_number, parse_pct, roc_to_iso,
 )
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -149,10 +149,7 @@ def fetch_csv(url: str, client: httpx.Client) -> list[list[str]] | None:
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         print(f'  ! fetch failed: {e}', file=sys.stderr)
         return None
-    try:
-        text = r.content.decode('big5', errors='replace')
-    except UnicodeDecodeError:
-        text = r.content.decode('utf-8', errors='replace')
+    text = decode_csv(r.content)
     rows = list(csv.reader(io.StringIO(text)))
     return rows or None
 
