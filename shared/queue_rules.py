@@ -1,7 +1,8 @@
-"""Deterministic binning of exercise and poll candidates that could never be
-approved (Ed, 2026-10-10). Each rule is a SQL condition on a pending row; a
-match is dismissed with reviewed_by = 'rule:<name>', so every bin can be
-listed or reverted by its stamp. First matching rule wins.
+"""Deterministic binning of exercise, poll and key-figure statement
+candidates that could never be approved (Ed, 2026-10-10). Each rule is a
+SQL condition on a pending row; a match is dismissed with
+reviewed_by = 'rule:<name>', so every bin can be listed or reverted by its
+stamp. First matching rule wins.
 
 Measured against Ed's own past decisions on prod before going in
 (2026-10-10), as rows each rule matches:
@@ -9,6 +10,11 @@ Measured against Ed's own past decisions on prod before going in
     military_exercises  no-start-date     2 of 69 approved, 323 of 1,871 dismissed
                         no-location       1 of 69 approved,  73 of 1,871 dismissed
     polls (AI rows)     unknown-pollster  1 of 55 approved or merged, 65 of 137 dismissed
+    key_figure_statements  not-a-quote    6 of 222 approved, 1,006 of 5,907 dismissed
+
+A rule only ever dismisses. Key-figure statements are never approved
+without the analyst (misattribution risk); binning a paraphrased "action"
+cannot publish anything.
 
 "No coordinates" was rejected as a location rule: it would have binned 23 of
 the 69 approved exercises (the geocoder has no point for "waters east of
@@ -26,6 +32,11 @@ RULES = {
     'military_exercises': [
         ('no-start-date', "COALESCE(TRIM(start_date), '') = ''"),
         ('no-location', "COALESCE(TRIM(location_label), '') = ''"),
+    ],
+    'key_figure_statements': [
+        # 'action' / 'statement' rows are the model's paraphrase of what a
+        # figure did, not words they said; the panel shows quotes.
+        ('not-a-quote', "COALESCE(statement_kind, '') <> 'quote'"),
     ],
     'polls': [
         ('unknown-pollster',

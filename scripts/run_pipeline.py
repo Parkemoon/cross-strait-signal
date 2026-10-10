@@ -259,11 +259,12 @@ async def main():
     except Exception as e:
         print(f"  canonicaliser failed — {e}")
 
-    # Step 3g: Bin exercise / poll candidates that could never be approved
-    # (no start date, no location, unknown pollster — rules and their
+    # Step 3g: Bin exercise / poll / statement candidates that could never be
+    # approved (no start date, no location, unknown pollster, a key-figure
+    # "statement" that is not a quote — rules and their
     # measured cost in shared/queue_rules.py). Stamped reviewed_by='rule:…'
     # so scripts/bin_queue_candidates.py can list or revert them.
-    print("\n--- STEP 3g: Bin unapprovable exercise / poll candidates ---")
+    print("\n--- STEP 3g: Bin unapprovable exercise / poll / statement candidates ---")
     _run('queue_rules', bin_new_candidates)
 
     # Step 4: Cluster events

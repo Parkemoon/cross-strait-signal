@@ -33,7 +33,7 @@ Applied *after* AI extraction to normalise `name_en` on entity rows. Distinct fr
 
 ## Key figure statement extraction (`key_figures.json`)
 
-Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `key_figures.json` — 10 figures with Chinese/English names, roles, party field (DPP/KMT/PRC), portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — intentional to prevent misattribution.
+Tier 1 also extracts attributed `(speaker, statement)` pairs into the `key_figure_statements` table as `pending` candidates. The curated figure list lives in `key_figures.json` — 10 figures with Chinese/English names, roles, party field (DPP/KMT/PRC), portrait filenames, and alias lists used for speaker→figure_id matching. Tier 2 does NOT re-insert statements (only Tier 1 writes to this table). Statements require analyst approval via the Key Figures panel before appearing on the dashboard — intentional to prevent misattribution. **Queue rule (Step 3g, since 2026-10-10):** a pending row whose `statement_kind` is not `quote` (the model's `action` / `statement` paraphrases) is dismissed every tick, stamped `reviewed_by='rule:not-a-quote'`; 6 of 222 approved statements were non-quotes against 1,006 of 5,907 dismissed. Rules only dismiss; no statement is ever approved without the analyst.
 
 ## Military exercise extraction
 
