@@ -10,6 +10,8 @@ Measured against Ed's own past decisions on prod before going in
     military_exercises  no-start-date     2 of 69 approved, 323 of 1,871 dismissed
                         no-location       1 of 69 approved,  73 of 1,871 dismissed
     polls (AI rows)     unknown-pollster  1 of 55 approved or merged, 65 of 137 dismissed
+                        no-sample-size +  7 of 55 between them, mostly Taiwan Brain
+                        no-end-date       Trust, whose coverage rarely prints either
     key_figure_statements  not-a-quote    6 of 222 approved, 1,006 of 5,907 dismissed
 
 A rule only ever dismisses. Key-figure statements are never approved
@@ -18,9 +20,8 @@ cannot publish anything.
 
 "No coordinates" was rejected as a location rule: it would have binned 23 of
 the 69 approved exercises (the geocoder has no point for "waters east of
-Taiwan"). A missing sample size or fieldwork end date would have binned 7 of
-the 55 kept polls, mostly Taiwan Brain Trust, whose coverage rarely prints
-either; held back for Ed's call.
+Taiwan"). The two poll completeness rules cost 7 of the 55 kept polls; Ed
+took them anyway ("keep the ones I kept": rules never touch approved rows).
 
 Rows an analyst has already edited (PATCH stamps reviewed_at) are never
 binned. A poll bin keeps pending_results_json (a manual dismiss NULLs it) so
@@ -42,6 +43,8 @@ RULES = {
         ('unknown-pollster',
          "source_article_id IS NOT NULL"
          " AND pollster_id IN (SELECT id FROM pollsters WHERE slug = 'unknown')"),
+        ('no-sample-size', "source_article_id IS NOT NULL AND COALESCE(sample_size, 0) <= 0"),
+        ('no-end-date', "source_article_id IS NOT NULL AND COALESCE(TRIM(fielded_end), '') = ''"),
     ],
 }
 
