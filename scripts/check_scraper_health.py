@@ -85,6 +85,10 @@ TABLE_CHECKS = [
     ("cga_enforcement:monthly",
      "SELECT MAX(period)||'-28' FROM cga_enforcement WHERE granularity='month' AND source='monthly'", 75,
      "CGA monthly report lands ~4-6 weeks after month end"),
+    ("feed:approved",
+     "SELECT MAX(a.scraped_at) FROM articles a JOIN ai_analysis ai ON ai.article_id = a.id"
+     " WHERE a.analyst_approved = 1", 2,
+     "newest approved article; the feed's approval runs after every tick, so 2d = it has stopped"),
     ("visits:scan",
      "SELECT MAX(substr(scanned_at,1,10)) FROM cross_strait_visit_scans", 10,
      "Step 3e scans DIP_VISIT/PARTY_VISIT articles every tick; 10d covers a quiet stretch"),
