@@ -17,7 +17,7 @@ def conn():
         CREATE TABLE pollsters (id INTEGER PRIMARY KEY, slug TEXT);
         CREATE TABLE polls (
             id INTEGER PRIMARY KEY, pollster_id INTEGER, source_article_id INTEGER,
-            sample_size INTEGER, pending_results_json TEXT,
+            sample_size INTEGER, fielded_end TEXT, pending_results_json TEXT,
             approval_status TEXT NOT NULL DEFAULT 'pending',
             reviewed_at TIMESTAMP, reviewed_by TEXT);
         CREATE TABLE key_figure_statements (
@@ -40,11 +40,13 @@ def conn():
          (5, 'Drill', None, None, 'pending', '2026-10-01 10:00:00'),         # analyst edited
          (6, 'Drill', None, None, 'approved', '2026-10-01 10:00:00')])       # not pending
     c.executemany(
-        "INSERT INTO polls (id, pollster_id, source_article_id, sample_size,"
-        " pending_results_json) VALUES (?, ?, ?, ?, ?)",
-        [(1, 1, 100, 1000, '{"questions": []}'),   # unknown pollster
-         (2, 2, 101, None, '{"questions": []}'),   # named pollster, no sample: kept for now
-         (3, 1, None, 1000, None)])                # manual entry, never binned
+        "INSERT INTO polls (id, pollster_id, source_article_id, sample_size, fielded_end,"
+        " pending_results_json) VALUES (?, ?, ?, ?, ?, ?)",
+        [(1, 1, 100, 1000, '2026-10-02', '{"questions": []}'),   # unknown pollster
+         (2, 2, 101, None, '2026-10-02', '{"questions": []}'),   # no sample size
+         (3, 1, None, 1000, None, None),                         # manual entry, never binned
+         (4, 2, 102, 1070, None, '{"questions": []}'),           # no end date
+         (5, 2, 103, 1070, '2026-10-02', '{"questions": []}')])  # complete: keeps
     return c
 
 
@@ -58,6 +60,8 @@ def test_dry_run_reports_and_writes_nothing(conn):
     assert got[('military_exercises', 'no-start-date')] == [2, 3]
     assert got[('military_exercises', 'no-location')] == [4]
     assert got[('polls', 'unknown-pollster')] == [1]
+    assert got[('polls', 'no-sample-size')] == [2]
+    assert got[('polls', 'no-end-date')] == [4]
     assert got[('key_figure_statements', 'not-a-quote')] == [2, 3]
     assert _status(conn, 'military_exercises', 2) == ('pending', None)
 
@@ -70,8 +74,9 @@ def test_apply_dismisses_and_stamps(conn):
     assert _status(conn, 'military_exercises', 1) == ('pending', None)
     assert _status(conn, 'military_exercises', 5) == ('pending', None)
     assert _status(conn, 'polls', 1) == ('dismissed', 'rule:unknown-pollster')
-    assert _status(conn, 'polls', 2) == ('pending', None)
+    assert _status(conn, 'polls', 2) == ('dismissed', 'rule:no-sample-size')
     assert _status(conn, 'polls', 3) == ('pending', None)
+    assert _status(conn, 'polls', 5) == ('pending', None)
     # the extraction is kept so a revert restores a usable row
     assert conn.execute("SELECT pending_results_json FROM polls WHERE id = 1").fetchone()[0]
 
@@ -86,7 +91,7 @@ def test_revert_one_rule_then_all(conn):
     assert revert_bins(conn, 'no-location') == 1
     assert _status(conn, 'military_exercises', 4) == ('pending', None)
     assert _status(conn, 'military_exercises', 2) == ('dismissed', 'rule:no-start-date')
-    assert revert_bins(conn) == 5
+    assert revert_bins(conn) == 7
     assert _status(conn, 'polls', 1) == ('pending', None)
 
 

@@ -54,7 +54,7 @@ Two design quirks worth knowing:
 
 The extraction validates that `fielded_start` matches `YYYY-MM-DD`, drops options whose percentage isn't a 0–100 float, and drops questions left with no usable options. Date anchoring follows the same rule as military exercises — partial dates resolve against the article's published year.
 
-**Queue rule (Step 3g, since 2026-10-10):** an AI-extracted poll whose pollster resolved to `unknown` is dismissed every tick, stamped `reviewed_by='rule:unknown-pollster'`; `pending_results_json` is kept (a manual dismiss NULLs it), so `scripts/bin_queue_candidates.py --revert unknown-pollster` gives back usable rows. A missing sample size or end date is not a rule yet: it would have binned 7 of 55 kept polls, mostly Taiwan Brain Trust.
+**Queue rules (Step 3g, since 2026-10-10):** an AI-extracted poll whose pollster resolved to `unknown`, or with no sample size, or with no fieldwork end date is dismissed every tick, stamped `reviewed_by='rule:unknown-pollster'` / `'rule:no-sample-size'` / `'rule:no-end-date'`; `pending_results_json` is kept (a manual dismiss NULLs it), so `scripts/bin_queue_candidates.py --revert <rule>` gives back usable rows. The two completeness rules would have binned 7 of 55 kept polls, mostly Taiwan Brain Trust (its coverage rarely prints a sample size); Ed took that cost.
 
 Four prompt-level rules to know about when tuning extraction quality:
 

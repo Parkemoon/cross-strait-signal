@@ -144,7 +144,8 @@ Poll-label canonicalise (Step 3d):
 
 Queue rules (Step 3g):
     pending, analyst-untouched exercise candidates with no start date or
-    no location, AI-extracted polls whose pollster resolved to 'unknown',
+    no location, AI-extracted polls with an unknown pollster, no sample
+    size or no fieldwork end date,
     and key-figure "statements" that are not quotes → dismissed (never
     approved), stamped reviewed_by='rule:<name>'
     (shared/queue_rules.py; scripts/bin_queue_candidates.py lists them
