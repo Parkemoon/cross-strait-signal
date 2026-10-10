@@ -88,11 +88,13 @@ TABLE_CHECKS = [
     ("visits:scan",
      "SELECT MAX(substr(scanned_at,1,10)) FROM cross_strait_visit_scans", 10,
      "Step 3e scans DIP_VISIT/PARTY_VISIT articles every tick; 10d covers a quiet stretch"),
+    # July 2026 data was uploaded 2026-09-07, so the newest month is ~98 days
+    # old just before the next upload; 110 gives a late release ~10 days.
     ("econ:MAC_7887",
-     "SELECT MAX(period) FROM economic_indicators WHERE source='MAC_7887'", 100,
+     "SELECT MAX(period) FROM economic_indicators WHERE source='MAC_7887'", 110,
      "monthly, ~2mo publish lag"),
     ("econ:MAC_7888",
-     "SELECT MAX(period) FROM economic_indicators WHERE source='MAC_7888'", 100,
+     "SELECT MAX(period) FROM economic_indicators WHERE source='MAC_7888'", 110,
      "monthly, ~2mo publish lag"),
     ("econ:MAC_7459",
      "SELECT MAX(period) FROM economic_indicators WHERE source='MAC_7459'", 210,
