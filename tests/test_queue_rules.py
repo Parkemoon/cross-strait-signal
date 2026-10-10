@@ -20,6 +20,14 @@ def conn():
             sample_size INTEGER, pending_results_json TEXT,
             approval_status TEXT NOT NULL DEFAULT 'pending',
             reviewed_at TIMESTAMP, reviewed_by TEXT);
+        CREATE TABLE key_figure_statements (
+            id INTEGER PRIMARY KEY, figure_id TEXT, statement_kind TEXT, statement_text TEXT,
+            approval_status TEXT NOT NULL DEFAULT 'pending',
+            reviewed_at TIMESTAMP, reviewed_by TEXT);
+        INSERT INTO key_figure_statements (id, figure_id, statement_kind, statement_text) VALUES
+            (1, 'lai_chingte', 'quote', 'Peace relies on strength.'),
+            (2, 'lai_chingte', 'action', 'Announced a drone academy.'),
+            (3, 'xi_jinping', 'statement', 'Stressed reunification.');
         INSERT INTO pollsters VALUES (1, 'unknown'), (2, 'tvbs');
     """)
     c.executemany(
@@ -50,6 +58,7 @@ def test_dry_run_reports_and_writes_nothing(conn):
     assert got[('military_exercises', 'no-start-date')] == [2, 3]
     assert got[('military_exercises', 'no-location')] == [4]
     assert got[('polls', 'unknown-pollster')] == [1]
+    assert got[('key_figure_statements', 'not-a-quote')] == [2, 3]
     assert _status(conn, 'military_exercises', 2) == ('pending', None)
 
 
@@ -77,7 +86,7 @@ def test_revert_one_rule_then_all(conn):
     assert revert_bins(conn, 'no-location') == 1
     assert _status(conn, 'military_exercises', 4) == ('pending', None)
     assert _status(conn, 'military_exercises', 2) == ('dismissed', 'rule:no-start-date')
-    assert revert_bins(conn) == 3
+    assert revert_bins(conn) == 5
     assert _status(conn, 'polls', 1) == ('pending', None)
 
 

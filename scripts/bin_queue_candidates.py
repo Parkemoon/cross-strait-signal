@@ -1,6 +1,7 @@
-"""Bin exercise and poll candidates that could never be approved — rules and
-their measured cost in shared/queue_rules.py. A binned row is dismissed with
-reviewed_by = 'rule:<name>', so it can be listed or put back.
+"""Bin exercise, poll and key-figure statement candidates that could never
+be approved — rules and their measured cost in shared/queue_rules.py. A
+binned row is dismissed with reviewed_by = 'rule:<name>', so it can be
+listed or put back.
 
 Two callers:
   - CLI (dry-run default):
@@ -24,6 +25,8 @@ from scraper.utils.db import get_connection
 LABEL_SQL = {
     'military_exercises': "SELECT COALESCE(name_en, name_zh, name_raw), start_date, location_label"
                           " FROM military_exercises WHERE id = ?",
+    'key_figure_statements': "SELECT figure_id, statement_kind, substr(statement_text, 1, 80)"
+                             " FROM key_figure_statements WHERE id = ?",
     'polls': "SELECT s.slug, p.fielded_start, p.sample_size FROM polls p"
              " JOIN pollsters s ON s.id = p.pollster_id WHERE p.id = ?",
 }
@@ -44,7 +47,7 @@ def bin_new_candidates():
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Bin exercise/poll candidates that fail the queue rules (dry-run by default).")
+        description="Bin exercise/poll/statement candidates that fail the queue rules (dry-run by default).")
     ap.add_argument('--db', help="DB path (default: this worktree's DB)")
     ap.add_argument('--apply', action='store_true', help='dismiss the matches (dry-run without)')
     ap.add_argument('--revert', metavar='RULE',
