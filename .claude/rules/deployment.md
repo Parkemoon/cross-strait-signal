@@ -31,7 +31,7 @@ Server path: `/var/www/cross-strait-signal`. Service name: `cross-strait-signal`
 
 ## Cron schedule
 
-- Pipeline runs every 6h (`0 */6 * * *`), logging to `/var/log/cross-strait-pipeline.log`.
+- Pipeline runs every 6h (`0 */6 * * *`), logging to `/var/log/cross-strait-pipeline.log`. Since 2026-10-10 the same cron line then approves the review-clean backlog (the feed autopilot: log `/var/log/cross-strait-autoapprove.log`, revert manifests in `/var/log/bulk-approve-manifests/`, an email only when a newly approved article is flash, an escalation signal, a new formulation or caught by the reported-speech net). Watched by the health check's `feed:approved`.
 - CIFER snapshot scraper runs monthly (`0 3 1 * *`), logging to `/var/log/cifer-snapshot.log`.
 - Weekly digest runs Mondays 08:00 (`0 8 * * 1`), logging to `/var/log/cross-strait-digest.log`.
 - LinkedIn post proposer runs Tuesdays and Thursdays 07:00 **Europe/London** (installed 2026-09-04): `0 6,7 * * 2,4 [ "$(TZ=Europe/London date +\%H)" = 07 ] && cd /var/www/cross-strait-signal && venv/bin/python scripts/propose_linkedin_post.py >> /var/log/cross-strait-linkedin.log 2>&1`. The server clock is UTC and Ubuntu's vixie cron has no `CRON_TZ`, so both UTC hours fire and the London-hour test keeps exactly one across the BST/GMT switch. Sends nothing when no cluster qualifies; recipient `LINKEDIN_TO`, falling back to `DIGEST_TO`; the SMTP env is the digest's. Migration 0011 creates `linkedin_drafts` on deploy.
