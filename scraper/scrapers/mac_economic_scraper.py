@@ -97,6 +97,17 @@ def roc_to_iso(period_label: str) -> str | None:
         return None
 
 
+def decode_csv(content: bytes) -> str:
+    """MAC CSVs are Big5, except when they are not: 7888's 2026-07 snapshot
+    (uploaded 2026-09-07) is UTF-8 with a BOM. Strict UTF-8 first, because
+    Big5 Chinese text practically never decodes as UTF-8, so a Big5 file
+    falls through to the Big5 decode."""
+    try:
+        return content.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        return content.decode('big5', errors='replace')
+
+
 def parse_number(cell: str) -> float | None:
     """Parse a numeric cell. Returns None for missing values ('－', '-', '')."""
     s = cell.strip().strip('"')
@@ -213,17 +224,14 @@ def parse_monthly_row(headers: list[str], row: list[str]) -> list[tuple[str, str
 
 
 def fetch_csv(url: str, client: httpx.Client) -> tuple[list[str], list[list[str]]] | None:
-    """Fetch a Big5 CSV and return (headers, data_rows). None on failure."""
+    """Fetch a MAC CSV and return (headers, data_rows). None on failure."""
     try:
         r = client.get(url, timeout=30)
         r.raise_for_status()
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         print(f'  ! fetch failed: {e}', file=sys.stderr)
         return None
-    try:
-        text = r.content.decode('big5', errors='replace')
-    except UnicodeDecodeError:
-        text = r.content.decode('utf-8', errors='replace')
+    text = decode_csv(r.content)
     reader = csv.reader(io.StringIO(text))
     rows = list(reader)
     if len(rows) < 2:
