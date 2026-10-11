@@ -391,7 +391,7 @@ Reorganised 2026-10-10 for low-maintenance running: what runs by itself, the dat
 
 - Cloudflare SSL/TLS mode to Full (strict) (origin has a Cloudflare Origin CA certificate since 2026-10-01).
 - Admin ▾ Names: 張立齊 and 陳澄波 (re-queued 2026-10-08 with candidates), plus the rest of the pending names when convenient.
-- Editorial queues: diplomacy, statements, exercises, Review tab, visits. Pending rows never reach the public site, so a pile costs nothing but freshness of that section.
+- Editorial queues: exercises (262 pending on 2026-10-10), polls (43), visits (26), diplomacy (2 left unsure). Statements, the Review tab and diplomacy were cleared on 2026-10-10 and now only take new arrivals. Pending rows never reach the public site, so a pile costs nothing but freshness of that section.
 
 ### Parked (Ed, 2026-10-10)
 
