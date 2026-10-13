@@ -1,10 +1,63 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ArticleCard from "./ArticleCard";
+import SourceBadge, { PUBLICATION_NAMES } from "./SourceBadge";
+import SentimentBadge from "./SentimentBadge";
+import { groupSignals } from "../signalGroups";
 
-// "Top of the Brief" — the active escalation signals, numbered like a
-// briefing document's lead items. Full ArticleCards inside (admin controls
-// intact); the big --dot numeral carries the hierarchy instead of the old
-// inverted colour plate.
+const TOGGLE = {
+  padding: 0, background: "transparent", border: "none", cursor: "pointer",
+  display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: "4px 10px", textAlign: "left",
+  fontFamily: "var(--font-mono)", fontSize: "8.5px", letterSpacing: "0.08em",
+  color: "var(--muted)", textTransform: "uppercase",
+};
+
+// The rest of a topic's signals, folded under its lead card: which outlets
+// carried it at a glance (alignment-coloured, one badge per publication),
+// the headlines on demand.
+function MoreReports({ items }) {
+  const [open, setOpen] = useState(false);
+  if (!items.length) return null;
+  const outlets = [];
+  const seen = new Set();
+  for (const a of items) {
+    const name = PUBLICATION_NAMES[a.source_name] || a.source_name;
+    if (!seen.has(name)) { seen.add(name); outlets.push(a); }
+  }
+  return (
+    <div style={{ padding: "8px 0 4px 15px" }}>
+      <button onClick={() => setOpen(!open)} aria-expanded={open} style={TOGGLE}>
+        <span>{open ? "▾" : "▸"} {items.length} more {items.length === 1 ? "report" : "reports"}</span>
+        {/* pointer-events off: SourceBadge's own default cursor would make
+            half of the toggle look unclickable */}
+        <span style={{ display: "contents", pointerEvents: "none" }}>
+          {outlets.map((a) => <SourceBadge key={a.source_name} sourceName={a.source_name} bias={a.bias} />)}
+        </span>
+      </button>
+      {open && items.map((a) => (
+        <div key={a.id} style={{ padding: "7px 0", borderTop: "1px solid var(--soft)", marginTop: "6px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "baseline", flexWrap: "wrap" }}>
+            <SourceBadge sourceName={a.source_name} bias={a.bias} place={a.source_place} full />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em", color: "var(--faint)" }}>
+              {a.published_at?.slice(0, 10)}
+            </span>
+            {a.sentiment && <SentimentBadge sentiment={a.sentiment} score={a.sentiment_score} />}
+          </div>
+          <a href={a.url} target="_blank" rel="noopener noreferrer"
+             style={{ display: "block", fontFamily: "var(--font-body)", fontSize: "13px", lineHeight: 1.45,
+                      color: "var(--body)", textDecoration: "none", marginTop: "3px" }}>
+            {a.title_en_override || a.title_en || a.title_original}
+          </a>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// "Top of the Brief" — the active escalation signals, one numbered item per
+// topic like a briefing document's lead items (grouping rule in
+// signalGroups.js). The lead is a full ArticleCard (admin controls intact);
+// the topic's other reports fold under it. The big --dot numeral carries the
+// hierarchy instead of the old inverted colour plate.
 export default function FlashTraffic({ escalations: initialEscalations, onTopicClick, onEntityClick, onApprove }) {
   const [escalations, setEscalations] = useState(initialEscalations || []);
 
@@ -12,11 +65,14 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
     setEscalations(initialEscalations || []);
   }, [initialEscalations]);
 
+  // Turning the lead's flag off promotes the topic's next report.
   const handleSignalOff = (articleId) => {
     setEscalations((prev) => prev.filter((e) => e.id !== articleId));
   };
 
-  if (!escalations || escalations.length === 0) return null;
+  const groups = useMemo(() => groupSignals(escalations), [escalations]);
+
+  if (groups.length === 0) return null;
 
   return (
     <div style={{ marginBottom: "28px" }}>
@@ -38,12 +94,12 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
           color: "var(--pale)",
           letterSpacing: "0.08em",
         }}>
-          {escalations.length} ACTIVE {escalations.length === 1 ? "SIGNAL" : "SIGNALS"}
+          {groups.length} ACTIVE {groups.length === 1 ? "SIGNAL" : "SIGNALS"}
         </span>
       </div>
 
-      {escalations.map((item, i) => (
-        <div key={item.id} style={{
+      {groups.map((g, i) => (
+        <div key={g.topic} style={{
           display: "flex",
           gap: "16px",
           paddingTop: i > 0 ? "6px" : 0,
@@ -62,12 +118,14 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <ArticleCard
-              article={item}
+              key={g.lead.id}
+              article={g.lead}
               onTopicClick={onTopicClick}
               onEntityClick={onEntityClick}
               onSignalOff={handleSignalOff}
               onApprove={onApprove}
             />
+            <MoreReports items={g.more} />
           </div>
         </div>
       ))}

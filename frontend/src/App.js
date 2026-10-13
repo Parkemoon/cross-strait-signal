@@ -16,6 +16,7 @@ import AltModelLens from "./components/AltModelLens";
 import NavMenu from "./components/NavMenu";
 import { WIDE_VIEWS } from "./navGroups";
 import { bandColour } from "./sentimentBand";
+import { groupSignals } from "./signalGroups";
 
 // Every section view is its own chunk, fetched when the tab is first opened:
 // the Feed is the landing page, and it needs none of the tabs' code (Leaflet
@@ -162,7 +163,7 @@ export default function App() {
                           padding: "7px 0", borderBottom: "1px solid var(--hair)", margin: "0 -24px", ...TICKER_TEXT }}>
               <span>CONTINUOUS MONITOR · {(stats?.total_articles ?? total ?? 0).toLocaleString()} ARTICLES REVIEWED</span>
               <span>·</span>
-              <span>{stats?.escalation_signals?.length || 0} ACTIVE SIGNALS</span>
+              <span>{groupSignals(stats?.escalation_signals).length} ACTIVE SIGNALS</span>
               <span>·</span>
               <span>OVERALL <b style={{ color: bandColour(stats?.avg_sentiment_score), fontWeight: 600 }}>{fmtScore(stats?.avg_sentiment_score)}</b></span>
               <span>·</span>

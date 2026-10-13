@@ -247,6 +247,9 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
     e.stopPropagation();
     await hideArticle(article.id);
     setHidden(true);
+    // The hide route also clears the escalation flag, so Top of the Brief
+    // drops the card and promotes the topic's next report.
+    if (onSignalOff) onSignalOff(article.id);
   };
 
   const handleApprove = async (e) => {
