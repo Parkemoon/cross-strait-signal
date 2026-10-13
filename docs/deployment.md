@@ -29,9 +29,9 @@ GEMINI_TIER1_MODE=interactive   # Tier 1 defaults to the Gemini Batch API;
                                 # this restores the sequential per-article path
 TIER1_BATCH_WAIT_MIN=20         # same-tick batch collection window (0 = always next tick)
 OPENROUTER_API_KEY=...          # alt-model comparison sweeps only
-SMTP_HOST=... SMTP_PORT=587     # [redacted] + health/report emails
+SMTP_HOST=... SMTP_PORT=587     # health / alt-model report emails
 SMTP_USER=... SMTP_PASS=...
-DIGEST_TO=...                   # [redacted] + alt-model report recipient
+DIGEST_TO=...                   # alt-model report recipient
 HEALTH_TO=...                   # scraper-health alerts (falls back to DIGEST_TO)
 ```
 

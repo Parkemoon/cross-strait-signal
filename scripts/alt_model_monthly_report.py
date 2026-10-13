@@ -3,8 +3,8 @@ frozen 2026-08 numbers so the Alt Models tab's findings text gets a regular
 2-minute human review.
 
 Runs scripts/alt_model_aggregates.py against the DB, prepends the frozen
-2026-08 reference table below, and emails the result via the same SMTP setup
-as [redacted].py. The review act: if the live numbers have moved materially
+2026-08 reference table below, and emails the result via the SMTP settings in
+the env file. The review act: if the live numbers have moved materially
 from the frozen ones, update the findings block in
 frontend/src/components/AltModelsTab.jsx and this reference; if not, delete the
 email.

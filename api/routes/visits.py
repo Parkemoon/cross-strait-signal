@@ -98,9 +98,8 @@ def _window(days: int, start: Optional[str], end: Optional[str]):
 # clustering is title-Jaccard and leaked neighbour stories (a Han Kuo-yu
 # budget piece under a Cheng Li-wun trip) — Ed dropped them 2026-09-13. An
 # outlet reaches the card only through a visit row the analyst approved or
-# merged. Sides come from shared/source_side.py (the [redacted] selector's
-# rule); an international outlet counts towards the article total but
-# towards neither side.
+# merged. Sides come from shared/source_side.py; an international outlet
+# counts towards the article total but towards neither side.
 
 _COVERAGE_SQL = """
 WITH RECURSIVE fam(visit_id, id) AS (

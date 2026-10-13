@@ -18,7 +18,7 @@ UN Comtrade — PRC has published nothing after 2024-12).
 
 Cron: daily 08:15 from the prod worktree (after the 06:00 pipeline tick).
 State lives in /var/log/scraper-health-state.json. SMTP creds come from
-.env (same as [redacted].py); recipient HEALTH_TO, falling back to
+.env ; recipient HEALTH_TO, falling back to
 DIGEST_TO.
 """
 import argparse

@@ -1,7 +1,6 @@
 """Which side of the strait a news source speaks from, and which publication
-a section feed belongs to. Pure functions on the `sources` columns — shared
-by the [redacted] selector (shared/[redacted]_selector.py), the visits coverage
-endpoint (api/routes/visits.py) and anything else that pairs Taiwan-side
+a section feed belongs to. Pure functions on the `sources` columns — used
+by the visits coverage endpoint (api/routes/visits.py) and anything else that pairs Taiwan-side
 and PRC-side coverage of one story.
 
 Sides: TW = place 'TW' with bias green … blue (place is required because
