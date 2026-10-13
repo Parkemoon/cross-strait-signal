@@ -71,7 +71,8 @@ Parallel Data Pipelines (no AI analysis — feed dedicated tables and tabs)
     2020-09 → 2026-04) → /api/military/incursions, /api/military/zones
 
 Event clustering — related articles grouped within a 48-hour window by
-Jaccard similarity on title keywords (threshold 0.25)
+Jaccard similarity on title keywords (threshold 0.25) or TF-IDF cosine of
+the English title + summary (0.15), with a group-average guard (0.10)
 
 Storage: SQLite with full-text search (FTS5); versioned schema migrations
 (db/migrations/ + scripts/migrate.py, applied on every deploy)

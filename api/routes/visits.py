@@ -94,9 +94,9 @@ def _window(days: int, start: Optional[str], end: Optional[str]):
 # folds the other articles on the same trip into it as `merged` rows.
 # Coverage = the visit family's own articles (keeper + merged rows, chains
 # included), so both sides' reporting of one trip sits together on the
-# card. Feed event-cluster siblings are deliberately NOT included: same-story
-# clustering is title-Jaccard and leaked neighbour stories (a Han Kuo-yu
-# budget piece under a Cheng Li-wun trip) — Ed dropped them 2026-09-13. An
+# card. Feed event-cluster siblings are deliberately NOT included: the event
+# clusters leaked neighbour stories (a Han Kuo-yu budget piece under a
+# Cheng Li-wun trip) — Ed dropped them 2026-09-13. An
 # outlet reaches the card only through a visit row the analyst approved or
 # merged. Sides come from shared/source_side.py; an international outlet
 # counts towards the article total but towards neither side.

@@ -153,7 +153,7 @@ Queue rules (Step 3g):
     decisions before it went in.
 ```
 
-Event clustering (`scripts/cluster_events.py`) groups related articles within a 48-hour window using Jaccard similarity on title keywords (threshold: 0.25).
+Event clustering (`scripts/cluster_events.py`, Step 4) groups articles from different sources within a 48-hour window. A pair is linked by title-keyword Jaccard (threshold 0.25) or by TF-IDF cosine of the English title + AI summary (≥ 0.15; this is what joins PRC and TW coverage, whose headlines rarely share words). A summary link only joins two groups whose average pairwise cosine is ≥ 0.10, so a TAO press-conference transcript cannot chain unrelated stories. Cluster ids are fresh every tick on purpose: carrying them over grew week-long clusters.
 
 ## Environment
 

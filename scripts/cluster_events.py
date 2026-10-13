@@ -1,13 +1,17 @@
 """
 Event clustering script for Cross-Strait Signal.
-Groups articles covering the same story based on title similarity and publication time.
+Groups articles covering the same story within a 48-hour window. Two articles
+from different sources are linked when their titles share keywords (Jaccard)
+OR their English title + summary read alike (TF-IDF cosine). Title links group
+transitively; summary links only join groups that are alike on average.
 Run after the pipeline: python scripts/cluster_events.py
 """
+import math
 import os
 import re
 import sys
 import uuid
-from datetime import datetime, timezone
+from collections import Counter
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from scraper.utils.db import get_connection
@@ -97,6 +101,140 @@ def titles_are_similar(title1, lang1, title2, lang2, threshold=0.25):
     return jaccard >= threshold and len(intersection) >= 2
 
 
+# ── Summary similarity ──────────────────────────────────────────────────────
+# The title rule rarely links the two sides of the strait: each headlines the
+# same event in its own vocabulary, so only 7% of clusters carried both a PRC
+# and a TW source (30 days to 2026-10-13). The English title + AI summary
+# describe the event in far closer terms. A different-source pair is linked
+# when the TF-IDF cosine of those texts reaches SUMMARY_THRESHOLD; document
+# frequencies come from the trailing IDF_DAYS so a big story's own words keep
+# their weight.
+#
+# Summary links are not trusted transitively. A TAO press-conference
+# transcript or a multi-topic editorial reads a little like every story it
+# touches, and plain chaining through it built 60-100 article "clusters" of
+# unrelated stories. So a summary link only joins two groups when their
+# AVERAGE pairwise cosine reaches GROUP_THRESHOLD: a hub joins the one story
+# it fits best and stops there. Title links keep their old unconditional
+# behaviour, so every cluster the title rule builds still forms.
+# Both thresholds measured against hand-labelled prod pairs (2026-10-13).
+SUMMARY_THRESHOLD = 0.15
+GROUP_THRESHOLD = 0.10
+IDF_DAYS = 30
+
+SUMMARY_STOPWORDS = EN_STOPWORDS | {
+    'not', 'no', 'than', 'then', 'so', 'such', 'into', 'about', 'against',
+    'between', 'during', 'under', 'up', 'down', 'out', 'also', 'say', 'which',
+    'who', 'whom', 'whose', 'what', 'when', 'where', 'while', 'how', 'all',
+    'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'own',
+    'same', 'very', 'just', 'one', 'two', 'three', 'new', 'amid', 'per', 'via',
+    'their', 'there', 'they', 'his', 'her', 'him', 'them', 'our', 'you',
+    'your', 'these', 'those', 'can',
+}
+_WORD = re.compile(r"[a-z][a-z0-9'-]+")
+
+
+def summary_terms(title_en, summary_en):
+    """Term counts of the English title + summary (stopwords, <3 chars dropped)."""
+    text = f"{title_en or ''} {summary_en or ''}".lower()
+    return Counter(w for w in _WORD.findall(text)
+                   if len(w) > 2 and w not in SUMMARY_STOPWORDS)
+
+
+def summary_vectors(term_counts, df, n_docs):
+    """{key: Counter} → {key: unit-length sublinear TF-IDF dict}.
+
+    A term missing from `df` (the article is newer than the reference set)
+    counts as seen once."""
+    vectors = {}
+    for key, counts in term_counts.items():
+        v = {w: (1 + math.log(c)) * math.log(n_docs / df.get(w, 1))
+             for w, c in counts.items()}
+        norm = math.sqrt(sum(x * x for x in v.values())) or 1.0
+        vectors[key] = {w: x / norm for w, x in v.items() if x}
+    return vectors
+
+
+def cosine(u, v):
+    if len(u) > len(v):
+        u, v = v, u
+    return sum(x * v.get(w, 0.0) for w, x in u.items())
+
+
+def document_frequencies(conn, days=IDF_DAYS):
+    """(df Counter, n_docs) over the trailing `days` of analysed articles."""
+    rows = conn.execute("""
+        SELECT a.title_en, ai.summary_en
+        FROM articles a
+        JOIN ai_analysis ai ON a.id = ai.article_id
+        WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
+          AND a.ai_processed = 1
+          AND a.is_hidden = 0
+    """, (f'-{days} days',)).fetchall()
+    df = Counter()
+    for r in rows:
+        df.update(summary_terms(r['title_en'], r['summary_en']).keys())
+    return df, max(len(rows), 1)
+
+
+def group_articles(articles, vectors, summary_threshold=SUMMARY_THRESHOLD,
+                   group_threshold=GROUP_THRESHOLD):
+    """Group `articles` (dicts with id, source_id, titles) into stories.
+
+    Pairs from the same source are never compared. Title links are applied
+    first and always join; summary links follow, strongest first, and join
+    two groups only when the groups' average pairwise cosine reaches
+    `group_threshold`. Returns {article_id: group root id}."""
+    cache = {}
+
+    def sim(x, y):
+        key = (x, y) if x < y else (y, x)
+        if key not in cache:
+            cache[key] = cosine(vectors.get(x, {}), vectors.get(y, {}))
+        return cache[key]
+
+    title_edges, summary_edges = [], []
+    for i, a in enumerate(articles):
+        for b in articles[i + 1:]:
+            if a['source_id'] == b['source_id']:
+                continue
+            if titles_are_similar(*comparison_title(a), *comparison_title(b)):
+                title_edges.append((a['id'], b['id']))
+            else:
+                s = sim(a['id'], b['id'])
+                if s >= summary_threshold:
+                    summary_edges.append((s, a['id'], b['id']))
+    summary_edges.sort(key=lambda e: -e[0])
+
+    parent = {a['id']: a['id'] for a in articles}
+    members = {a['id']: [a['id']] for a in articles}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(rx, ry):
+        if len(members[rx]) < len(members[ry]):
+            rx, ry = ry, rx
+        parent[ry] = rx
+        members[rx] += members.pop(ry)
+
+    for x, y in title_edges:
+        rx, ry = find(x), find(y)
+        if rx != ry:
+            union(rx, ry)
+    for _, x, y in summary_edges:
+        rx, ry = find(x), find(y)
+        if rx == ry:
+            continue
+        total = sum(sim(p, q) for p in members[rx] for q in members[ry])
+        if total / (len(members[rx]) * len(members[ry])) >= group_threshold:
+            union(rx, ry)
+    return {aid: find(aid) for aid in parent}
+
+
 def new_cluster_id():
     """A fresh cluster id that SQLite can never read as a number.
 
@@ -183,7 +321,35 @@ def repair_numeric_cluster_ids(conn, window_hours=48):
     }
 
 
-def cluster_recent_articles(hours=48):
+def cluster_assignments(articles, groups):
+    """One window's cluster ids: -> (assign, clear).
+
+    assign = {article_id: (cluster_id, size)} for every article in a group of
+    two or more, with a fresh id per group each run. clear = singletons that
+    carry no cluster yet. A singleton that already has an id is in neither:
+    its partners have aged out of the window, and NULLing it would tear the
+    still-valid cross-window story apart.
+
+    Ids are deliberately not carried over between runs. Keeping them let a
+    story absorb the next day's related coverage indefinitely (week-long
+    clusters of 100+ articles in the 2026-10-13 replay); a fresh id per run
+    bounds a cluster to roughly the window."""
+    by_root = {}
+    for a in articles:
+        by_root.setdefault(groups[a['id']], []).append(a)
+    assign = {}
+    for group in by_root.values():
+        if len(group) > 1:
+            cid = new_cluster_id()
+            for a in group:
+                assign[a['id']] = (cid, len(group))
+    clear = [a['id'] for a in articles
+             if a['id'] not in assign and a['event_cluster_id'] is None]
+    return assign, clear
+
+
+def cluster_recent_articles(hours=48, summary_threshold=SUMMARY_THRESHOLD,
+                            group_threshold=GROUP_THRESHOLD):
     """
     Cluster articles published within the last N hours.
     Articles from different sources covering the same story get the same cluster ID.
@@ -195,7 +361,7 @@ def cluster_recent_articles(hours=48):
     # Get recently published, AI-processed articles
     articles = conn.execute("""
         SELECT a.id, a.title_original, a.title_en, a.language,
-               a.published_at, a.source_id, a.event_cluster_id
+               a.published_at, a.source_id, a.event_cluster_id, ai.summary_en
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         WHERE a.published_at >= strftime('%Y-%m-%dT%H:%M:%S', 'now', ?)
@@ -207,70 +373,23 @@ def cluster_recent_articles(hours=48):
     print(f"Clustering {len(articles)} articles from the last {hours} hours...")
 
     articles = [dict(a) for a in articles]
+    df, n_docs = document_frequencies(conn)
+    vectors = summary_vectors(
+        {a['id']: summary_terms(a['title_en'], a['summary_en']) for a in articles}, df, n_docs)
+    groups = group_articles(articles, vectors, summary_threshold, group_threshold)
+    assign, clear = cluster_assignments(articles, groups)
 
-    # Build clusters using a simple union-find approach
-    # Each article starts in its own cluster
-    clusters = {}  # article_id -> cluster_id
-
-    for i, article in enumerate(articles):
-        if article['id'] not in clusters:
-            clusters[article['id']] = new_cluster_id()
-
-        for j, other in enumerate(articles):
-            if i >= j:
-                continue
-            if article['source_id'] == other['source_id']:
-                continue  # Don't cluster same-source articles
-
-            if titles_are_similar(*comparison_title(article), *comparison_title(other)):
-                # Merge clusters — give both the same ID
-                cluster_id = clusters[article['id']]
-                if other['id'] in clusters:
-                    # Remap all articles with the other cluster ID
-                    old_id = clusters[other['id']]
-                    for aid in clusters:
-                        if clusters[aid] == old_id:
-                            clusters[aid] = cluster_id
-                else:
-                    clusters[other['id']] = cluster_id
-
-    # Count cluster sizes
-    from collections import Counter
-    cluster_counts = Counter(clusters.values())
-
-    # Map each in-window article to the cluster id it already has in the DB, so
-    # we can tell a genuine singleton from an article whose cluster partners have
-    # merely aged out of the window.
-    existing_by_id = {a['id']: a['event_cluster_id'] for a in articles}
-
-    # Update database
-    updated = 0
-    clustered = 0
-    for article_id, cluster_id in clusters.items():
-        size = cluster_counts[cluster_id]
-        if size > 1:
-            conn.execute(
-                "UPDATE articles SET event_cluster_id = ?, cluster_size = ? WHERE id = ?",
-                (cluster_id, size, article_id)
-            )
-            clustered += 1
-        elif existing_by_id.get(article_id) is None:
-            # A genuine singleton this run that wasn't already clustered — safe
-            # to leave un-clustered.
-            conn.execute(
-                "UPDATE articles SET event_cluster_id = NULL, cluster_size = 1 WHERE id = ?",
-                (article_id,)
-            )
-        # else: singleton in THIS window but already part of a cluster whose
-        # other members have aged out — leave its existing cluster intact rather
-        # than NULLing it and tearing the still-valid cross-window story apart.
-        updated += 1
-
+    conn.executemany(
+        "UPDATE articles SET event_cluster_id = ?, cluster_size = ? WHERE id = ?",
+        [(cid, size, aid) for aid, (cid, size) in assign.items()])
+    conn.executemany(
+        "UPDATE articles SET event_cluster_id = NULL, cluster_size = 1 WHERE id = ?",
+        [(aid,) for aid in clear])
     conn.commit()
     conn.close()
 
-    multi_clusters = sum(1 for c, n in cluster_counts.items() if n > 1)
-    print(f"Done. {updated} articles processed, {clustered} articles in {multi_clusters} clusters.")
+    clusters = len({cid for cid, _ in assign.values()})
+    print(f"Done. {len(articles)} articles processed, {len(assign)} articles in {clusters} clusters.")
 
 
 if __name__ == '__main__':
