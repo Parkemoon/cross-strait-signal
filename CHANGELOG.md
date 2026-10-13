@@ -400,7 +400,7 @@ Reorganised 2026-10-10 for low-maintenance running: what runs by itself, the dat
 ### Runs by itself
 
 - **Queues**: Step 3g bins exercise / poll / statement candidates that fail the queue rules (`shared/queue_rules.py`); everything else waits for the analyst and never reaches the public site unapproved.
-- **Health and backups**: daily scraper health email on state changes (08:15 UTC), nightly DB backup with an off-site copy (02:30 UTC), alt-model sweep and monthly report.
+- **Health and backups**: daily scraper health email on state changes (08:15 UTC), nightly DB backup and an archive of the files kept out of git, both copied off-site (02:30 UTC), alt-model sweep and monthly report.
 
 ### Dated must-dos
 
