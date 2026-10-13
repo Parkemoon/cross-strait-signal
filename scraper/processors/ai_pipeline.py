@@ -478,7 +478,8 @@ load_dotenv()
 
 from scraper.utils.db import get_connection
 from scraper.utils.llm import (TIER1_MODEL, TIER2_MODEL, get_gemini_client,
-                               nullable as nullable_schema, parse_llm_json)
+                               nullable as nullable_schema, parse_llm_json,
+                               parse_llm_object)
 client = get_gemini_client()
 
 # Named-exercise roster shared by all three exercise-extraction prompts (the
@@ -1020,7 +1021,9 @@ FULL TEXT:
 
 
 def _parse_tier1_json(text):
-    """json.loads with the code-fence fallback both Tier-1 paths need."""
+    """The strict Tier-1 parse the alt-model sweeps' gemini-control arm
+    uses, so its parse_error count stays comparable with the other arms.
+    The pipeline itself parses with parse_llm_object."""
     return parse_llm_json(text)
 
 
@@ -1033,7 +1036,7 @@ def analyse_article(title, content, language, source_name, published_at=None):
         config=_TIER1_GEN_CONFIG,
     )
     log_usage("tier1", TIER1_MODEL, response)
-    return _parse_tier1_json(response.text)
+    return parse_llm_object(response.text)
 
 
 def _is_transient_error(exc):
@@ -1055,6 +1058,35 @@ def _is_transient_error(exc):
                 'deadline', 'resourceexhausted'))
 
 
+# Fields where the model's explicit null means "no answer", so the reader's
+# default applies. dict.get(key, default) hands back None for a key that is
+# present with a null value, which then fails a NOT NULL column, a
+# comparison or a loop. Nullable-by-design fields (topic_secondary,
+# escalation_note, key_quote) are left alone.
+_NULL_MEANS_ABSENT = (
+    'is_cross_strait_primary', 'title_en', 'summary_en', 'topic_primary',
+    'sentiment', 'sentiment_reasoning', 'urgency', 'is_new_formulation',
+    'is_escalation_signal', 'confidence',
+)
+_LIST_FIELDS = (
+    'entities', 'keywords_matched', 'key_figure_statements',
+    'military_exercises', 'polls', 'diplomacy_statements',
+)
+
+
+def _drop_nulls(analysis):
+    """Remove null scalars (see _NULL_MEANS_ABSENT) and replace a list
+    field that is null (or not a list at all) with an empty list, in
+    place, for a Tier-1 or Tier-2 answer."""
+    for key in _NULL_MEANS_ABSENT:
+        if key in analysis and analysis[key] is None:
+            del analysis[key]
+    for key in _LIST_FIELDS:
+        if key in analysis and not isinstance(analysis[key], list):
+            analysis[key] = []
+    return analysis
+
+
 def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
     """Write one Tier-1 result to the DB: relevance gate, article
     translation, ai_analysis row, entities/keywords/key-figure/exercise/
@@ -1065,6 +1097,8 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
     drift. Raises on failure — the CALLER decides tombstone vs retry.
     Returns 'not_relevant' when the relevance gate rejected the
     article (already tombstoned as ai_processed=-1), else 'ok'."""
+    _drop_nulls(analysis)
+
     # Enforce relevance gate — either field is sufficient to reject
     if not analysis.get('is_cross_strait_primary', True):
         analysis['topic_primary'] = 'NOT_RELEVANT'
@@ -1232,17 +1266,66 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
     # Escalation review: re-analyse with Flash for flagged articles
     if analysis.get('is_escalation_signal') or analysis.get('urgency') == 'flash':
         try:
-            # Save Flash Lite values BEFORE overwriting with Flash review
-            lite_sentiment = analysis.get('sentiment')
-            lite_escalation = analysis.get('is_escalation_signal')
-            lite_topic = analysis.get('topic_primary')
-            lite_confidence = analysis.get('confidence', 1.0)
+            _escalation_review(conn, article, analysis)
+        except Exception as e:
+            # Swallowing this used to leave an unverified escalation flag
+            # looking review-clean, and since 2026-10-10 the feed autopilot
+            # publishes every article that is not held (36 reviews had
+            # crashed on a null Tier-2 sentiment by then). Hold it instead.
+            conn.rollback()
+            reasons = tier1_review_reasons + [f"Tier 2 review failed: {type(e).__name__}"]
+            conn.execute("""
+                UPDATE ai_analysis SET needs_human_review = 1, review_reason = ?
+                WHERE article_id = ?
+            """, (' | '.join(reasons), article['id']))
+            conn.commit()
+            print(f"    ↳ Escalation review failed: {e} — held for review")
 
-            escalation_glossary = generate_dynamic_glossary(article['content_original'], article['title_original'])
-            escalation_former = _officials_former_block(article['content_original'], article['title_original'])
-            review = client.models.generate_content(
+    return 'ok'
+
+
+def _call_tier2(prompt):
+    """One Tier-2 generate_content call, retried once after a short pause
+    when the error is transient (130 reviews were lost to 503 'high
+    demand' errors between 2026-04 and 2026-10, most in one burst)."""
+    for attempt in (1, 2):
+        try:
+            return client.models.generate_content(
                 model=TIER2_MODEL,
-                contents=f"""{_ESCALATION_REVIEW_PROMPT}
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "max_output_tokens": 8000,
+                },
+            )
+        except Exception as e:
+            if attempt == 2 or not _is_transient_error(e):
+                raise
+            print(f"    ↳ Escalation review: {type(e).__name__}, retrying in 20 s")
+            time.sleep(20)
+
+
+def _escalation_review(conn, article, analysis):
+    """Re-judge an escalation-flagged or flash article with TIER2_MODEL
+    (blind to Tier 1's answers) and write the outcome to its ai_analysis
+    row. Raises on an API or parse failure; the caller holds the row.
+
+    The review's reasons REPLACE Tier 1's (Ed, 2026-10-13): they re-check
+    both tiers' confidence and re-run the sentiment checks on the values
+    actually stored, so a Tier-1 problem the review fixed (a label/score
+    mismatch) no longer holds the row, and anything still wrong is
+    caught again. A null field in the review means no answer: Tier 1's
+    value stands. A NOT_RELEVANT review leaves Tier 1's sentiment in
+    place and holds the row as a topic disagreement."""
+    # Save Flash Lite values BEFORE overwriting with Flash review
+    lite_sentiment = analysis.get('sentiment')
+    lite_escalation = analysis.get('is_escalation_signal')
+    lite_topic = analysis.get('topic_primary')
+    lite_confidence = analysis.get('confidence', 1.0)
+
+    escalation_glossary = generate_dynamic_glossary(article['content_original'], article['title_original'])
+    escalation_former = _officials_former_block(article['content_original'], article['title_original'])
+    review = _call_tier2(f"""{_ESCALATION_REVIEW_PROMPT}
 
 {_OFFICIALS_CURRENT_BLOCK}{escalation_glossary}{escalation_former}
 
@@ -1252,86 +1335,73 @@ PUBLISHED: {article['published_at'] or 'unknown'}
 TITLE: {article['title_original']}
 
 FULL TEXT:
-{article['content_original'][:MAX_PROMPT_CONTENT_CHARS]}""",
-                config={
-                    "response_mime_type": "application/json",
-                    "max_output_tokens": 8000,
-                }
+{article['content_original'][:MAX_PROMPT_CONTENT_CHARS]}""")
+    log_usage("tier2", TIER2_MODEL, review, article_id=article['id'])
+    review_analysis = _drop_nulls(parse_llm_object(review.text))
+
+    not_relevant = (review_analysis.get('is_cross_strait_primary') is False
+                    or review_analysis.get('topic_primary') == 'NOT_RELEVANT')
+    review_reasons = []
+    if not_relevant:
+        review_reasons.append(f"Topic disagreement: Flash Lite={lite_topic} / Flash=NOT_RELEVANT")
+        flash_confidence = None   # the relevance gate tells the model to answer 0.0
+    else:
+        # Update analysis dict with Flash's assessment
+        analysis['sentiment'] = review_analysis.get('sentiment', analysis.get('sentiment', 'neutral'))
+        if review_analysis.get('sentiment_score') is not None:
+            analysis['sentiment_score'] = review_analysis['sentiment_score']
+        analysis['sentiment_reasoning'] = review_analysis.get('sentiment_reasoning', analysis.get('sentiment_reasoning', ''))
+        analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis.get('is_escalation_signal', False))
+        analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
+        conn.execute("""
+            UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
+            sentiment_reasoning = ?, is_escalation_signal = ?,
+            escalation_note = ?, model_used = ?
+            WHERE article_id = ?
+        """, (
+            analysis['sentiment'], analysis.get('sentiment_score'),
+            analysis['sentiment_reasoning'],
+            analysis['is_escalation_signal'], analysis.get('escalation_note'),
+            f'{TIER2_MODEL} (review)', article['id']
+        ))
+
+        # --- HUMAN REVIEW FLAGGING ---
+        # Compare Flash Lite originals vs Flash review
+        flash_confidence = review_analysis.get('confidence', 1.0)
+        if review_analysis.get('sentiment') != lite_sentiment:
+            review_reasons.append(
+                f"Sentiment disagreement: Flash Lite={lite_sentiment} / Flash={review_analysis.get('sentiment')}"
             )
-            log_usage("tier2", TIER2_MODEL, review, article_id=article['id'])
-            review_analysis = json.loads(review.text)
-
-            # Update analysis dict with Flash's assessment
-            analysis['sentiment'] = review_analysis.get('sentiment', analysis['sentiment'])
-            analysis['sentiment_score'] = review_analysis.get('sentiment_score', analysis['sentiment_score'])
-            analysis['sentiment_reasoning'] = review_analysis.get('sentiment_reasoning', analysis.get('sentiment_reasoning', ''))
-            analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis['is_escalation_signal'])
-            analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
-
-            # Re-validate sentiment after Flash may have changed it
-            tier2_sentiment_problems = _validate_sentiment(
-                analysis['sentiment'],
-                analysis['sentiment_score'],
-                analysis['sentiment_reasoning'],
-                source_place=article['source_place'],
+        if review_analysis.get('is_escalation_signal') != lite_escalation:
+            review_reasons.append(
+                f"Escalation disagreement: Flash Lite={lite_escalation} / Flash={review_analysis.get('is_escalation_signal')}"
+            )
+        if review_analysis.get('topic_primary') != lite_topic:
+            review_reasons.append(
+                f"Topic disagreement: Flash Lite={lite_topic} / Flash={review_analysis.get('topic_primary')}"
             )
 
-            # Update the database with Flash's assessment
-            conn.execute("""
-                UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
-                sentiment_reasoning = ?, is_escalation_signal = ?,
-                escalation_note = ?, model_used = ?
-                WHERE article_id = ?
-            """, (
-                analysis['sentiment'], analysis['sentiment_score'],
-                analysis['sentiment_reasoning'],
-                analysis['is_escalation_signal'], analysis.get('escalation_note'),
-                f'{TIER2_MODEL} (review)', article['id']
-            ))
-            conn.commit()
+    if lite_confidence < 0.7 or (flash_confidence is not None and flash_confidence < 0.7):
+        review_reasons.append(
+            f"Low confidence: Flash Lite={lite_confidence} / Flash={flash_confidence}"
+        )
+    # Re-validate the sentiment that is now stored (Flash's, or Tier 1's
+    # on a NOT_RELEVANT review)
+    review_reasons.extend(_validate_sentiment(
+        analysis.get('sentiment', 'neutral'),
+        analysis.get('sentiment_score', 0.0),
+        analysis.get('sentiment_reasoning', ''),
+        source_place=article['source_place'],
+    ))
 
-            # --- HUMAN REVIEW FLAGGING ---
-            # Compare Flash Lite originals vs Flash review
-            review_reasons = []
-            flash_confidence = review_analysis.get('confidence', 1.0)
-
-            if review_analysis.get('sentiment') != lite_sentiment:
-                review_reasons.append(
-                    f"Sentiment disagreement: Flash Lite={lite_sentiment} / Flash={review_analysis.get('sentiment')}"
-                )
-
-            if review_analysis.get('is_escalation_signal') != lite_escalation:
-                review_reasons.append(
-                    f"Escalation disagreement: Flash Lite={lite_escalation} / Flash={review_analysis.get('is_escalation_signal')}"
-                )
-
-            if lite_confidence < 0.7 or flash_confidence < 0.7:
-                review_reasons.append(
-                    f"Low confidence: Flash Lite={lite_confidence} / Flash={flash_confidence}"
-                )
-
-            if review_analysis.get('topic_primary') != lite_topic:
-                review_reasons.append(
-                    f"Topic disagreement: Flash Lite={lite_topic} / Flash={review_analysis.get('topic_primary')}"
-                )
-
-            review_reasons.extend(tier2_sentiment_problems)
-
-            if review_reasons:
-                conn.execute("""
-                    UPDATE ai_analysis
-                    SET needs_human_review = 1, review_reason = ?
-                    WHERE article_id = ?
-                """, (' | '.join(review_reasons), article['id']))
-                conn.commit()
-                print(f"    ↳ Flagged for human review: {review_reasons[0]}")
-
-            print(f"    ↳ Escalation review (Flash): Sentiment={analysis['sentiment']} | Confirmed={analysis['is_escalation_signal']}")
-
-        except Exception as e:
-            print(f"    ↳ Escalation review failed: {e}")
-
-    return 'ok'
+    conn.execute("""
+        UPDATE ai_analysis SET needs_human_review = ?, review_reason = ?
+        WHERE article_id = ?
+    """, (1 if review_reasons else 0, ' | '.join(review_reasons) or None, article['id']))
+    conn.commit()
+    if review_reasons:
+        print(f"    ↳ Flagged for human review: {review_reasons[0]}")
+    print(f"    ↳ Escalation review (Flash): Sentiment={analysis.get('sentiment')} | Confirmed={analysis.get('is_escalation_signal')}")
 
 
 def process_unanalysed_articles(limit=10):
@@ -1549,6 +1619,8 @@ def submit_tier1_batch(limit=500):
                 inlined.append({
                     'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
                     'config': _TIER1_GEN_CONFIG,
+                    # Echoed back on the response; collection pairs on it.
+                    'metadata': {'article_id': str(article['id'])},
                 })
             job = client.batches.create(
                 model=TIER1_MODEL,
@@ -1569,6 +1641,23 @@ def submit_tier1_batch(limit=500):
         conn.close()
 
 
+def _pair_batch_responses(article_ids, responses):
+    """(article_id, response) pairs for a finished Tier-1 job. Each request
+    carries its article id in `metadata` and the API echoes it back, so
+    pairs are matched on that. A job whose responses are not all tagged
+    (one submitted before the tag) pairs by request order, and only when
+    the counts agree: one item missing from the middle would otherwise
+    shift every later answer onto the wrong article. Articles left
+    unpaired stay at ai_processed=0 and go into the next submission."""
+    tags = [str((getattr(r, 'metadata', None) or {}).get('article_id', '')) for r in responses]
+    if responses and all(tags):
+        by_tag = dict(zip(tags, responses))
+        return [(a, by_tag[str(a)]) for a in article_ids if str(a) in by_tag]
+    if len(responses) == len(article_ids):
+        return list(zip(article_ids, responses))
+    return []
+
+
 def _collect_one_batch(conn, job_row, batch_job, pollster_lookup):
     """Process a SUCCEEDED batch job's responses through the same
     post-processing as the interactive path. Per-article semantics mirror
@@ -1577,13 +1666,14 @@ def _collect_one_batch(conn, job_row, batch_job, pollster_lookup):
     failures tombstone it so a pathological article can't loop forever."""
     article_ids = json.loads(job_row['article_ids'])
     responses = list((batch_job.dest and batch_job.dest.inlined_responses) or [])
-    if len(responses) != len(article_ids):
+    pairs = _pair_batch_responses(article_ids, responses)
+    if len(pairs) != len(article_ids):
         print(f"  WARN: job {job_row['job_name']} returned {len(responses)} "
-              f"responses for {len(article_ids)} articles — pairing by index, "
-              f"missing tail will retry next tick")
+              f"responses for {len(article_ids)} articles, {len(pairs)} matched "
+              f"to an article — the rest go into the next submission")
 
     ok = skipped = errors = 0
-    for article_id, item in zip(article_ids, responses):
+    for article_id, item in pairs:
         article = conn.execute("""
             SELECT articles.id, articles.title_original, articles.content_original,
                    articles.language, articles.published_at,
@@ -1602,7 +1692,7 @@ def _collect_one_batch(conn, job_row, batch_job, pollster_lookup):
             continue
 
         try:
-            analysis = _parse_tier1_json(item.response.text)
+            analysis = parse_llm_object(item.response.text)
         except Exception as e:
             errors += 1
             print(f"  article {article_id}: unparseable batch response ({e}) — tombstoned")
