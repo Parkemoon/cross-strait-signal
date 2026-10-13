@@ -36,7 +36,8 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from scripts.backup_db import DEFAULT_DEST as DEFAULT_BACKUPS, backups, newest_offsite, r2_client  # noqa: E402
+from scripts.backup_db import (  # noqa: E402
+    DEFAULT_DEST as DEFAULT_BACKUPS, PRIVATE_NAME, PRIVATE_PREFIX, backups, newest_offsite, r2_client)
 DEFAULT_DB = os.path.join(ROOT, "db", "cross_strait_signal.db")
 DEFAULT_ENV = os.path.join(ROOT, ".env")
 DEFAULT_STATE = "/var/log/scraper-health-state.json"
@@ -155,18 +156,29 @@ def backup_check(backup_dir, now):
     return assess("backup:db_nightly", last, 0, "scripts/backup_db.py, 02:30 nightly", now)
 
 
-def offsite_check(now):
-    """The newest R2 copy of the nightly backup. Disabled while the R2
+def _r2_check(name, note, now, **listing):
+    """The newest R2 object of one archive kind. Disabled while the R2
     settings are absent; a listing error reads STALE, with its type."""
     try:
         r2 = r2_client()
         if r2 is None:
-            return assess("backup:db_offsite", None, None, "no R2 settings", now)
-        last = newest_offsite(*r2)
+            return assess(name, None, None, "no R2 settings", now)
+        last = newest_offsite(*r2, **listing)
     except Exception as exc:
-        return assess("backup:db_offsite", None, 0, f"R2 listing failed: {type(exc).__name__}", now)
-    return assess("backup:db_offsite", last.isoformat(" ", "seconds") if last else None, 0,
-                  "R2 copy of the nightly backup", now)
+        return assess(name, None, 0, f"R2 listing failed: {type(exc).__name__}", now)
+    return assess(name, last.isoformat(" ", "seconds") if last else None, 0, note, now)
+
+
+def offsite_check(now):
+    """The newest R2 copy of the nightly DB backup."""
+    return _r2_check("backup:db_offsite", "R2 copy of the nightly backup", now)
+
+
+def private_offsite_check(now):
+    """The newest R2 copy of the nightly archive of the files kept out of
+    git (backup_db.py, same run)."""
+    return _r2_check("backup:private_offsite", "R2 copy of the git-excluded files", now,
+                     prefix=PRIVATE_PREFIX, pattern=PRIVATE_NAME)
 
 
 def run_checks(conn, now):
@@ -257,6 +269,7 @@ def main():
     conn.close()
     results.append(backup_check(args.backup_dir, now))
     results.append(offsite_check(now))
+    results.append(private_offsite_check(now))
 
     try:
         with open(args.state_file) as f:
