@@ -143,8 +143,8 @@ Poll-label canonicalise (Step 3d):
     slipped past the AI extraction prompt's canonical-label rules.
 
 Queue rules (Step 3g):
-    pending, analyst-untouched exercise candidates with no start date or
-    no location, AI-extracted polls with an unknown pollster, no sample
+    pending, analyst-untouched exercise candidates with no start date,
+    no location or no name, AI-extracted polls with an unknown pollster, no sample
     size or no fieldwork end date,
     and key-figure "statements" that are not quotes → dismissed (never
     approved), stamped reviewed_by='rule:<name>'

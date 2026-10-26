@@ -9,6 +9,7 @@ Measured against Ed's own past decisions on prod before going in
 
     military_exercises  no-start-date     2 of 69 approved, 323 of 1,871 dismissed
                         no-location       1 of 69 approved,  73 of 1,871 dismissed
+                        no-name           0 of 77 approved, 718 of 2,273 dismissed (2026-10-26)
     polls (AI rows)     unknown-pollster  1 of 55 approved or merged, 65 of 137 dismissed
                         no-sample-size +  7 of 55 between them, mostly Taiwan Brain
                         no-end-date       Trust, whose coverage rarely prints either
@@ -33,6 +34,7 @@ RULES = {
     'military_exercises': [
         ('no-start-date', "COALESCE(TRIM(start_date), '') = ''"),
         ('no-location', "COALESCE(TRIM(location_label), '') = ''"),
+        ('no-name', "COALESCE(TRIM(name_en), TRIM(name_zh), TRIM(name_raw), '') = ''"),
     ],
     'key_figure_statements': [
         # 'action' / 'statement' rows are the model's paraphrase of what a

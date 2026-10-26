@@ -11,7 +11,8 @@ def conn():
     c = sqlite3.connect(':memory:')
     c.executescript("""
         CREATE TABLE military_exercises (
-            id INTEGER PRIMARY KEY, name_en TEXT, start_date TEXT, location_label TEXT,
+            id INTEGER PRIMARY KEY, name_en TEXT, name_zh TEXT, name_raw TEXT,
+            start_date TEXT, location_label TEXT,
             approval_status TEXT NOT NULL DEFAULT 'pending',
             reviewed_at TIMESTAMP, reviewed_by TEXT);
         CREATE TABLE pollsters (id INTEGER PRIMARY KEY, slug TEXT);
@@ -38,7 +39,9 @@ def conn():
          (3, 'Drill', ' ', None, 'pending', None),                           # both: first rule wins
          (4, 'Drill', '2026-09-01', '', 'pending', None),                    # no location
          (5, 'Drill', None, None, 'pending', '2026-10-01 10:00:00'),         # analyst edited
-         (6, 'Drill', None, None, 'approved', '2026-10-01 10:00:00')])       # not pending
+         (6, 'Drill', None, None, 'approved', '2026-10-01 10:00:00'),        # not pending
+         (7, None, '2026-09-02', 'Taiwan Strait', 'pending', None),          # unnamed
+         (8, '  ', '2026-09-03', 'Taiwan Strait', 'pending', None)])         # whitespace name
     c.executemany(
         "INSERT INTO polls (id, pollster_id, source_article_id, sample_size, fielded_end,"
         " pending_results_json) VALUES (?, ?, ?, ?, ?, ?)",
@@ -59,6 +62,7 @@ def test_dry_run_reports_and_writes_nothing(conn):
     got = {(t, r): ids for t, r, ids in bin_candidates(conn)}
     assert got[('military_exercises', 'no-start-date')] == [2, 3]
     assert got[('military_exercises', 'no-location')] == [4]
+    assert got[('military_exercises', 'no-name')] == [7, 8]
     assert got[('polls', 'unknown-pollster')] == [1]
     assert got[('polls', 'no-sample-size')] == [2]
     assert got[('polls', 'no-end-date')] == [4]
@@ -71,6 +75,8 @@ def test_apply_dismisses_and_stamps(conn):
     assert _status(conn, 'military_exercises', 2) == ('dismissed', 'rule:no-start-date')
     assert _status(conn, 'military_exercises', 3) == ('dismissed', 'rule:no-start-date')
     assert _status(conn, 'military_exercises', 4) == ('dismissed', 'rule:no-location')
+    assert _status(conn, 'military_exercises', 7) == ('dismissed', 'rule:no-name')
+    assert _status(conn, 'military_exercises', 8) == ('dismissed', 'rule:no-name')
     assert _status(conn, 'military_exercises', 1) == ('pending', None)
     assert _status(conn, 'military_exercises', 5) == ('pending', None)
     assert _status(conn, 'polls', 1) == ('dismissed', 'rule:unknown-pollster')
@@ -91,7 +97,7 @@ def test_revert_one_rule_then_all(conn):
     assert revert_bins(conn, 'no-location') == 1
     assert _status(conn, 'military_exercises', 4) == ('pending', None)
     assert _status(conn, 'military_exercises', 2) == ('dismissed', 'rule:no-start-date')
-    assert revert_bins(conn) == 7
+    assert revert_bins(conn) == 9
     assert _status(conn, 'polls', 1) == ('pending', None)
 
 
