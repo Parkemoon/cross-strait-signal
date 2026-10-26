@@ -69,8 +69,11 @@ TABLE_CHECKS = [
     ("social_pulse:ptt",
      "SELECT MAX(scraped_at) FROM social_pulse WHERE platform='ptt'", 2, ""),
     ("pla_incursions:mnd",
-     "SELECT MAX(date) FROM pla_incursions WHERE source='mnd'", 5,
-     "MND daily briefing"),
+     "SELECT MAX(date) FROM pla_incursions WHERE source='mnd' "
+     "AND aircraft_intruded IS NOT NULL "
+     "AND NOT EXISTS (SELECT 1 FROM pla_incursions WHERE source='mnd' "
+     "AND date >= date('now', '-7 days') AND aircraft_intruded IS NULL)", 5,
+     "MND daily briefing (stale if missing or any recent row has unparsed aircraft_intruded)"),
     ("coast_guard:gfw_pull",
      "SELECT MAX(substr(pulled_at,1,10)) FROM coast_guard_pulls WHERE status='ok'", 3,
      "GFW presence pull runs every pipeline tick (Step 2n)"),

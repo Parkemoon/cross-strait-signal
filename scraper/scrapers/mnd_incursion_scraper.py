@@ -113,17 +113,27 @@ def parse_summary(text: str) -> dict:
             out['aircraft_total'] = int(m.group(1))
 
     # Prefer median-crossing wording; fall back to ADIZ entry. The zone list
-    # sits between 進入 and 空域 in either case. Same 架次/架 variation applies.
-    m = re.search(r'逾越中線進入([^空（）]+)空域(\d+)架次?', text)
+    # sits between 進入 and 空域 (or the count, when MND omits 空域) in either
+    # case. MND added 共/計 before the count in Sep/Oct 2026; singular sortie
+    # days drop the 次 suffix.
+    m = re.search(r'逾越中線進入([^空（）()\d]+)(?:空域)?(?:共|計)?(\d+)架次?', text)
     if m:
         out['aircraft_intruded'] = int(m.group(2))
         out['aircraft_zones'] = _extract_zones(m.group(1))
     else:
-        m = re.search(r'進入([^空（）]+)空域(\d+)架次?', text)
+        m = re.search(r'進入([^空（）()\d]+)(?:空域)?(?:共|計)?(\d+)架次?', text)
         if m:
             out['aircraft_intruded'] = int(m.group(2))
             out['aircraft_zones'] = _extract_zones(m.group(1))
-        elif out['aircraft_total'] == 0:
+        elif out['aircraft_total'] == 0 or (
+            out['aircraft_total'] is not None
+            and not re.search(r'共機\d+架次?\s*[（(]', text)
+        ):
+            # Sorties around the strait with no parenthetical intrusion clause
+            # (e.g. "偵獲共機2架次、共艦5艘") mean 0 crossed the median line /
+            # entered the ADIZ. If a parenthetical IS present but didn't match
+            # above, leave aircraft_intruded as None so a future MND wording
+            # change surfaces rather than silently reading as 0.
             out['aircraft_intruded'] = 0
 
     m = re.search(r'共艦(\d+)艘', text)
@@ -139,7 +149,7 @@ def parse_summary(text: str) -> dict:
 
 def _existing_dates(conn) -> set:
     rows = conn.execute(
-        "SELECT date FROM pla_incursions WHERE source = 'mnd'"
+        "SELECT date FROM pla_incursions WHERE source = 'mnd' AND aircraft_intruded IS NOT NULL"
     ).fetchall()
     return {r['date'] for r in rows}
 
