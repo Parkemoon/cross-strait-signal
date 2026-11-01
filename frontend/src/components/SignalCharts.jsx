@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine,
@@ -42,30 +43,43 @@ const TOPIC_LABELS = {
 };
 
 // Rail section label — matches StatsSidebar's RailLabel.
-function RailLabel({ title }) {
+function RailLabel({ title, right }) {
   return (
     <div style={{
       borderTop: "1px solid var(--hair)",
       paddingTop: "14px",
       marginBottom: "8px",
-      fontFamily: "var(--font-mono)",
-      fontSize: "9px",
-      fontWeight: 600,
-      letterSpacing: "0.2em",
-      textTransform: "uppercase",
-      color: "var(--ink)",
-    }}>{title}</div>
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+    }}>
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "9px",
+        fontWeight: 600,
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        color: "var(--ink)",
+      }}>{title}</span>
+      {right}
+    </div>
   );
 }
 
-function SentimentTooltip({ active, payload, label }) {
+function fmtSigned(v, digits = 2) {
+  if (v == null || Number.isNaN(v)) return "0.00";
+  return `${v > 0 ? "+" : ""}${v.toFixed(digits)}`;
+}
+
+function SentimentTooltip({ active, payload, label, mode }) {
   if (!active || !payload?.length) return null;
   // Select by dataKey, not position — with the dual-view baseline line the
   // payload carries two entries and their order follows render order.
   const main = payload.find((p) => p.dataKey === "score") ?? payload[0];
   const base = payload.find((p) => p.dataKey === "base");
   const score = main?.value;
-  const count = main?.payload?.count;
+  const row = main?.payload || {};
+  const count = row.count;
   return (
     <div style={{
       background: "var(--bg)",
@@ -77,11 +91,21 @@ function SentimentTooltip({ active, payload, label }) {
     }}>
       <div style={{ color: "var(--faint)", marginBottom: "4px", letterSpacing: "0.08em" }}>{label}</div>
       <div style={{ color: bandColour(score), fontWeight: 600 }}>
-        {score > 0 ? "+" : ""}{score?.toFixed(3)}
+        {mode === "adj" ? "Excess " : ""}{fmtSigned(score, 3)}
       </div>
+      {mode === "adj" && row.rawScore != null && row.normScore != null && (
+        <div style={{ color: "var(--muted)", fontSize: "10px", marginTop: "2px" }}>
+          Raw {fmtSigned(row.rawScore, 2)} · Norm {fmtSigned(row.normScore, 2)}
+        </div>
+      )}
+      {mode !== "adj" && row.normScore != null && row.excessScore != null && (
+        <div style={{ color: "var(--muted)", fontSize: "10px", marginTop: "2px" }}>
+          Norm {fmtSigned(row.normScore, 2)} · Excess {fmtSigned(row.excessScore, 2)}
+        </div>
+      )}
       {base?.value != null && (
         <div style={{ color: "var(--muted)", fontSize: "10px", marginTop: "2px" }}>
-          Gemini {base.value > 0 ? "+" : ""}{base.value.toFixed(3)}
+          Gemini {fmtSigned(base.value, 3)}
         </div>
       )}
       <div style={{ color: "var(--faint)", fontSize: "10px", marginTop: "2px" }}>
@@ -107,6 +131,8 @@ function makeEndDot(formatted) {
 // dashed line — the alt-model lens's "Both" view overlays production Gemini
 // this way. `accent` (optional) recolours the main line (the model's tint).
 export function SentimentTrendChart({ data, days, baseline, accent }) {
+  const [mode, setMode] = useState("raw");
+
   if (!data || data.length === 0) {
     return (
       <div style={{
@@ -120,34 +146,98 @@ export function SentimentTrendChart({ data, days, baseline, accent }) {
     );
   }
 
-  const baseByDate = {};
-  (baseline || []).forEach((d) => { baseByDate[d.date] = d.avg_score; });
+  const hasExcess = data.some((d) => d.avg_excess != null);
+  const activeMode = hasExcess ? mode : "raw";
 
-  const formatted = data.map((d) => ({
-    date: d.date?.slice(5),
-    // A day with articles but no scores yields avg_score: null; keep it null
-    // (a gap in the line) rather than letting ?.toFixed → undefined → NaN
-    // propagate into the chart and the "NaN" tooltip.
-    score: d.avg_score == null ? null : Number(d.avg_score.toFixed(3)),
-    base: baseline
-      ? (baseByDate[d.date] == null ? null : Number(baseByDate[d.date].toFixed(3)))
-      : undefined,
-    count: d.article_count,
-  }));
+  const baseByDate = {};
+  (baseline || []).forEach((d) => {
+    baseByDate[d.date] = activeMode === "adj" && d.avg_excess != null ? d.avg_excess : d.avg_score;
+  });
+
+  const formatted = data.map((d) => {
+    const rawVal = d.avg_score == null ? null : Number(d.avg_score.toFixed(3));
+    const excVal = d.avg_excess == null ? null : Number(d.avg_excess.toFixed(3));
+    const normVal = d.avg_baseline == null ? null : Number(d.avg_baseline.toFixed(3));
+    return {
+      date: d.date?.slice(5),
+      // A day with articles but no scores yields avg_score: null; keep it null
+      // (a gap in the line) rather than letting ?.toFixed → undefined → NaN
+      // propagate into the chart and the "NaN" tooltip.
+      score: activeMode === "adj" ? excVal : rawVal,
+      rawScore: rawVal,
+      excessScore: excVal,
+      normScore: normVal,
+      base: baseline
+        ? (baseByDate[d.date] == null ? null : Number(baseByDate[d.date].toFixed(3)))
+        : undefined,
+      count: d.article_count,
+    };
+  });
 
   const stroke = accent || "var(--ink)";
   const first = formatted[0]?.date;
   const last = formatted[formatted.length - 1]?.date;
 
+  const modeToggle = hasExcess ? (
+    <span
+      style={{
+        display: "inline-flex",
+        gap: "4px",
+        fontFamily: "var(--font-mono)",
+        fontSize: "8.5px",
+        letterSpacing: "0.1em",
+      }}
+      title="Toggle between raw headline sentiment and Source x Topic baseline-adjusted excess tone"
+    >
+      {[
+        { key: "raw", label: "RAW" },
+        { key: "adj", label: "ADJ" },
+      ].map((opt, idx) => (
+        <span key={opt.key} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+          {idx > 0 && <span style={{ color: "var(--dot)" }}>·</span>}
+          <button
+            type="button"
+            onClick={() => setMode(opt.key)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "var(--font-mono)",
+              fontSize: "8.5px",
+              letterSpacing: "0.1em",
+              fontWeight: activeMode === opt.key ? 700 : 400,
+              color: activeMode === opt.key ? "var(--ink)" : "var(--pale)",
+              borderBottom: activeMode === opt.key ? "1px solid var(--ink)" : "1px solid transparent",
+            }}
+          >
+            {opt.label}
+          </button>
+        </span>
+      ))}
+    </span>
+  ) : null;
+
   return (
     <div style={{ marginBottom: "18px" }}>
-      <RailLabel title={`Trend — ${days} days`} />
+      <RailLabel title={`Trend — ${days} days`} right={modeToggle} />
       <ResponsiveContainer width="100%" height={72}>
         <LineChart data={formatted} margin={{ top: 6, right: 6, bottom: 0, left: 6 }}>
           <XAxis dataKey="date" hide />
           <YAxis domain={[-1, 1]} hide />
-          <Tooltip content={<SentimentTooltip />} />
+          <Tooltip content={<SentimentTooltip mode={activeMode} />} />
           <ReferenceLine y={0} stroke="var(--hair)" strokeDasharray="2 3" />
+          {!baseline && activeMode === "raw" && hasExcess && (
+            <Line
+              type="monotone"
+              dataKey="normScore"
+              stroke="var(--dot)"
+              strokeWidth={1}
+              strokeDasharray="2 3"
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
           {baseline && (
             <Line
               type="monotone"
@@ -180,7 +270,7 @@ export function SentimentTrendChart({ data, days, baseline, accent }) {
         letterSpacing: "0.08em",
       }}>
         <span>{first}</span>
-        <span>◀ −1 HOSTILE · +1 COOPERATIVE ▶</span>
+        <span>{activeMode === "adj" ? "◀ −1 MORE HOSTILE · +1 MORE COOP VS NORM ▶" : "◀ −1 HOSTILE · +1 COOPERATIVE ▶"}</span>
         <span>{last}</span>
       </div>
     </div>

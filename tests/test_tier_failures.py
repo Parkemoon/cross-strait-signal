@@ -27,7 +27,8 @@ from scraper.utils.llm import TIER1_MODEL, parse_llm_json, parse_llm_object  # n
 
 SCHEMA = os.path.join(os.path.dirname(__file__), '..', 'db', 'schema.sql')
 
-ANALYSIS_ROW = ("SELECT ai.sentiment, ai.sentiment_score, ai.urgency, ai.summary_en, "
+ANALYSIS_ROW = ("SELECT ai.sentiment, ai.sentiment_score, ai.sentiment_score_raw, "
+                "ai.sentiment_baseline, ai.sentiment_excess, ai.urgency, ai.summary_en, "
                 "ai.is_escalation_signal, ai.needs_human_review, ai.review_reason, "
                 "ai.model_used, a.title_en, a.ai_processed "
                 "FROM ai_analysis ai JOIN articles a ON a.id = ai.article_id WHERE a.id = ?")
@@ -161,7 +162,8 @@ def test_tier2_not_relevant_with_nulls_holds_the_row_and_keeps_tier1_sentiment(d
     art = db.add_article()
     ap._apply_tier1_analysis(db.conn, art, _tier1(), {})
     row = db.conn.execute(ANALYSIS_ROW, (art['id'],)).fetchone()
-    assert (row['sentiment'], row['sentiment_score']) == ('hostile', -0.7)
+    assert (row['sentiment'], row['sentiment_score_raw']) == ('hostile', -0.7)
+    assert row['sentiment_score'] < -0.3
     assert row['needs_human_review'] == 1
     assert 'Flash=NOT_RELEVANT' in row['review_reason']
     assert 'Low confidence' not in row['review_reason']
@@ -194,7 +196,8 @@ def test_a_clean_tier2_review_clears_a_tier1_flag_it_fixed(db):
     art = db.add_article()
     ap._apply_tier1_analysis(db.conn, art, _tier1(sentiment_score=-0.1), {})
     row = db.conn.execute(ANALYSIS_ROW, (art['id'],)).fetchone()
-    assert row['sentiment_score'] == -0.6
+    assert row['sentiment_score_raw'] == -0.6
+    assert row['sentiment_score'] < -0.3
     assert (row['needs_human_review'], row['review_reason']) == (0, None)
     assert row['model_used'].endswith('(review)')
 

@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from api.database import db_conn
 from api.auth import require_admin
+from shared.sentiment_calibration import refresh_article_sentiment_excess
 
 router = APIRouter(tags=["review"])
 
@@ -78,6 +79,9 @@ def get_review_queue():
                 ai.topic_primary,
                 ai.sentiment,
                 ai.sentiment_score,
+                ai.sentiment_score_raw,
+                ai.sentiment_baseline,
+                ai.sentiment_excess,
                 ai.urgency,
                 ai.summary_en,
                 ai.key_quote,
@@ -174,6 +178,9 @@ def resolve_review(analysis_id: int, decision: ReviewDecision):
                 decision.topic_override,
                 decision.score_override,
             ))
+
+        if decision.score_override is not None or decision.topic_override:
+            refresh_article_sentiment_excess(conn, article_id)
 
         conn.commit()
         return {"status": "resolved", "resolution": decision.resolution}

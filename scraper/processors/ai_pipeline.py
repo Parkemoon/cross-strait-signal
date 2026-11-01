@@ -58,6 +58,24 @@ from shared.name_registry import (
     merge_canon as _merge_canon,
     merge_glossary as _merge_glossary,
 )
+from shared.sentiment_calibration import calibrate_sentiment_score as _calibrate_sentiment_score
+
+
+def _article_source_bias(conn, article):
+    try:
+        if 'source_bias' in article.keys():
+            return article['source_bias']
+    except Exception:
+        if isinstance(article, dict) and 'source_bias' in article:
+            return article['source_bias']
+    try:
+        row = conn.execute(
+            "SELECT s.bias FROM articles a JOIN sources s ON s.id = a.source_id WHERE a.id = ?",
+            (article['id'],),
+        ).fetchone()
+        return row[0] if row else None
+    except Exception:
+        return None
 _JSON_ENTITY_CANON = _load_entity_canon()          # the committed file, never mutated
 _ENTITY_CANON = _JSON_ENTITY_CANON                 # + approved name-registry rows after refresh_name_registry()
 _CANONICAL_ENTITIES = _ENTITY_CANON['canonical']  # exact-match map (exercise names)
@@ -1143,21 +1161,38 @@ def _apply_tier1_analysis(conn, article, analysis, pollster_lookup):
     ))
 
     sentiment_reasoning = analysis.get('sentiment_reasoning', '')
+    raw_sentiment_score = analysis.get('sentiment_score', 0.0)
+    if raw_sentiment_score is None:
+        raw_sentiment_score = 0.0
+    cal = _calibrate_sentiment_score(
+        raw_score=raw_sentiment_score,
+        sentiment_label=analysis.get('sentiment', 'neutral'),
+        source_name=article['source_name'],
+        source_bias=_article_source_bias(conn, article),
+        topic_primary=analysis.get('topic_primary', 'POL_TONGDU'),
+        title_en=analysis.get('title_en', article['title_original']),
+        summary_en=analysis.get('summary_en', ''),
+        key_quote_en=analysis.get('key_quote_en'),
+    )
 
     # Insert analysis results
     conn.execute("""
         INSERT INTO ai_analysis
         (article_id, topic_primary, topic_secondary, sentiment, sentiment_score,
+         sentiment_score_raw, sentiment_baseline, sentiment_excess,
          sentiment_reasoning, urgency, summary_en, key_quote, key_quote_en,
          is_new_formulation, is_escalation_signal, escalation_note,
          model_used, confidence)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         article['id'],
         analysis.get('topic_primary', 'POL_TONGDU'),
         analysis.get('topic_secondary'),
         analysis.get('sentiment', 'neutral'),
-        analysis.get('sentiment_score', 0.0),
+        cal.sentiment_score if cal else raw_sentiment_score,
+        cal.sentiment_score_raw if cal else raw_sentiment_score,
+        cal.sentiment_baseline if cal else None,
+        cal.sentiment_excess if cal else None,
         sentiment_reasoning,
         analysis.get('urgency', 'routine'),
         analysis.get('summary_en', ''),
@@ -1364,13 +1399,29 @@ FULL TEXT:
         analysis['sentiment_reasoning'] = review_analysis.get('sentiment_reasoning', analysis.get('sentiment_reasoning', ''))
         analysis['is_escalation_signal'] = review_analysis.get('is_escalation_signal', analysis.get('is_escalation_signal', False))
         analysis['escalation_note'] = review_analysis.get('escalation_note', analysis.get('escalation_note'))
+        raw_t2_score = analysis.get('sentiment_score')
+        cal_t2 = _calibrate_sentiment_score(
+            raw_score=raw_t2_score if raw_t2_score is not None else 0.0,
+            sentiment_label=analysis['sentiment'],
+            source_name=article['source_name'],
+            source_bias=_article_source_bias(conn, article),
+            topic_primary=analysis.get('topic_primary', 'POL_TONGDU'),
+            title_en=analysis.get('title_en', article['title_original']),
+            summary_en=analysis.get('summary_en', ''),
+            key_quote_en=analysis.get('key_quote_en'),
+        ) if raw_t2_score is not None else None
         conn.execute("""
             UPDATE ai_analysis SET sentiment = ?, sentiment_score = ?,
+            sentiment_score_raw = ?, sentiment_baseline = ?, sentiment_excess = ?,
             sentiment_reasoning = ?, is_escalation_signal = ?,
             escalation_note = ?, model_used = ?
             WHERE article_id = ?
         """, (
-            analysis['sentiment'], analysis.get('sentiment_score'),
+            analysis['sentiment'],
+            cal_t2.sentiment_score if cal_t2 else raw_t2_score,
+            cal_t2.sentiment_score_raw if cal_t2 else raw_t2_score,
+            cal_t2.sentiment_baseline if cal_t2 else None,
+            cal_t2.sentiment_excess if cal_t2 else None,
             analysis['sentiment_reasoning'],
             analysis['is_escalation_signal'], analysis.get('escalation_note'),
             f'{TIER2_MODEL} (review)', article['id']
@@ -1424,7 +1475,8 @@ def process_unanalysed_articles(limit=10):
         SELECT articles.id, articles.title_original, articles.content_original,
                articles.language, articles.published_at,
                sources.name as source_name,
-               sources.place as source_place
+               sources.place as source_place,
+               sources.bias as source_bias
         FROM articles
         JOIN sources ON articles.source_id = sources.id
         WHERE articles.ai_processed = 0
@@ -1548,7 +1600,8 @@ def _select_tier1_candidates(conn, limit):
         SELECT articles.id, articles.title_original, articles.content_original,
                articles.language, articles.published_at,
                sources.name as source_name,
-               sources.place as source_place
+               sources.place as source_place,
+               sources.bias as source_bias
         FROM articles
         JOIN sources ON articles.source_id = sources.id
         WHERE articles.ai_processed = 0
@@ -1689,7 +1742,8 @@ def _collect_one_batch(conn, job_row, batch_job, pollster_lookup):
             SELECT articles.id, articles.title_original, articles.content_original,
                    articles.language, articles.published_at,
                    sources.name as source_name,
-                   sources.place as source_place
+                   sources.place as source_place,
+                   sources.bias as source_bias
             FROM articles JOIN sources ON articles.source_id = sources.id
             WHERE articles.id = ? AND articles.ai_processed = 0
         """, (article_id,)).fetchone()

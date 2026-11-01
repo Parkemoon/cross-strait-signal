@@ -444,6 +444,9 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
         <SentimentBadge
           sentiment={swapMode ? article.alt_sentiment : article.sentiment}
           score={swapMode ? article.alt_sentiment_score : article.sentiment_score}
+          excess={swapMode ? null : article.sentiment_excess}
+          baseline={swapMode ? null : article.sentiment_baseline}
+          rawScore={swapMode ? null : article.sentiment_score_raw}
         />
         {swapMode && topicDiverges && (
           // Model-only view stays clean of Gemini chrome except this one

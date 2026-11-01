@@ -101,15 +101,17 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
                     "AND alx.model = ? AND alx.arm = ? AND alx.outcome = 'ok'")
         alt_params = list(alt_lens)
         X = "alx"
+        EXCESS_EXPR = "(alx.sentiment_score - ai.sentiment_baseline)"
     else:
         ALT_JOIN = ""
         alt_params = []
         X = "ai"
+        EXCESS_EXPR = "ai.sentiment_excess"
 
     # ── Global (unfiltered) aggregations — always computed ────────────────
 
     global_avg = conn.execute(f"""
-        SELECT AVG({X}.sentiment_score)
+        SELECT AVG({X}.sentiment_score), AVG({EXCESS_EXPR}), AVG(ai.sentiment_baseline)
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         {ALT_JOIN}
@@ -180,6 +182,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
                a.published_at, a.analyst_approved,
                a.title_en_override, a.summary_en_override, a.key_quote_override,
                ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
+               ai.sentiment_score_raw, ai.sentiment_baseline, ai.sentiment_excess,
                ai.urgency, ai.summary_en, ai.key_quote, ai.key_quote_en,
                ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
                ai.confidence,
@@ -240,7 +243,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days', *filter_params)).fetchone()[0]
 
         scoped_avg = conn.execute(f"""
-            SELECT AVG({X}.sentiment_score)
+            SELECT AVG({X}.sentiment_score), AVG({EXCESS_EXPR}), AVG(ai.sentiment_baseline)
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             {ALT_JOIN}
@@ -276,7 +279,10 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days', *filter_params)).fetchall()
 
         sentiment_trend = conn.execute(f"""
-            SELECT date(a.published_at) as date, AVG({X}.sentiment_score) as avg_score,
+            SELECT date(a.published_at) as date,
+                   AVG({X}.sentiment_score) as avg_score,
+                   AVG({EXCESS_EXPR}) as avg_excess,
+                   AVG(ai.sentiment_baseline) as avg_baseline,
                    COUNT(*) as article_count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
@@ -290,6 +296,8 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days', *filter_params)).fetchall()
 
         avg_sentiment_score = scoped_avg[0] if scoped_avg[0] else 0
+        avg_sentiment_excess = scoped_avg[1] if scoped_avg[1] else 0
+        avg_sentiment_baseline = scoped_avg[2] if scoped_avg[2] else 0
     else:
         # No filter — scoped equals global, avoid duplicate queries
         total = conn.execute(f"""
@@ -315,7 +323,10 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days')).fetchall()
 
         sentiment_trend = conn.execute(f"""
-            SELECT date(a.published_at) as date, AVG({X}.sentiment_score) as avg_score,
+            SELECT date(a.published_at) as date,
+                   AVG({X}.sentiment_score) as avg_score,
+                   AVG({EXCESS_EXPR}) as avg_excess,
+                   AVG(ai.sentiment_baseline) as avg_baseline,
                    COUNT(*) as article_count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
@@ -327,6 +338,8 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days')).fetchall()
 
         avg_sentiment_score = global_avg[0] if global_avg[0] else 0
+        avg_sentiment_excess = global_avg[1] if global_avg[1] else 0
+        avg_sentiment_baseline = global_avg[2] if global_avg[2] else 0
 
     # Dual-view baseline: PRODUCTION aggregates over the SAME swept subset,
     # so the sidebar's "Both" overlay compares like with like (an unswept
@@ -335,7 +348,7 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
     alt_baseline = None
     if alt_lens:
         baseline_avg = conn.execute(f"""
-            SELECT AVG(ai.sentiment_score)
+            SELECT AVG(ai.sentiment_score), AVG(ai.sentiment_excess), AVG(ai.sentiment_baseline)
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             {ALT_JOIN}
@@ -353,7 +366,10 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
             GROUP BY 1
         """, (*alt_params, f'-{days} days')).fetchall()
         baseline_trend = conn.execute(f"""
-            SELECT date(a.published_at) as date, AVG(ai.sentiment_score) as avg_score,
+            SELECT date(a.published_at) as date,
+                   AVG(ai.sentiment_score) as avg_score,
+                   AVG(ai.sentiment_excess) as avg_excess,
+                   AVG(ai.sentiment_baseline) as avg_baseline,
                    COUNT(*) as article_count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
@@ -365,6 +381,8 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days')).fetchall()
         alt_baseline = {
             "avg_sentiment_score": baseline_avg[0] if baseline_avg[0] else 0,
+            "avg_sentiment_excess": baseline_avg[1] if baseline_avg[1] else 0,
+            "avg_sentiment_baseline": baseline_avg[2] if baseline_avg[2] else 0,
             "sentiment_by_place": [dict(r) for r in baseline_by_place],
             "sentiment_trend": [dict(r) for r in baseline_trend],
         }
@@ -375,7 +393,11 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         "alt_baseline": alt_baseline,
         "total_articles": total,
         "avg_sentiment_score": avg_sentiment_score,
+        "avg_sentiment_excess": avg_sentiment_excess,
+        "avg_sentiment_baseline": avg_sentiment_baseline,
         "global_avg_sentiment_score": global_avg[0] if global_avg[0] else 0,
+        "global_avg_sentiment_excess": global_avg[1] if global_avg[1] else 0,
+        "global_avg_sentiment_baseline": global_avg[2] if global_avg[2] else 0,
         "global_sentiment_by_place": [dict(r) for r in global_sentiment_by_place],
         "filter_applied": {
             "topic": topic,

@@ -233,6 +233,9 @@ def list_articles(
                 ai.topic_secondary,
                 ai.sentiment,
                 ai.sentiment_score,
+                ai.sentiment_score_raw,
+                ai.sentiment_baseline,
+                ai.sentiment_excess,
                 ai.sentiment_reasoning,
                 ai.urgency,
                 ai.summary_en,
@@ -308,7 +311,8 @@ def get_article_cluster(article_id: int, admin: bool = Depends(is_admin)):
         rows = conn.execute(f"""
             SELECT
                 a.id, a.title_original, a.title_en, a.url, a.published_at,
-                ai.sentiment, ai.sentiment_score, ai.summary_en, ai.topic_primary,
+                ai.sentiment, ai.sentiment_score, ai.sentiment_score_raw,
+                ai.sentiment_baseline, ai.sentiment_excess, ai.summary_en, ai.topic_primary,
                 s.name as source_name, s.place as source_place, s.bias
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
@@ -329,6 +333,7 @@ def get_article(article_id: int, admin: bool = Depends(is_admin)):
             SELECT
                 a.*,
                 ai.topic_primary, ai.topic_secondary, ai.sentiment, ai.sentiment_score,
+                ai.sentiment_score_raw, ai.sentiment_baseline, ai.sentiment_excess,
                 ai.sentiment_reasoning, ai.urgency, ai.summary_en, ai.summary_zh, ai.key_quote, ai.key_quote_en,
                 ai.is_new_formulation, ai.is_escalation_signal, ai.escalation_note,
                 ai.confidence, ai.model_used,

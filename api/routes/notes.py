@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from api.database import db_conn
 from api.auth import require_admin
+from shared.sentiment_calibration import refresh_article_sentiment_excess
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -47,6 +48,9 @@ def create_note(note: NoteCreate):
                 "UPDATE ai_analysis SET sentiment_score = ? WHERE article_id = ?",
                 (note.score_override, note.article_id)
             )
+
+        if note.score_override is not None or note.topic_override:
+            refresh_article_sentiment_excess(conn, note.article_id)
 
         conn.commit()
         return {"id": cursor.lastrowid, "status": "created"}

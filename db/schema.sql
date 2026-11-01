@@ -80,7 +80,10 @@ CREATE TABLE ai_analysis (
     topic_primary   TEXT NOT NULL,               -- see Topic Taxonomy below
     topic_secondary TEXT,                        -- optional second topic
     sentiment       TEXT NOT NULL,               -- 'hostile', 'cooperative', 'neutral', 'mixed'
-    sentiment_score REAL,                        -- -1.0 (strongly hostile) to +1.0 (strongly cooperative)
+    sentiment_score REAL,                        -- -1.0 (strongly hostile) to +1.0 (strongly cooperative), de-heaped within band
+    sentiment_score_raw REAL,                    -- original uncalibrated LLM float score
+    sentiment_baseline REAL,                     -- Empirical-Bayes expected score for (source, topic_primary)
+    sentiment_excess REAL,                       -- residual tone deviation (sentiment_score - sentiment_baseline)
     sentiment_reasoning TEXT,                    -- one-sentence audit trail: who is framed how, toward whom, with quoted phrase
     urgency         TEXT NOT NULL DEFAULT 'routine', -- 'flash', 'priority', 'routine'
     -- AI-generated summary
