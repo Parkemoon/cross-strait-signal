@@ -1133,7 +1133,7 @@
       "title_en": "Grey-zone coercion",
       "title_zh": "灰色地帶行動",
       "romanisation": "huīsè dìdài xíngdòng",
-      "what_en": "Grey-zone operations are coercive activities calibrated to stay below the threshold that would trigger armed conflict: coast guard 'law-enforcement' patrols in contested waters, ADIZ incursions, median-line crossings, sand dredging, undersea-cable interference, cognitive and legal warfare. The instrument works by normalisation — each action is individually deniable and difficult to answer, while the accumulated pattern shifts the operating picture. The term is a descriptive frame used by Taipei, Washington and most analysts; Beijing does not accept the label for its own activity. On this dashboard the LEGAL_GREY topic captures this activity class.",
+      "what_en": "Grey-zone operations are coercive activities calibrated to stay below the threshold that would trigger armed conflict: coast guard 'law-enforcement' patrols in contested waters, ADIZ incursions, median-line crossings, sand dredging, undersea-cable interference, cognitive and legal warfare. The instrument works by normalisation — each action is individually deniable and difficult to answer, while the accumulated pattern shifts the operating picture. The term is a descriptive frame used by Taipei, Washington and most analysts; Beijing does not accept the label for its own activity. On this dashboard the MARITIME_GREY and SEC_LAWFARE topics capture this activity class.",
       "readings": [
         {
           "actor_id": "taiwan",

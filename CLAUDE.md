@@ -168,21 +168,23 @@ Optional: `GEMINI_TIER1_MODE=interactive` (Tier 1 defaults to the Batch API — 
 
 ## Key domain concepts
 
-**Topic taxonomy (28 categories)**: `MIL_EXERCISE`, `MIL_MOVEMENT`, `MIL_HARDWARE`, `MIL_POLICY`, `DIP_STATEMENT`, `DIP_VISIT`, `DIP_SANCTIONS`, `PARTY_VISIT`, `ARMS_SALES`, `ECON_TRADE`, `ECON_INVEST`, `ENERGY`, `SCI_TECH`, `POL_DOMESTIC_TW`, `POL_DOMESTIC_PRC`, `POL_TONGDU`, `INFO_WARFARE`, `CYBER`, `LEGAL_GREY`, `HUMANITARIAN`, `TRANSPORT`, `INT_ORG`, `US_PRC`, `US_TAIWAN`, `HK_MAC`, `CULTURE`, `SPORT`
+**Topic taxonomy (24 categories, reworked 2026-11)**: `MIL_EXERCISE`, `MIL_MOVEMENT`, `MIL_HARDWARE`, `MIL_POLICY`, `ARMS_SALES`, `MARITIME_GREY`, `SEC_LAWFARE`, `INFO_CYBER`, `POL_TONGDU`, `CROSS_STRAIT_REG`, `CULTURE`, `UNITED_FRONT_INTEG`, `PARTY_VISIT`, `US_RELATIONS`, `INTL_RELATIONS`, `DIP_VISIT`, `INT_ORG`, `DIP_SANCTIONS`, `POL_DOMESTIC_TW`, `POL_DOMESTIC_PRC`, `HK_MAC`, `ECON_TRADE`, `SCI_TECH`, `TRANSPORT`
 
 Less-obvious categories:
-- **POL_TONGDU** (統獨): Captures both unification rhetoric AND independence moves — bidirectional by design.
-- **PARTY_VISIT**: KMT/opposition visits to PRC — distinct from `DIP_VISIT` (state-level). A KMT chair visiting Beijing is always `PARTY_VISIT`, never `DIP_VISIT`.
-- **ARMS_SALES**: US or third-party arms transfer events and export control decisions. Use `MIL_POLICY` for broader defence posture; `MIL_HARDWARE` when a platform is the primary subject.
-- **US_PRC**: US-China relations as the primary subject (Washington-Beijing diplomacy, tech/trade sanctions, Pacific deterrence) — not Taiwan's relationship with the US.
-- **US_TAIWAN**: US-Taiwan relations — congressional legislation, US officials visiting Taiwanese counterparts, US statements on Taiwan's status.
+- **POL_TONGDU** (統獨): Captures both unification rhetoric AND independence moves (One China principle, 1992 Consensus debates, Lai speeches, TAO/MAC ideological rebuttals) — bidirectional by design.
+- **CROSS_STRAIT_REG**: Taiwan MAC/NIA administrative regulation of cross-strait people flows, mainland spouse (陸配) residency/household-registration revocations, civil-servant travel restrictions, and humanitarian returns.
+- **UNITED_FRONT_INTEG**: PRC united-front and cross-strait integration policies (Fujian integrated development demonstration zone, preferential measures for Taiwanese residents/youth, mainland residence permits 台灣居民居住證).
+- **PARTY_VISIT**: KMT/TPP/opposition visits to the PRC and Straits Forum attendance — distinct from `DIP_VISIT` (state-level or third-country official visits). A KMT chair visiting Beijing is always `PARTY_VISIT`, never `DIP_VISIT`.
+- **ARMS_SALES**: US or third-party arms transfer events, FMS notifications, and export licence decisions. Use `MIL_POLICY` for broader defence posture; `MIL_HARDWARE` when a specific platform is the primary subject.
+- **MARITIME_GREY**: Maritime and airspace grey-zone coercion below the armed-conflict threshold — coast guard patrols (CCG/CGA), Kinmen/Matsu restricted waters, fishing vessel boarding/seizures, sand dredging, physical ship damage to undersea cables, and weather balloons.
+- **SEC_LAWFARE**: Espionage prosecutions, National Security Act / Anti-Infiltration Act cases, military recruitment spy rings, and PRC judicial/lawfare actions targeting Taiwanese individuals (secession directives, bounties).
+- **INFO_CYBER**: Hacking, DDoS, APT intrusions, state disinformation/botnet campaigns, AI deepfakes, and data-security bans on Chinese apps (TikTok, Xiaohongshu, DeepSeek, Gaode Maps). Domestic Taiwan inter-party troll-farm accusations without PRC state involvement belong in `POL_DOMESTIC_TW`.
+- **US_RELATIONS**: US-Taiwan and US-PRC political, strategic, and diplomatic relations (Trump-Xi summits, Congressional Taiwan legislation, AIT statements, US Indo-Pacific deterrence). US-Taiwan trade/tariffs/TSMC investment belong in `ECON_TRADE`; weapons packages in `ARMS_SALES`; Taiwanese officials visiting/transiting the US in `DIP_VISIT`.
+- **INTL_RELATIONS**: Non-US third-country diplomatic statements, parliamentary resolutions, G7/EU/Japan/Philippine posture on cross-strait stability, and ROC formal diplomatic allies.
 - **HK_MAC**: Hong Kong and Macao with cross-strait relevance — "one country, two systems" credibility, Beijing governance. (Code is `HK_MAC`; display label is "HK/Macao" — don't rename the code, it exists in the DB.)
-- **CULTURE**: Cross-strait cultural exchange and soft power. Use `POL_TONGDU` when cultural framing is explicitly about sovereignty.
-- **CYBER**: Cyber operations, hacking, digital espionage, infrastructure intrusions — distinct from `INFO_WARFARE` (narrative/propaganda).
-- **LEGAL_GREY**: Grey-zone coercion below armed-conflict threshold — coast guard confrontations, sand dredging, undersea cable incidents, quasi-military harassment using civilian or law-enforcement vessels.
-- **SPORT**: Sport with cross-strait political dimensions — Olympic naming ("Chinese Taipei"), athletic competitions, sport as soft power.
-- **SCI_TECH**: Civilian/dual-use technology — semiconductor industry, chip/tech export controls, space, AI, scientific exchanges, tech talent flows. Use `ECON_TRADE` for broad trade sanctions; `CYBER` for intrusion operations; `ARMS_SALES` for defence hardware.
-- **ENERGY**: Energy security with cross-strait relevance — LNG imports, nuclear policy, shipping lane economics, PRC energy leverage.
+- **CULTURE**: Cross-strait cultural, religious (Mazu), youth, academic, media, entertainment, and sporting exchanges or Olympic naming ("Chinese Taipei") disputes. Use `POL_TONGDU` when framing is explicitly about sovereignty, or `UNITED_FRONT_INTEG` when focused on PRC preferential integration schemes.
+- **ECON_TRADE**: Cross-strait and US-Taiwan trade, tariffs, ECFA suspensions, agricultural/food bans, supply-chain investment, and energy security.
+- **SCI_TECH**: Civilian/dual-use technology — semiconductor industry, wafer fabs, chip/tech export controls, space, AI, scientific exchanges.
 - **POL_DOMESTIC_TW / POL_DOMESTIC_PRC**: Classified by the *subject* of the article, not the source country.
 
 **Sentiment values**: `hostile` / `cooperative` / `neutral` / `mixed` with numeric score (−1.0 hostile to +1.0 cooperative). Measures how positively or negatively the article frames the **opposing side of the strait**, not geopolitical "stability." PRC source → how does it portray Taiwan? TW source → how does it portray PRC? Taiwan-US military cooperation does NOT score as cross-strait cooperative — it's neutral or hostile depending on PRC framing. KMT visits to the mainland score cooperative regardless of political symbolism.

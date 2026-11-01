@@ -38,7 +38,7 @@ def client(monkeypatch):
         "'zh-tw', '2026-09-28T01:00:00', 1, 0)", (src,)).lastrowid
     conn.execute(
         "INSERT INTO ai_analysis (article_id, topic_primary, sentiment, sentiment_score, summary_en, "
-        "needs_human_review, review_resolved) VALUES (?, 'DIP_STATEMENT', 'hostile', -0.6, 's', 1, 0)",
+        "needs_human_review, review_resolved) VALUES (?, 'INTL_RELATIONS', 'hostile', -0.6, 's', 1, 0)",
         (aid,))
     conn.commit()
 

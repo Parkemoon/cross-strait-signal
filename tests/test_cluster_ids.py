@@ -81,3 +81,27 @@ def test_repair_splits_infinity_and_rekeys_finite_ids(conn):
 
     # Idempotent
     assert cluster_events.repair_numeric_cluster_ids(conn)['merged_rows'] == 0
+
+
+def test_backfill_cluster_secondary_topics():
+    import sqlite3
+    from scripts.cluster_events import backfill_cluster_secondary_topics
+    conn = sqlite3.connect(':memory:')
+    conn.row_factory = sqlite3.Row
+    conn.execute('CREATE TABLE ai_analysis (article_id INTEGER, topic_primary TEXT, topic_secondary TEXT)')
+    conn.executemany(
+        'INSERT INTO ai_analysis VALUES (?, ?, ?)',
+        [
+            (1, 'DIP_VISIT', None),
+            (2, 'DIP_VISIT', None),
+            (3, 'POL_TONGDU', None),
+            (4, 'POL_DOMESTIC_TW', 'US_RELATIONS'),
+        ],
+    )
+    assign = {1: ('c1', 4), 2: ('c1', 4), 3: ('c1', 4), 4: ('c1', 4)}
+    n = backfill_cluster_secondary_topics(conn, assign)
+    assert n == 1
+    r3 = conn.execute('SELECT topic_secondary FROM ai_analysis WHERE article_id = 3').fetchone()
+    r4 = conn.execute('SELECT topic_secondary FROM ai_analysis WHERE article_id = 4').fetchone()
+    assert r3['topic_secondary'] == 'DIP_VISIT'
+    assert r4['topic_secondary'] == 'US_RELATIONS'

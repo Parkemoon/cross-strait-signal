@@ -39,7 +39,7 @@ def db(monkeypatch):
             "'2026-09-28T01:00:00', 1, 0)", (src, f"https://x.example/{sentiment}{score}")).lastrowid
         return conn.execute(
             "INSERT INTO ai_analysis (article_id, topic_primary, sentiment, sentiment_score, summary_en, "
-            "needs_human_review, review_resolved) VALUES (?, 'DIP_STATEMENT', ?, ?, 's', 1, 0)",
+            "needs_human_review, review_resolved) VALUES (?, 'INTL_RELATIONS', ?, ?, 's', 1, 0)",
             (aid, sentiment, score)).lastrowid
 
     conn.commit()

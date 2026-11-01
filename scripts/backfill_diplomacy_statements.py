@@ -37,8 +37,8 @@ from scraper.utils.db import get_connection, DB_PATH
 # appears. The forward pipeline pass runs on every topic; this allowlist
 # just bounds backfill API cost. Widen with --topics or --all-topics.
 DEFAULT_TOPICS = [
-    'DIP_STATEMENT', 'DIP_VISIT', 'DIP_SANCTIONS',
-    'US_TAIWAN', 'US_PRC', 'INT_ORG', 'PARTY_VISIT', 'ARMS_SALES',
+    'INTL_RELATIONS', 'DIP_VISIT', 'DIP_SANCTIONS',
+    'US_RELATIONS', 'INT_ORG', 'PARTY_VISIT', 'ARMS_SALES',
 ]
 
 

@@ -48,6 +48,19 @@ from scraper.utils.usage_log import USAGE_LOG_PATH
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 ARMS = {
+    "deepseek/deepseek-v4.1-flash-1017": {
+        # Latest October 17, 2026 DeepSeek V4.1 Flash checkpoint on OpenRouter,
+        # paired with the 24-category taxonomy rework. Verified against live
+        # /api/v1/models/deepseek/deepseek-v4.1-flash-1017/endpoints (2026-11-01).
+        "neutral":    ["DeepInfra", "Cloudflare", "DigitalOcean", "Fireworks",
+                       "Together", "BaseTen", "Parasail"],
+        "originator": ["DeepSeek"],
+    },
+    "deepseek/deepseek-v4.1-flash": {
+        "neutral":    ["DeepInfra", "CoreWeave", "DigitalOcean", "Fireworks",
+                       "Together", "BaseTen", "Parasail"],
+        "originator": ["DeepSeek"],
+    },
     "deepseek/deepseek-v4-flash": {
         # DeepInfra first — 13k of the 13.1k corpus rows came from it, so
         # keeping it preferred preserves serving-stack consistency; the rest
@@ -95,6 +108,8 @@ MAX_TOKENS = {
 # originator arm exhausted its budget mid-thought on 15/20 Band C calls and
 # never emitted the JSON. Same headroom rule as the reasoning models.
 ARM_MAX_TOKENS = {
+    ("deepseek/deepseek-v4.1-flash-1017", "originator"): 24000,
+    ("deepseek/deepseek-v4.1-flash", "originator"): 24000,
     ("deepseek/deepseek-v4-flash", "originator"): 24000,
 }
 

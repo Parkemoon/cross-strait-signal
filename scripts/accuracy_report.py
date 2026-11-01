@@ -83,7 +83,7 @@ def _fetch_metrics(conn, days):
 
     # Override target distribution: what category does the analyst
     # reclassify articles INTO most often? Reveals where the AI misses
-    # framings — clustering on US_PRC / US_TAIWAN / POL_TONGDU / HK_MAC
+    # framings — clustering on US_RELATIONS / POL_TONGDU / INT_ORG / HK_MAC
     # in practice. Only counts overrides within the window (joined via
     # the same base so the same approved/processed filters apply).
     override_targets = conn.execute(f"""

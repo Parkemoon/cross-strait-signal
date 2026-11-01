@@ -321,6 +321,48 @@ def repair_numeric_cluster_ids(conn, window_hours=48):
     }
 
 
+
+BROAD_REACTION_TOPICS = {'POL_TONGDU', 'POL_DOMESTIC_TW', 'POL_DOMESTIC_PRC'}
+
+
+def backfill_cluster_secondary_topics(conn, assign):
+    """When an event cluster has a clear substantive primary event topic
+    (e.g. PARTY_VISIT, DIP_VISIT, ARMS_SALES, MIL_EXERCISE, INTL_RELATIONS)
+    and some articles in the cluster were tagged with a broad reaction topic
+    (POL_TONGDU or POL_DOMESTIC_TW) with no topic_secondary, populate
+    topic_secondary with the cluster's consensus event topic."""
+    if not assign:
+        return 0
+    by_cid = {}
+    for aid, (cid, _size) in assign.items():
+        by_cid.setdefault(cid, []).append(aid)
+
+    updated = 0
+    for cid, aids in by_cid.items():
+        if len(aids) < 2:
+            continue
+        placeholders = ','.join('?' * len(aids))
+        rows = conn.execute(
+            f"SELECT article_id, topic_primary, topic_secondary FROM ai_analysis WHERE article_id IN ({placeholders})",
+            aids,
+        ).fetchall()
+        specific_counts = Counter(
+            r['topic_primary'] for r in rows
+            if r['topic_primary'] and r['topic_primary'] not in BROAD_REACTION_TOPICS and r['topic_primary'] != 'NOT_RELEVANT'
+        )
+        if not specific_counts:
+            continue
+        consensus_topic, _cnt = specific_counts.most_common(1)[0]
+        for r in rows:
+            if r['topic_primary'] in BROAD_REACTION_TOPICS and not r['topic_secondary']:
+                conn.execute(
+                    "UPDATE ai_analysis SET topic_secondary = ? WHERE article_id = ?",
+                    (consensus_topic, r['article_id']),
+                )
+                updated += 1
+    return updated
+
+
 def cluster_assignments(articles, groups):
     """One window's cluster ids: -> (assign, clear).
 
@@ -385,6 +427,7 @@ def cluster_recent_articles(hours=48, summary_threshold=SUMMARY_THRESHOLD,
     conn.executemany(
         "UPDATE articles SET event_cluster_id = NULL, cluster_size = 1 WHERE id = ?",
         [(aid,) for aid in clear])
+    backfill_cluster_secondary_topics(conn, assign)
     conn.commit()
     conn.close()
 

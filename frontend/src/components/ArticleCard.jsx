@@ -11,12 +11,11 @@ import { modelLabel, modelTintRgba } from "../altModels";
 const SENTIMENT_OPTIONS = ["hostile", "cooperative", "neutral", "mixed"];
 const TOPIC_OPTIONS = [
   "MIL_EXERCISE", "MIL_MOVEMENT", "MIL_HARDWARE", "MIL_POLICY",
-  "DIP_STATEMENT", "DIP_VISIT", "DIP_SANCTIONS", "PARTY_VISIT", "ARMS_SALES",
-  "ECON_TRADE", "ECON_INVEST", "ENERGY", "SCI_TECH",
-  "POL_DOMESTIC_TW", "POL_DOMESTIC_PRC", "POL_TONGDU",
-  "US_PRC", "US_TAIWAN", "HK_MAC",
-  "INFO_WARFARE", "CYBER", "LEGAL_GREY",
-  "CULTURE", "SPORT", "TRANSPORT", "INT_ORG", "HUMANITARIAN",
+  "ARMS_SALES", "MARITIME_GREY", "SEC_LAWFARE", "INFO_CYBER",
+  "POL_TONGDU", "CROSS_STRAIT_REG", "CULTURE", "UNITED_FRONT_INTEG", "PARTY_VISIT",
+  "US_RELATIONS", "INTL_RELATIONS", "DIP_VISIT", "INT_ORG", "DIP_SANCTIONS",
+  "POL_DOMESTIC_TW", "POL_DOMESTIC_PRC", "HK_MAC",
+  "ECON_TRADE", "SCI_TECH", "TRANSPORT",
 ];
 
 // Inline field editor — pencil icon that expands to textarea + save/cancel

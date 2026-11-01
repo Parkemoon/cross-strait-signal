@@ -20,6 +20,7 @@ Create a `.env` file in the project root:
 GEMINI_API_KEY=your_gemini_key_here
 ADMIN_TOKEN=...                 # required for admin frontend build; gates write
                                 # endpoints AND admin-only reads server-side
+REACT_APP_CARTO_KEY=...         # CARTO basemap key, inlined into both frontend builds
 ```
 
 Optional extras (all degrade gracefully when unset):
@@ -29,6 +30,11 @@ GEMINI_TIER1_MODE=interactive   # Tier 1 defaults to the Gemini Batch API;
                                 # this restores the sequential per-article path
 TIER1_BATCH_WAIT_MIN=20         # same-tick batch collection window (0 = always next tick)
 OPENROUTER_API_KEY=...          # alt-model comparison sweeps only
+GFW_API_TOKEN=...               # Global Fishing Watch 4Wings + SAR pulls (Maritime tab)
+R2_ENDPOINT=...                 # Cloudflare R2 off-site nightly DB backup
+R2_BUCKET=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
 SMTP_HOST=... SMTP_PORT=587     # health / alt-model report emails
 SMTP_USER=... SMTP_PASS=...
 DIGEST_TO=...                   # alt-model report recipient
@@ -76,24 +82,25 @@ The project venv at `venv/` may be near-empty on Windows. Use
 `sys.stdout.reconfigure(encoding='utf-8', errors='replace')` at the
 top of any script that prints Chinese text.
 
-## RSSHub
+## RSSHub and China Times browser setup
 
 Several sources (People's Daily, Global Times, The Paper, Zaobao,
-RTHK, China Times sections) are fetched via a self-hosted RSSHub
-instance. Run it as a Docker container with Chromium bundled
-(required for China Times):
+and RTHK Greater China) are fetched via a self-hosted RSSHub
+instance on `http://localhost:1200`:
 
 ```bash
 docker run -d --name rsshub --restart always -p 1200:1200 \
   diygod/rsshub:chromium-bundled
 ```
 
-The `chromium-bundled` tag is required — the China Times sections
-render via Puppeteer and 503 without it. Note that the chinatimes
-route currently needs a local patch inside the container (upstream
-RSSHub serves the generic realtime feed for every CT section and
-503s on category pages); the patch is lost if the image is re-pulled
-— details in `.claude/rules/deployment.md`.
+China Times (`chinatimes_scraper.py`) moved off RSSHub in September
+2026 to a dedicated headful Chromium scraper running on a private
+Xvfb display under the unprivileged `cs-browser` user. On Ubuntu
+24.04, install `xvfb` and run `sudo bash scripts/setup_browser_user.sh`
+once (and after any Playwright upgrade) to provision the user,
+`/opt/ms-playwright`, and the AppArmor profile. Details on RSSHub
+container patches for Zaobao and The Paper live in
+`.claude/rules/deployment.md`.
 
 ## Server setup
 
@@ -104,6 +111,8 @@ cd cross-strait-signal
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+sudo apt install -y xvfb zstd
+sudo bash scripts/setup_browser_user.sh
 cd frontend && npm install && npm run build && cd ..
 python scripts/init_db.py
 python scripts/seed_sources.py
@@ -132,8 +141,8 @@ WantedBy=multi-user.target
 
 ## Nginx config
 
-Two server blocks — one per domain, both proxying to the same
-FastAPI backend.
+Two server blocks, one per domain, both proxying to the same FastAPI
+backend.
 
 **Public** (`/etc/nginx/sites-available/cross-strait-signal-public`):
 
@@ -190,6 +199,9 @@ server {
 # Main pipeline runs every 6 hours
 0 */6 * * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python scripts/run_pipeline.py >> /var/log/cross-strait-pipeline.log 2>&1
 
+# Nightly online SQLite backup (zstd + quick_check + Cloudflare R2 off-site upload)
+30 2 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/backup_db.py >> /var/log/cross-strait-backup.log 2>&1
+
 # CIFER snapshot (Playwright, monthly — not in main pipeline because of the
 # headless Chromium launch cost)
 0 3 1 * * cd /var/www/cross-strait-signal && /var/www/cross-strait-signal/venv/bin/python -m scraper.scrapers.cifer_snapshot_scraper >> /var/log/cifer-snapshot.log 2>&1
@@ -197,19 +209,19 @@ server {
 # Scraper staleness monitor (daily 08:15 — emails on state changes only)
 15 8 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/check_scraper_health.py >> /var/log/scraper-health.log 2>&1
 
-# Alt-model experiment: daily full-window incremental v4f sweep (04:00,
+# Alt-model experiment: daily full-window incremental DeepSeek V4.1 Flash sweep (04:00,
 # probe-guarded, self-heals transient provider failures; full-corpus window
 # so no approved article ever ages out unswept)
-0 4 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --probe && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4-flash --arm neutral --retry-errors --days 3650 --limit 1000 >> /var/log/cross-strait-v4f-sweep.log 2>&1
+0 4 * * * cd /var/www/cross-strait-signal && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4.1-flash-1017 --arm neutral --probe && venv/bin/python scripts/sweep_alt_models.py --model deepseek/deepseek-v4.1-flash-1017 --arm neutral --retry-errors --days 3650 --limit 1000 >> /var/log/cross-strait-v4f-sweep.log 2>&1
 
-# Alt-model monthly review email (1st 08:30 — live aggregates vs the frozen 2026-08 reference)
+# Alt-model monthly review email (1st 08:30 — live aggregates vs the frozen reference)
 30 8 1 * * cd /var/www/cross-strait-signal && venv/bin/python scripts/alt_model_monthly_report.py >> /var/log/alt-model-report.log 2>&1
 ```
 
 ## Deploy workflow
 
 ```bash
-# Local — commit, push, then SSH to server
+# Commit, push, then run server_deploy.sh on the production worktree
 git push
 ssh root@<your-server>
 cd /var/www/cross-strait-signal && ./server_deploy.sh
@@ -226,12 +238,12 @@ also run `python scripts/seed_sources.py` on the server.
 ```bash
 cd frontend
 npm install
-npm run build          # admin bundle (requires .env with ADMIN_TOKEN sourced)
-npm run build:public   # public read-only bundle (no token, safe to run plain)
+npm run build          # admin bundle (requires .env with ADMIN_TOKEN and REACT_APP_CARTO_KEY sourced)
+npm run build:public   # public read-only bundle (requires .env with REACT_APP_CARTO_KEY sourced)
 npm test
 ```
 
 The two bundles serve different domains: `strait-signal.net` gets
-the public build (write controls hidden at compile time);
-`admin.strait-signal.net` gets the admin build behind HTTP basic
-auth.
+the public build (write controls hidden at compile time and
+sourcemaps disabled); `admin.strait-signal.net` gets the admin build
+behind HTTP basic auth and `X-Admin-Token` verification.

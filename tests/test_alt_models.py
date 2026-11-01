@@ -183,3 +183,11 @@ def test_usage_adapter_no_usage_writes_nothing(tmp_path, monkeypatch):
     monkeypatch.setattr(orx, "USAGE_LOG_PATH", str(log))
     orx.log_openrouter_usage("alt_tier1", "m", {"error": {"message": "x"}})
     assert not log.exists()
+
+
+def test_deepseek_v4_1_flash_1017_configured():
+    n41 = orx.build_request_body("deepseek/deepseek-v4.1-flash-1017", "p", "neutral")
+    o41 = orx.build_request_body("deepseek/deepseek-v4.1-flash-1017", "p", "originator")
+    assert n41["provider"]["only"] == orx.ARMS["deepseek/deepseek-v4.1-flash-1017"]["neutral"]
+    assert n41["max_tokens"] == 8000
+    assert o41["max_tokens"] == 24000
