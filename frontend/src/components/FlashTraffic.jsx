@@ -14,7 +14,7 @@ const TOGGLE = {
 // The rest of a topic's signals, folded under its lead card: which outlets
 // carried it at a glance (alignment-coloured, one badge per publication),
 // the headlines on demand.
-function MoreReports({ items }) {
+function MoreReports({ items, sentimentMode = "raw" }) {
   const [open, setOpen] = useState(false);
   if (!items.length) return null;
   const outlets = [];
@@ -40,7 +40,16 @@ function MoreReports({ items }) {
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em", color: "var(--faint)" }}>
               {a.published_at?.slice(0, 10)}
             </span>
-            {a.sentiment && <SentimentBadge sentiment={a.sentiment} score={a.sentiment_score} />}
+            {a.sentiment && (
+              <SentimentBadge
+                sentiment={a.sentiment}
+                score={a.sentiment_score}
+                excess={a.sentiment_excess}
+                baseline={a.sentiment_baseline}
+                rawScore={a.sentiment_score_raw}
+                mode={sentimentMode}
+              />
+            )}
           </div>
           <a href={a.url} target="_blank" rel="noopener noreferrer"
              style={{ display: "block", fontFamily: "var(--font-body)", fontSize: "13px", lineHeight: 1.45,
@@ -58,7 +67,7 @@ function MoreReports({ items }) {
 // signalGroups.js). The lead is a full ArticleCard (admin controls intact);
 // the topic's other reports fold under it. The big --dot numeral carries the
 // hierarchy instead of the old inverted colour plate.
-export default function FlashTraffic({ escalations: initialEscalations, onTopicClick, onEntityClick, onApprove }) {
+export default function FlashTraffic({ escalations: initialEscalations, sentimentMode = "raw", onTopicClick, onEntityClick, onApprove }) {
   const [escalations, setEscalations] = useState(initialEscalations || []);
 
   useEffect(() => {
@@ -120,12 +129,13 @@ export default function FlashTraffic({ escalations: initialEscalations, onTopicC
             <ArticleCard
               key={g.lead.id}
               article={g.lead}
+              sentimentMode={sentimentMode}
               onTopicClick={onTopicClick}
               onEntityClick={onEntityClick}
               onSignalOff={handleSignalOff}
               onApprove={onApprove}
             />
-            <MoreReports items={g.more} />
+            <MoreReports items={g.more} sentimentMode={sentimentMode} />
           </div>
         </div>
       ))}

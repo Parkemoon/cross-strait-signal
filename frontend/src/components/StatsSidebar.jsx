@@ -252,11 +252,34 @@ const LEGEND = [
   { label: "CENTRIST", colour: "var(--muted)", filled: true },
 ];
 
-export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClick, onPlaceClick, onSourceClick, onEntityClick, onBiasClick, onClearScopingFilters, onOpenTab }) {
+export default function StatsSidebar({
+  stats,
+  filters = {},
+  altDual,
+  sentimentMode: controlledMode,
+  onSentimentModeChange,
+  onTopicClick,
+  onPlaceClick,
+  onSourceClick,
+  onEntityClick,
+  onBiasClick,
+  onClearScopingFilters,
+  onOpenTab,
+}) {
   // Key-figure roster for the entity alignment markers (side + party per
   // curated person); fetched once, cached for the session.
   const figures = useKeyFigureRoster();
+  const [internalMode, setInternalMode] = useState("raw");
+  const sentimentMode = controlledMode ?? internalMode;
+  const setSentimentMode = onSentimentModeChange ?? setInternalMode;
   if (!stats) return null;
+
+  const isAdj = sentimentMode === "adj";
+  const pickScore = (row, fallbackKey = "avg_score") => {
+    if (!row) return undefined;
+    if (isAdj && row.avg_excess != null) return row.avg_excess;
+    return row[fallbackKey];
+  };
 
   const isFiltered    = hasScopingFilter(filters);
   const scopeLabel    = isFiltered ? buildScopeLabel(filters) : "";
@@ -269,16 +292,27 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
   const dualBaseline = altLens && altDual ? stats.alt_baseline : null;
   const baselineByPlace = {};
   (dualBaseline?.sentiment_by_place ?? []).forEach((r) => {
-    baselineByPlace[r.place] = r.avg_score;
+    baselineByPlace[r.place] = pickScore(r);
   });
 
   // Build global-by-place lookup for ghost dots
   const globalByPlace = {};
   (stats.global_sentiment_by_place ?? []).forEach((r) => {
-    globalByPlace[r.place] = r.avg_score;
+    globalByPlace[r.place] = pickScore(r);
   });
 
   const MIN_CAMP_N = 5; // minimum articles to show Taiwan-by-camp gauges
+  const overallScore = isAdj && stats.avg_sentiment_excess != null
+    ? stats.avg_sentiment_excess
+    : stats.avg_sentiment_score;
+  const globalOverallScore = isAdj && stats.global_avg_sentiment_excess != null
+    ? stats.global_avg_sentiment_excess
+    : stats.global_avg_sentiment_score;
+  const dualOverallScore = dualBaseline
+    ? (isAdj && dualBaseline.avg_sentiment_excess != null
+        ? dualBaseline.avg_sentiment_excess
+        : dualBaseline.avg_sentiment_score)
+    : undefined;
 
   return (
     <div>
@@ -369,10 +403,51 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
           )}
         />
         <div style={{
-          fontFamily: "var(--font-mono)", fontSize: "8.5px",
-          color: "var(--pale)", marginTop: "-6px", marginBottom: "10px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          fontFamily: "var(--font-mono)",
+          fontSize: "8.5px",
+          color: "var(--pale)",
+          marginTop: "-6px",
+          marginBottom: "10px",
         }}>
-          ◀ HOSTILE · COOPERATIVE ▶
+          <span>{isAdj ? "◀ HOSTILE · COOP VS NORM ▶" : "◀ HOSTILE · COOPERATIVE ▶"}</span>
+          <span
+            style={{
+              display: "inline-flex",
+              gap: "4px",
+              letterSpacing: "0.1em",
+            }}
+            title="Toggle between raw headline sentiment and Source x Topic baseline-adjusted excess tone"
+          >
+            {[
+              { key: "raw", label: "RAW" },
+              { key: "adj", label: "ADJ" },
+            ].map((opt, idx) => (
+              <span key={opt.key} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                {idx > 0 && <span style={{ color: "var(--dot)" }}>·</span>}
+                <button
+                  type="button"
+                  onClick={() => setSentimentMode(opt.key)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "8.5px",
+                    letterSpacing: "0.1em",
+                    fontWeight: sentimentMode === opt.key ? 700 : 400,
+                    color: sentimentMode === opt.key ? "var(--ink)" : "var(--pale)",
+                    borderBottom: sentimentMode === opt.key ? "1px solid var(--ink)" : "1px solid transparent",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              </span>
+            ))}
+          </span>
         </div>
 
         {isFiltered && stats.total_articles === 0 ? (
@@ -388,11 +463,11 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
           <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
             <StabilityGauge
               label="Overall"
-              score={stats.avg_sentiment_score}
+              score={overallScore}
               days={isFiltered ? null : stats.period_days}
               globalScore={dualBaseline
-                ? dualBaseline.avg_sentiment_score
-                : isFiltered ? stats.global_avg_sentiment_score : undefined}
+                ? dualOverallScore
+                : isFiltered ? globalOverallScore : undefined}
               onClick={filters.source_place && onPlaceClick ? () => onPlaceClick(null) : undefined}
               isActive={false}
             />
@@ -415,7 +490,7 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
                   <StabilityGauge
                     key={c.place}
                     label={placeLabel}
-                    score={c.avg_score}
+                    score={pickScore(c)}
                     globalScore={dualBaseline
                       ? (baselineByPlace[c.place] ?? undefined)
                       : isFiltered ? (globalByPlace[c.place] ?? undefined) : undefined}
@@ -458,7 +533,7 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
                           b.bias === "blue"          ? "Blue" :
                           b.bias === "blue_leaning"  ? "Blue-leaning" : b.bias
                         }
-                        score={b.avg_score}
+                        score={pickScore(b)}
                         compact
                         onClick={onBiasClick ? () => onBiasClick(b.bias) : undefined}
                         isActive={filters.bias === b.bias}
@@ -479,6 +554,8 @@ export default function StatsSidebar({ stats, filters = {}, altDual, onTopicClic
         days={stats.period_days}
         accent={altLens ? modelTint(altLens.model) : undefined}
         baseline={dualBaseline?.sentiment_trend}
+        mode={sentimentMode}
+        onModeChange={setSentimentMode}
       />
 
       {/* Topic Breakdown — hidden when a topic filter is active (one bar = useless) */}

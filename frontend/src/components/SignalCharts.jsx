@@ -130,8 +130,10 @@ function makeEndDot(formatted) {
 // `baseline` (optional): a second {date, avg_score}[] series drawn as a grey
 // dashed line — the alt-model lens's "Both" view overlays production Gemini
 // this way. `accent` (optional) recolours the main line (the model's tint).
-export function SentimentTrendChart({ data, days, baseline, accent }) {
-  const [mode, setMode] = useState("raw");
+export function SentimentTrendChart({ data, days, baseline, accent, mode: controlledMode, onModeChange }) {
+  const [internalMode, setInternalMode] = useState("raw");
+  const mode = controlledMode ?? internalMode;
+  const setMode = onModeChange ?? setInternalMode;
 
   if (!data || data.length === 0) {
     return (

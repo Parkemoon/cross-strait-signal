@@ -202,7 +202,7 @@ function EntityTag({ articleId, entity, onEntityClick }) {
   );
 }
 
-export default function ArticleCard({ article, altLens, altDual, onTopicClick, onEntityClick, onSignalOff, onApprove }) {
+export default function ArticleCard({ article, altLens, altDual, sentimentMode = "raw", onTopicClick, onEntityClick, onSignalOff, onApprove }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [sentimentOverride, setSentimentOverride] = useState("");
@@ -447,6 +447,7 @@ export default function ArticleCard({ article, altLens, altDual, onTopicClick, o
           excess={swapMode ? null : article.sentiment_excess}
           baseline={swapMode ? null : article.sentiment_baseline}
           rawScore={swapMode ? null : article.sentiment_score_raw}
+          mode={swapMode ? "raw" : sentimentMode}
         />
         {swapMode && topicDiverges && (
           // Model-only view stays clean of Gemini chrome except this one

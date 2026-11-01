@@ -64,6 +64,7 @@ export default function App() {
   // (both side by side). Display-only — same fetch either way, so it lives
   // outside altLens to avoid a pointless refetch on toggle.
   const [altDual, setAltDual] = useState(false);
+  const [sentimentMode, setSentimentMode] = useState("raw");
   const [view, setView] = useState("feed"); // "feed" | any view in navGroups.js (WIDE_VIEWS)
   const [mobileTab, setMobileTab] = useState("feed"); // "feed" | "stats" | "social" | any view in navGroups.js
   const windowWidth = useWindowWidth();
@@ -86,8 +87,14 @@ export default function App() {
   }, [view]);
 
   const isSection = WIDE_VIEWS.includes(view);
+  const isAdj = sentimentMode === "adj";
   const byPlace = {};
-  (stats?.sentiment_by_place ?? []).forEach((r) => { byPlace[r.place] = r.avg_score; });
+  (stats?.sentiment_by_place ?? []).forEach((r) => {
+    byPlace[r.place] = isAdj ? (r.avg_excess ?? r.avg_score) : r.avg_score;
+  });
+  const overallTickerScore = isAdj
+    ? (stats?.avg_sentiment_excess ?? stats?.avg_sentiment_score)
+    : stats?.avg_sentiment_score;
 
   const dateStr = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
 
@@ -165,12 +172,12 @@ export default function App() {
               <span>·</span>
               <span>{groupSignals(stats?.escalation_signals).length} ACTIVE SIGNALS</span>
               <span>·</span>
-              <span>OVERALL <b style={{ color: bandColour(stats?.avg_sentiment_score), fontWeight: 600 }}>{fmtScore(stats?.avg_sentiment_score)}</b></span>
+              <span>OVERALL{isAdj ? " Δ" : ""} <b style={{ color: bandColour(overallTickerScore), fontWeight: 600 }}>{fmtScore(overallTickerScore)}</b></span>
               <span>·</span>
               <span>
-                PRC <b style={{ color: bandColour(byPlace.PRC), fontWeight: 600 }}>{fmtScore(byPlace.PRC)}</b>
+                PRC{isAdj ? " Δ" : ""} <b style={{ color: bandColour(byPlace.PRC), fontWeight: 600 }}>{fmtScore(byPlace.PRC)}</b>
                 {" / "}
-                TW <b style={{ color: bandColour(byPlace.TW), fontWeight: 600 }}>{fmtScore(byPlace.TW)}</b>
+                TW{isAdj ? " Δ" : ""} <b style={{ color: bandColour(byPlace.TW), fontWeight: 600 }}>{fmtScore(byPlace.TW)}</b>
               </span>
             </div>
           </div>
@@ -245,6 +252,8 @@ export default function App() {
             stats={stats}
             filters={filters}
             altDual={altDual}
+            sentimentMode={sentimentMode}
+            onSentimentModeChange={setSentimentMode}
             onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
             onPlaceClick={(place) => {
               setFilters((f) => {
@@ -321,6 +330,7 @@ export default function App() {
                 {/* Priority Signals */}
                 <FlashTraffic
                   escalations={stats?.escalation_signals}
+                  sentimentMode={sentimentMode}
                   onTopicClick={(topic) => { setFilters((f) => ({ ...f, topic })); setPage(1); }}
                   onEntityClick={(entityName) => { setFilters((f) => ({ ...f, entity: entityName, search: undefined })); setPage(1); }}
                   onApprove={() => setPendingApproval((n) => Math.max(0, n - 1))}
@@ -409,6 +419,7 @@ export default function App() {
                         article={article}
                         altLens={READ_ONLY ? null : altLens}
                         altDual={altDual}
+                        sentimentMode={sentimentMode}
                         onTopicClick={(topic) => {
                           setFilters((f) => ({ ...f, topic }));
                           setPage(1);

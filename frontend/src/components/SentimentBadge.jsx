@@ -13,21 +13,29 @@ function fmtSigned(v, digits = 2) {
   return `${v > 0 ? "+" : ""}${v.toFixed(digits)}`;
 }
 
-export default function SentimentBadge({ sentiment, score, excess, baseline, rawScore }) {
+function excessToneColour(excess, neutralToken = "var(--muted)") {
+  if (excess == null) return neutralToken;
+  if (excess <= -0.15) return "var(--hostile)";
+  if (excess >= 0.15) return "var(--coop)";
+  return neutralToken;
+}
+
+export default function SentimentBadge({
+  sentiment,
+  score,
+  excess,
+  baseline,
+  rawScore,
+  mode = "raw",
+}) {
   const style = SENTIMENT_STYLES[sentiment] || SENTIMENT_STYLES.neutral;
-  const showExcess = excess != null && Math.abs(excess) >= 0.20;
-  const excessColor =
-    excess <= -0.20
-      ? "var(--hostile)"
-      : excess >= 0.20
-      ? "var(--coop)"
-      : "var(--muted)";
+  const isAdj = mode === "adj" && excess != null;
 
   const tooltipParts = [];
   if (score != null) {
     tooltipParts.push(
       rawScore != null && Math.abs(rawScore - score) >= 0.005
-        ? `Calibrated ${fmtSigned(score, 2)} (raw ${fmtSigned(rawScore, 2)})`
+        ? `Calibrated ${fmtSigned(score, 2)} (LLM raw ${fmtSigned(rawScore, 2)})`
         : `Score ${fmtSigned(score, 2)}`
     );
   }
@@ -38,6 +46,44 @@ export default function SentimentBadge({ sentiment, score, excess, baseline, raw
     tooltipParts.push(`Excess tone ${fmtSigned(excess, 2)}`);
   }
   const titleText = tooltipParts.length > 0 ? tooltipParts.join(" · ") : undefined;
+
+  if (isAdj) {
+    return (
+      <span
+        title={titleText}
+        style={{
+          display: "inline-flex",
+          alignItems: "baseline",
+          gap: "6px",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        <span
+          style={{
+            color: excessToneColour(excess, "var(--neut)"),
+            fontSize: "10px",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          ◆ Δ {fmtSigned(excess, 2)} vs norm
+        </span>
+        {score != null && (
+          <span
+            style={{
+              color: "var(--muted)",
+              fontSize: "9px",
+              fontWeight: 400,
+              letterSpacing: "0.04em",
+            }}
+          >
+            (raw {fmtSigned(score, 2)} · {style.label})
+          </span>
+        )}
+      </span>
+    );
+  }
 
   return (
     <span
@@ -60,17 +106,17 @@ export default function SentimentBadge({ sentiment, score, excess, baseline, raw
       >
         ◆ {score != null ? fmtSigned(score, 2) : ""} {style.label}
       </span>
-      {showExcess && (
+      {excess != null && (
         <span
           style={{
-            color: excessColor,
+            color: excessToneColour(excess, "var(--muted)"),
             fontSize: "9px",
-            fontWeight: 500,
+            fontWeight: Math.abs(excess) >= 0.15 ? 600 : 400,
             letterSpacing: "0.04em",
-            opacity: 0.85,
+            opacity: Math.abs(excess) >= 0.15 ? 0.92 : 0.72,
           }}
         >
-          ({fmtSigned(excess, 2)} vs norm)
+          (Δ {fmtSigned(excess, 2)} vs norm)
         </span>
       )}
     </span>

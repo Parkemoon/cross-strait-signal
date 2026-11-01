@@ -129,7 +129,10 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
     )
 
     global_sentiment_by_place = conn.execute(f"""
-        SELECT {PLACE_BUCKET} as place, AVG({X}.sentiment_score) as avg_score
+        SELECT {PLACE_BUCKET} as place,
+               AVG({X}.sentiment_score) as avg_score,
+               AVG({EXCESS_EXPR}) as avg_excess,
+               AVG(ai.sentiment_baseline) as avg_baseline
         FROM articles a
         JOIN ai_analysis ai ON a.id = ai.article_id
         {ALT_JOIN}
@@ -254,7 +257,10 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days', *filter_params)).fetchone()
 
         sentiment_by_place = conn.execute(f"""
-            SELECT {PLACE_BUCKET} as place, AVG({X}.sentiment_score) as avg_score
+            SELECT {PLACE_BUCKET} as place,
+                   AVG({X}.sentiment_score) as avg_score,
+                   AVG({EXCESS_EXPR}) as avg_excess,
+                   AVG(ai.sentiment_baseline) as avg_baseline
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             {ALT_JOIN}
@@ -266,7 +272,11 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         """, (*alt_params, f'-{days} days', *filter_params)).fetchall()
 
         sentiment_by_bias = conn.execute(f"""
-            SELECT s.bias, AVG({X}.sentiment_score) as avg_score, COUNT(*) as count
+            SELECT s.bias,
+                   AVG({X}.sentiment_score) as avg_score,
+                   AVG({EXCESS_EXPR}) as avg_excess,
+                   AVG(ai.sentiment_baseline) as avg_baseline,
+                   COUNT(*) as count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             {ALT_JOIN}
@@ -311,7 +321,11 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
         sentiment_by_place = global_sentiment_by_place
 
         sentiment_by_bias = conn.execute(f"""
-            SELECT s.bias, AVG({X}.sentiment_score) as avg_score, COUNT(*) as count
+            SELECT s.bias,
+                   AVG({X}.sentiment_score) as avg_score,
+                   AVG({EXCESS_EXPR}) as avg_excess,
+                   AVG(ai.sentiment_baseline) as avg_baseline,
+                   COUNT(*) as count
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             {ALT_JOIN}
@@ -356,7 +370,10 @@ def _dashboard_stats_body(conn, days, topic, source_place, urgency, escalation_o
               AND {VISIBLE}
         """, (*alt_params, f'-{days} days')).fetchone()
         baseline_by_place = conn.execute(f"""
-            SELECT {PLACE_BUCKET} as place, AVG(ai.sentiment_score) as avg_score
+            SELECT {PLACE_BUCKET} as place,
+                   AVG(ai.sentiment_score) as avg_score,
+                   AVG(ai.sentiment_excess) as avg_excess,
+                   AVG(ai.sentiment_baseline) as avg_baseline
             FROM articles a
             JOIN ai_analysis ai ON a.id = ai.article_id
             {ALT_JOIN}
