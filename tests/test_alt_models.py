@@ -189,5 +189,5 @@ def test_deepseek_v4_1_flash_1017_configured():
     n41 = orx.build_request_body("deepseek/deepseek-v4.1-flash-1017", "p", "neutral")
     o41 = orx.build_request_body("deepseek/deepseek-v4.1-flash-1017", "p", "originator")
     assert n41["provider"]["only"] == orx.ARMS["deepseek/deepseek-v4.1-flash-1017"]["neutral"]
-    assert n41["max_tokens"] == 8000
+    assert n41["max_tokens"] == 24000
     assert o41["max_tokens"] == 24000

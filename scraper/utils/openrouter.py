@@ -101,6 +101,8 @@ DEFAULT_MAX_TOKENS = 8000
 MAX_TOKENS = {
     "moonshotai/kimi-k3": 24000,
     "deepseek/deepseek-r1-0528": 24000,  # reasoning model — same headroom rule
+    "deepseek/deepseek-v4.1-flash-1017": 24000,  # DeepInfra serves V4.1 Flash with reasoning enabled
+    "deepseek/deepseek-v4.1-flash": 24000,
 }
 # Per-(model, arm) override. DeepSeek's first-party endpoint serves V4 Flash
 # in THINKING mode (~30k chars of reasoning per Tier-1 call, 2026-08-28) —
